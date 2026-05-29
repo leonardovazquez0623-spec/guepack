@@ -2,19 +2,19 @@
   "name": "GUEPACK Express",
   "short_name": "GUEPACK",
   "description": "Paquetería Local en Guadalajara",
-  "start_url": "/splash.html?v=2",
+  "start_url": "/splash.html?v=3",
   "display": "standalone",
   "background_color": "#0e3070",
-  "theme_color": "#1a4fa0",
+  "theme_color": "#0e3070",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/Icono_gp.png",
+      "src": "/Splash_icon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/Icono_gp.png",
+      "src": "/Splash_icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
