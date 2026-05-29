@@ -502,6 +502,10 @@
   .folio-label { font-size: 10px; color: var(--gray-mid); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   .folio-number { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--orange); letter-spacing: 3px; }
 </style>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/Icono_gp.png">
+<meta name="theme-color" content="#1a4fa0">
+<link rel="icon" type="image/png" href="/Icono_gp.png">
 </head>
 <body>
 
@@ -793,6 +797,10 @@ async function verificarSesion() {
   }
 }
 verificarSesion()
+// ── Registrar Service Worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+}
 
 let selSize = null, selZone = null;
 
