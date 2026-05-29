@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Paquetería Local y Envíos Express</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #1a4fa0;
+    --blue-dark: #0e3070;
+    --blue-light: #2563c4;
+    --orange: #f05a1a;
+    --orange-light: #ff7a3d;
+    --white: #ffffff;
+    --gray-light: #f4f6fb;
+    --gray: #e0e6f0;
+    --gray-mid: #8fa3c0;
+    --text: #1a2740;
+    --success: #22c55e;
+    --shadow: 0 4px 24px rgba(26,79,160,0.13);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-light);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display: flex;
+    background: var(--blue-dark);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 14px 8px;
+    text-align: center;
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all .2s;
+  }
+  .nav-tab.active {
+    color: var(--orange);
+    border-bottom-color: var(--orange);
+  }
+  .nav-tab .tab-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; animation: fadeIn .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
+    padding: 22px 20px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-header::after {
+    content: '';
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 140px; height: 140px;
+    background: var(--orange);
+    opacity: .12;
+    border-radius: 50%;
+  }
+  .app-header::before {
+    content: '';
+    position: absolute;
+    right: 30px; bottom: -20px;
+    width: 80px; height: 80px;
+    background: var(--orange);
+    opacity: .08;
+    border-radius: 50%;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--white);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .brand-name span { color: var(--orange); }
+  .brand-badge {
+    background: var(--orange);
+    color: var(--white);
+    font-size: 9px;
+    font-weight: 900;
+    padding: 3px 7px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  .header-sub {
+    color: rgba(255,255,255,0.65);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── CARDS & CONTAINERS ── */
+  .container { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, var(--orange), transparent);
+    border-radius: 2px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-mid);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--gray-light);
+    transition: border-color .2s, box-shadow .2s;
+    appearance: none;
+  }
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26,79,160,0.12);
+    background: var(--white);
+  }
+
+  /* ── SIZE SELECTOR ── */
+  .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .size-option {
+    border: 2px solid var(--gray);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+  }
+  .size-option:hover { border-color: var(--blue-light); }
+  .size-option.selected {
+    border-color: var(--blue);
+    background: rgba(26,79,160,0.06);
+  }
+  .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+  .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
+  .size-desc { font-size: 10px; color: var(--gray-mid); font-weight: 600; display: block; margin-top: 2px; }
+
+  /* ── ZONE SELECTOR ── */
+  .zone-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .zone-option {
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+  }
+  .zone-option.selected {
+    border-color: var(--orange);
+    background: rgba(240,90,26,0.07);
+  }
+  .zone-name { font-size: 11px; font-weight: 900; color: var(--text); display: block; }
+  .zone-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
+  /* ── QUOTE BOX ── */
+  .quote-box {
+    background: linear-gradient(135deg, var(--blue-dark), var(--blue));
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .quote-label { color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
+  .quote-detail { color: rgba(255,255,255,0.55); font-size: 10px; font-weight: 600; margin-top: 2px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--orange), var(--orange-light));
+    color: var(--white);
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,90,26,0.45); }
+  .btn-secondary {
+    background: var(--blue);
+    color: var(--white);
+  }
+  .btn-sm {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
+  .btn-success { background: var(--success); color: var(--white); }
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--blue);
+    color: var(--blue);
+  }
+
+  /* ── TRACKING TIMELINE ── */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--gray);
+  }
+  .tl-item {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .tl-dot {
+    position: absolute;
+    left: -24px;
+    top: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--gray);
+    background: var(--white);
+    transition: all .3s;
+  }
+  .tl-item.done .tl-dot { background: var(--success); border-color: var(--success); }
+  .tl-item.current .tl-dot { background: var(--orange); border-color: var(--orange); animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(240,90,26,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(240,90,26,0); }
+  }
+  .tl-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .tl-item.done .tl-title { color: var(--success); }
+  .tl-item.current .tl-title { color: var(--orange); }
+  .tl-item.pending .tl-title { color: var(--gray-mid); }
+  .tl-time { font-size: 10px; color: var(--gray-mid); font-weight: 600; margin-top: 2px; }
+
+  /* ── ORDER CARD (admin) ── */
+  .order-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--blue);
+    transition: transform .15s;
+  }
+  .order-card:hover { transform: translateX(2px); }
+  .order-card.urgent { border-left-color: var(--orange); }
+  .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .order-id { font-size: 10px; font-weight: 900; color: var(--gray-mid); letter-spacing: 1px; }
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-pending { background: rgba(240,90,26,0.12); color: var(--orange); }
+  .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
+  .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
+  .order-client { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .order-details { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 10px; }
+  .order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-box {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--blue); line-height: 1; }
+  .stat-number.orange { color: var(--orange); }
+  .stat-label { font-size: 9px; font-weight: 700; color: var(--gray-mid); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── REPARTIDOR ── */
+  .delivery-header {
+    background: linear-gradient(135deg, #0e3070, #1a4fa0);
+    padding: 20px;
+    color: var(--white);
+    border-radius: 0 0 20px 20px;
+    margin-bottom: 16px;
+  }
+  .delivery-name { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .delivery-sub { font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 600; letter-spacing: 1px; }
+  .pending-count {
+    background: var(--orange);
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .route-card {
+    background: var(--white);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .route-top {
+    background: linear-gradient(90deg, var(--blue), var(--blue-light));
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .route-number { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--white); letter-spacing: 1px; }
+  .route-type { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .route-body { padding: 14px 16px; }
+  .route-addr { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .route-client { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 12px; }
+  .status-steps { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .step-btn {
+    padding: 7px 11px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: 'Montserrat', sans-serif;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .step-btn.inactive { border-color: var(--gray); color: var(--gray-mid); background: var(--gray-light); }
+  .step-btn.active { border-color: var(--orange); color: var(--white); background: var(--orange); }
+  .step-btn.done { border-color: var(--success); color: var(--white); background: var(--success); }
+
+  /* ── BOTTOM NAV (client) ── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    display: flex;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    z-index: 50;
+  }
+  .bottom-btn {
+    flex: 1;
+    padding: 12px 4px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: 'Montserrat', sans-serif;
+    color: var(--gray-mid);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: color .2s;
+  }
+  .bottom-btn.active { color: var(--orange); }
+  .bottom-btn .b-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+
+  .pb-safe { padding-bottom: 80px; }
+
+  /* SECTION TOGGLE */
+  .client-section { display: none; }
+  .client-section.active { display: block; animation: fadeIn .25s ease; }
+
+  /* ── SEPARADORES / EXTRAS ── */
+  .divider { height: 1px; background: var(--gray); margin: 14px 0; }
+  .tag {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  .tag-blue { background: rgba(26,79,160,0.1); color: var(--blue); }
+  .tag-orange { background: rgba(240,90,26,0.1); color: var(--orange); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-mid);
+  }
+  .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
+  .empty-text { font-size: 13px; font-weight: 700; }
+
+  input[type=date] { color-scheme: light; }
+  .btn-logout {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+  letter-spacing: 1px;
+  transition: background .2s;
+}
+.btn-logout:hover { background: var(--orange); }
+
+  .success-screen {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .success-icon {
+    font-size: 64px;
+    display: block;
+    animation: pop .5s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0); }
+    80% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .success-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--blue);
+    letter-spacing: 2px;
+    margin: 12px 0 6px;
+  }
+  .success-sub { font-size: 12px; color: var(--gray-mid); font-weight: 600; }
+  .folio-box {
+    background: var(--gray-light);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 18px 0;
+    border: 2px dashed var(--gray);
+  }
+  .folio-label { font-size: 10px; color: var(--gray-mid); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .folio-number { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--orange); letter-spacing: 3px; }
+</style>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCdxvEoiwuD3h44cSWZqW3Zwt2TPspJBiY&libraries=places&language=es&region=MX" async defer></script>
+</head>
+<body>
+
+<!-- NAV TABS PRINCIPAL -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchMainView('client')">
+    <span class="tab-icon">📦</span>Cliente
+  </div>
+  <div class="nav-tab" onclick="switchMainView('admin')">
+    <span class="tab-icon">🖥️</span>Admin
+  </div>
+  <div class="nav-tab" onclick="switchMainView('delivery')">
+    <span class="tab-icon">🏍️</span>Repartidor
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     VISTA CLIENTE
+═══════════════════════════════════════════════════ -->
+<div id="screen-client" class="screen active">
+
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-name">GUE<span>PAC</span>K</div>
+      <div class="brand-badge">EXPRESS</div>
+    </div>
+    <div class="header-sub">Paquetería Local · Guadalajara</div>
+    <button onclick="cerrarSesion()" class="btn-logout">Cerrar sesión</button>
+  </div>
+
+  <!-- Client Bottom Bar -->
+  <div class="bottom-bar">
+    <button class="bottom-btn active" onclick="showClientSection('new')">
+      <span class="b-icon">➕</span>Nuevo
+    </button>
+    <button class="bottom-btn" onclick="showClientSection('tracking')">
+      <span class="b-icon">📍</span>Rastreo
+    </button>
+    <button class="bottom-btn" onclick="showClientSection('history')">
+      <span class="b-icon">📋</span>Historial
+    </button>
+  </div>
+
+  <div class="container pb-safe">
+
+    <!-- ── NUEVA SOLICITUD ── -->
+    <div id="client-new" class="client-section active">
+
+      <!-- ÉXITO -->
+      <div id="success-state" style="display:none">
+        <div class="card success-screen">
+          <span class="success-icon">✅</span>
+          <div class="success-title">¡Solicitud Enviada!</div>
+          <div class="success-sub">Tu recolección ha sido registrada.<br>Te avisamos por WhatsApp.</div>
+          <div class="folio-box">
+            <div class="folio-label">Folio de seguimiento</div>
+            <div class="folio-number" id="folio-number">GK-...</div>
+          </div>
+          <button class="btn btn-outline" onclick="resetForm()" style="margin-top:8px">Nueva Solicitud</button>
+        </div>
+      </div>
+
+      <!-- FORMULARIO -->
+      <div id="form-state">
+        <div class="card">
+          <div class="card-title">📬 Datos del envío</div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" class="form-input" placeholder="Ej. María García López">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp</label>
+           <input type="tel" class="form-input" placeholder="10 dígitos ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dirección de recolección</label>
+            <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dirección de entrega</label>
+            <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha preferida</label>
+            <input type="date" class="form-input">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📐 Tamaño del paquete</div>
+          <div class="size-grid">
+            <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
+              <span class="size-icon">✉️</span>
+              <span class="size-name">Sobre / Chico</span>
+              <span class="size-desc">Documentos o paquetes pequeños</span>
+            </div>
+            <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
+              <span class="size-icon">📦</span>
+              <span class="size-name">Grande</span>
+              <span class="size-desc">Cajas medianas a grandes</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🗺️ Zona de entrega</div>
+          <div class="zone-grid">
+            <div class="zone-option" id="zn-centro" onclick="selectZone('centro')">
+              <span class="zone-icon">🏙️</span>
+              <span class="zone-name">Centro GDL</span>
+            </div>
+            <div class="zone-option" id="zn-norte" onclick="selectZone('norte')">
+              <span class="zone-icon">⬆️</span>
+              <span class="zone-name">Zona Norte</span>
+            </div>
+            <div class="zone-option" id="zn-sur" onclick="selectZone('sur')">
+              <span class="zone-icon">⬇️</span>
+              <span class="zone-name">Zona Sur</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- COTIZACIÓN -->
+        <div id="quote-display" class="quote-box" style="display:none">
+          <div>
+            <div class="quote-label">COSTO DE ENVÍO</div>
+            <div class="quote-price" id="quote-amount">$0</div>
+            <div class="quote-detail" id="quote-detail">—</div>
+          </div>
+          <div style="font-size:36px">🚀</div>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitRequest()">
+          Solicitar Recolección →
+        </button>
+      </div>
+
+    </div><!-- /client-new -->
+
+    <!-- ── RASTREO ── -->
+    <div id="client-tracking" class="client-section">
+      <div class="card">
+        <div class="card-title">🔍 Rastrear pedido</div>
+        <div class="form-group" style="display:flex;gap:8px;margin-bottom:0">
+          <input type="text" class="form-input" placeholder="Folio  GK-0000" value="GK-2847" style="flex:1">
+          <button class="btn btn-secondary btn-sm" style="width:auto;padding:12px 16px">Buscar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:18px;font-weight:900;color:var(--blue)">Folio GK-2847</div>
+            <div style="font-size:11px;color:var(--gray-mid);font-weight:600">María García · Sobre/Chico · Centro GDL</div>
+          </div>
+          <div class="status-badge badge-transit">En tránsito</div>
+        </div>
+
+        <div class="timeline">
+          <div class="tl-item done">
+            <div class="tl-dot"></div>
+            <div class="tl-title">✅ Paquete recolectado</div>
+            <div class="tl-time">Hoy 10:32 AM</div>
+          </div>
+          <div class="tl-item current">
+            <div class="tl-dot"></div>
+            <div class="tl-title">🚚 En camino a entrega</div>
+            <div class="tl-time">Hoy 11:15 AM · Notificado por WhatsApp</div>
+          </div>
+          <div class="tl-item pending">
+            <div class="tl-dot"></div>
+            <div class="tl-title">⏰ A punto de llegar</div>
+            <div class="tl-time">Pendiente</div>
+          </div>
+          <div class="tl-item pending">
+            <div class="tl-dot"></div>
+            <div class="tl-title">📦 Entregado</div>
+            <div class="tl-time">Pendiente</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HISTORIAL ── -->
+    <div id="client-history" class="client-section">
+      <div class="card">
+        <div class="card-title">📋 Mis envíos</div>
+
+        <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700">GK-2847</div>
+              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Hoy · Sobre · Centro GDL</div>
+            </div>
+            <div class="status-badge badge-transit">En tránsito</div>
+          </div>
+        </div>
+        <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700">GK-2831</div>
+              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Ayer · Grande · Zona Sur</div>
+            </div>
+            <div class="status-badge badge-done">Entregado</div>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:700">GK-2809</div>
+              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Lun 5 May · Sobre · Zona Norte</div>
+            </div>
+            <div class="status-badge badge-done">Entregado</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /screen-client -->
+
+
+<!-- ══════════════════════════════════════════════════
+     VISTA ADMIN
+═══════════════════════════════════════════════════ -->
+<div id="screen-admin" class="screen">
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-name">GUE<span>PAC</span>K</div>
+      <div class="brand-badge">ADMIN</div>
+    </div>
+    <div class="header-sub">Panel de Control · Hoy Jueves 7 Mayo</div>
+  </div>
+
+  <div class="container" style="padding-bottom:20px">
+    <!-- Stats -->
+    <div class="stats-row" style="margin-top:14px">
+      <div class="stat-box">
+        <div class="stat-number orange">4</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">7</div>
+        <div class="stat-label">En ruta</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" style="color:var(--success)">12</div>
+        <div class="stat-label">Entregados</div>
+      </div>
+    </div>
+
+    <!-- Pedidos -->
+    <div class="card-title" style="padding: 0 0 8px">📋 Pedidos de hoy</div>
+
+    <div id="lista-pedidos">
+  <div class="empty-state">
+    <span class="empty-icon">📦</span>
+    <div class="empty-text">Cargando pedidos...</div>
+  </div>
+</div>
+
+  </div>
+</div><!-- /screen-admin -->
+
+
+<!-- ══════════════════════════════════════════════════
+     VISTA REPARTIDOR
+═══════════════════════════════════════════════════ -->
+<div id="screen-delivery" class="screen">
+
+  <div class="delivery-header" style="padding-top:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="delivery-name" id="delivery-nombre">Hola 👋</div>
+        <div class="delivery-sub">REPARTIDOR · GUEPACK EXPRESS</div>
+      </div>
+      <div class="pending-count">2</div>
+    </div>
+  </div>
+
+  <div class="container" style="padding-bottom:20px;padding-top:0">
+
+    <div class="card-title">🏍️ Mis entregas de hoy</div>
+
+   <div id="lista-repartidor">
+  <div class="empty-state">
+    <span class="empty-icon">🏍️</span>
+    <div class="empty-text">Cargando entregas...</div>
+  </div>
+</div>
+</div><!-- /screen-delivery -->
+
+
+<script>
+    // ── Conexión Supabase ──
+</script>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ── Conexión Supabase ──
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+// ── Verificar sesión ──
+async function verificarSesion() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) {
+    window.location.href = 'login.html'
+  }
+}
+verificarSesion()
+
+let selSize = null, selZone = null;
+
+const prices = {
+  centro: { sobre: 110, grande: 150 },
+  norte:  { sobre: 150, grande: 200 },
+  sur:    { sobre: 150, grande: 200 },
+}
+
+function selectSize(sz) {
+  selSize = sz;
+  document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
+  document.getElementById('sz-' + sz).classList.add('selected');
+  updateQuote();
+}
+
+function selectZone(zone) {
+  selZone = zone;
+  document.querySelectorAll('.zone-option').forEach(o => o.classList.remove('selected'));
+  document.getElementById('zn-' + zone).classList.add('selected');
+  updateQuote();
+}
+
+function updateQuote() {
+  if (!selSize || !selZone) return;
+  const price = prices[selZone][selSize];
+  const zoneLabel = { centro: 'Centro GDL', norte: 'Zona Norte', sur: 'Zona Sur' }[selZone];
+  const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize];
+  document.getElementById('quote-amount').textContent = '$' + price;
+  document.getElementById('quote-detail').textContent = sizeLabel + ' · ' + zoneLabel;
+  const box = document.getElementById('quote-display');
+  box.style.display = 'flex';
+  box.style.animation = 'none';
+  box.offsetHeight;
+  box.style.animation = 'fadeIn .3s ease';
+}
+
+async function submitRequest() {
+  const nombre = document.querySelectorAll('.form-input')[0].value
+  const whatsapp = document.querySelectorAll('.form-input')[1].value
+  const dir_recoleccion = document.querySelectorAll('.form-input')[2].value
+  const dir_entrega = document.querySelectorAll('.form-input')[3].value
+  const fecha = document.querySelectorAll('.form-input')[4].value
+
+  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !selZone) {
+    alert('¡Llena todos los campos y selecciona tamaño y zona!')
+    return
+  }
+
+  const precio = prices[selZone][selSize]
+
+  const { data, error } = await db.from('pedidos').insert({
+    nombre: nombre,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    direccion_entrega: dir_entrega,
+    fecha: fecha,
+    tamanio: selSize,
+    zona: selZone,
+    precio: precio,
+    estado: 'Pendiente'
+  }).select()
+
+  if (error) {
+    alert('Hubo un error, intenta de nuevo')
+    console.error(error)
+    return
+  }
+
+  const folioReal = data[0].id
+  document.getElementById('folio-number').textContent = 'GK-' + folioReal
+
+  document.getElementById('form-state').style.display = 'none'
+  document.getElementById('success-state').style.display = 'block'
+}
+// ── Main view switcher ──
+// ── Google Maps Autocomplete ──
+function iniciarAutocompletado() {
+  const zonaGDL = new google.maps.LatLngBounds(
+    new google.maps.LatLng(20.4667, -103.5000),
+    new google.maps.LatLng(20.8000, -103.1500)
+  )
+
+  const opciones = {
+    bounds: zonaGDL,
+    componentRestrictions: { country: 'mx' },
+    fields: ['address_components', 'geometry', 'name', 'formatted_address'],
+    strictBounds: false,
+    types: ['address']
+  }
+
+  const inputRecoleccion = document.getElementById('dir-recoleccion')
+  const inputEntrega = document.getElementById('dir-entrega')
+
+  if (!inputRecoleccion || !inputEntrega) return
+
+  const autoRecoleccion = new google.maps.places.Autocomplete(inputRecoleccion, opciones)
+  const autoEntrega = new google.maps.places.Autocomplete(inputEntrega, opciones)
+
+  // Zonas no disponibles
+  const zonasNoDisponibles = ['tonalá', 'tonala', 'tlajomulco']
+
+  autoEntrega.addListener('place_changed', () => {
+    const place = autoEntrega.getPlace()
+    if (!place.formatted_address) return
+
+    const direccionLower = place.formatted_address.toLowerCase()
+    const noDisponible = zonasNoDisponibles.some(zona => direccionLower.includes(zona))
+
+    if (noDisponible) {
+      document.getElementById('dir-entrega').value = ''
+      alert('❌ Lo sentimos, esa zona no está disponible para entrega por el momento.')
+    }
+  })
+}
+
+window.addEventListener('load', () => {
+  if (typeof google !== 'undefined') {
+    iniciarAutocompletado()
+  } else {
+    setTimeout(iniciarAutocompletado, 2000)
+  }
+})
+async function cerrarSesion() {
+  await db.auth.signOut()
+  window.location.href = 'login.html'
+}
+function resetForm() {
+  document.getElementById('form-state').style.display = 'block'
+  document.getElementById('success-state').style.display = 'none'
+  selSize = null
+  selZone = null
+  document.querySelectorAll('.size-option,.zone-option').forEach(o => o.classList.remove('selected'))
+  document.getElementById('quote-display').style.display = 'none'
+  document.querySelectorAll('.form-input').forEach(i => i.value = '')
+  document.getElementById('folio-number').textContent = 'GK-...'
+}
+function switchMainView(view) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + view).classList.add('active');
+  const idx = ['client','admin','delivery'].indexOf(view);
+  document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+  if (view === 'admin') cargarPedidos();
+  if (view === 'delivery') cargarPedidosRepartidor();
+}
+
+// ── Client section switcher ──
+const clientBtns = document.querySelectorAll('.bottom-btn');
+function showClientSection(section) {
+  document.querySelectorAll('.client-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('client-' + section).classList.add('active');
+  clientBtns.forEach(b => b.classList.remove('active'));
+  const idx = ['new','tracking','history'].indexOf(section);
+  clientBtns[idx].classList.add('active');
+}
+// ── Cargar pedidos en Admin ──
+async function cargarPedidos() {
+  const { data, error } = await db.from('pedidos').select('*').order('created_at', { ascending: false })
+  
+  if (error) { console.error(error); return; }
+
+  // ── Actualizar estadísticas ──
+  const pendientes = data.filter(p => p.estado === 'Pendiente').length
+  const enRuta = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+  const entregados = data.filter(p => p.estado === 'Entregado').length
+
+  document.querySelectorAll('.stat-number')[0].textContent = pendientes
+  document.querySelectorAll('.stat-number')[1].textContent = enRuta
+  document.querySelectorAll('.stat-number')[2].textContent = entregados
+
+  const contenedor = document.getElementById('lista-pedidos')
+  contenedor.innerHTML = ''
+
+  console.log('Pedidos encontrados:', data.length, data)
+
+  data.forEach(pedido => {
+    contenedor.innerHTML += `
+      <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}">
+        <div class="order-header">
+          <div>
+            <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+            <div class="order-client">${pedido.nombre}</div>
+          </div>
+          <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+        </div>
+        <div class="order-details">
+          <span class="tag tag-orange">${pedido.tamanio}</span>
+          <span class="tag tag-blue">${pedido.zona}</span>
+          ${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}<br>
+          <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
+        </div>
+        <div class="order-actions">
+          ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary btn-sm" onclick="assignDelivery(this,' + pedido.id + ')">Asignar repartidor</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' ? '<button class="btn btn-sm" style="background:rgba(240,90,26,0.1);color:var(--orange);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+        </div>
+      </div>
+    `
+  })
+}
+// ── Admin actions ──
+async function assignDelivery(btn, id) {
+  const { data, error } = await db.from('repartidores').select('*')
+  if (error) { alert('Error al cargar repartidores'); return; }
+
+  const opciones = data.map((r, i) => i + 1 + '. ' + r.nombre).join('\n')
+  const seleccion = prompt('Selecciona repartidor:\n' + opciones + '\n\nEscribe el número:')
+  if (!seleccion) return
+
+  const repartidor = data[parseInt(seleccion) - 1]
+  if (!repartidor) { alert('Número inválido'); return; }
+
+  const { error: err } = await db.from('pedidos').update({
+    estado: 'En camino a recoleccion',
+    repartidor: repartidor.nombre
+  }).eq('id', id)
+
+  if (err) { alert('Error al asignar'); return; }
+  cargarPedidos()
+}
+async function updateStatus(btn, id, status, telefono, nombre) {
+  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  if (error) { alert('Error al actualizar'); return; }
+
+  const mensajes = {
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
+    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+  }
+
+  const mensaje = mensajes[status]
+  if (mensaje && telefono) {
+    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
+    })
+  }
+
+  cargarPedidos()
+}
+// ── Cargar pedidos repartidor ──
+async function cargarPedidosRepartidor() {
+  let nombre = localStorage.getItem('repartidor_nombre')
+  if (!nombre) {
+    nombre = prompt('¿Cuál es tu nombre de repartidor?')
+    if (!nombre) return
+    localStorage.setItem('repartidor_nombre', nombre)
+  }
+
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre + ' 👋'
+
+  const { data, error } = await db.from('pedidos')
+    .select('*')
+    .eq('repartidor', nombre)
+    .neq('estado', 'Entregado')
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error(error); return; }
+
+  const contenedor = document.getElementById('lista-repartidor')
+  if (!contenedor) return
+  contenedor.innerHTML = ''
+
+  if (data.length === 0) {
+    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">🏍️</span><div class="empty-text">No tienes pedidos asignados</div></div>'
+    return
+  }
+
+  data.forEach(pedido => {
+    contenedor.innerHTML += `
+      <div class="route-card">
+        <div class="route-top">
+          <div>
+            <div class="route-number">GK-${pedido.id}</div>
+            <div class="route-type">${pedido.tamanio} · ${pedido.zona}</div>
+          </div>
+        </div>
+        <div class="route-body">
+          <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
+          <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          <div class="status-steps">
+            <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
+            <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
+            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'Entregado' ? 'done' : 'inactive'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado', '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
+          </div>
+        </div>
+      </div>
+    `
+  })
+}
+async function cambiarEstadoRepartidor(id, status, telefono, nombre) {
+  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  if (error) { alert('Error al actualizar'); return; }
+
+  const mensajes = {
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
+    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+  }
+
+  const mensaje = mensajes[status]
+  console.log('Telefono:', telefono)
+  console.log('Mensaje:', mensaje)
+
+  if (mensaje && telefono) {
+    const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
+    })
+    const respData = await resp.json()
+    console.log('Respuesta Twilio:', respData)
+  }
+
+  cargarPedidosRepartidor()
+}
+// ── Delivery step buttons ──
+function stepClick(btn, idx) {
+  const steps = btn.parentElement.querySelectorAll('.step-btn');
+  steps.forEach((s, i) => {
+    if (i < idx) { s.className = 'step-btn done'; }
+    else if (i === idx) { s.className = 'step-btn active'; }
+    else { s.className = 'step-btn inactive'; }
+  });
+}
+</script>
+
+</body>
+</html>

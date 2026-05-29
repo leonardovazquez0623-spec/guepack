@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Iniciar Sesión</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #0e3070 0%, #1a4fa0 60%, #2563c4 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-box {
+    background: white;
+    border-radius: 24px;
+    padding: 40px 32px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .brand {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: #1a4fa0;
+    letter-spacing: 4px;
+    line-height: 1;
+  }
+  .brand-name span { color: #f05a1a; }
+  .brand-sub {
+    font-size: 11px;
+    color: #8fa3c0;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8fa3c0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .form-input {
+    width: 100%;
+    padding: 13px 16px;
+    border: 2px solid #e0e6f0;
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a2740;
+    background: #f4f6fb;
+    transition: border-color .2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #1a4fa0;
+    background: white;
+  }
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 10px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #f05a1a, #ff7a3d);
+    color: white;
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+  }
+  .btn-google {
+    background: white;
+    color: #1a2740;
+    border: 2px solid #e0e6f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-google:hover { border-color: #1a4fa0; }
+  .divider {
+    text-align: center;
+    color: #8fa3c0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 16px 0;
+    position: relative;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 42%;
+    height: 1px;
+    background: #e0e6f0;
+  }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+  .toggle-text {
+    text-align: center;
+    font-size: 12px;
+    color: #8fa3c0;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+  .toggle-text a {
+    color: #1a4fa0;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .error-msg {
+    background: rgba(240,90,26,0.1);
+    color: #f05a1a;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .success-msg {
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-box">
+  <div class="brand">
+    <div class="brand-name">GUE<span>PAC</span>K</div>
+    <div class="brand-sub">Paquetería Local · Guadalajara</div>
+  </div>
+
+  <div id="error-msg" class="error-msg"></div>
+  <div id="success-msg" class="success-msg"></div>
+
+  <!-- LOGIN -->
+  <div id="login-form">
+    <div class="form-group">
+      <label class="form-label">Correo electrónico</label>
+      <input type="email" id="login-email" class="form-input" placeholder="tucorreo@gmail.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input type="password" id="login-password" class="form-input" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="loginEmail()">Iniciar Sesión</button>
+    <div class="divider">O</div>
+    <button class="btn btn-google" onclick="loginGoogle()">
+      <img src="https://www.google.com/favicon.ico" width="18"> Entrar con Google
+    </button>
+    <div class="toggle-text">
+      ¿No tienes cuenta? <a onclick="showRegister()">Regístrate aquí</a>
+    </div>
+  </div>
+
+  <!-- REGISTRO -->
+  <div id="register-form" style="display:none">
+    <div class="form-group">
+      <label class="form-label">Nombre completo</label>
+      <input type="text" id="reg-nombre" class="form-input" placeholder="Tu nombre">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Correo electrónico</label>
+      <input type="email" id="reg-email" class="form-input" placeholder="tucorreo@gmail.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contraseña</label>
+      <input type="password" id="reg-password" class="form-input" placeholder="Mínimo 6 caracteres">
+    </div>
+    <button class="btn btn-primary" onclick="registrar()">Crear cuenta</button>
+    <div class="divider">O</div>
+    <button class="btn btn-google" onclick="loginGoogle()">
+      <img src="https://www.google.com/favicon.ico" width="18"> Registrarse con Google
+    </button>
+    <div class="toggle-text">
+      ¿Ya tienes cuenta? <a onclick="showLogin()">Inicia sesión</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+function showError(msg) {
+  const el = document.getElementById('error-msg')
+  el.textContent = msg
+  el.style.display = 'block'
+  document.getElementById('success-msg').style.display = 'none'
+}
+
+function showSuccess(msg) {
+  const el = document.getElementById('success-msg')
+  el.textContent = msg
+  el.style.display = 'block'
+  document.getElementById('error-msg').style.display = 'none'
+}
+
+function showRegister() {
+  document.getElementById('login-form').style.display = 'none'
+  document.getElementById('register-form').style.display = 'block'
+}
+
+function showLogin() {
+  document.getElementById('register-form').style.display = 'none'
+  document.getElementById('login-form').style.display = 'block'
+}
+
+async function loginEmail() {
+  const email = document.getElementById('login-email').value
+  const password = document.getElementById('login-password').value
+  if (!email || !password) { showError('Llena todos los campos'); return; }
+
+  const { error } = await db.auth.signInWithPassword({ email, password })
+  if (error) { showError('Correo o contraseña incorrectos'); return; }
+  window.location.href = 'index.html'
+}
+
+async function registrar() {
+  const nombre = document.getElementById('reg-nombre').value
+  const email = document.getElementById('reg-email').value
+  const password = document.getElementById('reg-password').value
+  if (!nombre || !email || !password) { showError('Llena todos los campos'); return; }
+  if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
+
+  const { error } = await db.auth.signUp({
+    email,
+    password,
+    options: { data: { nombre } }
+  })
+  if (error) { showError('Error al crear cuenta: ' + error.message); return; }
+  showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
+}
+
+async function loginGoogle() {
+  const { error } = await db.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/index.html' }
+  })
+  if (error) { showError('Error con Google: ' + error.message) }
+}
+</script>
+</body>
+</html>
