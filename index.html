@@ -502,7 +502,6 @@
   .folio-label { font-size: 10px; color: var(--gray-mid); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   .folio-number { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--orange); letter-spacing: 3px; }
 </style>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCdxvEoiwuD3h44cSWZqW3Zwt2TPspJBiY&libraries=places&language=es&region=MX" async defer></script>
 </head>
 <body>
 
@@ -687,36 +686,14 @@
       </div>
     </div>
 
-    <!-- ── HISTORIAL ── -->
+<!-- ── HISTORIAL ── -->
     <div id="client-history" class="client-section">
       <div class="card">
         <div class="card-title">📋 Mis envíos</div>
-
-        <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:13px;font-weight:700">GK-2847</div>
-              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Hoy · Sobre · Centro GDL</div>
-            </div>
-            <div class="status-badge badge-transit">En tránsito</div>
-          </div>
-        </div>
-        <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:13px;font-weight:700">GK-2831</div>
-              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Ayer · Grande · Zona Sur</div>
-            </div>
-            <div class="status-badge badge-done">Entregado</div>
-          </div>
-        </div>
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:13px;font-weight:700">GK-2809</div>
-              <div style="font-size:11px;color:var(--gray-mid);font-weight:600">Lun 5 May · Sobre · Zona Norte</div>
-            </div>
-            <div class="status-badge badge-done">Entregado</div>
+        <div id="lista-historial">
+          <div class="empty-state">
+            <span class="empty-icon">📋</span>
+            <div class="empty-text">Cargando pedidos...</div>
           </div>
         </div>
       </div>
@@ -724,7 +701,6 @@
 
   </div>
 </div><!-- /screen-client -->
-
 
 <!-- ══════════════════════════════════════════════════
      VISTA ADMIN
@@ -865,10 +841,11 @@ async function submitRequest() {
     alert('¡Llena todos los campos y selecciona tamaño y zona!')
     return
   }
+const { data: { session } } = await db.auth.getSession()
+const userId = session?.user?.id
+const precio = prices[selZone][selSize]
 
-  const precio = prices[selZone][selSize]
-
-  const { data, error } = await db.from('pedidos').insert({
+const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
     direccion_recoleccion: dir_recoleccion,
@@ -877,9 +854,10 @@ async function submitRequest() {
     tamanio: selSize,
     zona: selZone,
     precio: precio,
-    estado: 'Pendiente'
+    estado: 'Pendiente',
+    user_id: userId,
   }).select()
-
+  
   if (error) {
     alert('Hubo un error, intenta de nuevo')
     console.error(error)
@@ -894,52 +872,7 @@ async function submitRequest() {
 }
 // ── Main view switcher ──
 // ── Google Maps Autocomplete ──
-function iniciarAutocompletado() {
-  const zonaGDL = new google.maps.LatLngBounds(
-    new google.maps.LatLng(20.4667, -103.5000),
-    new google.maps.LatLng(20.8000, -103.1500)
-  )
 
-  const opciones = {
-    bounds: zonaGDL,
-    componentRestrictions: { country: 'mx' },
-    fields: ['address_components', 'geometry', 'name', 'formatted_address'],
-    strictBounds: false,
-    types: ['address']
-  }
-
-  const inputRecoleccion = document.getElementById('dir-recoleccion')
-  const inputEntrega = document.getElementById('dir-entrega')
-
-  if (!inputRecoleccion || !inputEntrega) return
-
-  const autoRecoleccion = new google.maps.places.Autocomplete(inputRecoleccion, opciones)
-  const autoEntrega = new google.maps.places.Autocomplete(inputEntrega, opciones)
-
-  // Zonas no disponibles
-  const zonasNoDisponibles = ['tonalá', 'tonala', 'tlajomulco']
-
-  autoEntrega.addListener('place_changed', () => {
-    const place = autoEntrega.getPlace()
-    if (!place.formatted_address) return
-
-    const direccionLower = place.formatted_address.toLowerCase()
-    const noDisponible = zonasNoDisponibles.some(zona => direccionLower.includes(zona))
-
-    if (noDisponible) {
-      document.getElementById('dir-entrega').value = ''
-      alert('❌ Lo sentimos, esa zona no está disponible para entrega por el momento.')
-    }
-  })
-}
-
-window.addEventListener('load', () => {
-  if (typeof google !== 'undefined') {
-    iniciarAutocompletado()
-  } else {
-    setTimeout(iniciarAutocompletado, 2000)
-  }
-})
 async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
@@ -963,7 +896,43 @@ function switchMainView(view) {
   if (view === 'admin') cargarPedidos();
   if (view === 'delivery') cargarPedidosRepartidor();
 }
+// ── Cargar historial cliente ──
+async function cargarHistorial() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
 
+  const { data, error } = await db.from('pedidos')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error(error); return; }
+
+  const contenedor = document.getElementById('lista-historial')
+  if (!contenedor) return
+  contenedor.innerHTML = ''
+
+  if (data.length === 0) {
+    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><div class="empty-text">No tienes pedidos aún</div></div>'
+    return
+  }
+
+  data.forEach(pedido => {
+    const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX')
+    const badgeClass = pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit'
+    contenedor.innerHTML += `
+      <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:700">GK-${pedido.id}</div>
+            <div style="font-size:11px;color:var(--gray-mid);font-weight:600">${fecha} · ${pedido.tamanio} · ${pedido.zona}</div>
+          </div>
+          <div class="status-badge ${badgeClass}">${pedido.estado}</div>
+        </div>
+      </div>
+    `
+  })
+}
 // ── Client section switcher ──
 const clientBtns = document.querySelectorAll('.bottom-btn');
 function showClientSection(section) {
