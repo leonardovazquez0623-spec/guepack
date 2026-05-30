@@ -151,8 +151,15 @@ async function init() {
 }
 
 async function cargarPedidos(email) {
-  const { data: usuario } = await db.from('usuarios').select('nombre').eq('email', email).single()
-  const nombreRepa = usuario?.nombre || email
+  const { data: repaData, error: repaError } = await db.from('repartidores').select('*').eq('email', email).single()
+  
+  if (repaError || !repaData) {
+    document.getElementById('lista-repartidor').innerHTML = '<div class="empty-state"><span class="empty-icon">⚠️</span><div class="empty-text">Tu cuenta no está registrada como repartidor</div></div>'
+    return
+  }
+
+  const nombreRepa = repaData.nombre
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa + ' 👋'
 
   const { data, error } = await db.from('pedidos')
     .select('*')
@@ -192,7 +199,6 @@ async function cargarPedidos(email) {
     `
   })
 }
-
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
