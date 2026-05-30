@@ -46,14 +46,21 @@ const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 async function redirigir() {
+  await new Promise(r => setTimeout(r, 1000))
+  
   const { data: { session } } = await db.auth.getSession()
+  console.log('Session:', session)
+  
   if (!session) {
     window.location.href = 'login.html'
     return
   }
 
   const email = session.user.email
+  console.log('Email:', email)
+  
   const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
+  console.log('Rol data:', data, 'Error:', error)
 
   if (error || !data) {
     window.location.href = 'index.html'
