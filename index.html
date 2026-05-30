@@ -646,46 +646,55 @@
 
     </div><!-- /client-new -->
 
-    <!-- ── RASTREO ── -->
+   <!-- ── RASTREO ── -->
     <div id="client-tracking" class="client-section">
       <div class="card">
         <div class="card-title">🔍 Rastrear pedido</div>
         <div class="form-group" style="display:flex;gap:8px;margin-bottom:0">
-          <input type="text" class="form-input" placeholder="Folio  GK-0000" value="GK-2847" style="flex:1">
-          <button class="btn btn-secondary btn-sm" style="width:auto;padding:12px 16px">Buscar</button>
+          <input type="text" id="input-folio" class="form-input" placeholder="Folio ej. 12" style="flex:1">
+          <button class="btn btn-secondary btn-sm" style="width:auto;padding:12px 16px" onclick="rastrearPedido()">Buscar</button>
         </div>
       </div>
 
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <div>
-            <div style="font-size:18px;font-weight:900;color:var(--blue)">Folio GK-2847</div>
-            <div style="font-size:11px;color:var(--gray-mid);font-weight:600">María García · Sobre/Chico · Centro GDL</div>
+      <div id="resultado-rastreo" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div style="font-size:18px;font-weight:900;color:var(--blue)" id="rastreo-folio">GK-0</div>
+              <div style="font-size:11px;color:var(--gray-mid);font-weight:600" id="rastreo-detalle">—</div>
+            </div>
+            <div class="status-badge" id="rastreo-badge">—</div>
           </div>
-          <div class="status-badge badge-transit">En tránsito</div>
-        </div>
 
-        <div class="timeline">
-          <div class="tl-item done">
-            <div class="tl-dot"></div>
-            <div class="tl-title">✅ Paquete recolectado</div>
-            <div class="tl-time">Hoy 10:32 AM</div>
+          <div class="timeline">
+            <div class="tl-item" id="tl-recolectado">
+              <div class="tl-dot"></div>
+              <div class="tl-title">✅ Paquete recolectado</div>
+              <div class="tl-time" id="tl-recolectado-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-camino">
+              <div class="tl-dot"></div>
+              <div class="tl-title">🚚 En camino a entrega</div>
+              <div class="tl-time" id="tl-camino-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-llegando">
+              <div class="tl-dot"></div>
+              <div class="tl-title">⏰ A punto de llegar</div>
+              <div class="tl-time" id="tl-llegando-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-entregado">
+              <div class="tl-dot"></div>
+              <div class="tl-title">📦 Entregado</div>
+              <div class="tl-time" id="tl-entregado-time">Pendiente</div>
+            </div>
           </div>
-          <div class="tl-item current">
-            <div class="tl-dot"></div>
-            <div class="tl-title">🚚 En camino a entrega</div>
-            <div class="tl-time">Hoy 11:15 AM · Notificado por WhatsApp</div>
-          </div>
-          <div class="tl-item pending">
-            <div class="tl-dot"></div>
-            <div class="tl-title">⏰ A punto de llegar</div>
-            <div class="tl-time">Pendiente</div>
-          </div>
-          <div class="tl-item pending">
-            <div class="tl-dot"></div>
-            <div class="tl-title">📦 Entregado</div>
-            <div class="tl-time">Pendiente</div>
-          </div>
+        </div>
+      </div>
+
+      <div id="rastreo-error" style="display:none" class="card">
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          <div class="empty-text">No encontramos ese folio</div>
         </div>
       </div>
     </div>
@@ -775,11 +784,6 @@
   </div>
 </div>
 </div><!-- /screen-delivery -->
-
-
-<script>
-    // ── Conexión Supabase ──
-</script>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
@@ -878,9 +882,43 @@ const { data, error } = await db.from('pedidos').insert({
   document.getElementById('form-state').style.display = 'none'
   document.getElementById('success-state').style.display = 'block'
 }
-// ── Main view switcher ──
-// ── Google Maps Autocomplete ──
 
+async function rastrearPedido() {
+  const folioInput = document.getElementById('input-folio').value.trim()
+  if (!folioInput) { alert('Escribe un folio'); return; }
+
+  const folio = folioInput.replace('GK-', '').replace('gk-', '')
+
+  const { data, error } = await db.from('pedidos').select('*').eq('id', folio).single()
+
+  document.getElementById('resultado-rastreo').style.display = 'none'
+  document.getElementById('rastreo-error').style.display = 'none'
+
+  if (error || !data) {
+    document.getElementById('rastreo-error').style.display = 'block'
+    return
+  }
+
+  document.getElementById('rastreo-folio').textContent = 'GK-' + data.id
+  document.getElementById('rastreo-detalle').textContent = data.nombre + ' · ' + data.tamanio + ' · ' + data.zona
+
+  const badge = document.getElementById('rastreo-badge')
+  badge.textContent = data.estado
+  badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
+
+  const estados = ['En camino a recoleccion', 'En camino a entrega', 'A punto de llegar', 'Entregado']
+  const estadoActual = estados.indexOf(data.estado)
+
+  const items = ['tl-recolectado', 'tl-camino', 'tl-llegando', 'tl-entregado']
+  items.forEach((id, i) => {
+    const el = document.getElementById(id)
+    if (i < estadoActual) el.className = 'tl-item done'
+    else if (i === estadoActual) el.className = 'tl-item current'
+    else el.className = 'tl-item pending'
+  })
+
+  document.getElementById('resultado-rastreo').style.display = 'block'
+}
 async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
@@ -904,6 +942,7 @@ function switchMainView(view) {
   if (view === 'admin') cargarPedidos();
   if (view === 'delivery') cargarPedidosRepartidor();
 }
+
 // ── Cargar historial cliente ──
 async function cargarHistorial() {
   const { data: { session } } = await db.auth.getSession()
