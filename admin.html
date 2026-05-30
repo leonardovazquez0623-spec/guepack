@@ -305,50 +305,95 @@ async function cargarPedidos() {
   const contenedor = document.getElementById('lista-pedidos')
   contenedor.innerHTML = ''
 
-  data.forEach(pedido => {
-    contenedor.innerHTML += `
-      <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}">
-        <div class="order-header">
-          <div>
-            <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
-            <div class="order-client">${pedido.nombre}</div>
-          </div>
-          <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+  // Pedidos sin asignar
+  const sinAsignar = data.filter(p => !p.repartidor || p.estado === 'Pendiente' && !p.repartidor)
+  if (sinAsignar.length > 0) {
+    contenedor.innerHTML += `<div style="font-size:11px;font-weight:900;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;margin-top:4px">⚠️ Sin asignar (${sinAsignar.length})</div>`
+    sinAsignar.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
+  }
+
+  // Pedidos por repartidor
+  const { data: repartidores } = await db.from('repartidores').select('*')
+  repartidores.forEach(repa => {
+    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Entregado')
+    const entregadosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado === 'Entregado')
+    
+    if (pedidosRepa.length > 0 || entregadosRepa.length > 0) {
+      contenedor.innerHTML += `
+        <div style="font-size:11px;font-weight:900;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin:16px 0 10px">
+          🏍️ ${repa.nombre} · <span style="color:var(--orange)">${pedidosRepa.length} activos</span> · <span style="color:var(--success)">${entregadosRepa.length} entregados</span>
         </div>
-        <div class="order-details">
-          <span class="tag tag-orange">${pedido.tamanio}</span>
-          <span class="tag tag-blue">${pedido.zona}</span>
-          ${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}<br>
-          <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
-          ${pedido.repartidor ? '· Repartidor: ' + pedido.repartidor : ''}
-        </div>
-        <div class="order-actions">
-          ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
-          ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
-          ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
-        </div>
-      </div>
-    `
+      `
+      pedidosRepa.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
+      entregadosRepa.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
+    }
   })
+
+  if (data.length === 0) {
+    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-text">No hay pedidos hoy</div></div>'
+  }
+}
+
+function renderPedido(pedido) {
+  return `
+    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : pedido.estado === 'Entregado' ? 'opacity:0.6' : ''}">
+      <div class="order-header">
+        <div>
+          <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+          <div class="order-client">${pedido.nombre}</div>
+        </div>
+        <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+      </div>
+      <div class="order-details">
+        <span class="tag tag-orange">${pedido.tamanio}</span>
+        <span class="tag tag-blue">${pedido.zona}</span>
+        ${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}<br>
+        <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
+      </div>
+      <div class="order-actions">
+        ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
+        ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
+        ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+      </div>
+    </div>
+  `
 }
 
 async function asignarRepartidor(id) {
   const { data, error } = await db.from('repartidores').select('*')
   if (error) { alert('Error al cargar repartidores'); return }
 
-  const opciones = data.map((r, i) => i + 1 + '. ' + r.nombre).join('\n')
-  const seleccion = prompt('Selecciona repartidor:\n' + opciones + '\n\nEscribe el número:')
-  if (!seleccion) return
+  const opciones = data.map(r => `<option value="${r.nombre}">${r.nombre}</option>`).join('')
+  
+  const div = document.createElement('div')
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px'
+  div.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:340px">
+      <div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Asignar Repartidor</div>
+      <select id="sel-repa" style="width:100%;padding:12px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;color:#1a2740;background:#f4f6fb;margin-bottom:16px">
+        <option value="">Selecciona un repartidor...</option>
+        ${opciones}
+      </select>
+      <div style="display:flex;gap:8px">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:12px;border:2px solid #e0e6f0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">Cancelar</button>
+        <button onclick="confirmarAsignacion(${id})" style="flex:1;padding:12px;border:none;border-radius:10px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Asignar ✅</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(div)
+}
 
-  const repartidor = data[parseInt(seleccion) - 1]
-  if (!repartidor) { alert('Número inválido'); return }
+async function confirmarAsignacion(id) {
+  const repa = document.getElementById('sel-repa').value
+  if (!repa) { alert('Selecciona un repartidor'); return }
 
-  const { error: err } = await db.from('pedidos').update({
+  const { error } = await db.from('pedidos').update({
     estado: 'En camino a recoleccion',
-    repartidor: repartidor.nombre
+    repartidor: repa
   }).eq('id', id)
 
-  if (err) { alert('Error al asignar'); return }
+  if (error) { alert('Error al asignar'); return }
+  document.querySelector('div[style*="position:fixed"]').remove()
   cargarPedidos()
 }
 
