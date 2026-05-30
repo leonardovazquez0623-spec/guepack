@@ -584,9 +584,16 @@
             <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia">
           </div>
           <div class="form-group">
-            <label class="form-label">Fecha preferida</label>
-            <input type="date" class="form-input">
-          </div>
+  <label class="form-label">Fecha de recolección</label>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)"> Hoy 😉</button>
+    <button type="button" id="btn-mañana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Día siguiente 🤙</button>
+    <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Otra fecha 💁‍♂️</button>
+  </div>
+  <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
+  <input type="hidden" id="fecha-seleccionada">
+  <div id="aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
+</div>
         </div>
 
         <div class="card">
@@ -771,10 +778,10 @@ async function submitRequest() {
   const whatsapp = document.querySelectorAll('.form-input')[1].value
   const dir_recoleccion = document.querySelectorAll('.form-input')[2].value
   const dir_entrega = document.querySelectorAll('.form-input')[3].value
-  const fecha = document.querySelectorAll('.form-input')[4].value
+  const fecha = document.getElementById('fecha-seleccionada').value
 
   if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !selZone) {
-    alert('¡Llena todos los campos y selecciona tamaño y zona!')
+    alert('¡Llena todos los campos, selecciona fecha, tamaño y zona!')
     return
   }
 const { data: { session } } = await db.auth.getSession()
@@ -847,6 +854,84 @@ async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
 }
+async function verificarDisponibilidad(fecha) {
+  const inicio = new Date(fecha + 'T00:00:00').toISOString()
+  const fin = new Date(fecha + 'T23:59:59').toISOString()
+
+  const { data } = await db.from('pedidos').select('id')
+    .gte('created_at', inicio)
+    .lte('created_at', fin)
+
+  const total = data ? data.length : 0
+  const hora = new Date().getHours()
+  const hoy = new Date().toISOString().split('T')[0]
+  const esHoy = fecha === hoy
+
+  const aviso = document.getElementById('aviso-fecha')
+
+  if (esHoy && hora >= 15) {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(240,90,26,0.1)'
+    aviso.style.color = 'var(--orange)'
+    aviso.style.border = '2px solid var(--orange)'
+    aviso.innerHTML = '🟠 Ya pasaron las 3 PM — tu recolección quedará para mañana'
+  } else if (total >= 10) {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(240,90,26,0.1)'
+    aviso.style.color = 'var(--orange)'
+    aviso.style.border = '2px solid var(--orange)'
+    aviso.innerHTML = '🟠 Tenemos ' + total + ' pedidos ese día — es posible que tu entrega quede al día siguiente'
+  } else {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(34,197,94,0.1)'
+    aviso.style.color = 'var(--success)'
+    aviso.style.border = '2px solid var(--success)'
+    aviso.innerHTML = '🟢 ¡Disponible! Tu recolección será el día seleccionado'
+  }
+}
+function seleccionarFecha(opcion) {
+  const hoy = new Date()
+  const mañana = new Date()
+  mañana.setDate(mañana.getDate() + 1)
+
+  const formatear = (d) => d.toISOString().split('T')[0]
+
+  const btns = ['btn-hoy-fecha', 'btn-mañana-fecha', 'btn-otra-fecha']
+  btns.forEach(id => {
+    const btn = document.getElementById(id)
+    btn.style.background = 'var(--gray-light)'
+    btn.style.color = 'var(--text)'
+    btn.style.borderColor = 'var(--gray)'
+  })
+
+  if (opcion === 'hoy') {
+    document.getElementById('fecha-seleccionada').value = formatear(hoy)
+    verificarDisponibilidad(formatear(hoy))
+    document.getElementById('input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('btn-hoy-fecha')
+    btn.style.background = 'var(--blue)'
+    btn.style.color = 'white'
+    btn.style.borderColor = 'var(--blue)'
+  } else if (opcion === 'mañana') {
+    document.getElementById('fecha-seleccionada').value = formatear(mañana)
+    verificarDisponibilidad(formatear(mañana))
+    document.getElementById('input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('btn-mañana-fecha')
+    btn.style.background = 'var(--blue)'
+    btn.style.color = 'white'
+    btn.style.borderColor = 'var(--blue)'
+  } else {
+    document.getElementById('input-fecha-custom').style.display = 'block'
+    document.getElementById('input-fecha-custom').onchange = (e) => {
+      document.getElementById('fecha-seleccionada').value = e.target.value
+      verificarDisponibilidad(e.target.value)
+    }
+    const btn = document.getElementById('btn-otra-fecha')
+    btn.style.background = 'var(--blue)'
+    btn.style.color = 'white'
+    btn.style.borderColor = 'var(--blue)'
+  }
+}
 function resetForm() {
   document.getElementById('form-state').style.display = 'block'
   document.getElementById('success-state').style.display = 'none'
@@ -856,6 +941,17 @@ function resetForm() {
   document.getElementById('quote-display').style.display = 'none'
   document.querySelectorAll('.form-input').forEach(i => i.value = '')
   document.getElementById('folio-number').textContent = 'GK-...'
+  document.getElementById('fecha-seleccionada').value = ''
+  document.getElementById('input-fecha-custom').style.display = 'none'
+  const btns = ['btn-hoy-fecha', 'btn-mañana-fecha', 'btn-otra-fecha']
+  btns.forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) {
+      btn.style.background = 'var(--gray-light)'
+      btn.style.color = 'var(--text)'
+      btn.style.borderColor = 'var(--gray)'
+    }
+  })
 }
 function switchMainView(view) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
