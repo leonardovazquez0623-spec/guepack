@@ -512,13 +512,7 @@
 <!-- NAV TABS PRINCIPAL -->
 <div class="nav-tabs">
   <div class="nav-tab active" onclick="switchMainView('client')">
-    <span class="tab-icon">📦</span>Cliente
-  </div>
-  <div class="nav-tab" onclick="switchMainView('admin')">
-    <span class="tab-icon">🖥️</span>Admin
-  </div>
-  <div class="nav-tab" onclick="switchMainView('delivery')">
-    <span class="tab-icon">🏍️</span>Repartidor
+    <span class="tab-icon">📦</span>Mis Envíos
   </div>
 </div>
 
@@ -714,76 +708,6 @@
 
   </div>
 </div><!-- /screen-client -->
-
-<!-- ══════════════════════════════════════════════════
-     VISTA ADMIN
-═══════════════════════════════════════════════════ -->
-<div id="screen-admin" class="screen">
-  <div class="app-header">
-    <div class="brand">
-      <div class="brand-name">GUE<span>PAC</span>K</div>
-      <div class="brand-badge">ADMIN</div>
-    </div>
-    <div class="header-sub">Panel de Control · Hoy Jueves 7 Mayo</div>
-  </div>
-
-  <div class="container" style="padding-bottom:20px">
-    <!-- Stats -->
-    <div class="stats-row" style="margin-top:14px">
-      <div class="stat-box">
-        <div class="stat-number orange">4</div>
-        <div class="stat-label">Pendientes</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-number">7</div>
-        <div class="stat-label">En ruta</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-number" style="color:var(--success)">12</div>
-        <div class="stat-label">Entregados</div>
-      </div>
-    </div>
-
-    <!-- Pedidos -->
-    <div class="card-title" style="padding: 0 0 8px">📋 Pedidos de hoy</div>
-
-    <div id="lista-pedidos">
-  <div class="empty-state">
-    <span class="empty-icon">📦</span>
-    <div class="empty-text">Cargando pedidos...</div>
-  </div>
-</div>
-
-  </div>
-</div><!-- /screen-admin -->
-
-
-<!-- ══════════════════════════════════════════════════
-     VISTA REPARTIDOR
-═══════════════════════════════════════════════════ -->
-<div id="screen-delivery" class="screen">
-
-  <div class="delivery-header" style="padding-top:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div class="delivery-name" id="delivery-nombre">Hola 👋</div>
-        <div class="delivery-sub">REPARTIDOR · GUEPACK EXPRESS</div>
-      </div>
-      <div class="pending-count">2</div>
-    </div>
-  </div>
-
-  <div class="container" style="padding-bottom:20px;padding-top:0">
-
-    <div class="card-title">🏍️ Mis entregas de hoy</div>
-
-   <div id="lista-repartidor">
-  <div class="empty-state">
-    <span class="empty-icon">🏍️</span>
-    <div class="empty-text">Cargando entregas...</div>
-  </div>
-</div>
-</div><!-- /screen-delivery -->
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
