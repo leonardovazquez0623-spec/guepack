@@ -239,11 +239,6 @@ function showRegister() {
   document.getElementById('register-form').style.display = 'block'
 }
 
-function showLogin() {
-  document.getElementById('register-form').style.display = 'none'
-  document.getElementById('login-form').style.display = 'block'
-}
-
 async function loginEmail() {
   const email = document.getElementById('login-email').value
   const password = document.getElementById('login-password').value
@@ -251,9 +246,26 @@ async function loginEmail() {
 
   const { error } = await db.auth.signInWithPassword({ email, password })
   if (error) { showError('Correo o contraseña incorrectos'); return; }
-  window.location.href = 'index.html'
+  
+  await redirigirSegunRol(email)
 }
 
+async function redirigirSegunRol(email) {
+  const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
+  
+  if (error || !data) {
+    window.location.href = 'index.html'
+    return
+  }
+
+  if (data.rol === 'admin') {
+    window.location.href = 'admin.html'
+  } else if (data.rol === 'repartidor') {
+    window.location.href = 'repartidor.html'
+  } else {
+    window.location.href = 'index.html'
+  }
+}
 async function registrar() {
   const nombre = document.getElementById('reg-nombre').value
   const email = document.getElementById('reg-email').value

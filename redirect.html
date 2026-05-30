@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Redirigiendo...</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0e3070;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+  }
+  .loader {
+    display: flex;
+    gap: 8px;
+  }
+  .dot {
+    width: 10px; height: 10px;
+    background: #f05a1a;
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; background: white; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="loader">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+async function redirigir() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) {
+    window.location.href = 'login.html'
+    return
+  }
+
+  const email = session.user.email
+  const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
+
+  if (error || !data) {
+    window.location.href = 'index.html'
+    return
+  }
+
+  if (data.rol === 'admin') {
+    window.location.href = 'admin.html'
+  } else if (data.rol === 'repartidor') {
+    window.location.href = 'repartidor.html'
+  } else {
+    window.location.href = 'index.html'
+  }
+}
+
+redirigir()
+</script>
+</body>
+</html>

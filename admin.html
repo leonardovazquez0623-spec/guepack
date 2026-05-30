@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/Icono_gp.png">
+<meta name="theme-color" content="#1a4fa0">
+<link rel="icon" type="image/png" href="/Icono_gp.png">
+<style>
+  :root {
+    --blue: #1a4fa0;
+    --blue-dark: #0e3070;
+    --blue-light: #2563c4;
+    --orange: #f05a1a;
+    --orange-light: #ff7a3d;
+    --white: #ffffff;
+    --gray-light: #f4f6fb;
+    --gray: #e0e6f0;
+    --gray-mid: #8fa3c0;
+    --text: #1a2740;
+    --success: #22c55e;
+    --shadow: 0 4px 24px rgba(26,79,160,0.13);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Montserrat', sans-serif; background: var(--gray-light); color: var(--text); min-height: 100vh; }
+
+  .app-header {
+    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
+    padding: 22px 20px 28px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .brand-name { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: white; letter-spacing: 2px; }
+  .brand-name span { color: var(--orange); }
+  .brand-badge { background: var(--orange); color: white; font-size: 9px; font-weight: 900; padding: 3px 7px; border-radius: 4px; }
+  .header-sub { color: rgba(255,255,255,0.65); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; }
+  .btn-logout { background: rgba(255,255,255,0.15); border: none; color: white; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px; padding: 6px 12px; border-radius: 8px; cursor: pointer; margin-top: 8px; letter-spacing: 1px; transition: background .2s; }
+  .btn-logout:hover { background: var(--orange); }
+
+  .container { padding: 16px; max-width: 480px; margin: 0 auto; padding-bottom: 20px; }
+  .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .card-title { font-size: 11px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title::after { content: ''; flex: 1; height: 2px; background: linear-gradient(90deg, var(--orange), transparent); border-radius: 2px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-box { background: white; border-radius: 12px; padding: 14px 10px; text-align: center; box-shadow: var(--shadow); }
+  .stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--blue); line-height: 1; }
+  .stat-number.orange { color: var(--orange); }
+  .stat-label { font-size: 9px; font-weight: 700; color: var(--gray-mid); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  .order-card { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow); border-left: 4px solid var(--blue); }
+  .order-card.urgent { border-left-color: var(--orange); }
+  .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .order-id { font-size: 10px; font-weight: 900; color: var(--gray-mid); letter-spacing: 1px; }
+  .order-client { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .order-details { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 10px; }
+  .order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+  .badge-pending { background: rgba(240,90,26,0.12); color: var(--orange); }
+  .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
+  .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
+  .tag { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-right: 4px; }
+  .tag-blue { background: rgba(26,79,160,0.1); color: var(--blue); }
+  .tag-orange { background: rgba(240,90,26,0.1); color: var(--orange); }
+  .btn { padding: 8px 14px; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 900; cursor: pointer; }
+  .btn-secondary { background: var(--blue); color: white; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-mid); }
+  .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
+  .empty-text { font-size: 13px; font-weight: 700; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-mid); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .form-input { width: 100%; padding: 12px 14px; border: 2px solid var(--gray); border-radius: 10px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 600; color: var(--text); background: var(--gray-light); }
+  .form-input:focus { outline: none; border-color: var(--blue); background: white; }
+  .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .size-option { border: 2px solid var(--gray); border-radius: 12px; padding: 14px 10px; text-align: center; cursor: pointer; background: var(--gray-light); }
+  .size-option.selected { border-color: var(--blue); background: rgba(26,79,160,0.06); }
+  .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+  .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
+  .zone-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .zone-option { border: 2px solid var(--gray); border-radius: 10px; padding: 10px 6px; text-align: center; cursor: pointer; background: var(--gray-light); }
+  .zone-option.selected { border-color: var(--orange); background: rgba(240,90,26,0.07); }
+  .zone-name { font-size: 11px; font-weight: 900; color: var(--text); display: block; }
+  .zone-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+  .quote-box { background: linear-gradient(135deg, var(--blue-dark), var(--blue)); border-radius: 14px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
+  .btn-primary { background: linear-gradient(135deg, var(--orange), var(--orange-light)); color: white; width: 100%; padding: 15px; border-radius: 12px; font-size: 13px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 4px 14px rgba(240,90,26,0.35); }
+
+  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; }
+  .tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; font-size: 11px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; }
+  .tab.active { background: var(--blue); color: white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="brand">
+        <div class="brand-name">GUE<span>PAC</span>K</div>
+        <div class="brand-badge">ADMIN</div>
+      </div>
+      <div class="header-sub">Panel de Control</div>
+    </div>
+    <button onclick="cerrarSesion()" class="btn-logout">🚪 Salir</button>
+  </div>
+</div>
+
+<div class="container" style="padding-top:16px">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
+    <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
+  </div>
+
+  <!-- TAB PEDIDOS -->
+  <div id="tab-pedidos" class="tab-content active">
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-number orange" id="stat-pendientes">0</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="stat-ruta">0</div>
+        <div class="stat-label">En ruta</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" style="color:var(--success)" id="stat-entregados">0</div>
+        <div class="stat-label">Entregados</div>
+      </div>
+    </div>
+
+    <div class="card-title" style="padding:0 0 8px">📋 Pedidos de hoy</div>
+    <div id="lista-pedidos">
+      <div class="empty-state">
+        <span class="empty-icon">📦</span>
+        <div class="empty-text">Cargando pedidos...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB NUEVO PEDIDO -->
+  <div id="tab-nuevo" class="tab-content">
+    <div class="card">
+      <div class="card-title">📬 Datos del envío</div>
+      <div class="form-group">
+        <label class="form-label">Nombre completo</label>
+        <input type="text" id="a-nombre" class="form-input" placeholder="Ej. María García">
+      </div>
+      <div class="form-group">
+        <label class="form-label">WhatsApp</label>
+        <input type="tel" id="a-whatsapp" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección recolección</label>
+        <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección entrega</label>
+        <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input type="date" id="a-fecha" class="form-input">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📐 Tamaño</div>
+      <div class="size-grid">
+        <div class="size-option" id="a-sz-sobre" onclick="selectSize('sobre')">
+          <span class="size-icon">✉️</span>
+          <span class="size-name">Sobre / Chico</span>
+        </div>
+        <div class="size-option" id="a-sz-grande" onclick="selectSize('grande')">
+          <span class="size-icon">📦</span>
+          <span class="size-name">Grande</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗺️ Zona</div>
+      <div class="zone-grid">
+        <div class="zone-option" id="a-zn-centro" onclick="selectZone('centro')">
+          <span class="zone-icon">🏙️</span>
+          <span class="zone-name">Centro GDL</span>
+        </div>
+        <div class="zone-option" id="a-zn-norte" onclick="selectZone('norte')">
+          <span class="zone-icon">⬆️</span>
+          <span class="zone-name">Zona Norte</span>
+        </div>
+        <div class="zone-option" id="a-zn-sur" onclick="selectZone('sur')">
+          <span class="zone-icon">⬇️</span>
+          <span class="zone-name">Zona Sur</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="a-quote" class="quote-box" style="display:none">
+      <div>
+        <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;letter-spacing:1px">COSTO DE ENVÍO</div>
+        <div class="quote-price" id="a-quote-amount">$0</div>
+        <div style="color:rgba(255,255,255,0.55);font-size:10px;font-weight:600" id="a-quote-detail">—</div>
+      </div>
+      <div style="font-size:36px">🚀</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="crearPedidoAdmin()">Crear Pedido →</button>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let selSize = null, selZone = null
+const prices = {
+  centro: { sobre: 110, grande: 150 },
+  norte: { sobre: 150, grande: 200 },
+  sur: { sobre: 150, grande: 200 }
+}
+
+async function init() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) { window.location.href = 'login.html'; return; }
+  const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
+  if (!data || data.rol !== 'admin') { window.location.href = 'login.html'; return; }
+  cargarPedidos()
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById('tab-' + tab).classList.add('active')
+  event.target.classList.add('active')
+}
+
+function selectSize(sz) {
+  selSize = sz
+  document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
+  document.getElementById('a-sz-' + sz).classList.add('selected')
+  updateQuote()
+}
+
+function selectZone(zone) {
+  selZone = zone
+  document.querySelectorAll('.zone-option').forEach(o => o.classList.remove('selected'))
+  document.getElementById('a-zn-' + zone).classList.add('selected')
+  updateQuote()
+}
+
+function updateQuote() {
+  if (!selSize || !selZone) return
+  const price = prices[selZone][selSize]
+  const zoneLabel = { centro: 'Centro GDL', norte: 'Zona Norte', sur: 'Zona Sur' }[selZone]
+  const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize]
+  document.getElementById('a-quote-amount').textContent = '$' + price
+  document.getElementById('a-quote-detail').textContent = sizeLabel + ' · ' + zoneLabel
+  document.getElementById('a-quote').style.display = 'flex'
+}
+
+async function crearPedidoAdmin() {
+  const nombre = document.getElementById('a-nombre').value
+  const whatsapp = document.getElementById('a-whatsapp').value
+  const recoleccion = document.getElementById('a-recoleccion').value
+  const entrega = document.getElementById('a-entrega').value
+  const fecha = document.getElementById('a-fecha').value
+
+  if (!nombre || !whatsapp || !recoleccion || !entrega || !fecha || !selSize || !selZone) {
+    alert('Llena todos los campos'); return
+  }
+
+  const { error } = await db.from('pedidos').insert({
+    nombre, whatsapp,
+    direccion_recoleccion: recoleccion,
+    direccion_entrega: entrega,
+    fecha, tamanio: selSize, zona: selZone,
+    precio: prices[selZone][selSize],
+    estado: 'Pendiente'
+  })
+
+  if (error) { alert('Error al crear pedido'); return }
+  alert('✅ Pedido creado exitosamente!')
+  showTab('pedidos')
+  cargarPedidos()
+}
+
+async function cargarPedidos() {
+  const { data, error } = await db.from('pedidos').select('*').order('created_at', { ascending: false })
+  if (error) { console.error(error); return }
+
+  document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
+  document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+  document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
+
+  const contenedor = document.getElementById('lista-pedidos')
+  contenedor.innerHTML = ''
+
+  data.forEach(pedido => {
+    contenedor.innerHTML += `
+      <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}">
+        <div class="order-header">
+          <div>
+            <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+            <div class="order-client">${pedido.nombre}</div>
+          </div>
+          <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+        </div>
+        <div class="order-details">
+          <span class="tag tag-orange">${pedido.tamanio}</span>
+          <span class="tag tag-blue">${pedido.zona}</span>
+          ${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}<br>
+          <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
+          ${pedido.repartidor ? '· Repartidor: ' + pedido.repartidor : ''}
+        </div>
+        <div class="order-actions">
+          ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+        </div>
+      </div>
+    `
+  })
+}
+
+async function asignarRepartidor(id) {
+  const { data, error } = await db.from('repartidores').select('*')
+  if (error) { alert('Error al cargar repartidores'); return }
+
+  const opciones = data.map((r, i) => i + 1 + '. ' + r.nombre).join('\n')
+  const seleccion = prompt('Selecciona repartidor:\n' + opciones + '\n\nEscribe el número:')
+  if (!seleccion) return
+
+  const repartidor = data[parseInt(seleccion) - 1]
+  if (!repartidor) { alert('Número inválido'); return }
+
+  const { error: err } = await db.from('pedidos').update({
+    estado: 'En camino a recoleccion',
+    repartidor: repartidor.nombre
+  }).eq('id', id)
+
+  if (err) { alert('Error al asignar'); return }
+  cargarPedidos()
+}
+
+async function updateStatus(id, status, telefono, nombre) {
+  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  if (error) { alert('Error al actualizar'); return }
+
+  const mensajes = {
+    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+  }
+
+  const mensaje = mensajes[status]
+  if (mensaje && telefono) {
+    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ telefono, mensaje })
+    })
+  }
+  cargarPedidos()
+}
+
+async function cerrarSesion() {
+  await db.auth.signOut()
+  window.location.href = 'login.html'
+}
+
+init()
+</script>
+</body>
+</html>
