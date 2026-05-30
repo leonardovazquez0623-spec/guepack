@@ -275,6 +275,26 @@ async function loginGoogle() {
   })
   if (error) { showError('Error con Google: ' + error.message) }
 }
+function showLogin() {
+  document.getElementById('register-form').style.display = 'none'
+  document.getElementById('login-form').style.display = 'block'
+}
+
+async function registrar() {
+  const nombre = document.getElementById('reg-nombre').value
+  const email = document.getElementById('reg-email').value
+  const password = document.getElementById('reg-password').value
+  if (!nombre || !email || !password) { showError('Llena todos los campos'); return; }
+  if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
+
+  const { error } = await db.auth.signUp({
+    email,
+    password,
+    options: { data: { nombre } }
+  })
+  if (error) { showError('Error al crear cuenta: ' + error.message); return; }
+  showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
+}
 </script>
 </body>
 </html>

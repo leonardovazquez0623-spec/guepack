@@ -135,7 +135,17 @@
       </div>
     </div>
 
-    <div class="card-title" style="padding:0 0 8px">📋 Pedidos de hoy</div>
+   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+  <div class="card-title" style="padding:0;margin:0">📋 Pedidos</div>
+  <div style="display:flex;gap:6px">
+    <button onclick="filtrarFecha(0)" id="btn-hoy" class="btn btn-secondary" style="padding:6px 12px;font-size:10px;border-radius:8px">Hoy</button>
+    <button onclick="filtrarFecha(1)" id="btn-ayer" class="btn" style="padding:6px 12px;font-size:10px;border-radius:8px;background:var(--gray);color:var(--text)">Ayer</button>
+    <button onclick="filtrarFecha(2)" id="btn-2dias" class="btn" style="padding:6px 12px;font-size:10px;border-radius:8px;background:var(--gray);color:var(--text)">Hace 2 días</button>
+  </div>
+</div>
+<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+  <button onclick="exportarExcel()" style="background:var(--success);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px">📊 Exportar Excel</button>
+</div>
     <div id="lista-pedidos">
       <div class="empty-state">
         <span class="empty-icon">📦</span>
@@ -294,8 +304,32 @@ async function crearPedidoAdmin() {
   cargarPedidos()
 }
 
+let diaFiltro = 0
+
+function filtrarFecha(dias) {
+  diaFiltro = dias
+  document.querySelectorAll('.btn').forEach(b => {
+    if (b.id && b.id.startsWith('btn-')) {
+      b.style.background = 'var(--gray)'
+      b.style.color = 'var(--text)'
+    }
+  })
+  const ids = ['btn-hoy', 'btn-ayer', 'btn-2dias']
+  const btn = document.getElementById(ids[dias])
+  if (btn) { btn.style.background = 'var(--blue)'; btn.style.color = 'white' }
+  cargarPedidos()
+}
+
 async function cargarPedidos() {
-  const { data, error } = await db.from('pedidos').select('*').order('created_at', { ascending: false })
+ const fecha = new Date()
+fecha.setDate(fecha.getDate() - diaFiltro)
+const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
+const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
+
+const { data, error } = await db.from('pedidos').select('*')
+  .gte('created_at', inicio)
+  .lte('created_at', fin)
+  .order('created_at', { ascending: false })
   if (error) { console.error(error); return }
 
   document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
@@ -305,28 +339,17 @@ async function cargarPedidos() {
   const contenedor = document.getElementById('lista-pedidos')
   contenedor.innerHTML = ''
 
-  // Pedidos sin asignar
-  const sinAsignar = data.filter(p => !p.repartidor || p.estado === 'Pendiente' && !p.repartidor)
-  if (sinAsignar.length > 0) {
-    contenedor.innerHTML += `<div style="font-size:11px;font-weight:900;color:var(--orange);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;margin-top:4px">⚠️ Sin asignar (${sinAsignar.length})</div>`
-    sinAsignar.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
-  }
+  // Sin asignar
+  const sinAsignar = data.filter(p => !p.repartidor)
+  contenedor.innerHTML += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', true)
 
-  // Pedidos por repartidor
+  // Por repartidor
   const { data: repartidores } = await db.from('repartidores').select('*')
   repartidores.forEach(repa => {
-    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Entregado')
-    const entregadosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado === 'Entregado')
-    
-    if (pedidosRepa.length > 0 || entregadosRepa.length > 0) {
-      contenedor.innerHTML += `
-        <div style="font-size:11px;font-weight:900;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin:16px 0 10px">
-          🏍️ ${repa.nombre} · <span style="color:var(--orange)">${pedidosRepa.length} activos</span> · <span style="color:var(--success)">${entregadosRepa.length} entregados</span>
-        </div>
-      `
-      pedidosRepa.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
-      entregadosRepa.forEach(pedido => contenedor.innerHTML += renderPedido(pedido))
-    }
+    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre)
+    const activos = pedidosRepa.filter(p => p.estado !== 'Entregado').length
+    const entregados = pedidosRepa.filter(p => p.estado === 'Entregado').length
+    contenedor.innerHTML += renderAccordion('🏍️ ' + repa.nombre, pedidosRepa, 'repa-' + repa.id, false, activos, entregados)
   })
 
   if (data.length === 0) {
@@ -334,9 +357,72 @@ async function cargarPedidos() {
   }
 }
 
+function renderAccordion(titulo, pedidos, id, abierto, activos, entregados) {
+  const badge = activos !== undefined ? 
+    `<span style="color:var(--orange);font-weight:900">${activos} activos</span> · <span style="color:var(--success)">${entregados} entregados</span>` : 
+    `<span style="color:var(--orange);font-weight:900">${pedidos.length} pendientes</span>`
+
+  return `
+    <div style="margin-bottom:8px">
+      <div onclick="toggleAccordion('${id}')" style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:12px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow);border-left:4px solid var(--blue)">
+        <div>
+          <div style="font-size:13px;font-weight:900;color:var(--text)">${titulo}</div>
+          <div style="font-size:11px;margin-top:2px">${badge}</div>
+        </div>
+        <div id="arrow-${id}" style="font-size:18px;transition:transform .3s">${abierto ? '▲' : '▶'}</div>
+      </div>
+      <div id="accordion-${id}" style="display:${abierto ? 'block' : 'none'};padding-top:8px">
+        ${pedidos.length === 0 ? '<div style="text-align:center;padding:20px;color:var(--gray-mid);font-size:12px;font-weight:700">Sin pedidos</div>' : pedidos.map(p => renderPedido(p)).join('')}
+      </div>
+    </div>
+  `
+}
+async function exportarExcel() {
+  const fecha = new Date()
+  fecha.setDate(fecha.getDate() - diaFiltro)
+  const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
+  const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
+
+  const { data, error } = await db.from('pedidos').select('*')
+    .gte('created_at', inicio)
+    .lte('created_at', fin)
+    .order('created_at', { ascending: false })
+
+  if (error || !data.length) { alert('No hay pedidos para exportar'); return }
+
+  const fechaLabel = ['Hoy', 'Ayer', 'Hace 2 días'][diaFiltro]
+  
+  let csv = 'Folio,Cliente,WhatsApp,Recolección,Entrega,Tamaño,Zona,Precio,Estado,Repartidor,Fecha\n'
+  
+  data.forEach(p => {
+    const fecha = new Date(p.created_at).toLocaleString('es-MX')
+    csv += `GK-${p.id},"${p.nombre}","${p.whatsapp}","${p.direccion_recoleccion}","${p.direccion_entrega}","${p.tamanio}","${p.zona}","$${p.precio}","${p.estado}","${p.repartidor || 'Sin asignar'}","${fecha}"\n`
+  })
+
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `GUEPACK_${fechaLabel}_${new Date().toLocaleDateString('es-MX').replace(/\//g,'-')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+function toggleAccordion(id) {
+  const content = document.getElementById('accordion-' + id)
+  const arrow = document.getElementById('arrow-' + id)
+  if (content.style.display === 'none') {
+    content.style.display = 'block'
+    arrow.textContent = '▲'
+    arrow.style.transform = 'rotate(0deg)'
+  } else {
+    content.style.display = 'none'
+    arrow.textContent = '▶'
+  }
+}
+
 function renderPedido(pedido) {
   return `
-    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : pedido.estado === 'Entregado' ? 'opacity:0.6' : ''}">
+    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'opacity:0.6' : ''}">
       <div class="order-header">
         <div>
           <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
