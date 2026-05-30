@@ -252,6 +252,7 @@ async function loginEmail() {
 
 async function redirigirSegunRol(email) {
   const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
+  console.log('Email:', email, 'Rol:', data, 'Error:', error)
   
   if (error || !data) {
     window.location.href = 'index.html'
@@ -265,21 +266,6 @@ async function redirigirSegunRol(email) {
   } else {
     window.location.href = 'index.html'
   }
-}
-async function registrar() {
-  const nombre = document.getElementById('reg-nombre').value
-  const email = document.getElementById('reg-email').value
-  const password = document.getElementById('reg-password').value
-  if (!nombre || !email || !password) { showError('Llena todos los campos'); return; }
-  if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
-
-  const { error } = await db.auth.signUp({
-    email,
-    password,
-    options: { data: { nombre } }
-  })
-  if (error) { showError('Error al crear cuenta: ' + error.message); return; }
-  showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
 }
 
 async function loginGoogle() {
