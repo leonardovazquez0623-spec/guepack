@@ -214,8 +214,27 @@ async function cambiarEstado(id, status, telefono, nombre) {
     const { data: pedido } = await db.from('pedidos').select('user_id').eq('id', id).single()
     
     if (pedido?.user_id) {
-      const { data: usuario } = await db.from('usuarios').select('fcm_token').eq('user_id', pedido.user_id).single()
+      const { data: pedidoCompleto } = await db.from('pedidos').select('user_id').eq('id', id).single()
+const { data: authUser } = await db.from('usuarios').select('fcm_token, email').eq('user_id', pedidoCompleto?.user_id).single()
+const usuario = authUser
+console.log('Buscando user_id:', pedidoCompleto?.user_id, 'Usuario:', usuario)
       console.log('Usuario con token:', usuario)
+      if (usuario?.fcm_token) {
+        const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          },
+          body: JSON.stringify({ 
+            token: usuario.fcm_token, 
+            title: msg.title, 
+            body: msg.body 
+          })
+        })
+        const respData = await resp.json()
+        console.log('Respuesta push:', respData)
+      }
       
       if (usuario?.fcm_token) {
         await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
