@@ -138,51 +138,45 @@ const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 // ── Sonido GUEPACK (hecho con ❤️ por Claude) ──
-function rugidoGuepack() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)()
-  
-  const tiempos = [
-    { freq: 80, inicio: 0, fin: 0.3, volumen: 0.8, tipo: 'sawtooth' },
-    { freq: 60, inicio: 0.1, fin: 0.5, volumen: 1.0, tipo: 'sawtooth' },
-    { freq: 40, inicio: 0.2, fin: 0.8, volumen: 0.9, tipo: 'triangle' },
-    { freq: 120, inicio: 0.0, fin: 0.2, volumen: 0.5, tipo: 'sine' },
-    { freq: 35, inicio: 0.4, fin: 1.2, volumen: 0.7, tipo: 'sawtooth' },
-  ]
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
 
-  tiempos.forEach(({ freq, inicio, fin, volumen, tipo }) => {
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    const distortion = ctx.createWaveShaper()
+function tocarNota(freq, inicio, dur) {
+  const osc = audioCtx.createOscillator()
+  const gain = audioCtx.createGain()
+  osc.type = 'sine'
+  osc.frequency.value = freq
+  gain.gain.setValueAtTime(0.5, audioCtx.currentTime + inicio)
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + inicio + dur)
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start(audioCtx.currentTime + inicio)
+  osc.stop(audioCtx.currentTime + inicio + dur + 0.05)
+}
 
-    function makeDistortion(amount) {
-      const samples = 256
-      const curve = new Float32Array(samples)
-      for (let i = 0; i < samples; i++) {
-        const x = (i * 2) / samples - 1
-        curve[i] = ((Math.PI + amount) * x) / (Math.PI + amount * Math.abs(x))
-      }
-      return curve
-    }
-
-    distortion.curve = makeDistortion(400)
-    osc.type = tipo
-    osc.frequency.setValueAtTime(freq, ctx.currentTime + inicio)
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.5, ctx.currentTime + fin)
-
-    gain.gain.setValueAtTime(0, ctx.currentTime + inicio)
-    gain.gain.linearRampToValueAtTime(volumen * 0.3, ctx.currentTime + inicio + 0.05)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + fin)
-
-    osc.connect(distortion)
-    distortion.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.start(ctx.currentTime + inicio)
-    osc.stop(ctx.currentTime + fin + 0.1)
+function tocarRugido(inicio) {
+  [80, 60, 40, 35].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + inicio + i * 0.1)
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.4, audioCtx.currentTime + inicio + 1.5)
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime + inicio)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + inicio + 1.5)
+    osc.connect(gain)
+    gain.connect(audioCtx.destination)
+    osc.start(audioCtx.currentTime + inicio)
+    osc.stop(audioCtx.currentTime + inicio + 1.6)
   })
+}
 
-  // vibración si el celu lo soporta
-  if (navigator.vibrate) navigator.vibrate([100, 50, 200, 50, 300])
+function rugidoGuepack() {
+  audioCtx.resume().then(() => {
+    tocarNota(523, 0.0, 0.4)
+    tocarNota(659, 0.5, 0.4)
+    tocarNota(784, 1.0, 0.6)
+    tocarRugido(0.6)
+    if (navigator.vibrate) navigator.vibrate([50, 30, 100, 30, 300])
+  })
 }
 
 async function init() {
@@ -222,8 +216,10 @@ async function cargarPedidos(email) {
 
 // Detectar pedidos nuevos y sonar
 const pedidosGuardados = parseInt(localStorage.getItem('guepack_pedidos_count') || '0')
+console.log('Pedidos guardados:', pedidosGuardados, 'Pedidos actuales:', data.length)
 if (data.length > pedidosGuardados && pedidosGuardados > 0) {
   rugidoGuepack()
+console.log('🐆 RUGIDO!')
 }
 localStorage.setItem('guepack_pedidos_count', data.length)
 
@@ -231,6 +227,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
     contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">🏍️</span><div class="empty-text">No tienes pedidos asignados</div></div>'
     return
   }
+
 
   data.forEach(pedido => {
     contenedor.innerHTML += `
@@ -314,13 +311,13 @@ async function cerrarSesion() {
 }
 
 init()
-
 // ── Auto-refresh cada 30 segundos ──
 setInterval(async () => {
+  console.log('Auto-refresh ejecutando...')
   const { data: { session } } = await db.auth.getSession()
+  console.log('Session:', session?.user?.email)
   if (session) cargarPedidos(session.user.email)
-}, 20000)
-
+}, 10000)
 </script>
 </body>
 </html>
