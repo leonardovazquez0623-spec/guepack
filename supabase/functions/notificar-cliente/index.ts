@@ -5,41 +5,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const TWILIO_SID = 'AC79eafe8b6fcb3c5261b92f74a4b79f66';
-const TWILIO_TOKEN = '9d556306ea9346751c174fce1a3382cc';
-const TWILIO_NUMBER = 'whatsapp:+14155238886';
+const PHONE_NUMBER_ID = '1198005173387148'
+const ACCESS_TOKEN = 'EAAasbYvxKBYBRhXSQuMVLM0derXR3EkpLUmpmifuK9xmyk0H04xlsy7XDq1yAGC0sHCclm1XncBGZAZBKHlgP9dnpNBkudYislYcRyHZCvjptOQnWItrQZBarZATTlevjrRmrA9XZBgEXGQpo9BVYb7MoMTAj8E5Sunro1TYxsKQ9VxkpQsnYK2xZAHQ5SPWdpFKHmk6UrDkTh7Q6QZCXVmF1lAKKDc0HgxQAqTuTHVhttnjqbh6J2WRWOESxXXkIgYvRSclXCAXAOqouTToDAFDNvMH9QZDZD'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const body = await req.json();
-  const telefono = body.telefono;
-  const mensaje = body.mensaje;
+  const body = await req.json()
+  const telefono = body.telefono
+  const mensaje = body.mensaje
 
-  const url = 'https://api.twilio.com/2010-04-01/Accounts/' + TWILIO_SID + '/Messages.json';
-
-  const params = new URLSearchParams();
-  params.append('From', TWILIO_NUMBER);
-  params.append('To', 'whatsapp:+52' + telefono);
-  params.append('Body', mensaje);
-
-  const creds = TWILIO_SID + ':' + TWILIO_TOKEN;
-  const encoded = btoa(creds);
+  const url = 'https://graph.facebook.com/v18.0/' + PHONE_NUMBER_ID + '/messages'
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + encoded,
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Authorization': 'Bearer ' + ACCESS_TOKEN,
+      'Content-Type': 'application/json'
     },
-    body: params.toString()
-  });
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: '52' + telefono,
+      type: 'text',
+      text: { body: mensaje }
+    })
+  })
 
-  const data = await response.json();
+  const data = await response.json()
 
   return new Response(JSON.stringify(data), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-});
+  })
+})

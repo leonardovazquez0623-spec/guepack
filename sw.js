@@ -1,4 +1,4 @@
-const CACHE_NAME = 'guepack-v3'
+const CACHE_NAME = 'guepack-v4'
 const urlsToCache = [
   '/',
   '/index.html',
@@ -29,6 +29,8 @@ self.addEventListener('activate', event => {
 })
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
