@@ -204,27 +204,30 @@ async function cambiarEstado(id, status, telefono, nombre) {
   if (error) { alert('Error al actualizar'); return; }
 
   const mensajes = {
-    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
-    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
-    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+    'En camino a entrega': { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino.' },
+    'A punto de llegar': { title: '⏰ GUEPACK Express', body: 'Hola ' + nombre + '! Tu repartidor está a punto de llegar. ¡Prepárate!' },
+    'Entregado': { title: '✅ GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete fue entregado. ¡Gracias por confiar en nosotros!' }
   }
 
-  const mensaje = mensajes[status]
-  console.log('Telefono:', telefono)
-  console.log('Mensaje:', mensaje)
-  console.log('Status:', status)
-
-  if (mensaje && telefono) {
-    const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      },
-      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
-    })
-    const respData = await resp.json()
-    console.log('Respuesta Meta:', respData)
+  const msg = mensajes[status]
+  if (msg) {
+    const { data: pedido } = await db.from('pedidos').select('user_id').eq('id', id).single()
+    
+    if (pedido?.user_id) {
+      const { data: usuario } = await db.from('usuarios').select('fcm_token').eq('user_id', pedido.user_id).single()
+      console.log('Usuario con token:', usuario)
+      
+      if (usuario?.fcm_token) {
+        await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          },
+          body: JSON.stringify({ token: usuario.fcm_token, title: msg.title, body: msg.body })
+        })
+      }
+    }
   }
 
   const { data: { session } } = await db.auth.getSession()
