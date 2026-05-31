@@ -210,8 +210,12 @@ async function cambiarEstado(id, status, telefono, nombre) {
   }
 
   const mensaje = mensajes[status]
+  console.log('Telefono:', telefono)
+  console.log('Mensaje:', mensaje)
+  console.log('Status:', status)
+
   if (mensaje && telefono) {
-    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+    const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -219,6 +223,8 @@ async function cambiarEstado(id, status, telefono, nombre) {
       },
       body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
     })
+    const respData = await resp.json()
+    console.log('Respuesta Meta:', respData)
   }
 
   const { data: { session } } = await db.auth.getSession()

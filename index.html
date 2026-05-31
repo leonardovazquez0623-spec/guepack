@@ -738,11 +738,49 @@ async function verificarSesion() {
   }
 }
 verificarSesion()
-// ── Registrar Service Worker ──
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
+// ── Firebase Push Notifications ──
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js'
+import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/12.14.0/firebase-messaging.js'
+
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo",
+  authDomain: "guepack-app.firebaseapp.com",
+  projectId: "guepack-app",
+  storageBucket: "guepack-app.firebasestorage.app",
+  messagingSenderId: "912683525841",
+  appId: "1:912683525841:web:a67f014362160ea29b87f0"
+})
+
+const messaging = getMessaging(firebaseApp)
+
+async function activarNotificaciones() {
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: 'BHhCITe5ZaJQpJS5aNtEAArVO15zwMR1e6baQxQG34pvjXV8Jk3r2P5QLfcX6bPSe4itfY5wFBai7nHX3MnyKDU',
+      serviceWorkerRegistration: await navigator.serviceWorker.register('/sw.js')
+    })
+    if (token) {
+      console.log('Token FCM:', token)
+      const { data: { session } } = await db.auth.getSession()
+      if (session) {
+        await db.from('usuarios').update({ fcm_token: token }).eq('email', session.user.email)
+      }
+    }
+  } catch (err) {
+    console.log('Notificaciones no activadas:', err)
+  }
 }
 
+onMessage(messaging, payload => {
+  const { title, body } = payload.notification
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:14px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);max-width:300px;text-align:center'
+  toast.innerHTML = '🔔 <b>' + title + '</b><br>' + body
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 4000)
+})
+
+activarNotificaciones()
 let selSize = null, selZone = null;
 
 const prices = {
