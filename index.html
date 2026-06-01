@@ -832,6 +832,12 @@ async function submitRequest() {
     alert('¡Llena todos los campos, selecciona fecha, tamaño y zona!')
     return
   }
+  // ── Verificar si está bloqueado por horario ──
+const aviso = document.getElementById('aviso-fecha')
+if (aviso && aviso.style.display !== 'none' && aviso.innerHTML.includes('🟠')) {
+  alert('⚠️ No es posible registrar este envío por el horario o capacidad del día. Por favor selecciona otra fecha.')
+  return
+}
 const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
 const precio = prices[selZone][selSize]
