@@ -175,9 +175,16 @@
         <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia">
       </div>
       <div class="form-group">
-        <label class="form-label">Fecha</label>
-        <input type="date" id="a-fecha" class="form-input">
-      </div>
+  <label class="form-label">Fecha de recolección</label>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button type="button" id="a-btn-hoy" onclick="aSeleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">📅 Hoy</button>
+    <button type="button" id="a-btn-manana" onclick="aSeleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">📅 Mañana</button>
+    <button type="button" id="a-btn-otra" onclick="aSeleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">🗓️ Otra</button>
+  </div>
+  <input type="date" id="a-input-fecha-custom" class="form-input" style="display:none">
+  <input type="hidden" id="a-fecha-seleccionada">
+  <div id="a-aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
+</div>
     </div>
 
     <div class="card">
@@ -253,7 +260,75 @@ function showTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active')
   event.target.classList.add('active')
 }
+function aSeleccionarFecha(opcion) {
+  const hoy = new Date()
+  const mañana = new Date()
+  mañana.setDate(mañana.getDate() + 1)
+  const formatear = (d) => d.toISOString().split('T')[0]
 
+  const btns = ['a-btn-hoy', 'a-btn-manana', 'a-btn-otra']
+  btns.forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) {
+      btn.style.background = 'var(--gray-light)'
+      btn.style.color = 'var(--text)'
+      btn.style.borderColor = 'var(--gray)'
+    }
+  })
+
+  if (opcion === 'hoy') {
+    document.getElementById('a-fecha-seleccionada').value = formatear(hoy)
+    document.getElementById('a-input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('a-btn-hoy')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    aVerificarDisponibilidad(formatear(hoy))
+  } else if (opcion === 'mañana') {
+    document.getElementById('a-fecha-seleccionada').value = formatear(mañana)
+    document.getElementById('a-input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('a-btn-manana')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    aVerificarDisponibilidad(formatear(mañana))
+  } else {
+    document.getElementById('a-input-fecha-custom').style.display = 'block'
+    document.getElementById('a-input-fecha-custom').onchange = (e) => {
+      document.getElementById('a-fecha-seleccionada').value = e.target.value
+      aVerificarDisponibilidad(e.target.value)
+    }
+    const btn = document.getElementById('a-btn-otra')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+  }
+}
+
+async function aVerificarDisponibilidad(fecha) {
+  const inicio = new Date(fecha + 'T00:00:00').toISOString()
+  const fin = new Date(fecha + 'T23:59:59').toISOString()
+  const { data } = await db.from('pedidos').select('id').gte('created_at', inicio).lte('created_at', fin)
+  const total = data ? data.length : 0
+  const hora = new Date().getHours()
+  const hoy = new Date().toISOString().split('T')[0]
+  const esHoy = fecha === hoy
+  const aviso = document.getElementById('a-aviso-fecha')
+
+  if (esHoy && hora >= 15) {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(240,90,26,0.1)'
+    aviso.style.color = 'var(--orange)'
+    aviso.style.border = '2px solid var(--orange)'
+    aviso.innerHTML = '🟠 Ya pasaron las 3 PM — recolección para mañana'
+  } else if (total >= 10) {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(240,90,26,0.1)'
+    aviso.style.color = 'var(--orange)'
+    aviso.style.border = '2px solid var(--orange)'
+    aviso.innerHTML = '🟠 ' + total + ' pedidos ese día — posible entrega al día siguiente'
+  } else {
+    aviso.style.display = 'block'
+    aviso.style.background = 'rgba(34,197,94,0.1)'
+    aviso.style.color = 'var(--success)'
+    aviso.style.border = '2px solid var(--success)'
+    aviso.innerHTML = '🟢 ¡Disponible! Recolección el día seleccionado'
+  }
+}
 function selectSize(sz) {
   selSize = sz
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
@@ -283,10 +358,16 @@ async function crearPedidoAdmin() {
   const whatsapp = document.getElementById('a-whatsapp').value
   const recoleccion = document.getElementById('a-recoleccion').value
   const entrega = document.getElementById('a-entrega').value
-  const fecha = document.getElementById('a-fecha').value
+  const fecha = document.getElementById('a-fecha-seleccionada').value
 
   if (!nombre || !whatsapp || !recoleccion || !entrega || !fecha || !selSize || !selZone) {
-    alert('Llena todos los campos'); return
+    alert('Llena todos los campos y selecciona fecha, tamaño y zona'); return
+  }
+
+  const aAviso = document.getElementById('a-aviso-fecha')
+  if (aAviso && aAviso.style.display !== 'none' && aAviso.innerHTML.includes('🟠')) {
+    alert('⚠️ No es posible registrar por horario o capacidad. Selecciona otra fecha.')
+    return
   }
 
   const { error } = await db.from('pedidos').insert({
