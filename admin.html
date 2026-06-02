@@ -167,12 +167,20 @@
         <input type="tel" id="a-whatsapp" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
       </div>
       <div class="form-group">
-        <label class="form-label">Dirección recolección</label>
-        <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Dirección entrega</label>
-        <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia">
+ <div class="form-group">
+  <label class="form-label">Dirección recolección</label>
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+    <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+  </div>
+</div>
+<div class="form-group">
+  <label class="form-label">Dirección entrega</label>
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+    <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+  </div>
+</div>
       </div>
       <div class="form-group">
   <label class="form-label">Fecha de recolección</label>
@@ -259,6 +267,98 @@ function showTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
   document.getElementById('tab-' + tab).classList.add('active')
   event.target.classList.add('active')
+}
+async function aMostrarDirecciones(tipo) {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { data } = await db.from('direcciones')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('tipo', tipo)
+
+  const inputId = tipo === 'recoleccion' ? 'a-recoleccion' : 'a-entrega'
+  const valorActual = document.getElementById(inputId).value
+
+  const div = document.createElement('div')
+  div.id = 'modal-dir-admin'
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:flex-end;justify-content:center;padding:20px'
+
+  const lista = data && data.length > 0
+    ? data.map(d => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--gray)">
+          <div onclick="aUsarDireccion('${inputId}', '${d.direccion.replace(/'/g, "\\'")}')" style="flex:1;cursor:pointer">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${d.nombre}</div>
+            <div style="font-size:11px;color:var(--gray-mid)">${d.direccion}</div>
+          </div>
+          <button onclick="aBorrarDireccion(${d.id},'${tipo}')" style="background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:16px;padding:4px">🗑️</button>
+        </div>
+      `).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--gray-mid);font-size:12px;font-weight:700">No tienes direcciones guardadas</div>'
+
+  div.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:70vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--blue);letter-spacing:2px">⭐ Mis Direcciones</div>
+        <button onclick="document.getElementById('modal-dir-admin').remove()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      ${lista}
+      ${valorActual ? `
+        <div style="margin-top:16px;border-top:1px solid var(--gray);padding-top:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Guardar dirección actual</div>
+          <div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:8px">${valorActual}</div>
+          <input type="text" id="a-input-nombre-dir" placeholder="Ej: Bodega cliente, Oficina..." style="width:100%;padding:10px 14px;border:2px solid var(--gray);border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;margin-bottom:8px">
+          <button onclick="aGuardarDireccion('${inputId}', '${tipo}')" style="width:100%;padding:12px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
+            ➕ Guardar dirección
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `
+  document.body.appendChild(div)
+}
+
+function aUsarDireccion(inputId, direccion) {
+  document.getElementById(inputId).value = direccion
+  document.getElementById('modal-dir-admin').remove()
+}
+
+async function aGuardarDireccion(inputId, tipo) {
+  const direccion = document.getElementById(inputId).value
+  if (!direccion) return
+
+  const nombre = document.getElementById('a-input-nombre-dir').value.trim()
+  if (!nombre) { alert('Escribe un nombre para la dirección'); return }
+
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { error } = await db.from('direcciones').insert({
+    user_id: session.user.id,
+    nombre: nombre,
+    direccion: direccion,
+    tipo: tipo
+  })
+
+  if (error) { alert('Error al guardar'); return }
+  document.getElementById('modal-dir-admin').remove()
+
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
+  toast.textContent = '✅ Dirección guardada!'
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2500)
+}
+
+async function aBorrarDireccion(id, tipo) {
+  await db.from('direcciones').delete().eq('id', id)
+  document.getElementById('modal-dir-admin').remove()
+
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
+  toast.textContent = '🗑️ Dirección eliminada'
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2500)
 }
 function aSeleccionarFecha(opcion) {
   const hoy = new Date()
