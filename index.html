@@ -788,6 +788,17 @@ function activarLluvia(mensaje) {
 }
 
 verificarLluvia()
+// ── Escuchar cambios de lluvia en tiempo real ──
+db.channel('configuracion')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, payload => {
+    if (payload.new.lluvia) {
+      activarLluvia(payload.new.mensaje_lluvia)
+    } else {
+      document.getElementById('lluvia-overlay').style.display = 'none'
+      document.getElementById('lluvia-aviso').style.display = 'none'
+    }
+  })
+  .subscribe()
 // ── Registrar Service Worker ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js')
