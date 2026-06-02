@@ -738,6 +738,56 @@ async function verificarSesion() {
   }
 }
 verificarSesion()
+// ── Verificar modo lluvia ──
+async function verificarLluvia() {
+  const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
+  if (data && data.lluvia) {
+    activarLluvia(data.mensaje_lluvia)
+  }
+}
+
+function activarLluvia(mensaje) {
+  document.getElementById('lluvia-aviso').style.display = 'block'
+  document.getElementById('lluvia-overlay').style.display = 'block'
+  if (mensaje) document.getElementById('lluvia-mensaje').textContent = mensaje
+
+  const canvas = document.getElementById('lluvia-canvas')
+  const ctx = canvas.getContext('2d')
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+
+  const gotas = Array.from({ length: 150 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    largo: Math.random() * 20 + 10,
+    velocidad: Math.random() * 5 + 3,
+    opacidad: Math.random() * 0.5 + 0.1
+  }))
+
+  function animar() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.strokeStyle = 'rgba(174, 214, 241, 0.6)'
+    ctx.lineWidth = 1
+
+    gotas.forEach(gota => {
+      ctx.beginPath()
+      ctx.globalAlpha = gota.opacidad
+      ctx.moveTo(gota.x, gota.y)
+      ctx.lineTo(gota.x - 2, gota.y + gota.largo)
+      ctx.stroke()
+      gota.y += gota.velocidad
+      gota.x -= 1
+      if (gota.y > canvas.height) {
+        gota.y = -gota.largo
+        gota.x = Math.random() * canvas.width
+      }
+    })
+    requestAnimationFrame(animar)
+  }
+  animar()
+}
+
+verificarLluvia()
 // ── Registrar Service Worker ──
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js')
@@ -1335,6 +1385,16 @@ function stepClick(btn, idx) {
   });
 }
 </script>
+<!-- ── Modo Lluvia ── -->
+<div id="lluvia-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;pointer-events:none">
+  <canvas id="lluvia-canvas" style="width:100%;height:100%"></canvas>
+</div>
+
+<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,#1a4fa0,#2563c4);color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
+  <div style="font-size:24px;margin-bottom:6px">🌧️</div>
+  <div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:4px">AVISO CLIMÁTICO</div>
+  <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="lluvia-mensaje">Por condiciones climáticas, es posible que tu pedido tenga retrasos. ¡Gracias por tu comprensión!</div>
+</div>
 
 </body>
 </html>

@@ -113,6 +113,11 @@
 <div class="container" style="padding-top:16px">
 
   <!-- Tabs -->
+   <div id="btn-lluvia-container" style="display:flex;justify-content:center;margin-bottom:14px">
+  <button id="btn-lluvia" onclick="toggleLluvia()" style="padding:12px 24px;border:none;border-radius:12px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;letter-spacing:1px;box-shadow:var(--shadow)">
+    🌤️ Modo lluvia: OFF
+  </button>
+</div>
   <div class="tabs">
     <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
     <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
@@ -253,8 +258,40 @@ const prices = {
   norte: { sobre: 150, grande: 200 },
   sur: { sobre: 150, grande: 200 }
 }
+// ── Modo Lluvia ──
+async function cargarEstadoLluvia() {
+  const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
+  if (data) actualizarBotonLluvia(data.lluvia)
+}
+
+function actualizarBotonLluvia(activa) {
+  const btn = document.getElementById('btn-lluvia')
+  if (activa) {
+    btn.textContent = '🌧️ Modo lluvia: ON'
+    btn.style.background = '#1a6fa0'
+    btn.style.boxShadow = '0 4px 14px rgba(26,111,160,0.5)'
+  } else {
+    btn.textContent = '🌤️ Modo lluvia: OFF'
+    btn.style.background = 'var(--blue)'
+    btn.style.boxShadow = 'var(--shadow)'
+  }
+}
+
+async function toggleLluvia() {
+  const { data } = await db.from('configuracion').select('lluvia').eq('id', 1).single()
+  const nuevoEstado = !data.lluvia
+  await db.from('configuracion').update({ lluvia: nuevoEstado }).eq('id', 1)
+  actualizarBotonLluvia(nuevoEstado)
+
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
+  toast.textContent = nuevoEstado ? '🌧️ Modo lluvia activado' : '🌤️ Modo lluvia desactivado'
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2500)
+}
 
 async function init() {
+  cargarEstadoLluvia()
   const { data: { session } } = await db.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return; }
   const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
