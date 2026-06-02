@@ -1147,48 +1147,83 @@ async function borrarDireccion(id, tipo) {
   setTimeout(() => toast.remove(), 2500)
   
 }
+function esFindeSemana(fecha) {
+  const dia = new Date(fecha + 'T00:00:00').getDay()
+  return dia === 0 || dia === 6 // 0 = domingo, 6 = sábado
+}
+
+function proximoLunes(fecha) {
+  const d = new Date(fecha + 'T00:00:00')
+  const dia = d.getDay()
+  const diasHastaLunes = dia === 6 ? 2 : 1 // sábado +2, domingo +1
+  d.setDate(d.getDate() + diasHastaLunes)
+  return d.toISOString().split('T')[0]
+}
 function seleccionarFecha(opcion) {
   const hoy = new Date()
   const mañana = new Date()
   mañana.setDate(mañana.getDate() + 1)
-
   const formatear = (d) => d.toISOString().split('T')[0]
 
-  const btns = ['btn-hoy-fecha', 'btn-mañana-fecha', 'btn-otra-fecha']
+  const btns = ['btn-hoy-fecha', 'btn-manana-fecha', 'btn-otra-fecha']
   btns.forEach(id => {
     const btn = document.getElementById(id)
-    btn.style.background = 'var(--gray-light)'
-    btn.style.color = 'var(--text)'
-    btn.style.borderColor = 'var(--gray)'
+    if (btn) {
+      btn.style.background = 'var(--gray-light)'
+      btn.style.color = 'var(--text)'
+      btn.style.borderColor = 'var(--gray)'
+    }
   })
 
+  let fechaSeleccionada = null
+
   if (opcion === 'hoy') {
-    document.getElementById('fecha-seleccionada').value = formatear(hoy)
-    verificarDisponibilidad(formatear(hoy))
+    fechaSeleccionada = formatear(hoy)
+    if (esFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = proximoLunes(fechaSeleccionada)
+      mostrarToast('📅 Hoy es fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+    }
+    document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-hoy-fecha')
-    btn.style.background = 'var(--blue)'
-    btn.style.color = 'white'
-    btn.style.borderColor = 'var(--blue)'
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    verificarDisponibilidad(fechaSeleccionada)
+
   } else if (opcion === 'mañana') {
-    document.getElementById('fecha-seleccionada').value = formatear(mañana)
-    verificarDisponibilidad(formatear(mañana))
+    fechaSeleccionada = formatear(mañana)
+    if (esFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = proximoLunes(fechaSeleccionada)
+      mostrarToast('📅 Mañana es fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+    }
+    document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
-    const btn = document.getElementById('btn-mañana-fecha')
-    btn.style.background = 'var(--blue)'
-    btn.style.color = 'white'
-    btn.style.borderColor = 'var(--blue)'
+    const btn = document.getElementById('btn-manana-fecha')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    verificarDisponibilidad(fechaSeleccionada)
+
   } else {
     document.getElementById('input-fecha-custom').style.display = 'block'
     document.getElementById('input-fecha-custom').onchange = (e) => {
-      document.getElementById('fecha-seleccionada').value = e.target.value
-      verificarDisponibilidad(e.target.value)
+      let fecha = e.target.value
+      if (esFindeSemana(fecha)) {
+        fecha = proximoLunes(fecha)
+        e.target.value = fecha
+        mostrarToast('📅 Fin de semana detectado — fecha cambiada al lunes ' + fecha, 'var(--orange)')
+      }
+      document.getElementById('fecha-seleccionada').value = fecha
+      verificarDisponibilidad(fecha)
     }
     const btn = document.getElementById('btn-otra-fecha')
-    btn.style.background = 'var(--blue)'
-    btn.style.color = 'white'
-    btn.style.borderColor = 'var(--blue)'
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
   }
+}
+
+function mostrarToast(texto, color) {
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;max-width:300px'
+  toast.textContent = texto
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 3000)
 }
 function resetForm() {
   document.getElementById('form-state').style.display = 'block'
