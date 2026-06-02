@@ -756,27 +756,76 @@ function activarLluvia(mensaje) {
   canvas.width = window.innerWidth
   canvas.height = window.innerHeight
 
-  const gotas = Array.from({ length: 150 }, () => ({
+  const gotas = Array.from({ length: 200 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
-    largo: Math.random() * 20 + 10,
-    velocidad: Math.random() * 5 + 3,
-    opacidad: Math.random() * 0.5 + 0.1
+    largo: Math.random() * 25 + 15,
+    velocidad: Math.random() * 6 + 4,
+    opacidad: Math.random() * 0.6 + 0.2,
+    grosor: Math.random() * 2.5 + 1
   }))
+
+  let rayoTimeout = null
+
+  function dibujarRayo(x, y) {
+    ctx.save()
+    ctx.strokeStyle = 'rgba(255, 255, 180, 0.95)'
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = 'rgba(255, 255, 100, 0.8)'
+    ctx.shadowBlur = 20
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+
+    let cx = x, cy = y
+    while (cy < canvas.height * 0.7) {
+      cx += (Math.random() - 0.5) * 60
+      cy += Math.random() * 40 + 20
+      ctx.lineTo(cx, cy)
+      if (Math.random() < 0.3) {
+        const bx = cx + (Math.random() - 0.5) * 80
+        const by = cy + Math.random() * 60
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(bx, by)
+        ctx.moveTo(cx, cy)
+      }
+    }
+    ctx.stroke()
+    ctx.restore()
+
+    // Flash de relámpago
+    const flash = document.createElement('div')
+    flash.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,200,0.15);z-index:997;pointer-events:none'
+    document.body.appendChild(flash)
+    setTimeout(() => flash.remove(), 80)
+  }
+
+  function programarRayo() {
+    const delay = Math.random() * 8000 + 4000
+    rayoTimeout = setTimeout(() => {
+      const x = Math.random() * canvas.width
+      dibujarRayo(x, 0)
+      setTimeout(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }, 150)
+      programarRayo()
+    }, delay)
+  }
+
+  programarRayo()
 
   function animar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.strokeStyle = 'rgba(174, 214, 241, 0.6)'
-    ctx.lineWidth = 1
 
     gotas.forEach(gota => {
       ctx.beginPath()
       ctx.globalAlpha = gota.opacidad
+      ctx.strokeStyle = 'rgba(174, 214, 241, 0.7)'
+      ctx.lineWidth = gota.grosor
       ctx.moveTo(gota.x, gota.y)
-      ctx.lineTo(gota.x - 2, gota.y + gota.largo)
+      ctx.lineTo(gota.x - 3, gota.y + gota.largo)
       ctx.stroke()
       gota.y += gota.velocidad
-      gota.x -= 1
+      gota.x -= 1.5
       if (gota.y > canvas.height) {
         gota.y = -gota.largo
         gota.x = Math.random() * canvas.width
