@@ -1443,13 +1443,14 @@ function switchMainView(view) {
 async function cargarHistorial() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
-
+console.log('User ID buscando:', session.user.id)
   const { data, error } = await db.from('pedidos')
     .select('*')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
 
   if (error) { console.error(error); return; }
+  console.log('Pedidos historial:', data?.length, data)
 
   const contenedor = document.getElementById('lista-historial')
   if (!contenedor) return
@@ -1484,6 +1485,8 @@ function showClientSection(section) {
   clientBtns.forEach(b => b.classList.remove('active'));
   const idx = ['new','tracking','history'].indexOf(section);
   clientBtns[idx].classList.add('active');
+  if (section === 'history') cargarHistorial();
+  if (section === 'tracking') { }
 }
 // ── Cargar pedidos en Admin ──
 async function cargarPedidos() {
