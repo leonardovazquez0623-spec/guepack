@@ -754,6 +754,34 @@ async function verificarSesion() {
   }
 }
 verificarSesion()
+// ── Cargar pedido activo al entrar ──
+async function cargarPedidoActivoGuardado() {
+  const idGuardado = localStorage.getItem('guepack_pedido_activo')
+  if (!idGuardado) return
+
+  const { data } = await db.from('pedidos')
+    .select('*')
+    .eq('id', idGuardado)
+    .single()
+
+  if (!data) { localStorage.removeItem('guepack_pedido_activo'); return }
+  if (data.estado === 'Entregado' || data.estado === 'Cancelado') {
+    localStorage.removeItem('guepack_pedido_activo')
+    return
+  }
+
+  const creado = new Date(data.created_at)
+  const ahora = new Date()
+  const minutos = (ahora - creado) / 60000
+
+  mostrarPedidoActivo(data.id, data.estado, data.repartidor)
+
+  if (minutos > 5) {
+    document.getElementById('pa-cancelar-container').style.display = 'none'
+  }
+}
+
+cargarPedidoActivoGuardado()
 // ── Verificar modo lluvia ──
 async function verificarLluvia() {
   const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
@@ -1249,19 +1277,22 @@ let intervalTimer = null
 let pedidoActivoId = null
 let realtimePedido = null
 
-function mostrarPedidoActivo(id, estado) {
+function mostrarPedidoActivo(id, estado, repartidor) {
   pedidoActivoId = id
+  localStorage.setItem('guepack_pedido_activo', id)
+  
   const card = document.getElementById('pedido-activo-card')
   const container = document.getElementById('pedido-activo-container')
   
   container.style.display = 'block'
   document.getElementById('pa-folio').textContent = 'GK-' + id
-  actualizarEstadoPedidoActivo(estado)
+  actualizarEstadoPedidoActivo(estado, repartidor)
 
   // Timer de 5 minutos para cancelar
   let segundos = 300
   const timerEl = document.getElementById('pa-timer')
   
+  if (intervalTimer) clearInterval(intervalTimer)
   intervalTimer = setInterval(() => {
     segundos--
     const min = Math.floor(segundos / 60)
@@ -1275,6 +1306,7 @@ function mostrarPedidoActivo(id, estado) {
   }, 1000)
 
   // Escuchar cambios en tiempo real
+  if (realtimePedido) db.removeChannel(realtimePedido)
   realtimePedido = db.channel('pedido-' + id)
     .on('postgres_changes', { 
       event: 'UPDATE', 
@@ -1284,9 +1316,13 @@ function mostrarPedidoActivo(id, estado) {
     }, payload => {
       actualizarEstadoPedidoActivo(payload.new.estado, payload.new.repartidor)
       if (payload.new.estado === 'Entregado') {
+        document.getElementById('pa-cancelar-container').style.display = 'none'
         setTimeout(() => {
           cerrarPedidoActivo()
-        }, 600000) // 10 minutos
+        }, 600000)
+      }
+      if (payload.new.estado === 'Cancelado') {
+        cerrarPedidoActivo()
       }
     })
     .subscribe()
