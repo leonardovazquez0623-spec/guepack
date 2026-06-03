@@ -544,7 +544,23 @@
   </div>
 
   <div class="container pb-safe">
-
+<!-- ── PEDIDO ACTIVO ── -->
+<div id="pedido-activo-container" style="display:none;margin-bottom:14px">
+  <div id="pedido-activo-card" style="background:white;border-radius:16px;padding:16px 20px;box-shadow:0 4px 24px rgba(26,79,160,0.13);border-left:4px solid var(--blue);position:relative;transition:border-color .5s">
+    <button onclick="cerrarPedidoActivo()" style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:18px;cursor:pointer;color:#8fa3c0">✕</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--blue);letter-spacing:2px" id="pa-folio">GK-0</div>
+      <div class="status-badge badge-pending" id="pa-badge">Pendiente</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:#8fa3c0" id="pa-estado">En espera de mensajero</div>
+    <div style="font-size:11px;font-weight:600;color:#8fa3c0;margin-top:4px" id="pa-repartidor" style="display:none"></div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end" id="pa-cancelar-container">
+      <button onclick="cancelarPedido()" id="pa-cancelar-btn" style="background:rgba(240,90,26,0.1);color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:7px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">
+        ❌ Cancelar pedido (<span id="pa-timer">5:00</span>)
+      </button>
+    </div>
+  </div>
+</div>
     <!-- ── NUEVA SOLICITUD ── -->
     <div id="client-new" class="client-section active">
 
@@ -553,7 +569,7 @@
         <div class="card success-screen">
           <span class="success-icon">✅</span>
           <div class="success-title">¡Solicitud Enviada!</div>
-          <div class="success-sub">Tu recolección ha sido registrada.<br>Te avisamos por WhatsApp.</div>
+          <div class="success-sub">Tu recolección ha sido registrada.<br>¡Activa tus notificaciones!.</div>
           <div class="folio-box">
             <div class="folio-label">Folio de seguimiento</div>
             <div class="folio-number" id="folio-number">GK-...</div>
@@ -974,8 +990,18 @@ const { data, error } = await db.from('pedidos').insert({
   const folioReal = data[0].id
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
-  document.getElementById('form-state').style.display = 'none'
-  document.getElementById('success-state').style.display = 'block'
+  mostrarPedidoActivo(folioReal, 'Pendiente')
+resetForm()
+
+const toast = document.createElement('div')
+toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:16px 24px;border-radius:16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center;min-width:220px;animation:fadeIn .3s ease'
+toast.innerHTML = '✅ <b>GK-' + folioReal + '</b> registrado!<br><span style="font-size:11px;font-weight:600;opacity:0.85">Te avisamos cuando se asigne tu repartidor</span>'
+document.body.appendChild(toast)
+setTimeout(() => {
+  toast.style.transition = 'opacity .5s'
+  toast.style.opacity = '0'
+  setTimeout(() => toast.remove(), 500)
+}, 4000)
 }
 
 async function rastrearPedido() {
@@ -1216,6 +1242,127 @@ function seleccionarFecha(opcion) {
     const btn = document.getElementById('btn-otra-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
   }
+}
+// ── Pedido Activo ──
+let timerCancelar = null
+let intervalTimer = null
+let pedidoActivoId = null
+let realtimePedido = null
+
+function mostrarPedidoActivo(id, estado) {
+  pedidoActivoId = id
+  const card = document.getElementById('pedido-activo-card')
+  const container = document.getElementById('pedido-activo-container')
+  
+  container.style.display = 'block'
+  document.getElementById('pa-folio').textContent = 'GK-' + id
+  actualizarEstadoPedidoActivo(estado)
+
+  // Timer de 5 minutos para cancelar
+  let segundos = 300
+  const timerEl = document.getElementById('pa-timer')
+  
+  intervalTimer = setInterval(() => {
+    segundos--
+    const min = Math.floor(segundos / 60)
+    const seg = segundos % 60
+    timerEl.textContent = min + ':' + (seg < 10 ? '0' : '') + seg
+    
+    if (segundos <= 0) {
+      clearInterval(intervalTimer)
+      document.getElementById('pa-cancelar-container').style.display = 'none'
+    }
+  }, 1000)
+
+  // Escuchar cambios en tiempo real
+  realtimePedido = db.channel('pedido-' + id)
+    .on('postgres_changes', { 
+      event: 'UPDATE', 
+      schema: 'public', 
+      table: 'pedidos',
+      filter: 'id=eq.' + id
+    }, payload => {
+      actualizarEstadoPedidoActivo(payload.new.estado, payload.new.repartidor)
+      if (payload.new.estado === 'Entregado') {
+        setTimeout(() => {
+          cerrarPedidoActivo()
+        }, 600000) // 10 minutos
+      }
+    })
+    .subscribe()
+}
+
+function actualizarEstadoPedidoActivo(estado, repartidor) {
+  const card = document.getElementById('pedido-activo-card')
+  const badge = document.getElementById('pa-badge')
+  const estadoEl = document.getElementById('pa-estado')
+  const repaEl = document.getElementById('pa-repartidor')
+
+  const config = {
+    'Pendiente': { 
+      color: 'var(--blue)', 
+      badge: 'badge-transit', 
+      texto: '⏳ En espera de mensajero' 
+    },
+    'En camino a recoleccion': { 
+      color: 'var(--orange)', 
+      badge: 'badge-pending', 
+      texto: '🏍️ Mensajero en camino a recolectar' 
+    },
+    'En camino a entrega': { 
+      color: 'var(--orange)', 
+      badge: 'badge-pending', 
+      texto: '🚚 Tu paquete va en camino' 
+    },
+    'A punto de llegar': { 
+      color: '#f59e0b', 
+      badge: 'badge-pending', 
+      texto: '⏰ ¡Tu repartidor está a punto de llegar!' 
+    },
+    'Entregado': { 
+      color: 'var(--success)', 
+      badge: 'badge-done', 
+      texto: '✅ ¡Pedido entregado!' 
+    },
+    'Cancelado': {
+      color: '#ef4444',
+      badge: 'badge-pending',
+      texto: '❌ Pedido cancelado'
+    }
+  }
+
+  const c = config[estado] || config['Pendiente']
+  card.style.borderLeftColor = c.color
+  badge.className = 'status-badge ' + c.badge
+  badge.textContent = estado
+  estadoEl.textContent = c.texto
+
+  if (repartidor) {
+    repaEl.textContent = '🏍️ Repartidor: ' + repartidor
+    repaEl.style.display = 'block'
+  }
+}
+
+async function cancelarPedido() {
+  const ahora = new Date()
+  const { data } = await db.from('pedidos').select('created_at').eq('id', pedidoActivoId).single()
+  const creado = new Date(data.created_at)
+  const minutos = (ahora - creado) / 60000
+
+  if (minutos > 5) {
+    if (!confirm('Han pasado más de 5 minutos. Se aplicará un cargo de $25 pesos por cancelación. ¿Deseas continuar?')) return
+  }
+
+  await db.from('pedidos').update({ estado: 'Cancelado' }).eq('id', pedidoActivoId)
+  cerrarPedidoActivo()
+  mostrarToast('❌ Pedido cancelado', 'var(--orange)')
+}
+
+function cerrarPedidoActivo() {
+  document.getElementById('pedido-activo-container').style.display = 'none'
+  if (intervalTimer) clearInterval(intervalTimer)
+  if (realtimePedido) db.removeChannel(realtimePedido)
+  pedidoActivoId = null
 }
 
 function mostrarToast(texto, color) {
