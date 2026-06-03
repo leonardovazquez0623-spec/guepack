@@ -783,6 +783,8 @@ async function cargarPedidoActivoGuardado() {
 
 cargarPedidoActivoGuardado()
 // ── Verificar modo lluvia ──
+let lluviaActiva = false
+let rayoTimeout = null
 async function verificarLluvia() {
   const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
   if (data && data.lluvia) {
@@ -809,9 +811,7 @@ function activarLluvia(mensaje) {
     opacidad: Math.random() * 0.6 + 0.2,
     grosor: Math.random() * 2.5 + 1
   }))
-  let lluviaActiva = false
-  let rayoTimeout = null
-
+ 
   function dibujarRayo(x, y) {
     ctx.save()
     ctx.strokeStyle = 'rgba(255, 255, 180, 0.95)'
