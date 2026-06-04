@@ -90,9 +90,10 @@
   .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
   .btn-primary { background: linear-gradient(135deg, var(--orange), var(--orange-light)); color: white; width: 100%; padding: 15px; border-radius: 12px; font-size: 13px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 4px 14px rgba(240,90,26,0.35); }
 
-  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; flex-wrap: wrap; }
-  .tab { flex: 1; min-width: 70px; padding: 10px 6px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; }
-  .tab.active { background: var(--blue); color: white; }
+  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px 4px 7px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; flex-wrap: wrap; position: relative; overflow: hidden; }
+  .tab { flex: 1; min-width: 70px; padding: 10px 6px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; transition: color .2s, background .2s; }
+  .tab.active { background: rgba(26,79,160,0.08); color: var(--blue); }
+  #tab-indicator { position: absolute; bottom: 4px; height: 3px; background: var(--orange); border-radius: 3px; transition: left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1); pointer-events: none; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
@@ -142,6 +143,7 @@
     <button class="tab" onclick="showTab('chats')">💬 Chats</button>
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
+    <div id="tab-indicator"></div>
   </div>
 
   <!-- TAB PEDIDOS -->
@@ -420,11 +422,23 @@ function showTab(tab, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
   document.getElementById('tab-' + tab).classList.add('active')
   const activeBtn = btn || (typeof event !== 'undefined' && event.target)
-  if (activeBtn) activeBtn.classList.add('active')
+  if (activeBtn) { activeBtn.classList.add('active'); _moverIndicador(activeBtn) }
   if (tab === 'chats') cargarChats()
   if (tab === 'publicidad') cargarAnuncios()
   if (tab === 'widget') cargarClientesWidget()
 }
+
+function _moverIndicador(tabEl) {
+  const indicator = document.getElementById('tab-indicator')
+  if (!indicator || !tabEl) return
+  indicator.style.left = tabEl.offsetLeft + 'px'
+  indicator.style.width = tabEl.offsetWidth + 'px'
+}
+
+window.addEventListener('load', () => {
+  const activeTab = document.querySelector('.tab.active')
+  if (activeTab) _moverIndicador(activeTab)
+})
 async function aMostrarDirecciones(tipo) {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
@@ -1189,7 +1203,10 @@ async function cargarClientesWidget() {
         </label>
       </div>
       <div style="background:var(--gray-light);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:10px;color:#555;word-break:break-all;margin-bottom:8px;border:1px solid var(--gray)">${embedCode.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      <button onclick="wcCopiarCodigo(this, '${embedCode.replace(/'/g, "\\'")}')" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:background .2s;letter-spacing:.5px">📋 Copiar código</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="wcCopiarCodigo(this, '${embedCode.replace(/'/g, "\\'")}')" style="flex:1;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:background .2s;letter-spacing:.5px">📋 Copiar código</button>
+        <button onclick="wcEliminar(${c.id}, '${c.nombre.replace(/'/g, "\\'")}', this)" style="padding:9px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:background .2s,color .2s;white-space:nowrap">🗑️ Eliminar</button>
+      </div>
     </div>`
   }).join('')
 }
@@ -1226,6 +1243,30 @@ function wcCopiarCodigo(btn, texto) {
     btn.style.background = 'var(--success)'
     setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--blue)' }, 2000)
   }).catch(() => showToast('❌ No se pudo copiar'))
+}
+
+function wcEliminar(id, nombre, btn) {
+  if (btn.dataset.confirm === '1') {
+    db.from('clientes_widget').delete().eq('id', id).then(({ error }) => {
+      if (error) return showToast('❌ Error al eliminar')
+      showToast('🗑️ Cliente eliminado')
+      cargarClientesWidget()
+    })
+    return
+  }
+  btn.dataset.confirm = '1'
+  btn.textContent = '⚠️ ¿Confirmar?'
+  btn.style.background = '#ef4444'
+  btn.style.color = 'white'
+  showToast(`¿Eliminar "${nombre}"? Toca el botón rojo para confirmar`)
+  setTimeout(() => {
+    if (btn.dataset.confirm === '1') {
+      btn.dataset.confirm = ''
+      btn.textContent = '🗑️ Eliminar'
+      btn.style.background = '#fee2e2'
+      btn.style.color = '#ef4444'
+    }
+  }, 3500)
 }
 
 init()
