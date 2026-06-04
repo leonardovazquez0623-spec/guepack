@@ -241,6 +241,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
         <div class="route-body">
           <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
           <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
           <div class="status-steps">
             <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
             <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>

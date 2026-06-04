@@ -606,6 +606,10 @@
   </div>
 </div>
           <div class="form-group">
+  <label class="form-label">Instrucciones de recolección (opcional)</label>
+  <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Tocar el timbre 2 veces, preguntar por María, entregar en recepción..."></textarea>
+</div>
+          <div class="form-group">
   <label class="form-label">Fecha de recolección</label>
   <div style="display:flex;gap:8px;margin-bottom:8px">
     <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)"> Hoy 😉</button>
@@ -986,6 +990,7 @@ async function submitRequest() {
   const dir_recoleccion = document.querySelectorAll('.form-input')[2].value
   const dir_entrega = document.querySelectorAll('.form-input')[3].value
   const fecha = document.getElementById('fecha-seleccionada').value
+  const instrucciones = document.getElementById('instrucciones-recoleccion').value
 
   if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !selZone) {
     alert('¡Llena todos los campos, selecciona fecha, tamaño y zona!')
@@ -1012,6 +1017,7 @@ const { data, error } = await db.from('pedidos').insert({
     precio: precio,
     estado: 'Pendiente',
     user_id: userId,
+    instrucciones: instrucciones,
   }).select()
   
   if (error) {
@@ -1077,20 +1083,6 @@ async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
 }
-async function verificarDisponibilidad(fecha) {
-  const inicio = new Date(fecha + 'T00:00:00').toISOString()
-  const fin = new Date(fecha + 'T23:59:59').toISOString()
-
-  const { data } = await db.from('pedidos').select('id')
-    .gte('created_at', inicio)
-    .lte('created_at', fin)
-
-  const total = data ? data.length : 0
-  const hora = new Date().getHours()
-  const hoy = new Date().toISOString().split('T')[0]
-  const esHoy = fecha === hoy
-
-  const aviso = document.getElementById('aviso-fecha')
 
   async function verificarDisponibilidad(fecha, forzarNaranja) {
   console.log('INICIO verificar:', fecha, forzarNaranja)
@@ -1130,7 +1122,7 @@ async function verificarDisponibilidad(fecha) {
     setTimeout(() => toast.remove(), 500)
   }, 3000)
 }
-}
+
 // ── Direcciones frecuentes ──
 async function mostrarDirecciones(tipo) {
   const { data: { session } } = await db.auth.getSession()
@@ -1258,7 +1250,6 @@ function seleccionarFecha(opcion) {
   if (opcion === 'hoy') {
     const hora = new Date().getHours()
     if (hora >= 15) {
-      // Después de las 3 PM → automáticamente día siguiente
       fechaSeleccionada = formatear(mañana)
       mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para mañana', 'var(--orange)')
     } else {
@@ -1272,7 +1263,7 @@ function seleccionarFecha(opcion) {
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-hoy-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    verificarDisponibilidad(fechaSeleccionada, true)
+    if (hora < 15) verificarDisponibilidad(fechaSeleccionada, false)
 
   } else if (opcion === 'mañana') {
     const hora = new Date().getHours()
@@ -1290,7 +1281,6 @@ function seleccionarFecha(opcion) {
     const btn = document.getElementById('btn-manana-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
     verificarDisponibilidad(fechaSeleccionada)
-
   } else {
     document.getElementById('input-fecha-custom').style.display = 'block'
     document.getElementById('input-fecha-custom').onchange = (e) => {
