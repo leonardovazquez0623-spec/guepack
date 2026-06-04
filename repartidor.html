@@ -316,8 +316,9 @@ function abrirModalEntrega(id, telefono, nombre) {
 
       <div style="margin-bottom:16px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">📸 Foto de evidencia</div>
-        <input type="file" id="entrega-foto" accept="image/*" capture="environment" style="width:100%;font-family:Montserrat,sans-serif;font-size:13px">
-        <div id="entrega-foto-preview" style="margin-top:8px"></div>
+        <input type="file" id="entrega-foto" accept="image/*" capture="environment" style="display:none">
+        <label for="entrega-foto" id="btn-tomar-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box;transition:opacity .2s">📸 Tomar foto</label>
+        <div id="entrega-foto-preview" style="margin-top:10px"></div>
       </div>
 
       <div style="margin-bottom:20px">
@@ -356,7 +357,10 @@ function abrirModalEntrega(id, telefono, nombre) {
     const file = this.files[0]
     if (!file) return
     const url = URL.createObjectURL(file)
-    document.getElementById('entrega-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:180px;object-fit:cover">`
+    document.getElementById('entrega-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.15)">`
+    const btn = document.getElementById('btn-tomar-foto')
+    btn.textContent = '✅ Foto tomada — cambiar'
+    btn.style.background = '#22c55e'
   })
 }
 
@@ -374,34 +378,58 @@ async function confirmarEntrega(id, telefono, nombre) {
   let fotoUrl = null
   let firmaUrl = null
 
-  // Subir foto
+  // ── 1. Subir foto ──
   const fotoInput = document.getElementById('entrega-foto')
   if (fotoInput.files[0]) {
     const foto = fotoInput.files[0]
-    const ext = foto.name.split('.').pop()
-    const { error } = await db.storage.from('evidencias').upload(`GK-${id}/foto.${ext}`, foto, { upsert: true })
-    if (error) console.error('Error subiendo foto:', error)
-    else fotoUrl = `${BASE_URL}/GK-${id}/foto.${ext}`
+    const rutaFoto = `GK-${id}/foto.jpg`
+    console.log('[foto] Iniciando subida:', rutaFoto, 'tamaño:', foto.size, 'tipo:', foto.type)
+    const { data: fotoData, error: fotoError } = await db.storage
+      .from('evidencias')
+      .upload(rutaFoto, foto, { contentType: 'image/jpeg', upsert: true })
+    if (fotoError) {
+      console.error('[foto] Error al subir:', fotoError)
+    } else {
+      fotoUrl = `${BASE_URL}/GK-${id}/foto.jpg`
+      console.log('[foto] Subida OK:', fotoData, '→', fotoUrl)
+    }
+  } else {
+    console.warn('[foto] No se seleccionó ninguna foto')
   }
 
-  // Subir firma
+  // ── 2. Convertir canvas a blob y subir firma ──
   const canvas = document.getElementById('entrega-canvas')
+  console.log('[firma] Convirtiendo canvas a blob...')
   await new Promise(resolve => canvas.toBlob(async blob => {
-    if (blob) {
-      const { error } = await db.storage.from('evidencias').upload(`GK-${id}/firma.png`, blob, { contentType: 'image/png', upsert: true })
-      if (error) console.error('Error subiendo firma:', error)
-      else firmaUrl = `${BASE_URL}/GK-${id}/firma.png`
+    if (!blob) {
+      console.warn('[firma] toBlob devolvió null, canvas vacío')
+      return resolve()
+    }
+    console.log('[firma] Blob generado, tamaño:', blob.size)
+    const rutaFirma = `GK-${id}/firma.png`
+    const { data: firmaData, error: firmaError } = await db.storage
+      .from('evidencias')
+      .upload(rutaFirma, blob, { contentType: 'image/png', upsert: true })
+    if (firmaError) {
+      console.error('[firma] Error al subir:', firmaError)
+    } else {
+      firmaUrl = `${BASE_URL}/GK-${id}/firma.png`
+      console.log('[firma] Subida OK:', firmaData, '→', firmaUrl)
     }
     resolve()
   }, 'image/png'))
 
-  // Guardar URLs en el pedido
+  // ── 3. Actualizar pedido con URLs públicas ──
   const update = {}
   if (fotoUrl) update.foto_evidencia = fotoUrl
   if (firmaUrl) update.firma_evidencia = firmaUrl
+  console.log('[pedido] Actualizando campos de evidencia:', update)
   if (Object.keys(update).length) {
-    const { error } = await db.from('pedidos').update(update).eq('id', id)
-    if (error) console.error('Error guardando evidencias:', error)
+    const { data: updateData, error: updateError } = await db.from('pedidos').update(update).eq('id', id)
+    if (updateError) console.error('[pedido] Error al guardar URLs:', updateError)
+    else console.log('[pedido] URLs guardadas OK:', updateData)
+  } else {
+    console.warn('[pedido] No hay URLs que guardar, se omite el update')
   }
 
   document.getElementById('modal-entrega').remove()

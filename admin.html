@@ -61,6 +61,7 @@
   .badge-pending { background: rgba(240,90,26,0.12); color: var(--orange); }
   .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
   .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
+  .badge-cancelled { background: rgba(239,68,68,0.12); color: #ef4444; }
   .tag { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-right: 4px; }
   .tag-blue { background: rgba(26,79,160,0.1); color: var(--blue); }
   .tag-orange { background: rgba(240,90,26,0.1); color: var(--orange); }
@@ -557,18 +558,24 @@ const { data, error } = await db.from('pedidos').select('*')
   const contenedor = document.getElementById('lista-pedidos')
   contenedor.innerHTML = ''
 
-  // Sin asignar
-  const sinAsignar = data.filter(p => !p.repartidor)
+  // Sin asignar (excluye cancelados)
+  const sinAsignar = data.filter(p => !p.repartidor && p.estado !== 'Cancelado')
   contenedor.innerHTML += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', true)
 
-  // Por repartidor
+  // Por repartidor (excluye cancelados)
   const { data: repartidores } = await db.from('repartidores').select('*')
   repartidores.forEach(repa => {
-    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre)
+    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Cancelado')
     const activos = pedidosRepa.filter(p => p.estado !== 'Entregado').length
     const entregados = pedidosRepa.filter(p => p.estado === 'Entregado').length
     contenedor.innerHTML += renderAccordion('🏍️ ' + repa.nombre, pedidosRepa, 'repa-' + repa.id, false, activos, entregados)
   })
+
+  // Cancelados
+  const cancelados = data.filter(p => p.estado === 'Cancelado')
+  if (cancelados.length > 0) {
+    contenedor.innerHTML += renderAccordion('❌ Cancelados', cancelados, 'cancelados', false, undefined, undefined, '#ef4444')
+  }
 
   if (data.length === 0) {
     contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-text">No hay pedidos hoy</div></div>'
@@ -580,14 +587,15 @@ db.channel('admin-pedidos')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
   .subscribe()
 
-function renderAccordion(titulo, pedidos, id, abierto, activos, entregados) {
-  const badge = activos !== undefined ? 
-    `<span style="color:var(--orange);font-weight:900">${activos} activos</span> · <span style="color:var(--success)">${entregados} entregados</span>` : 
+function renderAccordion(titulo, pedidos, id, abierto, activos, entregados, borderColor) {
+  const color = borderColor || 'var(--blue)'
+  const badge = activos !== undefined ?
+    `<span style="color:var(--orange);font-weight:900">${activos} activos</span> · <span style="color:var(--success)">${entregados} entregados</span>` :
     `<span style="color:var(--orange);font-weight:900">${pedidos.length} pendientes</span>`
 
   return `
     <div style="margin-bottom:8px">
-      <div onclick="toggleAccordion('${id}')" style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:12px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow);border-left:4px solid var(--blue)">
+      <div onclick="toggleAccordion('${id}')" style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:12px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow);border-left:4px solid ${color}">
         <div>
           <div style="font-size:13px;font-weight:900;color:var(--text)">${titulo}</div>
           <div style="font-size:11px;margin-top:2px">${badge}</div>
@@ -645,13 +653,13 @@ function toggleAccordion(id) {
 
 function renderPedido(pedido) {
   return `
-    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'opacity:0.6' : ''}">
+    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : ''}">
       <div class="order-header">
         <div>
           <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
           <div class="order-client">${pedido.nombre}</div>
         </div>
-        <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+        <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : 'badge-transit'}">${pedido.estado}</div>
       </div>
       <div class="order-details">
         <span class="tag tag-orange">${pedido.tamanio}</span>
@@ -661,13 +669,39 @@ function renderPedido(pedido) {
         ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;margin-top:4px">📝 ${pedido.instrucciones}</div>` : ''}
         ${pedido.metodo_pago ? `<div style="color:#999;font-size:11px;margin-top:4px">💳 ${pedido.metodo_pago}</div>` : ''}
       </div>
+      ${pedido.estado !== 'Cancelado' ? `
       <div class="order-actions">
         ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
         ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
         ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
-      </div>
+        ${pedido.foto_evidencia ? '<button class="btn btn-secondary" onclick="verEvidencia(\'' + pedido.foto_evidencia + '\',\'' + (pedido.firma_evidencia || '') + '\')">📸 Ver evidencia</button>' : ''}
+      </div>` : ''}
     </div>
   `
+}
+
+function verEvidencia(fotoUrl, firmaUrl) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-evidencia'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:var(--blue)">📸 Evidencia de entrega</div>
+      ${fotoUrl ? `
+        <div style="margin-bottom:16px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px;letter-spacing:1px">FOTO</div>
+          <img src="${fotoUrl}" style="width:100%;border-radius:12px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.1)">
+        </div>` : ''}
+      ${firmaUrl ? `
+        <div style="margin-bottom:20px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px;letter-spacing:1px">FIRMA DEL CLIENTE</div>
+          <img src="${firmaUrl}" style="width:100%;border-radius:12px;border:1px solid #e0e0e0">
+        </div>` : ''}
+      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+    </div>
+  `
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
 }
 
 async function asignarRepartidor(id) {
