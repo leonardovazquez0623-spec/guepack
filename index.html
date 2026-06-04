@@ -624,7 +624,7 @@
 
         <div class="card">
           <div class="card-title">💳 Método de pago</div>
-          <div class="size-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="size-grid" style="grid-template-columns:1fr 1fr">
             <div class="size-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">
               <span class="size-icon">💵</span>
               <span class="size-name">Efectivo</span>
@@ -633,10 +633,30 @@
               <span class="size-icon">🏦</span>
               <span class="size-name">Transferencia</span>
             </div>
-            <div class="size-option" id="mp-mercadopago" onclick="selectMetodoPago('mercadopago')">
-              <span class="size-icon">💳</span>
-              <span class="size-name">Mercado Pago</span>
+          </div>
+          <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">CLABE</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">012320029474665791</span>
+                <button onclick="copiarDato(this,'012320029474665791')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+              </div>
             </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">BANCO</div>
+              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">BBVA</div>
+            </div>
+            <div style="margin-bottom:16px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">NOMBRE</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">Leonardo Vazquez Fajardo</span>
+                <button onclick="copiarDato(this,'Leonardo Vazquez Fajardo')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+              </div>
+            </div>
+            <input type="file" id="comprobante-input" accept="image/*" style="display:none">
+            <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
+            <div id="comprobante-preview" style="margin-top:10px"></div>
           </div>
         </div>
 
@@ -976,8 +996,31 @@ const prices = {
 
 function selectMetodoPago(mp) {
   selMetodoPago = mp;
-  document.querySelectorAll('#mp-efectivo,#mp-transferencia,#mp-mercadopago').forEach(o => o.classList.remove('selected'));
+  document.querySelectorAll('#mp-efectivo,#mp-transferencia').forEach(o => o.classList.remove('selected'));
   document.getElementById('mp-' + mp).classList.add('selected');
+  document.getElementById('datos-transferencia').style.display = mp === 'transferencia' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('comprobante-input').addEventListener('change', function() {
+    const file = this.files[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    document.getElementById('comprobante-preview').innerHTML =
+      `<img src="${url}" style="width:100%;border-radius:10px;border:2px solid #1a4fa0;margin-top:4px;object-fit:cover;max-height:200px">`
+    const btn = document.getElementById('btn-comprobante')
+    btn.textContent = '✅ Comprobante cargado'
+    btn.style.background = '#22c55e'
+  })
+})
+
+function copiarDato(btn, texto) {
+  navigator.clipboard.writeText(texto).then(() => {
+    const original = btn.textContent
+    btn.textContent = '✅ Copiado'
+    btn.style.background = '#22c55e'
+    setTimeout(() => { btn.textContent = original; btn.style.background = 'var(--blue)' }, 2000)
+  })
 }
 
 function selectSize(sz) {
@@ -1021,6 +1064,10 @@ async function submitRequest() {
     alert('¡Llena todos los campos, selecciona fecha, tamaño, zona y método de pago!')
     return
   }
+  if (metodoPago === 'transferencia' && !document.getElementById('comprobante-input').files[0]) {
+    alert('Debes subir tu comprobante de pago')
+    return
+  }
   // ── Verificar si está bloqueado por horario ──
 const aviso = document.getElementById('aviso-fecha')
 if (aviso && aviso.style.display !== 'none' && aviso.innerHTML.includes('🟠')) {
@@ -1031,6 +1078,19 @@ const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
 const precio = prices[selZone][selSize]
 
+// Subir comprobante si existe
+let comprobanteUrl = null
+const comprobanteFile = document.getElementById('comprobante-input').files[0]
+if (comprobanteFile) {
+  const ext = comprobanteFile.name.split('.').pop()
+  const tmpId = Date.now()
+  const { error: upError } = await db.storage.from('evidencias').upload(`comprobantes/${tmpId}.${ext}`, comprobanteFile, { upsert: true })
+  if (upError) console.error('Error subiendo comprobante:', upError)
+  else comprobanteUrl = `https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias/comprobantes/${tmpId}.${ext}`
+}
+
+const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : 'Pendiente'
+
 const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
@@ -1040,10 +1100,11 @@ const { data, error } = await db.from('pedidos').insert({
     tamanio: selSize,
     zona: selZone,
     precio: precio,
-    estado: 'Pendiente',
+    estado: estadoInicial,
     user_id: userId,
     instrucciones: instrucciones,
     metodo_pago: metodoPago,
+    comprobante_pago: comprobanteUrl,
   }).select()
   
   if (error) {
@@ -1529,7 +1590,7 @@ console.log('User ID buscando:', session.user.id)
             <div style="font-size:11px;color:var(--gray-mid);font-weight:600">${fecha} · ${pedido.tamanio} · ${pedido.zona}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${pedido.foto_evidencia ? `<button onclick="verEvidencia('${pedido.foto_evidencia}','${pedido.firma_evidencia || ''}')" style="padding:5px 10px;border:1.5px solid var(--blue);border-radius:8px;background:white;color:var(--blue);font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">📸 Ver evidencia</button>` : ''}
+            ${pedido.foto_evidencia ? `<button onclick="verEvidencia('${pedido.foto_evidencia}','${pedido.firma_evidencia || ''}')" style="padding:6px 12px;border:none;border-radius:8px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">📸 Ver evidencia de entrega</button>` : ''}
             <div class="status-badge ${badgeClass}">${pedido.estado}</div>
           </div>
         </div>

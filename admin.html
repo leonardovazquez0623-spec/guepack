@@ -62,6 +62,7 @@
   .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
   .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
   .badge-cancelled { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .badge-verify { background: rgba(245,158,11,0.12); color: #f59e0b; }
   .tag { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 900; margin-right: 4px; }
   .tag-blue { background: rgba(26,79,160,0.1); color: var(--blue); }
   .tag-orange { background: rgba(240,90,26,0.1); color: var(--orange); }
@@ -558,14 +559,20 @@ const { data, error } = await db.from('pedidos').select('*')
   const contenedor = document.getElementById('lista-pedidos')
   contenedor.innerHTML = ''
 
-  // Sin asignar (excluye cancelados)
-  const sinAsignar = data.filter(p => !p.repartidor && p.estado !== 'Cancelado')
-  contenedor.innerHTML += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', true)
+  // Pendiente verificación de pago
+  const porVerificar = data.filter(p => p.estado === 'Pendiente verificación de pago')
+  if (porVerificar.length > 0) {
+    contenedor.innerHTML += renderAccordion('🧾 Verificar pago', porVerificar, 'por-verificar', true, undefined, undefined, '#f59e0b')
+  }
+
+  // Sin asignar (excluye cancelados y por verificar)
+  const sinAsignar = data.filter(p => !p.repartidor && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
+  contenedor.innerHTML += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', false)
 
   // Por repartidor (excluye cancelados)
   const { data: repartidores } = await db.from('repartidores').select('*')
   repartidores.forEach(repa => {
-    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Cancelado')
+    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
     const activos = pedidosRepa.filter(p => p.estado !== 'Entregado').length
     const entregados = pedidosRepa.filter(p => p.estado === 'Entregado').length
     contenedor.innerHTML += renderAccordion('🏍️ ' + repa.nombre, pedidosRepa, 'repa-' + repa.id, false, activos, entregados)
@@ -653,13 +660,13 @@ function toggleAccordion(id) {
 
 function renderPedido(pedido) {
   return `
-    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : ''}">
+    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : pedido.estado === 'Pendiente verificación de pago' ? 'border-left:4px solid #f59e0b' : ''}">
       <div class="order-header">
         <div>
           <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
           <div class="order-client">${pedido.nombre}</div>
         </div>
-        <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : 'badge-transit'}">${pedido.estado}</div>
+        <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : pedido.estado === 'Pendiente verificación de pago' ? 'badge-verify' : 'badge-transit'}">${pedido.estado}</div>
       </div>
       <div class="order-details">
         <span class="tag tag-orange">${pedido.tamanio}</span>
@@ -671,6 +678,11 @@ function renderPedido(pedido) {
       </div>
       ${pedido.estado !== 'Cancelado' ? `
       <div class="order-actions">
+        ${pedido.estado === 'Pendiente verificación de pago' ? `
+          ${pedido.comprobante_pago ? '<button class="btn" style="background:rgba(245,158,11,0.12);color:#f59e0b" onclick="verComprobante(\'' + pedido.comprobante_pago + '\')">🧾 Ver comprobante</button>' : ''}
+          <button class="btn" style="background:rgba(34,197,94,0.15);color:var(--success)" onclick="updateStatus(${pedido.id},\'Pendiente\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">✅ Aprobar pago</button>
+          <button class="btn" style="background:rgba(239,68,68,0.12);color:#ef4444" onclick="updateStatus(${pedido.id},\'Pago rechazado\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">❌ Rechazar pago</button>
+        ` : ''}
         ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
         ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
         ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
@@ -678,6 +690,21 @@ function renderPedido(pedido) {
       </div>` : ''}
     </div>
   `
+}
+
+function verComprobante(url) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-comprobante'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#f59e0b">🧾 Comprobante de pago</div>
+      <img src="${url}" style="width:100%;border-radius:12px;object-fit:contain;border:2px solid #f59e0b;margin-bottom:16px">
+      <button onclick="document.getElementById('modal-comprobante').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+    </div>
+  `
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
 }
 
 function verEvidencia(fotoUrl, firmaUrl) {
@@ -751,7 +778,9 @@ async function updateStatus(id, status, telefono, nombre) {
 
   const mensajes = {
     'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
-    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!',
+    'Pendiente': 'Hola ' + nombre + '! Tu pago fue verificado y aprobado. Tu pedido esta en proceso. - GUEPACK Express',
+    'Pago rechazado': 'Hola ' + nombre + '! Tu comprobante de pago no pudo ser verificado. Por favor contáctanos para aclarar tu pago. - GUEPACK Express'
   }
 
   const mensaje = mensajes[status]
