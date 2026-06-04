@@ -320,5 +320,7 @@ setInterval(async () => {
   if (session) cargarPedidos(session.user.email)
 }, 10000)
 </script>
+
+<button id="btn-activar-sonido" onclick="audioCtx.resume().then(() => document.getElementById('btn-activar-sonido').style.display='none')" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:14px 20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
 </body>
 </html>
