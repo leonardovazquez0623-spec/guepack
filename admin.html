@@ -575,6 +575,11 @@ const { data, error } = await db.from('pedidos').select('*')
   }
 }
 
+db.channel('admin-pedidos')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
+  .subscribe()
+
 function renderAccordion(titulo, pedidos, id, abierto, activos, entregados) {
   const badge = activos !== undefined ? 
     `<span style="color:var(--orange);font-weight:900">${activos} activos</span> · <span style="color:var(--success)">${entregados} entregados</span>` : 
