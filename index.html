@@ -779,7 +779,9 @@ async function verificarSesion() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) {
     window.location.href = 'login.html'
+    return
   }
+  verificarAnuncio()
 }
 verificarSesion()
 // ── Cargar pedidos activos al entrar ──
@@ -1986,7 +1988,6 @@ function cerrarPopupAnuncio() {
   setTimeout(() => el.remove(), 260)
 }
 
-verificarAnuncio()
 </script>
 <!-- ── Modo Lluvia ── -->
 <div id="lluvia-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;pointer-events:none">
