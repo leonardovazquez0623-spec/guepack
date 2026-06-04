@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Solicitar envío</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --blue: #1a4fa0;
+    --blue-dark: #0e3070;
+    --blue-light: #2563c4;
+    --orange: #f05a1a;
+    --orange-light: #ff7a3d;
+    --white: #ffffff;
+    --gray-light: #f4f6fb;
+    --gray: #e0e6f0;
+    --gray-mid: #8fa3c0;
+    --text: #1a2740;
+    --success: #22c55e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-light);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .widget-header {
+    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
+    padding: 18px 20px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .widget-header::after {
+    content: '';
+    position: absolute;
+    right: -20px; top: -20px;
+    width: 100px; height: 100px;
+    background: var(--orange);
+    opacity: .15;
+    border-radius: 50%;
+  }
+  .widget-header .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--white);
+    letter-spacing: 2px;
+  }
+  .widget-header .logo span { color: var(--orange); }
+  .widget-header .subtitle {
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .widget-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .form-group { margin-bottom: 14px; }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 5px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color .2s;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--blue-light); }
+  textarea.form-input { resize: none; }
+
+  .size-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .size-btn {
+    padding: 10px 8px;
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    background: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray-mid);
+    cursor: pointer;
+    text-align: center;
+    transition: all .2s;
+  }
+  .size-btn.selected {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: var(--white);
+  }
+
+  .btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--orange) 0%, var(--orange-light) 100%);
+    border: none;
+    border-radius: 12px;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(240,90,26,0.35);
+    transition: transform .15s, box-shadow .15s;
+    margin-top: 6px;
+  }
+  .btn-submit:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(240,90,26,0.25); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a2740;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 9999;
+    transition: transform .3s ease;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: #ef4444; }
+
+  /* Success screen */
+  .success-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+    text-align: center;
+    flex: 1;
+  }
+  .success-screen.show { display: flex; }
+  .success-icon { font-size: 60px; margin-bottom: 12px; }
+  .success-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+  .success-text { font-size: 13px; color: var(--gray-mid); margin-bottom: 20px; line-height: 1.5; }
+  .folio-box {
+    background: var(--white);
+    border: 2px solid var(--blue);
+    border-radius: 12px;
+    padding: 14px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--blue);
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+  }
+  .btn-nuevo {
+    padding: 11px 28px;
+    background: var(--blue);
+    border: none;
+    border-radius: 10px;
+    color: var(--white);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .btn-nuevo:hover { background: var(--blue-light); }
+</style>
+</head>
+<body>
+
+<div class="widget-header">
+  <div class="logo">GUE<span>PACK</span></div>
+  <div class="subtitle">Solicitar envío express</div>
+</div>
+
+<div class="widget-body" id="form-section">
+  <div class="form-group">
+    <label class="form-label">Nombre completo</label>
+    <input class="form-input" type="text" id="w-nombre" placeholder="Ej. Juan Pérez García" maxlength="80">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">WhatsApp (10 dígitos)</label>
+    <input class="form-input" type="tel" id="w-whatsapp" placeholder="3311234567" maxlength="10" inputmode="numeric">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Dirección de recolección</label>
+    <textarea class="form-input" id="w-recoleccion" rows="2" placeholder="Calle, número, colonia, referencia..."></textarea>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Dirección de entrega</label>
+    <textarea class="form-input" id="w-entrega" rows="2" placeholder="Calle, número, colonia, referencia..."></textarea>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Tamaño del paquete</label>
+    <div class="size-grid">
+      <button class="size-btn" id="sz-sobre" onclick="selectSize('Sobre/Chico')">📄 Sobre / Chico</button>
+      <button class="size-btn" id="sz-grande" onclick="selectSize('Grande')">📦 Grande</button>
+    </div>
+  </div>
+
+  <button class="btn-submit" id="btn-enviar" onclick="submitWidget()">📦 Solicitar envío</button>
+</div>
+
+<div class="success-screen" id="success-section">
+  <div class="success-icon">✅</div>
+  <div class="success-title">¡Pedido enviado!</div>
+  <div class="success-text">Tu solicitud fue registrada correctamente.<br>Tu folio de seguimiento es:</div>
+  <div class="folio-box" id="folio-display">—</div>
+  <div class="success-text" id="success-sub">Nos pondremos en contacto contigo pronto por WhatsApp.</div>
+  <button class="btn-nuevo" onclick="resetWidget()">+ Nuevo envío</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+// Lee parámetro client de la URL
+const _urlParams = new URLSearchParams(window.location.search)
+const _clientCode = _urlParams.get('client') || ''
+
+let selSize = null
+
+function selectSize(s) {
+  selSize = s
+  document.getElementById('sz-sobre').classList.toggle('selected', s === 'Sobre/Chico')
+  document.getElementById('sz-grande').classList.toggle('selected', s === 'Grande')
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = 'toast' + (isError ? ' error' : '') + ' show'
+  setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+async function submitWidget() {
+  const nombre = document.getElementById('w-nombre').value.trim()
+  const whatsapp = document.getElementById('w-whatsapp').value.trim()
+  const recoleccion = document.getElementById('w-recoleccion').value.trim()
+  const entrega = document.getElementById('w-entrega').value.trim()
+
+  if (!nombre) return showToast('Ingresa tu nombre completo', true)
+  if (!/^\d{10}$/.test(whatsapp)) return showToast('WhatsApp debe tener 10 dígitos', true)
+  if (!recoleccion) return showToast('Ingresa la dirección de recolección', true)
+  if (!entrega) return showToast('Ingresa la dirección de entrega', true)
+  if (!selSize) return showToast('Selecciona el tamaño del paquete', true)
+
+  const btn = document.getElementById('btn-enviar')
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+
+  const { data, error } = await db.from('pedidos').insert({
+    nombre,
+    whatsapp,
+    direccion_recoleccion: recoleccion,
+    direccion_entrega: entrega,
+    tamanio: selSize,
+    estado: 'Pendiente',
+    metodo_pago: 'Efectivo',
+    origen_widget: _clientCode || null,
+    fecha: new Date().toISOString().split('T')[0]
+  }).select('id').single()
+
+  if (error) {
+    console.error(error)
+    showToast('Error al enviar. Intenta de nuevo.', true)
+    btn.disabled = false
+    btn.textContent = '📦 Solicitar envío'
+    return
+  }
+
+  // Muestra pantalla de éxito
+  const folio = 'GK-' + String(data.id).padStart(4, '0')
+  document.getElementById('folio-display').textContent = folio
+  document.getElementById('form-section').style.display = 'none'
+  const ss = document.getElementById('success-section')
+  ss.style.display = 'flex'
+  ss.classList.add('show')
+
+  // Notifica al padre (si está en iframe)
+  try {
+    window.parent.postMessage({ type: 'guepack-pedido-enviado', folio, pedidoId: data.id }, '*')
+  } catch (e) {}
+}
+
+function resetWidget() {
+  selSize = null
+  document.getElementById('w-nombre').value = ''
+  document.getElementById('w-whatsapp').value = ''
+  document.getElementById('w-recoleccion').value = ''
+  document.getElementById('w-entrega').value = ''
+  document.getElementById('sz-sobre').classList.remove('selected')
+  document.getElementById('sz-grande').classList.remove('selected')
+
+  const btn = document.getElementById('btn-enviar')
+  btn.disabled = false
+  btn.textContent = '📦 Solicitar envío'
+
+  document.getElementById('success-section').style.display = 'none'
+  document.getElementById('success-section').classList.remove('show')
+  document.getElementById('form-section').style.display = 'block'
+}
+</script>
+</body>
+</html>
