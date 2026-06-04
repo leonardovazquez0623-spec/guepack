@@ -245,7 +245,8 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           <div class="status-steps">
             <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
             <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
-            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
+            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
+            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
           </div>
         </div>
       </div>
@@ -259,6 +260,7 @@ async function cambiarEstado(id, status, telefono, nombre) {
   const mensajes = {
     'En camino a entrega': { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino.' },
     'A punto de llegar': { title: '⏰ GUEPACK Express', body: 'Hola ' + nombre + '! Tu repartidor está a punto de llegar. ¡Prepárate!' },
+    'Repartidor en domicilio': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu repartidor ya está en tu domicilio. Tienes 7 minutos para recibirlo, de lo contrario se cobrará el servicio.' },
     'Entregado': { title: '✅ GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete fue entregado. ¡Gracias por confiar en nosotros!' }
   }
 
