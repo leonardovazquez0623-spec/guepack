@@ -541,23 +541,23 @@ function filtrarFecha(dias) {
 }
 
 async function cargarPedidos() {
- const fecha = new Date()
-fecha.setDate(fecha.getDate() - diaFiltro)
-const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
-const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
+  const contenedor = document.getElementById('lista-pedidos')
+  contenedor.innerHTML = ''
 
-const { data, error } = await db.from('pedidos').select('*')
-  .gte('created_at', inicio)
-  .lte('created_at', fin)
-  .order('created_at', { ascending: false })
+  const fecha = new Date()
+  fecha.setDate(fecha.getDate() - diaFiltro)
+  const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
+  const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
+
+  const { data, error } = await db.from('pedidos').select('*')
+    .gte('created_at', inicio)
+    .lte('created_at', fin)
+    .order('created_at', { ascending: false })
   if (error) { console.error(error); return }
 
   document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
   document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
   document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
-
-  const contenedor = document.getElementById('lista-pedidos')
-  contenedor.innerHTML = ''
 
   // Pendiente verificación de pago
   const porVerificar = data.filter(p => p.estado === 'Pendiente verificación de pago')
@@ -589,10 +589,15 @@ const { data, error } = await db.from('pedidos').select('*')
   }
 }
 
-db.channel('admin-pedidos')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
-  .subscribe()
+let realtimeChannel = null
+function iniciarRealtime() {
+  if (realtimeChannel) db.removeChannel(realtimeChannel)
+  realtimeChannel = db.channel('admin-pedidos')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, () => cargarPedidos())
+    .subscribe()
+}
+iniciarRealtime()
 
 function renderAccordion(titulo, pedidos, id, abierto, activos, entregados, borderColor) {
   const color = borderColor || 'var(--blue)'
