@@ -141,6 +141,7 @@
     <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
     <button class="tab" onclick="showTab('chats')">💬 Chats</button>
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
+    <button class="tab" onclick="showTab('widget')">📦 Widget</button>
   </div>
 
   <!-- TAB PEDIDOS -->
@@ -325,6 +326,40 @@
     </div>
   </div>
 
+  <!-- TAB WIDGET -->
+  <div id="tab-widget" class="tab-content">
+    <div class="card">
+      <div class="card-title">📦 Nuevo cliente widget</div>
+
+      <div class="form-group">
+        <label class="form-label">Nombre del negocio</label>
+        <input type="text" id="wc-nombre" class="form-input" placeholder="Ej. Tienda Don Pepe" oninput="wcSugerirCodigo(this.value)">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Código único</label>
+        <input type="text" id="wc-codigo" class="form-input" placeholder="TIENDADONPEPE" style="font-family:monospace;letter-spacing:1px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9_]/g,'')">
+        <div style="font-size:10px;color:var(--gray-mid);margin-top:4px;font-weight:600">Solo letras mayúsculas, números y guion bajo</div>
+      </div>
+
+      <div class="form-group toggle-wrap">
+        <span class="form-label" style="margin:0">Cliente activo</span>
+        <label class="toggle">
+          <input type="checkbox" id="wc-activo" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span id="wc-activo-label" style="font-size:12px;font-weight:700;color:var(--success)">Activo</span>
+      </div>
+
+      <button class="btn btn-primary" onclick="agregarClienteWidget()" style="margin-top:6px">➕ Agregar cliente</button>
+    </div>
+
+    <div class="card-title" style="padding:0;margin-bottom:12px">🏪 Clientes registrados</div>
+    <div id="lista-clientes-widget">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -388,6 +423,7 @@ function showTab(tab, btn) {
   if (activeBtn) activeBtn.classList.add('active')
   if (tab === 'chats') cargarChats()
   if (tab === 'publicidad') cargarAnuncios()
+  if (tab === 'widget') cargarClientesWidget()
 }
 async function aMostrarDirecciones(tipo) {
   const { data: { session } } = await db.auth.getSession()
@@ -1108,14 +1144,89 @@ function _resetFormPub() {
   _pubImagenUrl = ''
 }
 
-// Actualiza label del toggle en tiempo real
+// Actualiza labels de toggles en tiempo real
 document.addEventListener('change', e => {
   if (e.target.id === 'pub-activo') {
     const lbl = document.getElementById('pub-activo-label')
     lbl.textContent = e.target.checked ? 'Activo' : 'Inactivo'
     lbl.style.color = e.target.checked ? 'var(--success)' : '#999'
   }
+  if (e.target.id === 'wc-activo') {
+    const lbl = document.getElementById('wc-activo-label')
+    lbl.textContent = e.target.checked ? 'Activo' : 'Inactivo'
+    lbl.style.color = e.target.checked ? 'var(--success)' : '#999'
+  }
 })
+
+// ── WIDGET CLIENTES ──
+function wcSugerirCodigo(nombre) {
+  const codigo = nombre.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9_]/g, '').slice(0, 30)
+  const campo = document.getElementById('wc-codigo')
+  if (campo) campo.value = codigo
+}
+
+async function cargarClientesWidget() {
+  const cont = document.getElementById('lista-clientes-widget')
+  if (!cont) return
+  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  const { data } = await db.from('clientes_widget').select('*').order('created_at', { ascending: false })
+  if (!data || data.length === 0) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes registrados</div>'
+    return
+  }
+  cont.innerHTML = data.map(c => {
+    const embedCode = `<script src='https://guepack.vercel.app/widget.js?client=${c.codigo}'><\/script>`
+    return `
+    <div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px;border-left:4px solid ${c.activo ? 'var(--success)' : 'var(--gray-mid)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:var(--text)">${c.nombre}</div>
+          <div style="font-family:monospace;font-size:11px;color:var(--blue);font-weight:700;margin-top:2px;letter-spacing:1px">${c.codigo}</div>
+        </div>
+        <label class="toggle" style="flex-shrink:0;margin-top:2px">
+          <input type="checkbox" ${c.activo ? 'checked' : ''} onchange="wcToggleActivo(${c.id}, this.checked, this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div style="background:var(--gray-light);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:10px;color:#555;word-break:break-all;margin-bottom:8px;border:1px solid var(--gray)">${embedCode.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <button onclick="wcCopiarCodigo(this, '${embedCode.replace(/'/g, "\\'")}')" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:background .2s;letter-spacing:.5px">📋 Copiar código</button>
+    </div>`
+  }).join('')
+}
+
+async function agregarClienteWidget() {
+  const nombre = document.getElementById('wc-nombre').value.trim()
+  const codigo = document.getElementById('wc-codigo').value.trim().toUpperCase()
+  const activo = document.getElementById('wc-activo').checked
+  if (!nombre) return showToast('⚠️ Ingresa el nombre del negocio')
+  if (!codigo) return showToast('⚠️ Ingresa un código único')
+  const { error } = await db.from('clientes_widget').insert({ nombre, codigo, activo })
+  if (error) {
+    if (error.code === '23505') return showToast('❌ Ese código ya existe, elige otro')
+    return showToast('❌ Error: ' + error.message)
+  }
+  showToast('✅ Cliente agregado')
+  document.getElementById('wc-nombre').value = ''
+  document.getElementById('wc-codigo').value = ''
+  document.getElementById('wc-activo').checked = true
+  document.getElementById('wc-activo-label').textContent = 'Activo'
+  document.getElementById('wc-activo-label').style.color = 'var(--success)'
+  cargarClientesWidget()
+}
+
+async function wcToggleActivo(id, activo, checkbox) {
+  const { error } = await db.from('clientes_widget').update({ activo }).eq('id', id)
+  if (error) { checkbox.checked = !activo; showToast('❌ Error al actualizar') }
+}
+
+function wcCopiarCodigo(btn, texto) {
+  navigator.clipboard.writeText(texto).then(() => {
+    const orig = btn.textContent
+    btn.textContent = '✅ Copiado'
+    btn.style.background = 'var(--success)'
+    setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--blue)' }, 2000)
+  }).catch(() => showToast('❌ No se pudo copiar'))
+}
 
 init()
 </script>
