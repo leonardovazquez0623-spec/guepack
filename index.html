@@ -523,10 +523,7 @@
 <div id="screen-client" class="screen active">
 
   <div class="app-header">
-    <div class="brand">
-      <div class="brand-name">GUE<span>PAC</span>K</div>
-      <div class="brand-badge">EXPRESS</div>
-    </div>
+    <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
     <div class="header-sub">Paquetería Local · Guadalajara</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button onclick="abrirChat(null,'cliente','Soporte GUEPACK')" style="background:var(--orange);color:white;border:none;border-radius:20px;padding:7px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">🆘 Soporte</button>
@@ -1945,6 +1942,51 @@ function stepClick(btn, idx) {
     else { s.className = 'step-btn inactive'; }
   });
 }
+
+// ── POPUP ANUNCIO ──
+async function verificarAnuncio() {
+  if (sessionStorage.getItem('guepack_anuncio_visto')) return
+  const { data } = await db.from('anuncios').select('*').eq('activo', true).limit(1).maybeSingle()
+  if (!data) return
+  sessionStorage.setItem('guepack_anuncio_visto', '1')
+  _mostrarPopupAnuncio(data)
+}
+
+function _mostrarPopupAnuncio(anuncio) {
+  let seg = Math.max(1, parseInt(anuncio.segundos) || 5)
+  const overlay = document.createElement('div')
+  overlay.id = 'popup-anuncio'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease'
+  overlay.innerHTML = `
+    <div style="position:relative;background:#fff;border-radius:20px;overflow:hidden;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <button onclick="cerrarPopupAnuncio()" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900">✕</button>
+      <img src="${anuncio.imagen_url}" alt="${anuncio.nombre_aliado || 'Anuncio'}" style="width:100%;display:block;max-height:420px;object-fit:cover">
+      <div style="padding:14px 16px;display:flex;gap:10px;align-items:center">
+        ${anuncio.link_url ? `<a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="flex:1;display:block;background:linear-gradient(135deg,#f05a1a,#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a>` : ''}
+        <button onclick="cerrarPopupAnuncio()" style="flex:1;background:#f0f0f0;color:#444;border:none;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer">Cerrar <span id="popup-countdown">(${seg})</span></button>
+      </div>
+    </div>`
+  document.body.appendChild(overlay)
+
+  const iv = setInterval(() => {
+    seg--
+    const el = document.getElementById('popup-countdown')
+    if (el) el.textContent = `(${seg})`
+    if (seg <= 0) { clearInterval(iv); cerrarPopupAnuncio() }
+  }, 1000)
+  overlay._interval = iv
+}
+
+function cerrarPopupAnuncio() {
+  const el = document.getElementById('popup-anuncio')
+  if (!el) return
+  if (el._interval) clearInterval(el._interval)
+  el.style.opacity = '0'
+  el.style.transition = 'opacity .25s'
+  setTimeout(() => el.remove(), 260)
+}
+
+verificarAnuncio()
 </script>
 <!-- ── Modo Lluvia ── -->
 <div id="lluvia-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;pointer-events:none">

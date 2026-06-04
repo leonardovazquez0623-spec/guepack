@@ -90,11 +90,30 @@
   .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
   .btn-primary { background: linear-gradient(135deg, var(--orange), var(--orange-light)); color: white; width: 100%; padding: 15px; border-radius: 12px; font-size: 13px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 4px 14px rgba(240,90,26,0.35); }
 
-  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; }
-  .tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; font-size: 11px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; }
+  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; flex-wrap: wrap; }
+  .tab { flex: 1; min-width: 70px; padding: 10px 6px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; }
   .tab.active { background: var(--blue); color: white; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
+
+  /* Toggle switch */
+  .toggle-wrap { display: flex; align-items: center; gap: 12px; }
+  .toggle { position: relative; display: inline-block; width: 48px; height: 26px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 26px; cursor: pointer; transition: .3s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+  .toggle input:checked + .toggle-slider { background: var(--success); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+  /* Pub image upload */
+  .pub-img-btn { display: block; width: 100%; padding: 12px; border: 2px dashed var(--gray); border-radius: 12px; text-align: center; cursor: pointer; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 13px; color: var(--blue); background: var(--gray-light); transition: border-color .2s; }
+  .pub-img-btn:hover { border-color: var(--blue); }
+  .pub-img-preview { margin-top: 10px; border-radius: 12px; overflow: hidden; border: 2px solid var(--gray); }
+  .pub-img-preview img { width: 100%; display: block; max-height: 180px; object-fit: cover; }
+
+  /* Admin toast */
+  #admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a2740; color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
+  #admin-toast.show { transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -102,10 +121,7 @@
 <div class="app-header">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="brand">
-        <div class="brand-name">GUE<span>PAC</span>K</div>
-        <div class="brand-badge">ADMIN</div>
-      </div>
+      <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
       <div class="header-sub">Panel de Control</div>
     </div>
     <button onclick="cerrarSesion()" class="btn-logout">🚪 Salir</button>
@@ -124,6 +140,7 @@
     <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
     <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
     <button class="tab" onclick="showTab('chats')">💬 Chats</button>
+    <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
   </div>
 
   <!-- TAB PEDIDOS -->
@@ -259,6 +276,55 @@
     </div>
   </div>
 
+  <!-- TAB PUBLICIDAD -->
+  <div id="tab-publicidad" class="tab-content">
+    <div class="card">
+      <div class="card-title">📢 Crear / Editar anuncio</div>
+      <input type="hidden" id="pub-id">
+      <input type="hidden" id="pub-imagen-url">
+
+      <div class="form-group">
+        <label class="form-label">Nombre del aliado</label>
+        <input type="text" id="pub-nombre" class="form-input" placeholder="Ej. Restaurante El Rincón">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Imagen del anuncio</label>
+        <label class="pub-img-btn" id="pub-img-label" for="pub-img-input">📷 Subir imagen</label>
+        <input type="file" id="pub-img-input" accept="image/*" style="display:none" onchange="subirImagenAnuncio(this)">
+        <div class="pub-img-preview" id="pub-img-preview" style="display:none">
+          <img id="pub-img-preview-img" src="" alt="Preview">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">URL del link (opcional)</label>
+        <input type="url" id="pub-link" class="form-input" placeholder="https://ejemplo.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Duración del popup (segundos)</label>
+        <input type="number" id="pub-segundos" class="form-input" value="5" min="3" max="60">
+      </div>
+
+      <div class="form-group toggle-wrap">
+        <span class="form-label" style="margin:0">Anuncio activo</span>
+        <label class="toggle">
+          <input type="checkbox" id="pub-activo" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span id="pub-activo-label" style="font-size:12px;font-weight:700;color:var(--success)">Activo</span>
+      </div>
+
+      <button class="btn btn-primary" onclick="guardarAnuncio()" style="margin-top:6px">💾 Guardar anuncio</button>
+    </div>
+
+    <div class="card-title" style="padding:0;margin-bottom:12px">📋 Anuncios guardados</div>
+    <div id="lista-anuncios">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600">Cargando...</div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -314,12 +380,14 @@ async function init() {
   cargarPedidos()
 }
 
-function showTab(tab) {
+function showTab(tab, btn) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'))
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
   document.getElementById('tab-' + tab).classList.add('active')
-  event.target.classList.add('active')
+  const activeBtn = btn || (typeof event !== 'undefined' && event.target)
+  if (activeBtn) activeBtn.classList.add('active')
   if (tab === 'chats') cargarChats()
+  if (tab === 'publicidad') cargarAnuncios()
 }
 async function aMostrarDirecciones(tipo) {
   const { data: { session } } = await db.auth.getSession()
@@ -927,6 +995,127 @@ async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
 }
+
+// ── ADMIN TOAST ──
+function showToast(msg) {
+  let t = document.getElementById('admin-toast')
+  if (!t) { t = document.createElement('div'); t.id = 'admin-toast'; document.body.appendChild(t) }
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+// ── PUBLICIDAD ──
+let _pubImagenUrl = ''
+let _pubSubiendo = false
+
+async function cargarAnuncios() {
+  const cont = document.getElementById('lista-anuncios')
+  if (!cont) return
+  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  const { data } = await db.from('anuncios').select('*').order('created_at', { ascending: false })
+  if (!data || data.length === 0) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin anuncios guardados</div>'
+    return
+  }
+  cont.innerHTML = data.map(a => `
+    <div style="background:white;border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px;border-left:4px solid ${a.activo ? 'var(--success)' : 'var(--gray-mid)'}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        ${a.imagen_url ? `<img src="${a.imagen_url}" style="width:64px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--gray)">` : '<div style="width:64px;height:44px;background:#eee;border-radius:8px"></div>'}
+        <div style="flex:1;min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre_aliado || '—'}</div>
+          <div style="font-size:10px;font-weight:700;margin-top:2px;color:${a.activo ? 'var(--success)' : '#999'}">${a.activo ? '🟢 Activo' : '⚫ Inactivo'} · ⏱ ${a.segundos || 5}s</div>
+        </div>
+      </div>
+      <button onclick="editarAnuncio(${a.id})" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:0.5px">✏️ Editar</button>
+    </div>`).join('')
+}
+
+async function subirImagenAnuncio(input) {
+  if (!input.files[0] || _pubSubiendo) return
+  _pubSubiendo = true
+  const label = document.getElementById('pub-img-label')
+  label.textContent = '⏳ Subiendo imagen...'
+  const file = input.files[0]
+  const ext = file.name.split('.').pop()
+  const path = `anuncio-${Date.now()}.${ext}`
+  const { error } = await db.storage.from('anuncios').upload(path, file, { upsert: true })
+  _pubSubiendo = false
+  if (error) { label.textContent = '❌ Error al subir'; return }
+  _pubImagenUrl = `https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/anuncios/${path}`
+  document.getElementById('pub-imagen-url').value = _pubImagenUrl
+  label.textContent = '✅ Imagen lista'
+  document.getElementById('pub-img-preview-img').src = _pubImagenUrl
+  document.getElementById('pub-img-preview').style.display = 'block'
+}
+
+async function guardarAnuncio() {
+  const nombre = document.getElementById('pub-nombre').value.trim()
+  const link = document.getElementById('pub-link').value.trim()
+  const segundos = parseInt(document.getElementById('pub-segundos').value) || 5
+  const activo = document.getElementById('pub-activo').checked
+  const imagenUrl = document.getElementById('pub-imagen-url').value || _pubImagenUrl
+  const id = document.getElementById('pub-id').value
+  if (!nombre) return showToast('⚠️ Ingresa el nombre del aliado')
+  if (!imagenUrl) return showToast('⚠️ Sube una imagen primero')
+  const payload = { nombre_aliado: nombre, imagen_url: imagenUrl, link_url: link || null, segundos, activo }
+  let error
+  if (id) {
+    ;({ error } = await db.from('anuncios').update(payload).eq('id', id))
+  } else {
+    ;({ error } = await db.from('anuncios').insert(payload))
+  }
+  if (error) return showToast('❌ Error al guardar: ' + error.message)
+  showToast('✅ Anuncio guardado')
+  _resetFormPub()
+  cargarAnuncios()
+}
+
+async function editarAnuncio(id) {
+  const { data } = await db.from('anuncios').select('*').eq('id', id).single()
+  if (!data) return
+  document.getElementById('pub-id').value = data.id
+  document.getElementById('pub-nombre').value = data.nombre_aliado || ''
+  document.getElementById('pub-link').value = data.link_url || ''
+  document.getElementById('pub-segundos').value = data.segundos || 5
+  document.getElementById('pub-activo').checked = !!data.activo
+  document.getElementById('pub-activo-label').textContent = data.activo ? 'Activo' : 'Inactivo'
+  document.getElementById('pub-activo-label').style.color = data.activo ? 'var(--success)' : '#999'
+  _pubImagenUrl = data.imagen_url || ''
+  document.getElementById('pub-imagen-url').value = _pubImagenUrl
+  if (_pubImagenUrl) {
+    document.getElementById('pub-img-label').textContent = '✅ Imagen cargada'
+    document.getElementById('pub-img-preview-img').src = _pubImagenUrl
+    document.getElementById('pub-img-preview').style.display = 'block'
+  }
+  // Activar tab publicidad
+  const tabBtn = document.querySelector('.tab[onclick*="publicidad"]')
+  if (tabBtn) showTab('publicidad', tabBtn)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function _resetFormPub() {
+  document.getElementById('pub-id').value = ''
+  document.getElementById('pub-nombre').value = ''
+  document.getElementById('pub-link').value = ''
+  document.getElementById('pub-segundos').value = '5'
+  document.getElementById('pub-activo').checked = true
+  document.getElementById('pub-activo-label').textContent = 'Activo'
+  document.getElementById('pub-activo-label').style.color = 'var(--success)'
+  document.getElementById('pub-imagen-url').value = ''
+  document.getElementById('pub-img-label').textContent = '📷 Subir imagen'
+  document.getElementById('pub-img-preview').style.display = 'none'
+  _pubImagenUrl = ''
+}
+
+// Actualiza label del toggle en tiempo real
+document.addEventListener('change', e => {
+  if (e.target.id === 'pub-activo') {
+    const lbl = document.getElementById('pub-activo-label')
+    lbl.textContent = e.target.checked ? 'Activo' : 'Inactivo'
+    lbl.style.color = e.target.checked ? 'var(--success)' : '#999'
+  }
+})
 
 init()
 </script>
