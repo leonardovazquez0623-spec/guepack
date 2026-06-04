@@ -190,6 +190,20 @@
     border-color: var(--blue);
     background: rgba(26,79,160,0.06);
   }
+  .mp-option {
+    border: 2px solid var(--gray);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+  }
+  .mp-option:hover { border-color: var(--blue-light); }
+  .mp-option.selected {
+    border-color: var(--blue);
+    background: rgba(26,79,160,0.06);
+  }
   .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
   .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
   .size-desc { font-size: 10px; color: var(--gray-mid); font-weight: 600; display: block; margin-top: 2px; }
@@ -611,11 +625,11 @@
         <div class="card">
           <div class="card-title">💳 Método de pago</div>
           <div class="size-grid" style="grid-template-columns:1fr 1fr">
-            <div class="size-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">
+            <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">
               <span class="size-icon">💵</span>
               <span class="size-name">Efectivo</span>
             </div>
-            <div class="size-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">
+            <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">
               <span class="size-icon">🏦</span>
               <span class="size-name">Transferencia</span>
             </div>
@@ -1140,15 +1154,22 @@ async function rastrearPedido() {
   badge.textContent = data.estado
   badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
 
-  const estados = ['En camino a recoleccion', 'En camino a entrega', 'A punto de llegar', 'Entregado']
-  const estadoActual = estados.indexOf(data.estado)
+  const estadoMap = {
+    'En camino a recoleccion': 0,
+    'En camino a entrega':     1,
+    'A punto de llegar':       2,
+    'Repartidor en domicilio': 2,
+    'Entregado':               4   // > último índice → todos quedan done
+  }
+  const estadoActual = estadoMap[data.estado] ?? -1
 
   const items = ['tl-recolectado', 'tl-camino', 'tl-llegando', 'tl-entregado']
   items.forEach((id, i) => {
     const el = document.getElementById(id)
-    if (i < estadoActual) el.className = 'tl-item done'
-    else if (i === estadoActual) el.className = 'tl-item current'
-    else el.className = 'tl-item pending'
+    if (estadoActual < 0)         el.className = 'tl-item pending'
+    else if (i < estadoActual)    el.className = 'tl-item done'
+    else if (i === estadoActual)  el.className = 'tl-item current'
+    else                          el.className = 'tl-item pending'
   })
 
   document.getElementById('resultado-rastreo').style.display = 'block'
