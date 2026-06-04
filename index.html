@@ -623,6 +623,24 @@
         </div>
 
         <div class="card">
+          <div class="card-title">💳 Método de pago</div>
+          <div class="size-grid" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="size-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">
+              <span class="size-icon">💵</span>
+              <span class="size-name">Efectivo</span>
+            </div>
+            <div class="size-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">
+              <span class="size-icon">🏦</span>
+              <span class="size-name">Transferencia</span>
+            </div>
+            <div class="size-option" id="mp-mercadopago" onclick="selectMetodoPago('mercadopago')">
+              <span class="size-icon">💳</span>
+              <span class="size-name">Mercado Pago</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-title">📐 Tamaño del paquete</div>
           <div class="size-grid">
             <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
@@ -948,12 +966,18 @@ async function activarNotificaciones() {
 }
 
 activarNotificaciones()
-let selSize = null, selZone = null;
+let selSize = null, selZone = null, selMetodoPago = null;
 
 const prices = {
   centro: { sobre: 110, grande: 150 },
   norte:  { sobre: 150, grande: 200 },
   sur:    { sobre: 150, grande: 200 },
+}
+
+function selectMetodoPago(mp) {
+  selMetodoPago = mp;
+  document.querySelectorAll('#mp-efectivo,#mp-transferencia,#mp-mercadopago').forEach(o => o.classList.remove('selected'));
+  document.getElementById('mp-' + mp).classList.add('selected');
 }
 
 function selectSize(sz) {
@@ -991,9 +1015,10 @@ async function submitRequest() {
   const dir_entrega = document.querySelectorAll('.form-input')[3].value
   const fecha = document.getElementById('fecha-seleccionada').value
   const instrucciones = document.getElementById('instrucciones-recoleccion').value
+  const metodoPago = selMetodoPago
 
-  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !selZone) {
-    alert('¡Llena todos los campos, selecciona fecha, tamaño y zona!')
+  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !selZone || !metodoPago) {
+    alert('¡Llena todos los campos, selecciona fecha, tamaño, zona y método de pago!')
     return
   }
   // ── Verificar si está bloqueado por horario ──
@@ -1018,6 +1043,7 @@ const { data, error } = await db.from('pedidos').insert({
     estado: 'Pendiente',
     user_id: userId,
     instrucciones: instrucciones,
+    metodo_pago: metodoPago,
   }).select()
   
   if (error) {
