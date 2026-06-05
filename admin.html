@@ -146,6 +146,7 @@
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
     <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
+    <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -390,6 +391,73 @@
 
   </div>
 
+  <!-- TAB FINANZAS -->
+  <div id="tab-finanzas" class="tab-content">
+
+    <!-- 4 tarjetas de stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="card" style="padding:16px;text-align:center;margin-bottom:0">
+        <div style="font-size:11px;font-weight:900;color:var(--gray-mid);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">💰 Hoy</div>
+        <div id="fin-hoy" style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--orange);line-height:1">$0</div>
+        <div id="fin-hoy-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center;margin-bottom:0">
+        <div style="font-size:11px;font-weight:900;color:var(--gray-mid);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">📅 Semana</div>
+        <div id="fin-semana" style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--blue);line-height:1">$0</div>
+        <div id="fin-semana-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center;margin-bottom:0">
+        <div style="font-size:11px;font-weight:900;color:var(--gray-mid);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">🗓️ Mes</div>
+        <div id="fin-mes" style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--success);line-height:1">$0</div>
+        <div id="fin-mes-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+      <div class="card" style="padding:16px;text-align:center;margin-bottom:0">
+        <div style="font-size:11px;font-weight:900;color:var(--gray-mid);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">🎫 Ticket prom.</div>
+        <div id="fin-ticket" style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#8b5cf6;line-height:1">$0</div>
+        <div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">Por entrega</div>
+      </div>
+    </div>
+
+    <!-- Resumen por método de pago -->
+    <div class="card-title" style="padding:0;margin-bottom:12px">💳 Por método de pago</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid var(--success)">
+        <div style="font-size:20px;margin-bottom:4px">💵</div>
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Efectivo</div>
+        <div id="fin-efectivo" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--success);line-height:1">$0</div>
+        <div id="fin-efectivo-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+      <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid var(--blue)">
+        <div style="font-size:20px;margin-bottom:4px">🏦</div>
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Transferencia</div>
+        <div id="fin-transferencia" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--blue);line-height:1">$0</div>
+        <div id="fin-transferencia-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+    </div>
+
+    <!-- Tabla últimos 10 pedidos -->
+    <div class="card-title" style="padding:0;margin-bottom:12px">📋 Últimas entregas</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table id="fin-tabla" style="width:100%;border-collapse:collapse;font-family:Montserrat,sans-serif;font-size:12px">
+          <thead>
+            <tr style="background:var(--gray-light)">
+              <th style="padding:10px 12px;text-align:left;font-weight:900;font-size:10px;color:var(--blue);letter-spacing:.5px;white-space:nowrap">Folio</th>
+              <th style="padding:10px 12px;text-align:left;font-weight:900;font-size:10px;color:var(--blue);letter-spacing:.5px;white-space:nowrap">Cliente</th>
+              <th style="padding:10px 12px;text-align:right;font-weight:900;font-size:10px;color:var(--blue);letter-spacing:.5px;white-space:nowrap">Precio</th>
+              <th style="padding:10px 12px;text-align:left;font-weight:900;font-size:10px;color:var(--blue);letter-spacing:.5px;white-space:nowrap">Método</th>
+              <th style="padding:10px 12px;text-align:left;font-weight:900;font-size:10px;color:var(--blue);letter-spacing:.5px;white-space:nowrap">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="fin-tabla-body">
+            <tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-weight:600">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -455,6 +523,7 @@ function showTab(tab, btn) {
   if (tab === 'publicidad') cargarAnuncios()
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
+  if (tab === 'finanzas') cargarFinanzas()
 }
 
 function _moverIndicador(tabEl) {
@@ -1363,6 +1432,87 @@ function wcEliminar(id, nombre, btn) {
       btn.style.color = '#ef4444'
     }
   }, 3500)
+}
+
+// ── FINANZAS ──
+async function cargarFinanzas() {
+  const { data, error } = await db
+    .from('pedidos')
+    .select('id, nombre, precio, metodo_pago, created_at')
+    .eq('estado', 'Entregado')
+    .order('created_at', { ascending: false })
+
+  if (error || !data || data.length === 0) {
+    ;['fin-hoy','fin-semana','fin-mes','fin-ticket','fin-efectivo','fin-transferencia'].forEach(id => {
+      const el = document.getElementById(id)
+      if (el) el.textContent = '$0'
+    })
+    document.getElementById('fin-tabla-body').innerHTML =
+      '<tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-weight:600">Sin pedidos entregados aún</td></tr>'
+    return
+  }
+
+  const ahora = new Date()
+  const hoyStr = ahora.toLocaleDateString('en-CA')               // YYYY-MM-DD local
+
+  const inicioSemana = new Date(ahora)
+  inicioSemana.setDate(ahora.getDate() - ahora.getDay())         // domingo
+  inicioSemana.setHours(0, 0, 0, 0)
+
+  const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
+
+  let sumHoy = 0, nHoy = 0
+  let sumSemana = 0, nSemana = 0
+  let sumMes = 0, nMes = 0
+  let sumEfectivo = 0, nEfectivo = 0
+  let sumTransferencia = 0, nTransferencia = 0
+
+  data.forEach(p => {
+    const precio = parseFloat(p.precio) || 0
+    const fecha = new Date(p.created_at)
+    const fechaStr = fecha.toLocaleDateString('en-CA')
+
+    if (fechaStr === hoyStr)        { sumHoy += precio; nHoy++ }
+    if (fecha >= inicioSemana)      { sumSemana += precio; nSemana++ }
+    if (fecha >= inicioMes)         { sumMes += precio; nMes++ }
+
+    const mp = (p.metodo_pago || '').toLowerCase()
+    if (mp === 'efectivo')          { sumEfectivo += precio; nEfectivo++ }
+    else if (mp.includes('transf')) { sumTransferencia += precio; nTransferencia++ }
+  })
+
+  const ticketProm = data.length ? data.reduce((s, p) => s + (parseFloat(p.precio) || 0), 0) / data.length : 0
+
+  const $$ = n => '$' + Math.round(n).toLocaleString('es-MX')
+
+  document.getElementById('fin-hoy').textContent        = $$(sumHoy)
+  document.getElementById('fin-hoy-n').textContent      = nHoy + ' pedido' + (nHoy !== 1 ? 's' : '')
+  document.getElementById('fin-semana').textContent     = $$(sumSemana)
+  document.getElementById('fin-semana-n').textContent   = nSemana + ' pedido' + (nSemana !== 1 ? 's' : '')
+  document.getElementById('fin-mes').textContent        = $$(sumMes)
+  document.getElementById('fin-mes-n').textContent      = nMes + ' pedido' + (nMes !== 1 ? 's' : '')
+  document.getElementById('fin-ticket').textContent     = $$(ticketProm)
+  document.getElementById('fin-efectivo').textContent   = $$(sumEfectivo)
+  document.getElementById('fin-efectivo-n').textContent = nEfectivo + ' pedido' + (nEfectivo !== 1 ? 's' : '')
+  document.getElementById('fin-transferencia').textContent   = $$(sumTransferencia)
+  document.getElementById('fin-transferencia-n').textContent = nTransferencia + ' pedido' + (nTransferencia !== 1 ? 's' : '')
+
+  // Tabla últimos 10
+  const ultimos = data.slice(0, 10)
+  const mpColor = mp => {
+    const m = (mp || '').toLowerCase()
+    if (m === 'efectivo') return 'var(--success)'
+    if (m.includes('transf')) return 'var(--blue)'
+    return 'var(--gray-mid)'
+  }
+  document.getElementById('fin-tabla-body').innerHTML = ultimos.map(p => `
+    <tr style="border-top:1px solid var(--gray)">
+      <td style="padding:10px 12px;font-weight:900;color:var(--blue);white-space:nowrap">GK-${p.id}</td>
+      <td style="padding:10px 12px;font-weight:600;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre || '—'}</td>
+      <td style="padding:10px 12px;text-align:right;font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--orange);white-space:nowrap">${p.precio ? '$' + parseFloat(p.precio).toLocaleString('es-MX') : '—'}</td>
+      <td style="padding:10px 12px;white-space:nowrap"><span style="background:${mpColor(p.metodo_pago)}22;color:${mpColor(p.metodo_pago)};font-size:9px;font-weight:900;padding:3px 7px;border-radius:6px;letter-spacing:.5px">${p.metodo_pago || '—'}</span></td>
+      <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p.created_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
+    </tr>`).join('')
 }
 
 // ── Drag-to-scroll en pestañas (desktop) ──
