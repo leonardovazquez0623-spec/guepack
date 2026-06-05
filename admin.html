@@ -937,6 +937,7 @@ function renderPedido(pedido) {
         <div>
           <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
           <div class="order-client">${pedido.nombre}</div>
+          ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:1px">De: ${pedido.nombre_remitente}</div>` : ''}
         </div>
         <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : pedido.estado === 'Pendiente verificación de pago' ? 'badge-verify' : 'badge-transit'}">${pedido.estado}</div>
       </div>

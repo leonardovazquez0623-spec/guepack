@@ -240,7 +240,8 @@ localStorage.setItem('guepack_pedidos_count', data.length)
         </div>
         <div class="route-body">
           <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
-          <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
             <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:#1a4fa0;color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
