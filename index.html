@@ -215,6 +215,10 @@
     cursor: pointer;
     transition: all .2s;
     background: var(--gray-light);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    color: var(--text);
   }
   .mp-option:hover { border-color: var(--blue-light); }
   .mp-option.selected {
@@ -556,8 +560,7 @@
   <div class="app-header">
     <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
     <div class="header-sub">Paquetería Local · Guadalajara</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button onclick="abrirChat(null,'cliente','Soporte GUEPACK')" style="background:var(--orange);color:white;border:none;border-radius:20px;padding:7px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">🆘 Soporte</button>
+    <div id="header-actions" style="display:flex;align-items:center;gap:8px;margin-top:6px">
       <button onclick="cerrarSesion()" class="btn-logout">Cerrar sesión</button>
     </div>
   </div>
@@ -689,15 +692,9 @@
 
         <div class="card">
           <div class="card-title">💳 Método de pago</div>
-          <div class="size-grid" style="grid-template-columns:1fr 1fr">
-            <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">
-              <span class="size-icon">💵</span>
-              <span class="size-name">Efectivo</span>
-            </div>
-            <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">
-              <span class="size-icon">🏦</span>
-              <span class="size-name">Transferencia</span>
-            </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
+            <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
           </div>
           <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
             <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
@@ -818,13 +815,13 @@ async function verificarSesion() {
   }
   verificarAnuncio()
   cargarVipUsuario(session.user.id)
-  cargarNombreRemitente(session.user.id)
+  cargarNombreRemitente(session.user)
 }
 
-async function cargarNombreRemitente(userId) {
-  const { data } = await db.from('usuarios').select('nombre').eq('user_id', userId).single()
+function cargarNombreRemitente(user) {
+  const nombre = user?.user_metadata?.nombre || user?.email || ''
   const campo = document.getElementById('nombre-remitente')
-  if (campo && data?.nombre) campo.value = data.nombre
+  if (campo) campo.value = nombre
 }
 verificarSesion()
 // ── Cargar pedidos activos al entrar ──
@@ -1724,7 +1721,7 @@ function resetForm() {
   document.getElementById('folio-number').textContent = 'GK-...'
   // Re-cargar nombre del remitente desde sesión
   db.auth.getSession().then(({ data: { session } }) => {
-    if (session) cargarNombreRemitente(session.user.id)
+    if (session) cargarNombreRemitente(session.user)
   })
 
   // Fecha
@@ -2119,28 +2116,37 @@ function _mostrarVipHeader(nivel) {
   }
   const badge = document.createElement('div')
   badge.id = 'vip-badge-header'
-  badge.style.cssText = `display:inline-block;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:4px 14px;border-radius:20px;margin-top:6px;letter-spacing:.5px`
+  badge.style.cssText = `display:inline-block;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:4px 14px;border-radius:20px;letter-spacing:.5px;white-space:nowrap`
   badge.textContent = info.icono + ' ' + info.label
-  const sub = document.querySelector('.header-sub')
-  if (sub) sub.after(badge)
+  const actions = document.getElementById('header-actions')
+  if (actions) actions.insertBefore(badge, actions.firstChild)
 }
+
+const _NIVEL_ORDEN = { normal: 0, bronce: 1, plata: 2, oro: 3 }
 
 async function cargarVipUsuario(userId) {
   console.log('[VIP] Consultando usuario:', userId)
   const { data, error } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
   console.log('[VIP] Respuesta Supabase →', { data, error })
   if (!data) { console.warn('[VIP] Sin datos de usuario en tabla usuarios'); return }
+
   const nivel = data.nivel_vip || 'normal'
   console.log('[VIP] Nivel:', nivel, '| Total pedidos:', data.total_pedidos ?? 0)
-  const guardado = localStorage.getItem('guepack_vip_nivel')
-  if (!guardado) {
-    _aplicarTemaVip(nivel)
-    localStorage.setItem('guepack_vip_nivel', nivel)
-  } else if (guardado !== nivel) {
+
+  const guardado = localStorage.getItem('guepack_nivel_vip')
+  const ordenGuardado = _NIVEL_ORDEN[guardado] ?? -1  // -1 = nunca visto antes
+  const ordenActual   = _NIVEL_ORDEN[nivel]   ?? 0
+
+  // Solo celebra si hay nivel previo guardado Y el nuevo es estrictamente mayor
+  const subioDeNivel = guardado !== null && ordenActual > ordenGuardado
+
+  // Siempre actualiza localStorage y aplica el tema
+  localStorage.setItem('guepack_nivel_vip', nivel)
+
+  if (subioDeNivel) {
     const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
     _sweepTema(t.sweep, () => _aplicarTemaVip(nivel))
-    localStorage.setItem('guepack_vip_nivel', nivel)
-    if (nivel !== 'normal') setTimeout(() => _celebrarSubidaNivel(nivel), 650)
+    setTimeout(() => _celebrarSubidaNivel(nivel), 650)
   } else {
     _aplicarTemaVip(nivel)
   }
@@ -2158,7 +2164,7 @@ async function actualizarVipTrasEntrega() {
   await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
   if (nuevoNivel !== nivelAnterior) {
     const t = _VIP_TEMAS[nuevoNivel] || _VIP_TEMAS.normal
-    localStorage.setItem('guepack_vip_nivel', nuevoNivel)
+    localStorage.setItem('guepack_nivel_vip', nuevoNivel)
     _sweepTema(t.sweep, () => _aplicarTemaVip(nuevoNivel))
     setTimeout(() => _celebrarSubidaNivel(nuevoNivel), 700)
   } else {
@@ -2313,6 +2319,17 @@ function cerrarModalCalificacion() {
   <div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:4px">AVISO CLIMÁTICO</div>
   <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="lluvia-mensaje">Por condiciones climáticas, es posible que tu pedido tenga retrasos. ¡Gracias por tu comprensión!</div>
 </div>
+
+<!-- FAB Soporte -->
+<button
+  onclick="abrirChat(null,'cliente','Soporte GUEPACK')"
+  style="position:fixed;bottom:80px;right:16px;z-index:998;width:56px;height:56px;border-radius:50%;background:#f05a1a;color:white;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(240,90,26,0.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:Montserrat,sans-serif;padding:0;transition:transform .15s,box-shadow .15s"
+  onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 28px rgba(240,90,26,0.6)'"
+  onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(240,90,26,0.5)'"
+>
+  <span style="font-size:22px;line-height:1">🎧</span>
+  <span style="font-size:8px;font-weight:900;letter-spacing:.5px">SOPORTE</span>
+</button>
 
 </body>
 </html>
