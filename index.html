@@ -1479,7 +1479,15 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false) {
   _pedidos[id].realtimeChannel = db.channel('pedido-' + id)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: 'id=eq.' + id }, payload => {
       const nuevoEstado = payload.new.estado
-      _actualizarCard(id, nuevoEstado, payload.new.repartidor)
+      const nuevoRepartidor = payload.new.repartidor
+      console.log('[GUEPACK] Realtime UPDATE pedido', id, '→ estado:', nuevoEstado)
+      _actualizarCard(id, nuevoEstado, nuevoRepartidor)
+
+      if (nuevoEstado === 'Entregado') {
+        console.log('[GUEPACK] Pedido', id, 'ENTREGADO — lanzando modal de calificación en 3s')
+        setTimeout(() => mostrarModalCalificacion(id, nuevoRepartidor), 3000)
+      }
+
       if (ESTADOS_FINALES.includes(nuevoEstado)) {
         document.getElementById('pac-' + id + '-cancelar-container').style.display = 'none'
         const delay = nuevoEstado === 'Entregado' ? 600000 : 10000
@@ -2004,6 +2012,75 @@ function cerrarPopupAnuncio() {
   const el = document.getElementById('popup-anuncio')
   if (!el) return
   if (el._interval) clearInterval(el._interval)
+  el.style.opacity = '0'
+  el.style.transition = 'opacity .25s'
+  setTimeout(() => el.remove(), 260)
+}
+
+// ── MODAL DE CALIFICACIÓN ──
+let _calStars = 0
+
+function mostrarModalCalificacion(pedidoId, repartidor) {
+  console.log('[GUEPACK] mostrarModalCalificacion llamada — pedido:', pedidoId, 'repartidor:', repartidor)
+  const existing = document.getElementById('modal-calificacion')
+  if (existing) existing.remove()
+  _calStars = 0
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-calificacion'
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,20,50,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease'
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:24px;max-width:340px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div style="font-size:40px;margin-bottom:10px">⭐</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:1px;margin-bottom:6px">¿Cómo fue tu experiencia?</div>
+      <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-bottom:18px">Folio GK-${pedidoId}${repartidor ? ' · ' + repartidor : ''}</div>
+      <div id="cal-stars-row" style="display:flex;gap:4px;justify-content:center;margin-bottom:18px">
+        ${[1,2,3,4,5].map(n => `<span data-val="${n}" onmouseover="calHover(${n})" onmouseout="calResetHover()" onclick="calSelect(${n})" style="font-size:42px;cursor:pointer;color:#e0e0e0;transition:color .12s;line-height:1">★</span>`).join('')}
+      </div>
+      <textarea id="cal-comentario" placeholder="Cuéntanos tu experiencia (opcional)..." style="width:100%;border:2px solid #e0e6f0;border-radius:12px;padding:12px 14px;font-family:Montserrat,sans-serif;font-size:13px;color:#1a2740;resize:none;outline:none;height:80px;margin-bottom:16px;transition:border-color .2s" onfocus="this.style.borderColor='#2563c4'" onblur="this.style.borderColor='#e0e6f0'"></textarea>
+      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,#f05a1a,#ff7a3d);border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
+      <button onclick="cerrarModalCalificacion()" style="width:100%;padding:11px;background:transparent;border:none;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Omitir</button>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
+function calHover(n) {
+  document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
+    s.style.color = i < n ? '#f05a1a' : '#e0e0e0'
+  })
+}
+
+function calResetHover() {
+  document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
+    s.style.color = i < _calStars ? '#f05a1a' : '#e0e0e0'
+  })
+}
+
+function calSelect(n) {
+  _calStars = n
+  calResetHover()
+}
+
+async function enviarCalificacion(pedidoId, repartidor) {
+  if (!_calStars) {
+    mostrarToast('Selecciona al menos una estrella ⭐', 'var(--orange)')
+    return
+  }
+  const comentario = document.getElementById('cal-comentario').value.trim()
+  const { data: { session } } = await db.auth.getSession()
+  await db.from('calificaciones').insert({
+    pedido_id: pedidoId,
+    user_id: session?.user?.id || null,
+    repartidor: repartidor || null,
+    estrellas: _calStars,
+    comentario: comentario || null
+  })
+  cerrarModalCalificacion()
+  mostrarToast('¡Gracias por tu calificación! ⭐', 'var(--success)')
+}
+
+function cerrarModalCalificacion() {
+  const el = document.getElementById('modal-calificacion')
+  if (!el) return
   el.style.opacity = '0'
   el.style.transition = 'opacity .25s'
   setTimeout(() => el.remove(), 260)

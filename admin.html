@@ -90,8 +90,10 @@
   .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
   .btn-primary { background: linear-gradient(135deg, var(--orange), var(--orange-light)); color: white; width: 100%; padding: 15px; border-radius: 12px; font-size: 13px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; box-shadow: 0 4px 14px rgba(240,90,26,0.35); }
 
-  .tabs { display: flex; background: white; border-radius: 12px; padding: 4px 4px 7px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; flex-wrap: wrap; position: relative; overflow: hidden; }
-  .tab { flex: 1; min-width: 70px; padding: 10px 6px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; transition: color .2s, background .2s; }
+  .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; background: white; border-radius: 12px; padding: 4px 4px 7px; margin-bottom: 16px; box-shadow: var(--shadow); gap: 4px; position: relative; cursor: grab; }
+  .tabs.dragging { cursor: grabbing; user-select: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; white-space: nowrap; padding: 10px 12px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; transition: color .2s, background .2s; }
   .tab.active { background: rgba(26,79,160,0.08); color: var(--blue); }
   #tab-indicator { position: absolute; bottom: 4px; height: 3px; background: var(--orange); border-radius: 3px; transition: left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1); pointer-events: none; }
   .tab-content { display: none; }
@@ -143,6 +145,7 @@
     <button class="tab" onclick="showTab('chats')">💬 Chats</button>
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
+    <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -362,6 +365,31 @@
     </div>
   </div>
 
+  <!-- TAB CALIFICACIONES -->
+  <div id="tab-calificaciones" class="tab-content">
+
+    <!-- Promedio general -->
+    <div class="card" style="text-align:center">
+      <div class="card-title">⭐ Promedio general</div>
+      <div id="cal-promedio-estrellas" style="font-size:36px;letter-spacing:4px;margin-bottom:4px">★★★★★</div>
+      <div id="cal-promedio-num" style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--orange);line-height:1">—</div>
+      <div id="cal-total" style="font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:4px">Cargando...</div>
+    </div>
+
+    <!-- Por repartidor -->
+    <div class="card-title" style="padding:0;margin-bottom:12px">🏍️ Por repartidor</div>
+    <div id="cal-por-repartidor" style="margin-bottom:16px">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+    </div>
+
+    <!-- Últimas calificaciones -->
+    <div class="card-title" style="padding:0;margin-bottom:12px">💬 Últimas calificaciones</div>
+    <div id="cal-lista">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+    </div>
+
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -426,6 +454,7 @@ function showTab(tab, btn) {
   if (tab === 'chats') cargarChats()
   if (tab === 'publicidad') cargarAnuncios()
   if (tab === 'widget') cargarClientesWidget()
+  if (tab === 'calificaciones') cargarCalificaciones()
 }
 
 function _moverIndicador(tabEl) {
@@ -1245,6 +1274,73 @@ function wcCopiarCodigo(btn, texto) {
   }).catch(() => showToast('❌ No se pudo copiar'))
 }
 
+// ── CALIFICACIONES ──
+function _renderStars(promedio, size = 20) {
+  return [1,2,3,4,5].map(i => {
+    const llena = promedio >= i
+    const media = !llena && promedio >= i - 0.5
+    const color = (llena || media) ? '#f05a1a' : '#e0e0e0'
+    const opacity = media ? '0.6' : '1'
+    return `<span style="font-size:${size}px;color:${color};opacity:${opacity}">★</span>`
+  }).join('')
+}
+
+async function cargarCalificaciones() {
+  const { data } = await db.from('calificaciones').select('*').order('created_at', { ascending: false })
+  if (!data || data.length === 0) {
+    document.getElementById('cal-promedio-num').textContent = '—'
+    document.getElementById('cal-promedio-estrellas').innerHTML = '<span style="color:#e0e0e0;font-size:36px">★★★★★</span>'
+    document.getElementById('cal-total').textContent = 'Sin calificaciones aún'
+    document.getElementById('cal-por-repartidor').innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin datos</div>'
+    document.getElementById('cal-lista').innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin calificaciones</div>'
+    return
+  }
+
+  // Promedio general
+  const promGeneral = data.reduce((s, c) => s + c.estrellas, 0) / data.length
+  document.getElementById('cal-promedio-num').textContent = promGeneral.toFixed(1)
+  document.getElementById('cal-promedio-estrellas').innerHTML = _renderStars(promGeneral, 32)
+  document.getElementById('cal-total').textContent = `Basado en ${data.length} calificación${data.length !== 1 ? 'es' : ''}`
+
+  // Por repartidor
+  const porRep = {}
+  data.forEach(c => {
+    const r = c.repartidor || 'Sin asignar'
+    if (!porRep[r]) porRep[r] = []
+    porRep[r].push(c.estrellas)
+  })
+  document.getElementById('cal-por-repartidor').innerHTML = Object.entries(porRep).map(([nombre, arr]) => {
+    const prom = arr.reduce((s, n) => s + n, 0) / arr.length
+    return `
+    <div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">🏍️ ${nombre}</div>
+        <div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">${arr.length} calificación${arr.length !== 1 ? 'es' : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div>${_renderStars(prom, 18)}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--orange)">${prom.toFixed(1)}</div>
+      </div>
+    </div>`
+  }).join('')
+
+  // Últimas calificaciones (máx 30)
+  document.getElementById('cal-lista').innerHTML = data.slice(0, 30).map(c => `
+    <div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue)">GK-${c.pedido_id || '—'}</div>
+          ${c.repartidor ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:1px">🏍️ ${c.repartidor}</div>` : ''}
+        </div>
+        <div style="text-align:right">
+          <div>${_renderStars(c.estrellas, 16)}</div>
+          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">${new Date(c.created_at).toLocaleDateString('es-MX')}</div>
+        </div>
+      </div>
+      ${c.comentario ? `<div style="background:var(--gray-light);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text);font-weight:600;font-style:italic">"${c.comentario}"</div>` : ''}
+    </div>`).join('')
+}
+
 function wcEliminar(id, nombre, btn) {
   if (btn.dataset.confirm === '1') {
     db.from('clientes_widget').delete().eq('id', id).then(({ error }) => {
@@ -1268,6 +1364,29 @@ function wcEliminar(id, nombre, btn) {
     }
   }, 3500)
 }
+
+// ── Drag-to-scroll en pestañas (desktop) ──
+;(function () {
+  const tabs = document.querySelector('.tabs')
+  if (!tabs) return
+  let isDown = false, startX, scrollLeft
+
+  tabs.addEventListener('mousedown', e => {
+    isDown = true
+    tabs.classList.add('dragging')
+    startX = e.pageX - tabs.offsetLeft
+    scrollLeft = tabs.scrollLeft
+  })
+  tabs.addEventListener('mouseleave', () => { isDown = false; tabs.classList.remove('dragging') })
+  tabs.addEventListener('mouseup',    () => { isDown = false; tabs.classList.remove('dragging') })
+  tabs.addEventListener('mousemove',  e => {
+    if (!isDown) return
+    e.preventDefault()
+    const x = e.pageX - tabs.offsetLeft
+    const walk = (x - startX) * 2
+    tabs.scrollLeft = scrollLeft - walk
+  })
+})()
 
 init()
 </script>
