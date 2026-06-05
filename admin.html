@@ -147,6 +147,7 @@
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
     <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
     <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="tab" onclick="showTab('vip')">👑 VIP</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -456,6 +457,41 @@
       </div>
     </div>
 
+    <!-- Clientes VIP -->
+    <div class="card-title" style="padding:0;margin:20px 0 12px">🥇 Clientes VIP</div>
+    <div id="fin-vip-lista">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+    </div>
+
+  </div>
+
+  <!-- TAB VIP -->
+  <div id="tab-vip" class="tab-content">
+
+    <!-- Resumen por nivel -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      <div class="card" style="padding:12px;text-align:center;margin-bottom:0;border-top:3px solid #CD7F32">
+        <div style="font-size:22px">🥉</div>
+        <div id="vip-n-bronce" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#8B4513;line-height:1">0</div>
+        <div style="font-size:9px;font-weight:900;color:#8B4513;letter-spacing:1px">BRONCE</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center;margin-bottom:0;border-top:3px solid #808080">
+        <div style="font-size:22px">🥈</div>
+        <div id="vip-n-plata" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#555;line-height:1">0</div>
+        <div style="font-size:9px;font-weight:900;color:#555;letter-spacing:1px">PLATA</div>
+      </div>
+      <div class="card" style="padding:12px;text-align:center;margin-bottom:0;border-top:3px solid #DAA520">
+        <div style="font-size:22px">🥇</div>
+        <div id="vip-n-oro" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#B8860B;line-height:1">0</div>
+        <div style="font-size:9px;font-weight:900;color:#B8860B;letter-spacing:1px">ORO VIP</div>
+      </div>
+    </div>
+
+    <div class="card-title" style="padding:0;margin-bottom:12px">👥 Todos los clientes</div>
+    <div id="vip-lista-completa">
+      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+    </div>
+
   </div>
 
 </div>
@@ -524,6 +560,7 @@ function showTab(tab, btn) {
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
+  if (tab === 'vip') cargarVip()
 }
 
 function _moverIndicador(tabEl) {
@@ -1434,7 +1471,112 @@ function wcEliminar(id, nombre, btn) {
   }, 3500)
 }
 
+// ── VIP ADMIN ──
+async function cargarVip() {
+  const cont = document.getElementById('vip-lista-completa')
+  if (!cont) return
+  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+
+  const { data } = await db.from('usuarios')
+    .select('id, email, nombre, total_pedidos, nivel_vip')
+    .eq('rol', 'cliente')
+    .order('total_pedidos', { ascending: false, nullsFirst: false })
+
+  if (!data || data.length === 0) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin usuarios registrados</div>'
+    return
+  }
+
+  // Contadores por nivel
+  const cnt = { bronce: 0, plata: 0, oro: 0 }
+  data.forEach(u => { if (cnt[u.nivel_vip] !== undefined) cnt[u.nivel_vip]++ })
+  document.getElementById('vip-n-bronce').textContent = cnt.bronce
+  document.getElementById('vip-n-plata').textContent  = cnt.plata
+  document.getElementById('vip-n-oro').textContent    = cnt.oro
+
+  const nivelInfo = {
+    normal: { icono: '👤', label: 'Normal',  color: '#8fa3c0', next: 'Bronce', meta: 10,  base: 0  },
+    bronce: { icono: '🥉', label: 'Bronce',  color: '#8B4513', next: 'Plata',  meta: 20,  base: 10 },
+    plata:  { icono: '🥈', label: 'Plata',   color: '#555555', next: 'Oro',    meta: 50,  base: 20 },
+    oro:    { icono: '🥇', label: 'Oro VIP', color: '#B8860B', next: null,     meta: null, base: 50 }
+  }
+
+  cont.innerHTML = data.map(u => {
+    const total = u.total_pedidos || 0
+    const nivel = u.nivel_vip || 'normal'
+    const info = nivelInfo[nivel] || nivelInfo.normal
+    const nombre = u.nombre || u.email?.split('@')[0] || 'Cliente'
+
+    let barHtml = ''
+    if (info.next) {
+      const progreso = Math.min(1, (total - info.base) / (info.meta - info.base))
+      const pct = Math.round(progreso * 100)
+      barHtml = `
+        <div style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:#aaa;margin-bottom:3px">
+            <span>Hacia ${info.next}</span>
+            <span>${total}/${info.meta} envíos</span>
+          </div>
+          <div style="background:#f0f0f0;border-radius:4px;height:6px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${info.color};border-radius:4px;transition:width .6s ease"></div>
+          </div>
+        </div>`
+    } else {
+      barHtml = `<div style="margin-top:8px;font-size:10px;font-weight:700;color:#B8860B">✨ Nivel máximo alcanzado</div>`
+    }
+
+    return `
+    <div style="background:#fff;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px;border-left:4px solid ${info.color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${nombre}</div>
+          <div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:1px">${u.email || ''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="background:${info.color};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 9px;border-radius:20px;white-space:nowrap">${info.icono} ${info.label}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:${info.color};line-height:1.2;margin-top:2px">${total} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#aaa">envíos</span></div>
+        </div>
+      </div>
+      ${barHtml}
+    </div>`
+  }).join('')
+}
+
 // ── FINANZAS ──
+const _VIP_INFO = {
+  oro:    { icono: '🥇', label: 'Oro VIP',  bg: '#fef3c7', color: '#d97706', border: '#d97706' },
+  plata:  { icono: '🥈', label: 'Plata',    bg: '#f1f5f9', color: '#475569', border: '#475569' },
+  bronce: { icono: '🥉', label: 'Bronce',   bg: '#fdf4e7', color: '#92400e', border: '#92400e' }
+}
+
+async function cargarClientesVip() {
+  const cont = document.getElementById('fin-vip-lista')
+  if (!cont) return
+  const { data } = await db.from('usuarios')
+    .select('id, email, nombre, total_pedidos, nivel_vip, created_at')
+    .in('nivel_vip', ['bronce', 'plata', 'oro'])
+    .order('total_pedidos', { ascending: false })
+  if (!data || data.length === 0) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes VIP aún</div>'
+    return
+  }
+  cont.innerHTML = data.map(u => {
+    const info = _VIP_INFO[u.nivel_vip] || _VIP_INFO.bronce
+    const nombre = u.nombre || u.email || 'Cliente'
+    return `
+    <div style="background:${info.bg};border-radius:12px;padding:14px 16px;margin-bottom:8px;border-left:4px solid ${info.border};display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${nombre}</div>
+        <div style="font-size:10px;color:#666;font-weight:600;margin-top:2px">${u.email || ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="background:${info.border};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:3px 10px;border-radius:20px;margin-bottom:4px">${info.icono} ${info.label}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${info.border};line-height:1">${u.total_pedidos || 0} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700">envíos</span></div>
+      </div>
+    </div>`
+  }).join('')
+}
+
 async function cargarFinanzas() {
   const { data, error } = await db
     .from('pedidos')
@@ -1513,6 +1655,8 @@ async function cargarFinanzas() {
       <td style="padding:10px 12px;white-space:nowrap"><span style="background:${mpColor(p.metodo_pago)}22;color:${mpColor(p.metodo_pago)};font-size:9px;font-weight:900;padding:3px 7px;border-radius:6px;letter-spacing:.5px">${p.metodo_pago || '—'}</span></td>
       <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p.created_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
     </tr>`).join('')
+
+  cargarClientesVip()
 }
 
 // ── Drag-to-scroll en pestañas (desktop) ──

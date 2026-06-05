@@ -64,6 +64,23 @@
   @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes parpadeoRojo { 0%,100% { border-color:#ef4444; } 50% { border-color:transparent; } }
 
+  /* ── VIP TEMAS ── */
+  body.vip-oro .app-header {
+    background: linear-gradient(135deg, #8B6914 0%, #B8860B 35%, #DAA520 55%, #FFD700 70%, #B8860B 100%) !important;
+    background-size: 250% 250% !important;
+    animation: oroShimmer 4s ease-in-out infinite !important;
+  }
+  @keyframes oroShimmer {
+    0%,100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  body.vip-plata .app-header {
+    background: linear-gradient(135deg, #333 0%, #555 50%, #808080 100%) !important;
+  }
+  body.vip-bronce .app-header {
+    background: linear-gradient(135deg, #5D2E0C 0%, #8B4513 50%, #CD7F32 100%) !important;
+  }
+
   /* ── HEADER ── */
   .app-header {
     background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
@@ -537,7 +554,7 @@
 <div id="screen-client" class="screen active">
 
   <div class="app-header">
-    <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
+    <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
     <div class="header-sub">Paquetería Local · Guadalajara</div>
     <div style="display:flex;gap:8px;align-items:center">
       <button onclick="abrirChat(null,'cliente','Soporte GUEPACK')" style="background:var(--orange);color:white;border:none;border-radius:20px;padding:7px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">🆘 Soporte</button>
@@ -796,6 +813,7 @@ async function verificarSesion() {
     return
   }
   verificarAnuncio()
+  cargarVipUsuario(session.user.id)
 }
 verificarSesion()
 // ── Cargar pedidos activos al entrar ──
@@ -1485,6 +1503,7 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false) {
 
       if (nuevoEstado === 'Entregado') {
         console.log('[GUEPACK] Pedido', id, 'ENTREGADO — lanzando modal de calificación en 3s')
+        actualizarVipTrasEntrega()
         setTimeout(() => mostrarModalCalificacion(id, nuevoRepartidor), 3000)
       }
 
@@ -2015,6 +2034,186 @@ function cerrarPopupAnuncio() {
   el.style.opacity = '0'
   el.style.transition = 'opacity .25s'
   setTimeout(() => el.remove(), 260)
+}
+
+// ── VIP ──
+const _VIP_NIVELES = [
+  { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
+  { min: 20, nivel: 'plata',  icono: '🥈', label: 'Plata',   bg: '#555555' },
+  { min: 10, nivel: 'bronce', icono: '🥉', label: 'Bronce',  bg: '#8B4513' },
+  { min:  0, nivel: 'normal', icono: '',   label: '',         bg: ''        }
+]
+
+const _VIP_TEMAS = {
+  normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
+  bronce: { blue:'#8B4513', blueDark:'#5D2E0C', blueLight:'#CD7F32', orange:'#CD7F32', orangeLight:'#DFA152', logo:'/logo_principal.png', sweep:'#CD7F32' },
+  plata:  { blue:'#555555', blueDark:'#333333', blueLight:'#808080', orange:'#909090', orangeLight:'#C0C0C0', logo:'/logo_vip.png',       sweep:'#808080' },
+  oro:    { blue:'#B8860B', blueDark:'#8B6914', blueLight:'#DAA520', orange:'#FFD700', orangeLight:'#FFE44D', logo:'/logo_vip.png',       sweep:'#DAA520' }
+}
+
+function _calcNivel(total) {
+  return _VIP_NIVELES.find(v => total >= v.min)
+}
+
+function _aplicarTemaVip(nivel) {
+  const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+  const r = document.documentElement
+  r.style.setProperty('--blue',         t.blue)
+  r.style.setProperty('--blue-dark',    t.blueDark)
+  r.style.setProperty('--blue-light',   t.blueLight)
+  r.style.setProperty('--orange',       t.orange)
+  r.style.setProperty('--orange-light', t.orangeLight)
+  const logo = document.getElementById('header-logo')
+  if (logo) logo.src = t.logo
+  document.body.classList.remove('vip-bronce', 'vip-plata', 'vip-oro')
+  if (nivel !== 'normal') document.body.classList.add('vip-' + nivel)
+  _mostrarVipHeader(nivel)
+}
+
+function _sweepTema(color, callback) {
+  const old = document.getElementById('vip-sweep')
+  if (old) old.remove()
+  const sweep = document.createElement('div')
+  sweep.id = 'vip-sweep'
+  sweep.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:${color};z-index:99997;pointer-events:none;clip-path:inset(0 100% 0 0)`
+  document.body.appendChild(sweep)
+  sweep.offsetWidth // reflow
+  sweep.style.transition = 'clip-path .55s cubic-bezier(.4,0,.2,1)'
+  sweep.style.clipPath = 'inset(0 0% 0 0)'
+  sweep.addEventListener('transitionend', () => {
+    callback()
+    requestAnimationFrame(() => {
+      sweep.style.clipPath = 'inset(0 0% 0 100%)'
+      sweep.addEventListener('transitionend', () => sweep.remove(), { once: true })
+    })
+  }, { once: true })
+}
+
+function _mostrarVipHeader(nivel) {
+  const existing = document.getElementById('vip-badge-header')
+  if (nivel === 'normal' || !nivel) { if (existing) existing.remove(); return }
+  const info = _VIP_NIVELES.find(v => v.nivel === nivel)
+  if (!info?.label) return
+  const t = _VIP_TEMAS[nivel]
+  if (existing) {
+    existing.textContent = info.icono + ' ' + info.label
+    existing.style.background = t.blueDark
+    return
+  }
+  const badge = document.createElement('div')
+  badge.id = 'vip-badge-header'
+  badge.style.cssText = `display:inline-block;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:4px 14px;border-radius:20px;margin-top:6px;letter-spacing:.5px`
+  badge.textContent = info.icono + ' ' + info.label
+  const sub = document.querySelector('.header-sub')
+  if (sub) sub.after(badge)
+}
+
+async function cargarVipUsuario(userId) {
+  console.log('[VIP] Consultando usuario:', userId)
+  const { data, error } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  console.log('[VIP] Respuesta Supabase →', { data, error })
+  if (!data) { console.warn('[VIP] Sin datos de usuario en tabla usuarios'); return }
+  const nivel = data.nivel_vip || 'normal'
+  console.log('[VIP] Nivel:', nivel, '| Total pedidos:', data.total_pedidos ?? 0)
+  const guardado = localStorage.getItem('guepack_vip_nivel')
+  if (!guardado) {
+    _aplicarTemaVip(nivel)
+    localStorage.setItem('guepack_vip_nivel', nivel)
+  } else if (guardado !== nivel) {
+    const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+    _sweepTema(t.sweep, () => _aplicarTemaVip(nivel))
+    localStorage.setItem('guepack_vip_nivel', nivel)
+    if (nivel !== 'normal') setTimeout(() => _celebrarSubidaNivel(nivel), 650)
+  } else {
+    _aplicarTemaVip(nivel)
+  }
+}
+
+async function actualizarVipTrasEntrega() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+  const userId = session.user.id
+  const { data: usuario } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  const totalAnterior = usuario?.total_pedidos || 0
+  const nuevoTotal = totalAnterior + 1
+  const nivelAnterior = _calcNivel(totalAnterior).nivel
+  const nuevoNivel = _calcNivel(nuevoTotal).nivel
+  await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
+  if (nuevoNivel !== nivelAnterior) {
+    const t = _VIP_TEMAS[nuevoNivel] || _VIP_TEMAS.normal
+    localStorage.setItem('guepack_vip_nivel', nuevoNivel)
+    _sweepTema(t.sweep, () => _aplicarTemaVip(nuevoNivel))
+    setTimeout(() => _celebrarSubidaNivel(nuevoNivel), 700)
+  } else {
+    _mostrarVipHeader(nuevoNivel)
+  }
+}
+
+function _celebrarSubidaNivel(nivel) {
+  const info = _VIP_NIVELES.find(v => v.nivel === nivel)
+  if (!info) return
+  const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+  const overlay = document.createElement('div')
+  overlay.id = 'vip-celebracion'
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.84);z-index:99998;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .4s ease'
+  overlay.innerHTML = `
+    <div style="text-align:center;animation:fadeIn .5s ease .15s both">
+      <img src="${t.logo}" alt="VIP" style="max-width:180px;height:auto;margin-bottom:18px;filter:drop-shadow(0 0 28px ${t.orange})">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:54px;color:${t.orange};letter-spacing:3px;line-height:1;text-shadow:0 0 30px ${t.orange}90">${info.icono} ${info.label}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#fff;margin-top:14px;line-height:1.5">¡Felicidades!<br>Subiste a nivel ${info.label} 🎉</div>
+    </div>`
+  document.body.appendChild(overlay)
+  _confettiVip(nivel)
+  setTimeout(() => {
+    overlay.style.opacity = '0'
+    overlay.style.transition = 'opacity .5s'
+    setTimeout(() => overlay.remove(), 520)
+  }, 5000)
+}
+
+function _confettiVip(nivel) {
+  const canvas = document.createElement('canvas')
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999'
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  document.body.appendChild(canvas)
+  const ctx = canvas.getContext('2d')
+  const paletas = {
+    bronce: ['#CD7F32','#8B4513','#DFA152','#F4C87E','#fff'],
+    plata:  ['#C0C0C0','#A8A8A8','#E8E8E8','#fff','#b0c4de'],
+    oro:    ['#FFD700','#FFA500','#FFEC47','#fff','#B8860B']
+  }
+  const colors = paletas[nivel] || ['#f05a1a','#1a4fa0','#22c55e','#ffd700','#fff']
+  const particles = Array.from({ length: 160 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -30 - Math.random() * 300,
+    w: 6 + Math.random() * 11,
+    h: 3 + Math.random() * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    vx: (Math.random() - 0.5) * 2.5,
+    vy: 1.5 + Math.random() * 3.5,
+    rot: Math.random() * Math.PI * 2,
+    rotV: (Math.random() - 0.5) * 0.13
+  }))
+  let start = null
+  const TOTAL = 5500
+  function frame(ts) {
+    if (!start) start = ts
+    const el = ts - start
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const alpha = el > TOTAL - 900 ? Math.max(0, 1 - (el - (TOTAL - 900)) / 900) : 1
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.rot += p.rotV
+      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width }
+      ctx.save()
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot)
+      ctx.globalAlpha = alpha; ctx.fillStyle = p.color
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+      ctx.restore()
+    })
+    if (el < TOTAL) requestAnimationFrame(frame); else canvas.remove()
+  }
+  requestAnimationFrame(frame)
 }
 
 // ── MODAL DE CALIFICACIÓN ──
