@@ -1477,13 +1477,17 @@ async function cargarVip() {
   if (!cont) return
   cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
 
-  const { data } = await db.from('usuarios')
-    .select('id, email, nombre, total_pedidos, nivel_vip')
+  const { data, error } = await db.from('usuarios')
+    .select('*')
     .eq('rol', 'cliente')
-    .order('total_pedidos', { ascending: false, nullsFirst: false })
+    .order('total_pedidos', { ascending: false })
+
+  console.log('[VIP Admin] Respuesta Supabase →', { data, error })
+  console.log('[VIP Admin] Total usuarios encontrados:', data?.length ?? 0)
+  if (error) console.error('[VIP Admin] Error en query:', error.message, error.details)
 
   if (!data || data.length === 0) {
-    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin usuarios registrados</div>'
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin usuarios con rol cliente</div>'
     return
   }
 
