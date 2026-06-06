@@ -842,6 +842,9 @@ function cargarNombreRemitente(user) {
 verificarSesion()
 // ── Cargar pedidos activos al entrar ──
 async function cargarPedidoActivoGuardado() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
   const raw = localStorage.getItem('guepack_pedidos_activos')
   const ids = raw ? JSON.parse(raw) : []
   if (!ids.length) return
@@ -850,8 +853,12 @@ async function cargarPedidoActivoGuardado() {
   const idsValidos = []
 
   for (const id of ids) {
-    const { data } = await db.from('pedidos').select('*').eq('id', id).single()
-    if (!data) continue
+    const { data, error } = await db.from('pedidos').select('*').eq('id', id).single()
+    if (error || !data) {
+      // Query falló (auth no lista, red, etc.) — conservar el ID sin borrarlo
+      idsValidos.push(id)
+      continue
+    }
     if (estadosFinales.includes(data.estado)) continue
     idsValidos.push(id)
     if (data.token_rastreo) _pedidoTokens[data.id] = data.token_rastreo
@@ -1436,15 +1443,17 @@ function seleccionarFecha(opcion) {
     const fechaBase = new Date()
     fechaBase.setDate(fechaBase.getDate() + diasSumar)
     fechaSeleccionada = formatear(fechaBase)
+    let mostroToastFecha = false
     if (esFindeSemana(fechaSeleccionada)) {
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
       mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+      mostroToastFecha = true
     }
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-manana-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    verificarDisponibilidad(fechaSeleccionada)
+    if (!mostroToastFecha) verificarDisponibilidad(fechaSeleccionada)
   } else {
     document.getElementById('input-fecha-custom').style.display = 'block'
     document.getElementById('input-fecha-custom').onchange = (e) => {
