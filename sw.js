@@ -20,8 +20,11 @@ messaging.onBackgroundMessage(payload => {
     badge: '/Icono_gp.png'
   })
 })
-self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('install', () => { /* espera a que el cliente solicite la activación */ })
 self.addEventListener('activate', () => self.clients.claim())
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return
   if (event.request.url.includes('index.html')) {
