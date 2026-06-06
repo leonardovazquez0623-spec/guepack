@@ -400,6 +400,37 @@ function initMapsAdmin() {
         <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
       </div>
     </div>
+
+    <!-- CLIENTES ALIADOS -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">🏢 Clientes aliados</div>
+      <input type="hidden" id="aliado-id">
+      <div class="form-group">
+        <label class="form-label">Nombre del negocio</label>
+        <input type="text" id="aliado-nombre" class="form-input" placeholder="Ej. Restaurante El Rincón">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL del logo</label>
+        <input type="url" id="aliado-logo" class="form-input" placeholder="https://ejemplo.com/logo.png">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link del negocio (opcional)</label>
+        <input type="url" id="aliado-link" class="form-input" placeholder="https://ejemplo.com">
+      </div>
+      <div class="form-group toggle-wrap">
+        <span class="form-label" style="margin:0">Activo en landing</span>
+        <label class="toggle">
+          <input type="checkbox" id="aliado-activo" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span id="aliado-activo-label" style="font-size:12px;font-weight:700;color:var(--success)">Activo</span>
+      </div>
+      <button class="btn btn-primary" onclick="guardarAliado()" style="width:100%;margin-bottom:16px">💾 Guardar cliente</button>
+      <div class="card-title" style="padding:0;margin-bottom:12px;font-size:12px">📋 Clientes guardados</div>
+      <div id="lista-aliados">
+        <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB WIDGET -->
@@ -687,7 +718,7 @@ function showTab(tab, btn) {
     const _ab = document.getElementById('admin-chat-badge')
     if (_ab) _ab.style.display = 'none'
   }
-  if (tab === 'publicidad') { cargarAnuncios(); cargarCupones() }
+  if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
@@ -1585,6 +1616,68 @@ function _resetFormCupon() {
   document.getElementById('cupon-expiracion').value = ''
 }
 
+// ── Clientes Aliados ──────────────────────────────────────────────────────
+async function cargarClientesAliados() {
+  const cont = document.getElementById('lista-aliados')
+  const { data } = await db.from('clientes_aliados').select('*').order('created_at', { ascending: false })
+  if (!data || !data.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes aliados aún</div>'; return }
+  cont.innerHTML = data.map(c => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray)">
+      ${c.logo_url ? `<img src="${c.logo_url}" style="width:40px;height:40px;object-fit:contain;border-radius:6px;background:#f4f6fb">` : '<div style="width:40px;height:40px;border-radius:6px;background:#f4f6fb;display:flex;align-items:center;justify-content:center;font-size:18px">🏢</div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">${c.nombre}</div>
+        <div style="font-size:11px;color:${c.activo ? 'var(--success)' : '#ef4444'};font-weight:700">${c.activo ? '● Activo' : '● Inactivo'}</div>
+      </div>
+      <button onclick="editarAliado(${c.id})" style="padding:6px 10px;background:var(--blue);color:white;border:none;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️</button>
+      <button onclick="eliminarAliado(${c.id})" style="padding:6px 10px;background:#ef4444;color:white;border:none;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
+    </div>`).join('')
+}
+
+async function guardarAliado() {
+  const id = document.getElementById('aliado-id').value
+  const nombre = document.getElementById('aliado-nombre').value.trim()
+  const logo_url = document.getElementById('aliado-logo').value.trim()
+  const link_url = document.getElementById('aliado-link').value.trim() || null
+  const activo = document.getElementById('aliado-activo').checked
+  if (!nombre) { showToast('Ingresa el nombre del negocio', '#ef4444'); return }
+  if (id) {
+    await db.from('clientes_aliados').update({ nombre, logo_url, link_url, activo }).eq('id', id)
+    showToast('✅ Cliente actualizado')
+  } else {
+    await db.from('clientes_aliados').insert({ nombre, logo_url, link_url, activo })
+    showToast('✅ Cliente agregado')
+  }
+  _resetFormAliado()
+  cargarClientesAliados()
+}
+
+async function editarAliado(id) {
+  const { data } = await db.from('clientes_aliados').select('*').eq('id', id).single()
+  if (!data) return
+  document.getElementById('aliado-id').value = data.id
+  document.getElementById('aliado-nombre').value = data.nombre
+  document.getElementById('aliado-logo').value = data.logo_url || ''
+  document.getElementById('aliado-link').value = data.link_url || ''
+  document.getElementById('aliado-activo').checked = data.activo
+  document.getElementById('aliado-activo-label').textContent = data.activo ? 'Activo' : 'Inactivo'
+}
+
+async function eliminarAliado(id) {
+  if (!confirm('¿Eliminar este cliente aliado?')) return
+  await db.from('clientes_aliados').delete().eq('id', id)
+  showToast('🗑️ Cliente eliminado')
+  cargarClientesAliados()
+}
+
+function _resetFormAliado() {
+  document.getElementById('aliado-id').value = ''
+  document.getElementById('aliado-nombre').value = ''
+  document.getElementById('aliado-logo').value = ''
+  document.getElementById('aliado-link').value = ''
+  document.getElementById('aliado-activo').checked = true
+  document.getElementById('aliado-activo-label').textContent = 'Activo'
+}
+
 // Actualiza labels de toggles en tiempo real
 document.addEventListener('change', e => {
   if (e.target.id === 'pub-activo') {
@@ -1594,6 +1687,11 @@ document.addEventListener('change', e => {
   }
   if (e.target.id === 'wc-activo') {
     const lbl = document.getElementById('wc-activo-label')
+    lbl.textContent = e.target.checked ? 'Activo' : 'Inactivo'
+    lbl.style.color = e.target.checked ? 'var(--success)' : '#999'
+  }
+  if (e.target.id === 'aliado-activo') {
+    const lbl = document.getElementById('aliado-activo-label')
     lbl.textContent = e.target.checked ? 'Activo' : 'Inactivo'
     lbl.style.color = e.target.checked ? 'var(--success)' : '#999'
   }

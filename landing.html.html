@@ -685,11 +685,76 @@
     </a>
   </section>
 
+  <!-- CLIENTES ALIADOS -->
+  <section style="padding:5rem 1.5rem;background:#091829">
+    <div style="max-width:900px;margin:0 auto;text-align:center">
+      <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:2.2rem;font-weight:900;color:#f5f3ee;letter-spacing:0.03em;margin-bottom:8px">Empresas que confían en nosotros</h2>
+      <p style="font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(245,243,238,0.55);margin-bottom:3rem">Negocios en Guadalajara que ya envían con GUEPACK</p>
+      <div id="aliados-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+        <!-- placeholders mientras carga -->
+        <div class="aliado-card" style="background:#0d2038;border-radius:14px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,0.06)"></div>
+          <div style="height:12px;width:80px;border-radius:6px;background:rgba(255,255,255,0.06)"></div>
+        </div>
+        <div class="aliado-card" style="background:#0d2038;border-radius:14px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,0.06)"></div>
+          <div style="height:12px;width:80px;border-radius:6px;background:rgba(255,255,255,0.06)"></div>
+        </div>
+        <div class="aliado-card" style="background:#0d2038;border-radius:14px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,0.06)"></div>
+          <div style="height:12px;width:80px;border-radius:6px;background:rgba(255,255,255,0.06)"></div>
+        </div>
+        <div class="aliado-card" style="background:#0d2038;border-radius:14px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;gap:12px">
+          <div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,0.06)"></div>
+          <div style="height:12px;width:80px;border-radius:6px;background:rgba(255,255,255,0.06)"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <style>
+    @media (max-width: 600px) {
+      #aliados-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+  </style>
+
   <footer>
     <img src="/logo_principal.png" alt="GUEPACK" style="max-width:180px;height:auto;display:block;opacity:0.85">
     <p class="footer-copy">© 2025 GUEPACK · Guadalajara, México</p>
   </footer>
 
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+    // Cargar clientes aliados desde Supabase
+    ;(async () => {
+      const db = window.supabase.createClient(
+        'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
+        'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+      )
+      const { data } = await db.from('clientes_aliados').select('*').eq('activo', true).order('created_at')
+      if (!data || !data.length) return
+      const grid = document.getElementById('aliados-grid')
+      grid.innerHTML = data.map(c => `
+        <div style="background:#0d2038;border-radius:14px;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;flex-direction:column;align-items:center;gap:12px;transition:transform .2s" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''">
+          ${c.logo_url
+            ? `<img src="${c.logo_url}" alt="${c.nombre}" style="width:64px;height:64px;object-fit:contain;filter:grayscale(1) brightness(2)">`
+            : `<div style="width:64px;height:64px;border-radius:10px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px">🏢</div>`}
+          <span style="font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:500;color:rgba(245,243,238,0.7);text-align:center">${c.nombre}</span>
+        </div>`).join('')
+      // Envolver en link si tiene URL
+      data.forEach((c, i) => {
+        if (c.link_url) {
+          const card = grid.children[i]
+          const a = document.createElement('a')
+          a.href = c.link_url
+          a.target = '_blank'
+          a.rel = 'noopener'
+          a.style.cssText = 'display:contents;text-decoration:none'
+          card.parentNode.insertBefore(a, card)
+          a.appendChild(card)
+        }
+      })
+    })()
+  </script>
   <script>
     const reveals = document.querySelectorAll(".reveal");
     const observer = new IntersectionObserver((entries) => {
