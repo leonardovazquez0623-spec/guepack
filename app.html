@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK – Paquetería Local y Envíos Express</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #1a4fa0;
+    --blue-dark: #0e3070;
+    --blue-light: #2563c4;
+    --orange: #f05a1a;
+    --orange-light: #ff7a3d;
+    --white: #ffffff;
+    --gray-light: #f4f6fb;
+    --gray: #e0e6f0;
+    --gray-mid: #8fa3c0;
+    --text: #1a2740;
+    --success: #22c55e;
+    --shadow: 0 4px 24px rgba(26,79,160,0.13);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-light);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display: flex;
+    background: var(--blue-dark);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 14px 8px;
+    text-align: center;
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all .2s;
+  }
+  .nav-tab.active {
+    color: var(--orange);
+    border-bottom-color: var(--orange);
+  }
+  .nav-tab .tab-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; animation: fadeIn .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes parpadeoRojo { 0%,100% { border-color:#ef4444; } 50% { border-color:transparent; } }
+
+  /* ── VIP TEMAS ── */
+  body.vip-oro .app-header {
+    background: linear-gradient(135deg, #8B6914 0%, #B8860B 35%, #DAA520 55%, #FFD700 70%, #B8860B 100%) !important;
+    background-size: 250% 250% !important;
+    animation: oroShimmer 4s ease-in-out infinite !important;
+  }
+  @keyframes oroShimmer {
+    0%,100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  body.vip-plata .app-header {
+    background: linear-gradient(135deg, #0e3070 0%, #1a4fa0 60%, #2563c4 100%) !important;
+  }
+  body.vip-plata .app-header::after,
+  body.vip-plata .app-header::before {
+    background: #f05a1a !important;
+  }
+  body.vip-plata .btn-primary {
+    background: linear-gradient(135deg, #f05a1a, #ff7a3d) !important;
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35) !important;
+  }
+  body.vip-plata .nav-tabs {
+    background: #0e3070 !important;
+  }
+  body.vip-plata .nav-tab.active {
+    color: #f05a1a !important;
+    border-bottom-color: #f05a1a !important;
+  }
+  body.vip-bronce .app-header {
+    background: linear-gradient(135deg, #5D2E0C 0%, #8B4513 50%, #CD7F32 100%) !important;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
+    padding: 22px 20px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-header::after {
+    content: '';
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 140px; height: 140px;
+    background: var(--orange);
+    opacity: .12;
+    border-radius: 50%;
+  }
+  .app-header::before {
+    content: '';
+    position: absolute;
+    right: 30px; bottom: -20px;
+    width: 80px; height: 80px;
+    background: var(--orange);
+    opacity: .08;
+    border-radius: 50%;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--white);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .brand-name span { color: var(--orange); }
+  .brand-badge {
+    background: var(--orange);
+    color: var(--white);
+    font-size: 9px;
+    font-weight: 900;
+    padding: 3px 7px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  .header-sub {
+    color: rgba(255,255,255,0.65);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── CARDS & CONTAINERS ── */
+  .container { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, var(--orange), transparent);
+    border-radius: 2px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-mid);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--gray-light);
+    transition: border-color .2s, box-shadow .2s;
+    appearance: none;
+  }
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26,79,160,0.12);
+    background: var(--white);
+  }
+
+  /* ── SIZE SELECTOR ── */
+  .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .size-option {
+    border: 2px solid var(--gray);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+  }
+  .size-option:hover { border-color: var(--blue-light); }
+  .size-option.selected {
+    border-color: var(--blue);
+    background: rgba(26,79,160,0.06);
+  }
+  .mp-option {
+    border: 2px solid var(--gray);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .mp-option:hover { border-color: var(--blue-light); }
+  .mp-option.selected {
+    border-color: var(--blue);
+    background: rgba(26,79,160,0.06);
+  }
+  .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+  .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
+  .size-desc { font-size: 10px; color: var(--gray-mid); font-weight: 600; display: block; margin-top: 2px; }
+
+  /* ── ZONE SELECTOR ── */
+  .zone-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .zone-option {
+    border: 2px solid var(--gray);
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--gray-light);
+  }
+  .zone-option.selected {
+    border-color: var(--orange);
+    background: rgba(240,90,26,0.07);
+  }
+  .zone-name { font-size: 11px; font-weight: 900; color: var(--text); display: block; }
+  .zone-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+
+  /* ── QUOTE BOX ── */
+  .quote-box {
+    background: linear-gradient(135deg, var(--blue-dark), var(--blue));
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .quote-label { color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
+  .quote-detail { color: rgba(255,255,255,0.55); font-size: 10px; font-weight: 600; margin-top: 2px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--orange), var(--orange-light));
+    color: var(--white);
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,90,26,0.45); }
+  .btn-secondary {
+    background: var(--blue);
+    color: var(--white);
+  }
+  .btn-sm {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
+  .btn-success { background: var(--success); color: var(--white); }
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--blue);
+    color: var(--blue);
+  }
+
+  /* ── TRACKING TIMELINE ── */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--gray);
+  }
+  .tl-item {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .tl-dot {
+    position: absolute;
+    left: -24px;
+    top: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--gray);
+    background: var(--white);
+    transition: all .3s;
+  }
+  .tl-item.done .tl-dot { background: var(--success); border-color: var(--success); }
+  .tl-item.current .tl-dot { background: var(--orange); border-color: var(--orange); animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(240,90,26,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(240,90,26,0); }
+  }
+  .tl-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .tl-item.done .tl-title { color: var(--success); }
+  .tl-item.current .tl-title { color: var(--orange); }
+  .tl-item.pending .tl-title { color: var(--gray-mid); }
+  .tl-time { font-size: 10px; color: var(--gray-mid); font-weight: 600; margin-top: 2px; }
+
+  /* ── ORDER CARD (admin) ── */
+  .order-card {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--blue);
+    transition: transform .15s;
+  }
+  .order-card:hover { transform: translateX(2px); }
+  .order-card.urgent { border-left-color: var(--orange); }
+  .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .order-id { font-size: 10px; font-weight: 900; color: var(--gray-mid); letter-spacing: 1px; }
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-pending { background: rgba(240,90,26,0.12); color: var(--orange); }
+  .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
+  .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
+  .order-client { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .order-details { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 10px; }
+  .order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+  .stat-box {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-number { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--blue); line-height: 1; }
+  .stat-number.orange { color: var(--orange); }
+  .stat-label { font-size: 9px; font-weight: 700; color: var(--gray-mid); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+
+  /* ── REPARTIDOR ── */
+  .delivery-header {
+    background: linear-gradient(135deg, #0e3070, #1a4fa0);
+    padding: 20px;
+    color: var(--white);
+    border-radius: 0 0 20px 20px;
+    margin-bottom: 16px;
+  }
+  .delivery-name { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; }
+  .delivery-sub { font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 600; letter-spacing: 1px; }
+  .pending-count {
+    background: var(--orange);
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .route-card {
+    background: var(--white);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .route-top {
+    background: linear-gradient(90deg, var(--blue), var(--blue-light));
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .route-number { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--white); letter-spacing: 1px; }
+  .route-type { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .route-body { padding: 14px 16px; }
+  .route-addr { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .route-client { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 12px; }
+  .status-steps { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .step-btn {
+    padding: 7px 11px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: 'Montserrat', sans-serif;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .step-btn.inactive { border-color: var(--gray); color: var(--gray-mid); background: var(--gray-light); }
+  .step-btn.active { border-color: var(--orange); color: var(--white); background: var(--orange); }
+  .step-btn.done { border-color: var(--success); color: var(--white); background: var(--success); }
+
+  /* ── BOTTOM NAV (client) ── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    display: flex;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    z-index: 50;
+  }
+  .bottom-btn {
+    flex: 1;
+    padding: 12px 4px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: 'Montserrat', sans-serif;
+    color: var(--gray-mid);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: color .2s;
+  }
+  .bottom-btn.active { color: var(--orange); }
+  .bottom-btn .b-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+
+  .pb-safe { padding-bottom: 80px; }
+
+  /* SECTION TOGGLE */
+  .client-section { display: none; }
+  .client-section.active { display: block; animation: fadeIn .25s ease; }
+
+  /* ── SEPARADORES / EXTRAS ── */
+  .divider { height: 1px; background: var(--gray); margin: 14px 0; }
+  .tag {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  .tag-blue { background: rgba(26,79,160,0.1); color: var(--blue); }
+  .tag-orange { background: rgba(240,90,26,0.1); color: var(--orange); }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray-mid);
+  }
+  .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
+  .empty-text { font-size: 13px; font-weight: 700; }
+
+  input[type=date] { color-scheme: light; }
+  .btn-logout {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background .2s;
+}
+.btn-logout:hover { background: var(--orange); }
+
+  .success-screen {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .success-icon {
+    font-size: 64px;
+    display: block;
+    animation: pop .5s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0); }
+    80% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .success-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--blue);
+    letter-spacing: 2px;
+    margin: 12px 0 6px;
+  }
+  .success-sub { font-size: 12px; color: var(--gray-mid); font-weight: 600; }
+  .folio-box {
+    background: var(--gray-light);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 18px 0;
+    border: 2px dashed var(--gray);
+  }
+  .folio-label { font-size: 10px; color: var(--gray-mid); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .folio-number { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--orange); letter-spacing: 3px; }
+</style>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/Icono_gp.png">
+<meta name="theme-color" content="#1a4fa0">
+<link rel="icon" type="image/png" href="/Icono_gp.png">
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack" async defer></script>
+</head>
+<body>
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a4fa0;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
+  <span>🔄 Nueva versión disponible</span>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button onclick="document.getElementById('update-banner').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:4px 10px;border-radius:6px;cursor:pointer">✕</button>
+    <button id="update-btn" style="background:#f05a1a;border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer">Actualizar</button>
+  </div>
+</div>
+
+<!-- NAV TABS PRINCIPAL -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchMainView('client')">
+    <span class="tab-icon">📦</span>Mis Envíos
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     VISTA CLIENTE
+═══════════════════════════════════════════════════ -->
+<div id="screen-client" class="screen active">
+
+  <div class="app-header">
+    <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
+    <div class="header-sub">Paquetería Local · Guadalajara</div>
+    <div id="header-actions" style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <button onclick="cerrarSesion()" class="btn-logout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- Client Bottom Bar -->
+  <div class="bottom-bar">
+    <button class="bottom-btn active" onclick="showClientSection('new')">
+      <span class="b-icon">➕</span>Nuevo
+    </button>
+    <button class="bottom-btn" onclick="showClientSection('tracking')">
+      <span class="b-icon">📍</span>Rastreo
+    </button>
+    <button class="bottom-btn" onclick="showClientSection('history')">
+      <span class="b-icon">📋</span>Historial
+    </button>
+  </div>
+
+  <div class="container pb-safe">
+<!-- ── PEDIDO ACTIVO ── -->
+<div id="pedido-activo-container" style="display:none;margin-bottom:14px"></div>
+    <!-- ── NUEVA SOLICITUD ── -->
+    <div id="client-new" class="client-section active">
+
+      <!-- ÉXITO -->
+      <div id="success-state" style="display:none">
+        <div class="card success-screen">
+          <span class="success-icon">✅</span>
+          <div class="success-title">¡Solicitud Enviada!</div>
+          <div class="success-sub">Tu recolección ha sido registrada.<br>¡Activa tus notificaciones!.</div>
+          <div class="folio-box">
+            <div class="folio-label">Folio de seguimiento</div>
+            <div class="folio-number" id="folio-number">GK-...</div>
+          </div>
+          <button class="btn btn-outline" onclick="resetForm()" style="margin-top:8px">Nueva Solicitud</button>
+        </div>
+      </div>
+
+      <!-- FORMULARIO -->
+      <div id="form-state">
+        <div class="card">
+          <div class="card-title">📬 Datos del envío</div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre del destinatario</label>
+            <input type="text" id="nombre-destinatario" class="form-input" placeholder="Nombre de quien recibe el paquete">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del remitente</label>
+            <input type="text" id="nombre-remitente" class="form-input" placeholder="Tu nombre (quien envía)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp</label>
+            <input type="tel" id="whatsapp" class="form-input" placeholder="10 dígitos ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
+          <div class="form-group">
+  <label class="form-label">Dirección de recolección</label>
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+    <button type="button" onclick="mostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+  </div>
+</div>
+<div class="form-group">
+  <label class="form-label">Dirección de entrega</label>
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+    <button type="button" onclick="mostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+  </div>
+  <div id="zona-aviso" style="display:none;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;margin-top:4px"></div>
+</div>
+          <div class="form-group">
+  <label class="form-label">Instrucciones de recolección (opcional)</label>
+  <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Recoger Pedido Folio XFB12867, entregar en recepción..."></textarea>
+</div>
+          <div class="form-group">
+  <label class="form-label">Fecha de recolección</label>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)"> Hoy 😉</button>
+    <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Día siguiente 🤙</button>
+    <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Otra fecha 💁‍♂️</button>
+  </div>
+  <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
+  <input type="hidden" id="fecha-seleccionada">
+  <div id="aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
+</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📐 Tamaño del paquete</div>
+          <div class="size-grid">
+            <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
+              <span class="size-icon">✉️</span>
+              <span class="size-name">Sobre / Chico</span>
+              <span class="size-desc">Documentos o paquetes pequeños</span>
+            </div>
+            <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
+              <span class="size-icon">📦</span>
+              <span class="size-name">Grande</span>
+              <span class="size-desc">Cajas medianas a grandes</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🗺️ Zona de entrega</div>
+          <div id="zona-detect-result" style="padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px">
+            <span style="font-size:16px">📍</span>
+            <span>Se detectará al ingresar tu dirección de entrega</span>
+          </div>
+        </div>
+
+        <!-- COTIZACIÓN -->
+        <div id="quote-display" class="quote-box" style="display:none">
+          <div>
+            <div class="quote-label">COSTO DE ENVÍO</div>
+            <div class="quote-price" id="quote-amount">$0</div>
+            <div class="quote-detail" id="quote-detail">—</div>
+          </div>
+          <div style="font-size:36px">🚀</div>
+        </div>
+
+        <!-- CUPÓN -->
+        <div class="card" id="cupon-card">
+          <div class="card-title">🏷️ ¿Tienes un cupón?</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="cupon-input" class="form-input" placeholder="Código de descuento" style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
+            <button onclick="aplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;white-space:nowrap">Aplicar</button>
+          </div>
+          <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">💳 Método de pago</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
+            <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
+          </div>
+          <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">CLABE</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">012320029474665791</span>
+                <button onclick="copiarDato(this,'012320029474665791')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+              </div>
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">BANCO</div>
+              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">BBVA</div>
+            </div>
+            <div style="margin-bottom:16px">
+              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">NOMBRE</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">Leonardo Vazquez Fajardo</span>
+                <button onclick="copiarDato(this,'Leonardo Vazquez Fajardo')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+              </div>
+            </div>
+            <input type="file" id="comprobante-input" accept="image/*" style="display:none">
+            <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
+            <div id="comprobante-preview" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitRequest()">
+          Solicitar Recolección →
+        </button>
+      </div>
+
+    </div><!-- /client-new -->
+
+   <!-- ── RASTREO ── -->
+    <div id="client-tracking" class="client-section">
+      <div class="card">
+        <div class="card-title">🔍 Rastrear pedido</div>
+        <div class="form-group" style="display:flex;gap:8px;margin-bottom:0">
+          <input type="text" id="input-folio" class="form-input" placeholder="Folio ej. 12" style="flex:1">
+          <button class="btn btn-secondary btn-sm" style="width:auto;padding:12px 16px" onclick="rastrearPedido()">Buscar</button>
+        </div>
+      </div>
+
+      <div id="resultado-rastreo" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+              <div style="font-size:18px;font-weight:900;color:var(--blue)" id="rastreo-folio">GK-0</div>
+              <div style="font-size:11px;color:var(--gray-mid);font-weight:600" id="rastreo-detalle">—</div>
+            </div>
+            <div class="status-badge" id="rastreo-badge">—</div>
+          </div>
+
+          <div class="timeline">
+            <div class="tl-item" id="tl-recolectado">
+              <div class="tl-dot"></div>
+              <div class="tl-title">✅ Paquete recolectado</div>
+              <div class="tl-time" id="tl-recolectado-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-camino">
+              <div class="tl-dot"></div>
+              <div class="tl-title">🚚 En camino a entrega</div>
+              <div class="tl-time" id="tl-camino-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-llegando">
+              <div class="tl-dot"></div>
+              <div class="tl-title">⏰ A punto de llegar</div>
+              <div class="tl-time" id="tl-llegando-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-entregado">
+              <div class="tl-dot"></div>
+              <div class="tl-title">📦 Entregado</div>
+              <div class="tl-time" id="tl-entregado-time">Pendiente</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="rastreo-error" style="display:none" class="card">
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          <div class="empty-text">No encontramos ese folio</div>
+        </div>
+      </div>
+    </div>
+
+<!-- ── HISTORIAL ── -->
+    <div id="client-history" class="client-section">
+      <div class="card">
+        <div class="card-title">📋 Mis envíos</div>
+        <div id="lista-historial">
+          <div class="empty-state">
+            <span class="empty-icon">📋</span>
+            <div class="empty-text">Cargando pedidos...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /screen-client -->
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ── Conexión Supabase ──
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+// ── Verificar sesión ──
+async function verificarSesion() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) {
+    window.location.href = 'login.html'
+    return
+  }
+  verificarAnuncio()
+  cargarVipUsuario(session.user.id)
+  cargarNombreRemitente(session.user)
+}
+
+function cargarNombreRemitente(user) {
+  const nombre = user?.user_metadata?.nombre || user?.email || ''
+  const campo = document.getElementById('nombre-remitente')
+  if (campo) campo.value = nombre
+}
+verificarSesion()
+// ── Cargar pedidos activos al entrar ──
+async function cargarPedidoActivoGuardado() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const raw = localStorage.getItem('guepack_pedidos_activos')
+  const ids = raw ? JSON.parse(raw) : []
+  if (!ids.length) return
+
+  const estadosFinales = ['Entregado', 'Cancelado', 'Intento de entrega fallido']
+  const idsValidos = []
+
+  for (const id of ids) {
+    const { data, error } = await db.from('pedidos').select('*').eq('id', id).single()
+    if (error || !data) {
+      // Query falló (auth no lista, red, etc.) — conservar el ID sin borrarlo
+      idsValidos.push(id)
+      continue
+    }
+    if (estadosFinales.includes(data.estado)) continue
+    idsValidos.push(id)
+    if (data.token_rastreo) _pedidoTokens[data.id] = data.token_rastreo
+    const ahora = new Date()
+    const minutos = (ahora - new Date(data.created_at)) / 60000
+    mostrarPedidoActivo(data.id, data.estado, data.repartidor, minutos > 5)
+  }
+
+  localStorage.setItem('guepack_pedidos_activos', JSON.stringify(idsValidos))
+  if (idsValidos.length) _cargarBadgesNoLeidos(idsValidos)
+}
+
+cargarPedidoActivoGuardado()
+// ── Verificar modo lluvia ──
+let lluviaActiva = false
+let rayoTimeout = null
+async function verificarLluvia() {
+  const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
+  if (data && data.lluvia) {
+    activarLluvia(data.mensaje_lluvia)
+  }
+}
+
+function activarLluvia(mensaje) {
+  lluviaActiva = true
+  document.getElementById('lluvia-aviso').style.display = 'block'
+  document.getElementById('lluvia-overlay').style.display = 'block'
+  if (mensaje) document.getElementById('lluvia-mensaje').textContent = mensaje
+
+  const canvas = document.getElementById('lluvia-canvas')
+  const ctx = canvas.getContext('2d')
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+
+  const gotas = Array.from({ length: 200 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    largo: Math.random() * 25 + 15,
+    velocidad: Math.random() * 6 + 4,
+    opacidad: Math.random() * 0.6 + 0.2,
+    grosor: Math.random() * 2.5 + 1
+  }))
+ 
+  function dibujarRayo(x, y) {
+    ctx.save()
+    ctx.strokeStyle = 'rgba(255, 255, 180, 0.95)'
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = 'rgba(255, 255, 100, 0.8)'
+    ctx.shadowBlur = 20
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+
+    let cx = x, cy = y
+    while (cy < canvas.height * 0.7) {
+      cx += (Math.random() - 0.5) * 60
+      cy += Math.random() * 40 + 20
+      ctx.lineTo(cx, cy)
+      if (Math.random() < 0.3) {
+        const bx = cx + (Math.random() - 0.5) * 80
+        const by = cy + Math.random() * 60
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(bx, by)
+        ctx.moveTo(cx, cy)
+      }
+    }
+    ctx.stroke()
+    ctx.restore()
+
+    // Flash de relámpago
+    const flash = document.createElement('div')
+    flash.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,200,0.15);z-index:997;pointer-events:none'
+    document.body.appendChild(flash)
+    setTimeout(() => flash.remove(), 80)
+  }
+
+  function programarRayo() {
+  if (!lluviaActiva) return
+  const delay = Math.random() * 8000 + 4000
+  rayoTimeout = setTimeout(() => {
+    if (!lluviaActiva) return
+    const x = Math.random() * canvas.width
+    dibujarRayo(x, 0)
+    setTimeout(() => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }, 150)
+    programarRayo()
+  }, delay)
+}
+
+  programarRayo()
+
+  function animar() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    gotas.forEach(gota => {
+      ctx.beginPath()
+      ctx.globalAlpha = gota.opacidad
+      ctx.strokeStyle = 'rgba(174, 214, 241, 0.7)'
+      ctx.lineWidth = gota.grosor
+      ctx.moveTo(gota.x, gota.y)
+      ctx.lineTo(gota.x - 3, gota.y + gota.largo)
+      ctx.stroke()
+      gota.y += gota.velocidad
+      gota.x -= 1.5
+      if (gota.y > canvas.height) {
+        gota.y = -gota.largo
+        gota.x = Math.random() * canvas.width
+      }
+    })
+    requestAnimationFrame(animar)
+  }
+  animar()
+}
+
+verificarLluvia()
+// ── Escuchar cambios de lluvia en tiempo real ──
+db.channel('configuracion')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, payload => {
+  if (payload.new.lluvia) {
+      activarLluvia(payload.new.mensaje_lluvia)
+    } else {
+      lluviaActiva = false
+      if (rayoTimeout) clearTimeout(rayoTimeout)
+      document.getElementById('lluvia-overlay').style.display = 'none'
+      document.getElementById('lluvia-aviso').style.display = 'none'
+    }
+  })
+  .subscribe()
+// ── Registrar Service Worker y detectar actualizaciones ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    function mostrarBannerActualizacion(swWaiting) {
+      const banner = document.getElementById('update-banner')
+      if (!banner) return
+      banner.style.display = 'flex'
+      document.getElementById('update-btn').onclick = () => {
+        localStorage.setItem('guepack_actualizada', 'true')
+        swWaiting.postMessage({ type: 'SKIP_WAITING' })
+      }
+    }
+
+    // SW ya estaba esperando al cargar la página (usuario volvió después de una actualización)
+    if (reg.waiting) mostrarBannerActualizacion(reg.waiting)
+
+    // SW nuevo encontrado mientras la página estaba abierta
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          mostrarBannerActualizacion(newSW)
+        }
+      })
+    })
+
+    // Cuando el SW toma control (tras skipWaiting), recargar
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload()
+    })
+  })
+}
+
+// ── Firebase Push Notifications ──
+async function activarNotificaciones() {
+  try {
+    if (!('Notification' in window)) return
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+
+    const swReg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js')
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-messaging.js')
+
+    const firebaseApp = initializeApp({
+      apiKey: "AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo",
+      authDomain: "guepack-app.firebaseapp.com",
+      projectId: "guepack-app",
+      storageBucket: "guepack-app.firebasestorage.app",
+      messagingSenderId: "912683525841",
+      appId: "1:912683525841:web:a67f014362160ea29b87f0"
+    })
+
+    const messaging = getMessaging(firebaseApp)
+    const token = await getToken(messaging, {
+      vapidKey: 'BHhCITe5ZaJQpJS5aNtEAArVO15zwMR1e6baQxQG34pvjXV8Jk3r2P5QLfcX6bPSe4itfY5wFBai7nHX3MnyKDU',
+      serviceWorkerRegistration: swReg
+    })
+
+    if (token) {
+      console.log('Token FCM:', token)
+      _fcmToken = token
+      const { data: { session } } = await db.auth.getSession()
+      if (session) {
+        await db.from('usuarios').update({ fcm_token: token }).eq('email', session.user.email)
+        console.log('Token guardado en Supabase ✅')
+      }
+    }
+  } catch (err) {
+    console.log('Error notificaciones:', err)
+  }
+}
+
+activarNotificaciones()
+let selSize = null, selZone = null, selMetodoPago = null
+let _zonaData = null   // zona detectada desde Supabase zonas_cobertura
+
+const prices = {
+  centro: { sobre: 110, grande: 150 },
+  norte:  { sobre: 150, grande: 200 },
+  sur:    { sobre: 150, grande: 200 },
+}
+
+function selectMetodoPago(mp) {
+  selMetodoPago = mp;
+  document.querySelectorAll('#mp-efectivo,#mp-transferencia').forEach(o => o.classList.remove('selected'));
+  document.getElementById('mp-' + mp).classList.add('selected');
+  document.getElementById('datos-transferencia').style.display = mp === 'transferencia' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('guepack_actualizada')) {
+    localStorage.removeItem('guepack_actualizada')
+    setTimeout(() => mostrarToast('✅ ¡App actualizada a la última versión!', '#22c55e'), 500)
+  }
+
+  document.getElementById('comprobante-input').addEventListener('change', function() {
+    const file = this.files[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    document.getElementById('comprobante-preview').innerHTML =
+      `<img src="${url}" style="width:100%;border-radius:10px;border:2px solid #1a4fa0;margin-top:4px;object-fit:cover;max-height:200px">`
+    const btn = document.getElementById('btn-comprobante')
+    btn.textContent = '✅ Comprobante cargado'
+    btn.style.background = '#22c55e'
+  })
+})
+
+function copiarDato(btn, texto) {
+  navigator.clipboard.writeText(texto).then(() => {
+    const original = btn.textContent
+    btn.textContent = '✅ Copiado'
+    btn.style.background = '#22c55e'
+    setTimeout(() => { btn.textContent = original; btn.style.background = 'var(--blue)' }, 2000)
+  })
+}
+
+function selectSize(sz) {
+  selSize = sz;
+  document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
+  document.getElementById('sz-' + sz).classList.add('selected');
+  updateQuote();
+}
+
+function selectZone(zone) {
+  selZone = zone;
+  document.querySelectorAll('.zone-option').forEach(o => o.classList.remove('selected'));
+  document.getElementById('zn-' + zone).classList.add('selected');
+  updateQuote();
+}
+
+function updateQuote() {
+  if (!selSize || !_zonaData) return;
+  const precioBase = selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande;
+  const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize];
+  let amountHtml = '$' + precioBase;
+  if (_cuponActivo) {
+    const precioFinal = _cuponActivo.tipo === 'porcentaje'
+      ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
+      : Math.max(0, precioBase - _cuponActivo.descuento)
+    amountHtml = '<span style="text-decoration:line-through;font-size:0.55em;opacity:0.55">$' + precioBase + '</span> $' + precioFinal
+  }
+  document.getElementById('quote-amount').innerHTML = amountHtml;
+  document.getElementById('quote-detail').textContent = sizeLabel + ' · ' + _zonaData.nombre;
+  const box = document.getElementById('quote-display');
+  box.style.display = 'flex';
+  box.style.animation = 'none';
+  box.offsetHeight;
+  box.style.animation = 'fadeIn .3s ease';
+}
+
+async function submitRequest() {
+  const nombre = document.getElementById('nombre-destinatario').value.trim()
+  const nombreRemitente = document.getElementById('nombre-remitente').value.trim()
+  const whatsapp = document.getElementById('whatsapp').value.trim()
+  const dir_recoleccion = document.getElementById('dir-recoleccion').value.trim()
+  const dir_entrega = document.getElementById('dir-entrega').value.trim()
+  const fecha = document.getElementById('fecha-seleccionada').value
+  const instrucciones = document.getElementById('instrucciones-recoleccion').value
+  const metodoPago = selMetodoPago
+
+  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !_zonaData || !metodoPago) {
+    const t = document.createElement('div')
+    t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
+    t.textContent = !_zonaData
+      ? '⚠️ La dirección de entrega debe estar en nuestra zona de cobertura'
+      : '⚠️ Llena todos los campos y selecciona fecha, tamaño y método de pago'
+    document.body.appendChild(t)
+    setTimeout(() => t.remove(), 3000)
+    return
+  }
+  if (metodoPago === 'transferencia' && !document.getElementById('comprobante-input').files[0]) {
+    alert('Debes subir tu comprobante de pago')
+    return
+  }
+  // ── Verificar si está bloqueado por horario ──
+const aviso = document.getElementById('aviso-fecha')
+if (aviso && aviso.style.display !== 'none' && aviso.innerHTML.includes('🟠')) {
+  alert('⚠️ No es posible registrar este envío por el horario o capacidad del día. Por favor selecciona otra fecha.')
+  return
+}
+const { data: { session } } = await db.auth.getSession()
+const userId = session?.user?.id
+const precioBase = selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande
+const precio = _cuponActivo
+  ? (_cuponActivo.tipo === 'porcentaje'
+      ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
+      : Math.max(0, precioBase - _cuponActivo.descuento))
+  : precioBase
+
+// Subir comprobante si existe
+let comprobanteUrl = null
+const comprobanteFile = document.getElementById('comprobante-input').files[0]
+if (comprobanteFile) {
+  const ext = comprobanteFile.name.split('.').pop()
+  const tmpId = Date.now()
+  const { error: upError } = await db.storage.from('evidencias').upload(`comprobantes/${tmpId}.${ext}`, comprobanteFile, { upsert: true })
+  if (upError) console.error('Error subiendo comprobante:', upError)
+  else comprobanteUrl = `https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias/comprobantes/${tmpId}.${ext}`
+}
+
+const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : 'Pendiente'
+const tokenRastreo = crypto.randomUUID()
+
+const { data, error } = await db.from('pedidos').insert({
+    nombre: nombre,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    direccion_entrega: dir_entrega,
+    fecha: fecha,
+    tamanio: selSize,
+    zona: _zonaData.nombre,
+    precio: precio,
+    estado: estadoInicial,
+    user_id: userId,
+    instrucciones: instrucciones,
+    metodo_pago: metodoPago,
+    comprobante_pago: comprobanteUrl,
+    nombre_remitente: nombreRemitente || null,
+    cupon_codigo: _cuponActivo?.codigo || null,
+    token_rastreo: tokenRastreo,
+  }).select()
+
+  if (error) {
+    alert('Hubo un error, intenta de nuevo')
+    console.error(error)
+    return
+  }
+
+  if (_cuponActivo) {
+    db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
+  }
+
+  const folioReal = data[0].id
+  _pedidoTokens[folioReal] = tokenRastreo
+  document.getElementById('folio-number').textContent = 'GK-' + folioReal
+
+  mostrarPedidoActivo(folioReal, 'Pendiente')
+resetForm()
+
+const toast = document.createElement('div')
+toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:16px 24px;border-radius:16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center;min-width:220px;animation:fadeIn .3s ease'
+toast.innerHTML = '✅ <b>GK-' + folioReal + '</b> registrado!<br><span style="font-size:11px;font-weight:600;opacity:0.85">Te avisamos cuando se asigne tu repartidor</span>'
+document.body.appendChild(toast)
+setTimeout(() => {
+  toast.style.transition = 'opacity .5s'
+  toast.style.opacity = '0'
+  setTimeout(() => toast.remove(), 500)
+}, 4000)
+}
+
+async function rastrearPedido() {
+  const folioInput = document.getElementById('input-folio').value.trim()
+  if (!folioInput) { alert('Escribe un folio'); return; }
+
+  const folio = folioInput.replace('GK-', '').replace('gk-', '')
+
+  const { data, error } = await db.from('pedidos').select('*').eq('id', folio).single()
+
+  document.getElementById('resultado-rastreo').style.display = 'none'
+  document.getElementById('rastreo-error').style.display = 'none'
+
+  if (error || !data) {
+    document.getElementById('rastreo-error').style.display = 'block'
+    return
+  }
+
+  document.getElementById('rastreo-folio').textContent = 'GK-' + data.id
+  document.getElementById('rastreo-detalle').textContent = data.nombre + ' · ' + data.tamanio + ' · ' + data.zona
+
+  const badge = document.getElementById('rastreo-badge')
+  badge.textContent = data.estado
+  badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
+
+  const estadoMap = {
+    'En camino a recoleccion': 0,
+    'En camino a entrega':     1,
+    'A punto de llegar':       2,
+    'Repartidor en domicilio': 2,
+    'Entregado':               4   // > último índice → todos quedan done
+  }
+  const estadoActual = estadoMap[data.estado] ?? -1
+
+  const items = ['tl-recolectado', 'tl-camino', 'tl-llegando', 'tl-entregado']
+  items.forEach((id, i) => {
+    const el = document.getElementById(id)
+    if (estadoActual < 0)         el.className = 'tl-item pending'
+    else if (i < estadoActual)    el.className = 'tl-item done'
+    else if (i === estadoActual)  el.className = 'tl-item current'
+    else                          el.className = 'tl-item pending'
+  })
+
+  document.getElementById('resultado-rastreo').style.display = 'block'
+}
+async function cerrarSesion() {
+  await db.auth.signOut()
+  window.location.href = 'login.html'
+}
+
+  async function verificarDisponibilidad(fecha, forzarNaranja) {
+  console.log('INICIO verificar:', fecha, forzarNaranja)
+  const inicio = new Date(fecha + 'T00:00:00').toISOString()
+  const fin = new Date(fecha + 'T23:59:59').toISOString()
+
+  const { data } = await db.from('pedidos').select('id')
+    .gte('created_at', inicio)
+    .lte('created_at', fin)
+
+  const total = data ? data.length : 0
+  const hora = new Date().getHours()
+  const hoy = new Date().toISOString().split('T')[0]
+  const esHoy = fecha === hoy
+
+  let mensaje = ''
+  let color = ''
+
+  if (forzarNaranja || (esHoy && hora >= 15)) {
+    mensaje = '🟠 Ya pasaron las 3 PM — tu recolección quedará para mañana'
+    color = 'var(--orange)'
+  } else if (total >= 10) {
+    mensaje = '🟠 Tenemos ' + total + ' pedidos ese día — posible entrega al día siguiente'
+    color = 'var(--orange)'
+  } else {
+    mensaje = '🟢 ¡Disponible! Tu recolección será el día seleccionado'
+    color = '#22c55e'
+  }
+
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;max-width:300px'
+  toast.textContent = mensaje
+  document.body.appendChild(toast)
+  setTimeout(() => {
+    toast.style.transition = 'opacity .5s'
+    toast.style.opacity = '0'
+    setTimeout(() => toast.remove(), 500)
+  }, 3000)
+}
+
+// ── Direcciones frecuentes ──
+async function mostrarDirecciones(tipo) {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { data } = await db.from('direcciones')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('tipo', tipo)
+
+  const inputId = tipo === 'recoleccion' ? 'dir-recoleccion' : 'dir-entrega'
+  const valorActual = document.getElementById(inputId).value
+
+  const div = document.createElement('div')
+  div.id = 'modal-direcciones'
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:flex-end;justify-content:center;padding:20px'
+  
+  const lista = data && data.length > 0 
+    ? data.map(d => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--gray)">
+          <div onclick="usarDireccion('${inputId}', '${d.direccion.replace(/'/g, "\\'")}')" style="flex:1;cursor:pointer">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${d.nombre}</div>
+            <div style="font-size:11px;color:var(--gray-mid)">${d.direccion}</div>
+          </div>
+          <button onclick="borrarDireccion(${d.id},'${tipo}')" style="background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:16px;padding:4px">🗑️</button>
+        </div>
+      `).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--gray-mid);font-size:12px;font-weight:700">No tienes direcciones guardadas</div>'
+
+  div.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:70vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--blue);letter-spacing:2px">⭐ Mis Direcciones</div>
+        <button onclick="document.getElementById('modal-direcciones').remove()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+      </div>
+      ${lista}
+      ${valorActual ? `
+        <div style="margin-top:16px;border-top:1px solid var(--gray);padding-top:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Guardar dirección actual</div>
+          <div style="font-size:12px;color:var(--text);font-weight:600;margin-bottom:8px">${valorActual}</div>
+          <input type="text" id="input-nombre-dir" placeholder="Ej: Mi casa, Oficina, Bodega..." style="width:100%;padding:10px 14px;border:2px solid var(--gray);border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;margin-bottom:8px">
+          <button onclick="guardarDireccion('${inputId}', '${tipo}')" style="width:100%;padding:12px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
+            ➕ Guardar dirección
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `
+  document.body.appendChild(div)
+}
+
+function usarDireccion(inputId, direccion) {
+  document.getElementById(inputId).value = direccion
+  document.getElementById('modal-direcciones').remove()
+}
+
+async function guardarDireccion(inputId, tipo) {
+  const direccion = document.getElementById(inputId).value
+  if (!direccion) return
+
+  const nombre = document.getElementById('input-nombre-dir').value.trim()
+  if (!nombre) { alert('Escribe un nombre para la dirección'); return }
+
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { error } = await db.from('direcciones').insert({
+    user_id: session.user.id,
+    nombre: nombre,
+    direccion: direccion,
+    tipo: tipo
+  })
+
+  if (error) { alert('Error al guardar'); return }
+  document.getElementById('modal-direcciones').remove()
+  
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
+  toast.textContent = '✅ Dirección guardada!'
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2500)
+}
+
+async function borrarDireccion(id, tipo) {
+  await db.from('direcciones').delete().eq('id', id)
+  document.getElementById('modal-direcciones').remove()
+  
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
+  toast.textContent = '¡😲 Dirección eliminada!'
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2500)
+  
+}
+function esFindeSemana(fecha) {
+  const dia = new Date(fecha + 'T00:00:00').getDay()
+  return dia === 0 || dia === 6 // 0 = domingo, 6 = sábado
+}
+
+function proximoLunes(fecha) {
+  const d = new Date(fecha + 'T00:00:00')
+  const dia = d.getDay()
+  const diasHastaLunes = dia === 6 ? 2 : 1 // sábado +2, domingo +1
+  d.setDate(d.getDate() + diasHastaLunes)
+  return d.toISOString().split('T')[0]
+}
+function seleccionarFecha(opcion) {
+  const hoy = new Date()
+  const mañana = new Date()
+  mañana.setDate(mañana.getDate() + 1)
+  const formatear = (d) => d.toISOString().split('T')[0]
+
+  const btns = ['btn-hoy-fecha', 'btn-manana-fecha', 'btn-otra-fecha']
+  btns.forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) {
+      btn.style.background = 'var(--gray-light)'
+      btn.style.color = 'var(--text)'
+      btn.style.borderColor = 'var(--gray)'
+    }
+  })
+
+  let fechaSeleccionada = null
+
+  if (opcion === 'hoy') {
+    const hora = new Date().getHours()
+    if (hora >= 15) {
+      fechaSeleccionada = formatear(mañana)
+      mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para mañana', 'var(--orange)')
+    } else {
+      fechaSeleccionada = formatear(hoy)
+    }
+    if (esFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = proximoLunes(fechaSeleccionada)
+      mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+    }
+    document.getElementById('fecha-seleccionada').value = fechaSeleccionada
+    document.getElementById('input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('btn-hoy-fecha')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    if (hora < 15) verificarDisponibilidad(fechaSeleccionada, false)
+
+  } else if (opcion === 'mañana') {
+    const hora = new Date().getHours()
+    // Si es después de las 3 PM, mañana = pasado mañana
+    const diasSumar = hora >= 15 ? 2 : 1
+    const fechaBase = new Date()
+    fechaBase.setDate(fechaBase.getDate() + diasSumar)
+    fechaSeleccionada = formatear(fechaBase)
+    let mostroToastFecha = false
+    if (esFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = proximoLunes(fechaSeleccionada)
+      mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+      mostroToastFecha = true
+    }
+    document.getElementById('fecha-seleccionada').value = fechaSeleccionada
+    document.getElementById('input-fecha-custom').style.display = 'none'
+    const btn = document.getElementById('btn-manana-fecha')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+    if (!mostroToastFecha) verificarDisponibilidad(fechaSeleccionada)
+  } else {
+    document.getElementById('input-fecha-custom').style.display = 'block'
+    document.getElementById('input-fecha-custom').onchange = (e) => {
+      let fecha = e.target.value
+      if (esFindeSemana(fecha)) {
+        fecha = proximoLunes(fecha)
+        e.target.value = fecha
+        mostrarToast('📅 Fin de semana detectado — fecha cambiada al lunes ' + fecha, 'var(--orange)')
+      }
+      document.getElementById('fecha-seleccionada').value = fecha
+      verificarDisponibilidad(fecha)
+    }
+    const btn = document.getElementById('btn-otra-fecha')
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
+  }
+}
+// ── Pedidos Activos (multi-pedido) ──
+const _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
+const _pedidoTokens = {}  // id -> token_rastreo
+
+async function compartirRastreo(id) {
+  let token = _pedidoTokens[id]
+  console.log('[GUEPACK] compartirRastreo id=' + id + ' token=' + token)
+
+  if (!token) {
+    // Intentar recuperar de Supabase
+    const { data } = await db.from('pedidos').select('token_rastreo').eq('id', id).single()
+    console.log('[GUEPACK] token desde Supabase:', data?.token_rastreo)
+    token = data?.token_rastreo || null
+
+    if (!token) {
+      // Generar nuevo token y guardarlo
+      token = crypto.randomUUID()
+      const { error } = await db.from('pedidos').update({ token_rastreo: token }).eq('id', id)
+      if (error) {
+        console.error('[GUEPACK] Error guardando token_rastreo:', error)
+        mostrarToast('❌ Error al generar link de rastreo', '#ef4444')
+        return
+      }
+      console.log('[GUEPACK] token generado y guardado:', token)
+    }
+    _pedidoTokens[id] = token
+  }
+
+  const url = 'https://guepack.vercel.app/rastreo.html?token=' + token
+  console.log('[GUEPACK] URL de rastreo:', url)
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      mostrarToast('🔗 Link de rastreo copiado', '#1a4fa0')
+    }).catch(() => { prompt('Copia este link:', url) })
+  } else {
+    prompt('Copia este link:', url)
+  }
+}
+
+const ESTADO_CONFIG = {
+  'Pendiente':                   { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ En espera de mensajero' },
+  'Pendiente verificación de pago': { color: '#f59e0b',      badge: 'badge-transit',  texto: '🧾 Verificando tu pago' },
+  'En camino a recoleccion':     { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🏍️ Mensajero en camino a recolectar' },
+  'En camino a entrega':         { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🚚 Tu paquete va en camino' },
+  'A punto de llegar':           { color: '#f59e0b',         badge: 'badge-pending',  texto: '⏰ ¡Tu repartidor está a punto de llegar!' },
+  'Repartidor en domicilio':     { color: '#ef4444',         badge: 'badge-pending',  texto: '📍 Tu repartidor está en tu domicilio' },
+  'Entregado':                   { color: 'var(--success)',  badge: 'badge-done',     texto: '✅ ¡Pedido entregado!' },
+  'Cancelado':                   { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pedido cancelado' },
+  'Pago rechazado':              { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pago rechazado' },
+  'Intento de entrega fallido':  { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Intento de entrega fallido' },
+}
+const ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
+
+function _guardarIds() {
+  localStorage.setItem('guepack_pedidos_activos', JSON.stringify(Object.keys(_pedidos).map(Number)))
+}
+
+function _crearCardHTML(id) {
+  return `
+    <div id="pac-${id}" style="background:white;border-radius:16px;box-shadow:0 4px 24px rgba(26,79,160,0.10);border-left:4px solid var(--blue);margin-bottom:10px;overflow:hidden;transition:border-color .4s">
+      <div onclick="togglePedidoCard(${id})" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);letter-spacing:2px">GK-${id}</span>
+          <span class="status-badge badge-transit" id="pac-${id}-badge">...</span>
+        </div>
+        <span id="pac-${id}-arrow" style="font-size:14px;color:#8fa3c0">▼</span>
+      </div>
+      <div id="pac-${id}-body" style="padding:0 16px 14px">
+        <div style="font-size:12px;font-weight:700;color:#8fa3c0;margin-bottom:4px" id="pac-${id}-estado"></div>
+        <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-repartidor"></div>
+        <div id="pac-${id}-chat-wrap" style="display:none;margin-top:8px">
+          <button onclick="abrirChat(${id},'cliente','Chat GK-${id}')" style="width:100%;padding:10px;background:#1a4fa0;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative">
+            💬 Chat con repartidor
+            <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
+          </button>
+        </div>
+        <div id="pac-${id}-timer-domicilio" style="display:none;margin-top:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px" id="pac-${id}-cancelar-container">
+          <button onclick="compartirRastreo(${id})" style="flex:1;background:rgba(26,79,160,0.08);color:var(--blue);border:2px solid var(--blue);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
+            🔗 Compartir rastreo
+          </button>
+          <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="flex:1;background:rgba(240,90,26,0.1);color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
+            ❌ Cancelar (<span id="pac-${id}-timer">5:00</span>)
+          </button>
+        </div>
+      </div>
+    </div>`
+}
+
+function togglePedidoCard(id) {
+  const body = document.getElementById('pac-' + id + '-body')
+  const arrow = document.getElementById('pac-' + id + '-arrow')
+  const visible = body.style.display !== 'none'
+  body.style.display = visible ? 'none' : 'block'
+  arrow.textContent = visible ? '▶' : '▼'
+}
+
+function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false) {
+  const container = document.getElementById('pedido-activo-container')
+
+  if (!document.getElementById('pac-' + id)) {
+    container.insertAdjacentHTML('beforeend', _crearCardHTML(id))
+  }
+  container.style.display = 'block'
+
+  _actualizarCard(id, estado, repartidor)
+
+  // Timer de 5 minutos para cancelar
+  if (_pedidos[id]?.intervalCancelar) clearInterval(_pedidos[id].intervalCancelar)
+  if (!_pedidos[id]) _pedidos[id] = {}
+
+  if (sinTimerCancelar) {
+    _vencerTimerCancelar(id)
+  } else {
+    let segs = 300
+    const timerEl = document.getElementById('pac-' + id + '-timer')
+    _pedidos[id].intervalCancelar = setInterval(() => {
+      segs--
+      const m = Math.floor(segs / 60), s = segs % 60
+      if (timerEl) timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s
+      if (segs <= 0) { clearInterval(_pedidos[id].intervalCancelar); _vencerTimerCancelar(id) }
+    }, 1000)
+  }
+
+  // Realtime
+  if (_pedidos[id]?.realtimeChannel) db.removeChannel(_pedidos[id].realtimeChannel)
+  _pedidos[id].realtimeChannel = db.channel('pedido-' + id)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: 'id=eq.' + id }, payload => {
+      const nuevoEstado = payload.new.estado
+      const nuevoRepartidor = payload.new.repartidor
+      console.log('[GUEPACK] Realtime UPDATE pedido', id, '→ estado:', nuevoEstado)
+      _actualizarCard(id, nuevoEstado, nuevoRepartidor)
+
+      if (nuevoEstado === 'Entregado') {
+        console.log('[GUEPACK] Pedido', id, 'ENTREGADO — lanzando modal de calificación en 3s')
+        actualizarVipTrasEntrega()
+        setTimeout(() => mostrarModalCalificacion(id, nuevoRepartidor), 3000)
+      }
+
+      if (ESTADOS_FINALES.includes(nuevoEstado)) {
+        document.getElementById('pac-' + id + '-cancelar-container').style.display = 'none'
+        const delay = nuevoEstado === 'Entregado' ? 600000 : 10000
+        setTimeout(() => cerrarCardPedido(id), delay)
+      }
+    })
+    .subscribe()
+
+  _guardarIds()
+}
+
+function _vencerTimerCancelar(id) {
+  const btn = document.getElementById('pac-' + id + '-cancelar-btn')
+  if (!btn) return
+  btn.innerHTML = '❌ Cancelar pedido <small style="font-size:10px">($25 pesos)</small>'
+  btn.style.background = 'rgba(239,68,68,0.15)'
+  btn.style.borderColor = '#ef4444'
+  btn.style.color = '#ef4444'
+}
+
+function _actualizarCard(id, estado, repartidor) {
+  const c = ESTADO_CONFIG[estado] || ESTADO_CONFIG['Pendiente']
+  const card = document.getElementById('pac-' + id)
+  if (!card) return
+  card.style.borderLeftColor = c.color
+  const badge = document.getElementById('pac-' + id + '-badge')
+  badge.className = 'status-badge ' + c.badge
+  badge.textContent = estado
+  document.getElementById('pac-' + id + '-estado').textContent = c.texto
+
+  const repaEl = document.getElementById('pac-' + id + '-repartidor')
+  const chatWrap = document.getElementById('pac-' + id + '-chat-wrap')
+  if (repartidor) {
+    repaEl.textContent = '🏍️ Repartidor: ' + repartidor
+    repaEl.style.display = 'block'
+    if (chatWrap) chatWrap.style.display = 'block'
+  }
+
+  // Timer domicilio
+  const timerDom = document.getElementById('pac-' + id + '-timer-domicilio')
+  if (estado === 'Repartidor en domicilio' && timerDom.style.display === 'none') {
+    timerDom.style.display = 'block'
+    timerDom.textContent = '⏰ Tu repartidor está esperando: 7:00'
+    if (!_pedidos[id]) _pedidos[id] = {}
+    if (_pedidos[id].intervalDomicilio) clearInterval(_pedidos[id].intervalDomicilio)
+    let segs = 420
+    _pedidos[id].intervalDomicilio = setInterval(async () => {
+      segs--
+      const m = Math.floor(segs / 60), s = segs % 60
+      timerDom.textContent = '⏰ Tu repartidor está esperando: ' + m + ':' + (s < 10 ? '0' : '') + s
+      if (segs <= 0) {
+        clearInterval(_pedidos[id].intervalDomicilio)
+        timerDom.style.display = 'none'
+        const t = document.createElement('div')
+        t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#ef4444;color:white;padding:24px 28px;border-radius:20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(239,68,68,0.4);text-align:center;max-width:320px;line-height:1.5'
+        t.textContent = '⚠️ Tiempo de espera vencido. Tu pedido se marcará como intento de entrega fallido'
+        document.body.appendChild(t)
+        setTimeout(() => t.remove(), 5000)
+        await db.from('pedidos').update({ estado: 'Intento de entrega fallido' }).eq('id', id)
+      }
+    }, 1000)
+  } else if (estado !== 'Repartidor en domicilio') {
+    if (_pedidos[id]?.intervalDomicilio) { clearInterval(_pedidos[id].intervalDomicilio); _pedidos[id].intervalDomicilio = null }
+    if (timerDom) timerDom.style.display = 'none'
+  }
+}
+
+function cerrarCardPedido(id) {
+  const card = document.getElementById('pac-' + id)
+  if (card) card.remove()
+  if (_pedidos[id]) {
+    if (_pedidos[id].intervalCancelar) clearInterval(_pedidos[id].intervalCancelar)
+    if (_pedidos[id].intervalDomicilio) clearInterval(_pedidos[id].intervalDomicilio)
+    if (_pedidos[id].realtimeChannel) db.removeChannel(_pedidos[id].realtimeChannel)
+    delete _pedidos[id]
+  }
+  _guardarIds()
+  if (!Object.keys(_pedidos).length) {
+    document.getElementById('pedido-activo-container').style.display = 'none'
+  }
+}
+
+async function cancelarPedido(id) {
+  const { data } = await db.from('pedidos').select('created_at').eq('id', id).single()
+  const minutos = (new Date() - new Date(data.created_at)) / 60000
+
+  const ejecutarCancelacion = async () => {
+    await db.from('pedidos').update({ estado: 'Cancelado' }).eq('id', id)
+    cerrarCardPedido(id)
+    mostrarToast('❌ Pedido cancelado', 'var(--orange)')
+  }
+
+  if (minutos > 5) {
+    const overlay = document.createElement('div')
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px'
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:20px;border:3px solid #ef4444;padding:28px 24px;max-width:340px;width:100%;text-align:center;animation:parpadeoRojo 1s infinite;box-shadow:0 8px 32px rgba(239,68,68,0.25)">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#ef4444;margin-bottom:10px">⚠️ Cancelación con cargo</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;color:#333;margin-bottom:24px;line-height:1.5">Han pasado más de 5 minutos.<br>Se aplicará un cargo de <b>$25 pesos</b> por cancelación.<br>¿Deseas continuar?</div>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button id="toast-cancel-no" style="flex:1;padding:12px;border:none;background:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#999;cursor:pointer">No, Regresar</button>
+          <button id="toast-cancel-si" style="flex:1;padding:12px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Sí, Cancelar</button>
+        </div>
+      </div>`
+    document.body.appendChild(overlay)
+    overlay.querySelector('#toast-cancel-si').onclick = () => { overlay.remove(); ejecutarCancelacion() }
+    overlay.querySelector('#toast-cancel-no').onclick = () => overlay.remove()
+    return
+  }
+  ejecutarCancelacion()
+}
+
+// ── Chat ──
+let _chatChannel = null, _chatPedidoId = null, _chatRol = null
+
+async function abrirChat(pedidoId, rol, titulo) {
+  _chatPedidoId = pedidoId; _chatRol = rol
+  _unreadChat[pedidoId] = 0
+  const _badge = document.getElementById('chat-badge-' + pedidoId)
+  if (_badge) _badge.style.display = 'none'
+  if (document.getElementById('modal-chat')) cerrarChat()
+  const modal = document.createElement('div')
+  modal.id = 'modal-chat'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
+      <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">💬 ${titulo}</span>
+        <button onclick="cerrarChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+      </div>
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
+        <input id="chat-input" type="text" placeholder="Escribe un mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarMensajeChat()">
+        <button onclick="enviarMensajeChat()" style="background:#1a4fa0;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  await _cargarMensajesChat()
+  if (_chatChannel) db.removeChannel(_chatChannel)
+  const filter = pedidoId ? 'pedido_id=eq.' + pedidoId : 'tipo=eq.soporte'
+  _chatChannel = db.channel('chat-' + (pedidoId || 'soporte'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes', filter }, payload => _agregarBurbuja(payload.new))
+    .subscribe()
+}
+
+async function _cargarMensajesChat() {
+  let q = db.from('mensajes').select('*').order('created_at', { ascending: true })
+  q = _chatPedidoId ? q.eq('pedido_id', _chatPedidoId) : q.is('pedido_id', null).eq('tipo', 'soporte')
+  const { data } = await q
+  const c = document.getElementById('chat-messages')
+  if (!c) return
+  ;(data || []).forEach(m => _agregarBurbuja(m, false))
+  c.scrollTop = c.scrollHeight
+  if (_chatPedidoId) {
+    db.from('mensajes').update({ leido: true }).eq('pedido_id', _chatPedidoId).eq('leido', false).then(() => {})
+  }
+}
+
+function _agregarBurbuja(msg, scroll = true) {
+  const c = document.getElementById('chat-messages')
+  if (!c) return
+  const esMio = msg.de === _chatRol
+  const esAdmin = msg.de === 'admin'
+  const label = document.createElement('div')
+  label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
+  label.textContent = esAdmin ? '🛡️ Soporte' : msg.de === 'cliente' ? '👤 Cliente' : '🏍️ Repartidor'
+  const burbuja = document.createElement('div')
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#1a4fa0' : esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esMio || esAdmin ? 'white' : '#333'}`
+  burbuja.textContent = msg.texto
+  c.appendChild(label); c.appendChild(burbuja)
+  if (scroll) c.scrollTop = c.scrollHeight
+}
+
+async function enviarMensajeChat() {
+  const input = document.getElementById('chat-input')
+  const texto = input.value.trim()
+  if (!texto) return
+  input.value = ''
+  const msg = { texto, de: _chatRol, tipo: _chatPedidoId ? 'chat' : 'soporte' }
+  if (_chatPedidoId) msg.pedido_id = _chatPedidoId
+  await db.from('mensajes').insert(msg)
+}
+
+function cerrarChat() {
+  if (_chatChannel) { db.removeChannel(_chatChannel); _chatChannel = null }
+  const m = document.getElementById('modal-chat'); if (m) m.remove()
+}
+
+const _unreadChat = {}
+let _fcmToken = null
+let _cuponActivo = null
+
+async function aplicarCupon() {
+  const codigo = document.getElementById('cupon-input').value.trim().toUpperCase()
+  const resultado = document.getElementById('cupon-resultado')
+  if (!codigo) return
+  resultado.style.display = 'block'
+  resultado.style.background = '#f4f6fb'
+  resultado.style.color = '#666'
+  resultado.textContent = '⏳ Verificando...'
+  const hoy = new Date().toISOString().split('T')[0]
+  const { data } = await db.from('cupones').select('*').eq('codigo', codigo).single()
+  if (!data) {
+    resultado.style.background = 'rgba(239,68,68,0.1)'
+    resultado.style.color = '#ef4444'
+    resultado.textContent = '❌ Cupón no encontrado'
+    _cuponActivo = null; updateQuote(); return
+  }
+  if (data.fecha_expiracion && data.fecha_expiracion < hoy) {
+    resultado.style.background = 'rgba(239,68,68,0.1)'
+    resultado.style.color = '#ef4444'
+    resultado.textContent = '❌ Este cupón ha expirado'
+    _cuponActivo = null; updateQuote(); return
+  }
+  if (data.usos_maximos && (data.usos_actuales || 0) >= data.usos_maximos) {
+    resultado.style.background = 'rgba(239,68,68,0.1)'
+    resultado.style.color = '#ef4444'
+    resultado.textContent = '❌ Este cupón ya no tiene usos disponibles'
+    _cuponActivo = null; updateQuote(); return
+  }
+  _cuponActivo = data
+  updateQuote()
+  const descLabel = data.tipo === 'porcentaje' ? data.descuento + '%' : '$' + data.descuento
+  resultado.style.background = 'rgba(34,197,94,0.1)'
+  resultado.style.color = '#22c55e'
+  resultado.textContent = '✅ Cupón aplicado · ' + descLabel + ' de descuento'
+}
+
+async function _obtenerFcmToken() {
+  if (_fcmToken) return _fcmToken
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return null
+  const { data } = await db.from('usuarios').select('fcm_token').eq('email', session.user.email).single()
+  _fcmToken = data?.fcm_token || null
+  return _fcmToken
+}
+
+async function enviarPushNotificacion(token, titulo, cuerpo) {
+  if (!token) return
+  try {
+    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ token, title: titulo, body: cuerpo })
+    })
+  } catch (e) { console.log('Error push:', e) }
+}
+
+async function _cargarBadgesNoLeidos(pedidoIds) {
+  if (!pedidoIds || !pedidoIds.length) return
+  const { data } = await db.from('mensajes')
+    .select('pedido_id')
+    .in('pedido_id', pedidoIds)
+    .eq('leido', false)
+    .neq('de', 'cliente')
+  if (!data) return
+  const conteo = {}
+  data.forEach(m => { conteo[m.pedido_id] = (conteo[m.pedido_id] || 0) + 1 })
+  Object.entries(conteo).forEach(([pid, count]) => {
+    const numPid = Number(pid)
+    _unreadChat[numPid] = count
+    const badge = document.getElementById('chat-badge-' + pid)
+    if (badge) { badge.textContent = count; badge.style.display = 'flex' }
+  })
+}
+
+db.channel('cliente-mensajes-global')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, async payload => {
+    const msg = payload.new
+    if (msg.de === 'cliente') return
+    const pid = msg.pedido_id
+    if (!pid) return
+    if (_chatPedidoId === pid && document.getElementById('modal-chat')) return
+    _unreadChat[pid] = (_unreadChat[pid] || 0) + 1
+    const badge = document.getElementById('chat-badge-' + pid)
+    if (badge) { badge.textContent = _unreadChat[pid]; badge.style.display = 'flex' }
+    const token = await _obtenerFcmToken()
+    enviarPushNotificacion(token, '💬 Nuevo mensaje', msg.texto || '...')
+  })
+  .subscribe()
+
+function mostrarToast(texto, color) {
+  const toast = document.createElement('div')
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;max-width:300px'
+  toast.textContent = texto
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 3000)
+}
+function resetForm() {
+  document.getElementById('form-state').style.display = 'block'
+  document.getElementById('success-state').style.display = 'none'
+
+  // Tamaño y zona
+  selSize = null
+  selZone = null
+  _zonaData = null
+  document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
+  const _zdr = document.getElementById('zona-detect-result')
+  if (_zdr) { _zdr.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'; _zdr.innerHTML = '<span style="font-size:16px">📍</span><span>Se detectará al ingresar tu dirección de entrega</span>' }
+  document.getElementById('quote-display').style.display = 'none'
+
+  // Campos de texto
+  document.querySelectorAll('.form-input').forEach(i => i.value = '')
+  document.getElementById('folio-number').textContent = 'GK-...'
+  // Re-cargar nombre del remitente desde sesión
+  db.auth.getSession().then(({ data: { session } }) => {
+    if (session) cargarNombreRemitente(session.user)
+  })
+
+  // Fecha
+  document.getElementById('fecha-seleccionada').value = ''
+  document.getElementById('input-fecha-custom').style.display = 'none';
+  ['btn-hoy-fecha', 'btn-manana-fecha', 'btn-otra-fecha'].forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
+  })
+
+  // Cupón
+  _cuponActivo = null
+  const _ci = document.getElementById('cupon-input')
+  if (_ci) _ci.value = ''
+  const _cr = document.getElementById('cupon-resultado')
+  if (_cr) { _cr.style.display = 'none'; _cr.textContent = '' }
+
+  // Método de pago
+  selMetodoPago = null
+  document.querySelectorAll('#mp-efectivo,#mp-transferencia').forEach(o => o.classList.remove('selected'))
+  document.getElementById('datos-transferencia').style.display = 'none'
+  const comprobanteInput = document.getElementById('comprobante-input')
+  if (comprobanteInput) comprobanteInput.value = ''
+  const comprobantePrev = document.getElementById('comprobante-preview')
+  if (comprobantePrev) comprobantePrev.innerHTML = ''
+  const btnComp = document.getElementById('btn-comprobante')
+  if (btnComp) { btnComp.textContent = '📎 Subir comprobante de pago'; btnComp.style.background = '#1a4fa0' }
+}
+function switchMainView(view) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + view).classList.add('active');
+  const idx = ['client','admin','delivery'].indexOf(view);
+  document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+  if (view === 'admin') cargarPedidos();
+  if (view === 'delivery') cargarPedidosRepartidor();
+}
+
+// ── Cargar historial cliente ──
+async function cargarHistorial() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+console.log('User ID buscando:', session.user.id)
+  const { data, error } = await db.from('pedidos')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error(error); return; }
+  console.log('Pedidos historial:', data?.length, data)
+
+  const contenedor = document.getElementById('lista-historial')
+  if (!contenedor) return
+  contenedor.innerHTML = ''
+
+  if (data.length === 0) {
+    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><div class="empty-text">No tienes pedidos aún</div></div>'
+    return
+  }
+
+  data.forEach(pedido => {
+    const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX')
+    const badgeClass = pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit'
+    contenedor.innerHTML += `
+      <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:700">GK-${pedido.id}</div>
+            <div style="font-size:11px;color:var(--gray-mid);font-weight:600">${fecha} · ${pedido.tamanio} · ${pedido.zona}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${pedido.foto_evidencia ? `<button onclick="verEvidencia('${pedido.foto_evidencia}','${pedido.firma_evidencia || ''}')" style="padding:6px 12px;border:none;border-radius:8px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">📸 Ver evidencia de entrega</button>` : ''}
+            <div class="status-badge ${badgeClass}">${pedido.estado}</div>
+          </div>
+        </div>
+      </div>
+    `
+  })
+}
+
+function verEvidencia(fotoUrl, firmaUrl) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-evidencia'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#1a4fa0">📸 Evidencia de entrega</div>
+      ${fotoUrl ? `
+        <div style="margin-bottom:16px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px">FOTO</div>
+          <img src="${fotoUrl}" style="width:100%;border-radius:12px;object-fit:cover">
+        </div>` : ''}
+      ${firmaUrl ? `
+        <div style="margin-bottom:20px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px">FIRMA DEL CLIENTE</div>
+          <img src="${firmaUrl}" style="width:100%;border-radius:12px;border:1px solid #e0e0e0">
+        </div>` : ''}
+      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+    </div>
+  `
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+}
+// ── Client section switcher ──
+const clientBtns = document.querySelectorAll('.bottom-btn');
+function showClientSection(section) {
+  document.querySelectorAll('.client-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('client-' + section).classList.add('active');
+  clientBtns.forEach(b => b.classList.remove('active'));
+  const idx = ['new','tracking','history'].indexOf(section);
+  clientBtns[idx].classList.add('active');
+  if (section === 'history') cargarHistorial();
+  if (section === 'tracking') { }
+}
+// ── Cargar pedidos en Admin ──
+async function cargarPedidos() {
+  const { data, error } = await db.from('pedidos').select('*').order('created_at', { ascending: false })
+  
+  if (error) { console.error(error); return; }
+
+  // ── Actualizar estadísticas ──
+  const pendientes = data.filter(p => p.estado === 'Pendiente').length
+  const enRuta = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+  const entregados = data.filter(p => p.estado === 'Entregado').length
+
+  document.querySelectorAll('.stat-number')[0].textContent = pendientes
+  document.querySelectorAll('.stat-number')[1].textContent = enRuta
+  document.querySelectorAll('.stat-number')[2].textContent = entregados
+
+  const contenedor = document.getElementById('lista-pedidos')
+  contenedor.innerHTML = ''
+
+  console.log('Pedidos encontrados:', data.length, data)
+
+  data.forEach(pedido => {
+    contenedor.innerHTML += `
+      <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}">
+        <div class="order-header">
+          <div>
+            <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+            <div class="order-client">${pedido.nombre}</div>
+          </div>
+          <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
+        </div>
+        <div class="order-details">
+          <span class="tag tag-orange">${pedido.tamanio}</span>
+          <span class="tag tag-blue">${pedido.zona}</span>
+          ${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}<br>
+          <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
+        </div>
+        <div class="order-actions">
+          ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary btn-sm" onclick="assignDelivery(this,' + pedido.id + ')">Asignar repartidor</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' ? '<button class="btn btn-sm" style="background:rgba(240,90,26,0.1);color:var(--orange);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
+          ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+        </div>
+      </div>
+    `
+  })
+}
+// ── Admin actions ──
+async function assignDelivery(btn, id) {
+  const { data, error } = await db.from('repartidores').select('*')
+  if (error) { alert('Error al cargar repartidores'); return; }
+
+  const opciones = data.map((r, i) => i + 1 + '. ' + r.nombre).join('\n')
+  const seleccion = prompt('Selecciona repartidor:\n' + opciones + '\n\nEscribe el número:')
+  if (!seleccion) return
+
+  const repartidor = data[parseInt(seleccion) - 1]
+  if (!repartidor) { alert('Número inválido'); return; }
+
+  const { error: err } = await db.from('pedidos').update({
+    estado: 'En camino a recoleccion',
+    repartidor: repartidor.nombre
+  }).eq('id', id)
+
+  if (err) { alert('Error al asignar'); return; }
+  cargarPedidos()
+}
+async function updateStatus(btn, id, status, telefono, nombre) {
+  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  if (error) { alert('Error al actualizar'); return; }
+
+  const mensajes = {
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
+    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+  }
+
+  const mensaje = mensajes[status]
+  if (mensaje && telefono) {
+    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
+    })
+  }
+
+  cargarPedidos()
+}
+// ── Cargar pedidos repartidor ──
+async function cargarPedidosRepartidor() {
+  let nombre = localStorage.getItem('repartidor_nombre')
+  if (!nombre) {
+    nombre = prompt('¿Cuál es tu nombre de repartidor?')
+    if (!nombre) return
+    localStorage.setItem('repartidor_nombre', nombre)
+  }
+
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre + ' 👋'
+
+  const { data, error } = await db.from('pedidos')
+    .select('*')
+    .eq('repartidor', nombre)
+    .neq('estado', 'Entregado')
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error(error); return; }
+
+  const contenedor = document.getElementById('lista-repartidor')
+  if (!contenedor) return
+  contenedor.innerHTML = ''
+
+  if (data.length === 0) {
+    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">🏍️</span><div class="empty-text">No tienes pedidos asignados</div></div>'
+    return
+  }
+
+  data.forEach(pedido => {
+    contenedor.innerHTML += `
+      <div class="route-card">
+        <div class="route-top">
+          <div>
+            <div class="route-number">GK-${pedido.id}</div>
+            <div class="route-type">${pedido.tamanio} · ${pedido.zona}</div>
+          </div>
+        </div>
+        <div class="route-body">
+          <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
+          <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          <div class="status-steps">
+            <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
+            <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
+            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'Entregado' ? 'done' : 'inactive'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado', '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
+          </div>
+        </div>
+      </div>
+    `
+  })
+}
+async function cambiarEstadoRepartidor(id, status, telefono, nombre) {
+  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  if (error) { alert('Error al actualizar'); return; }
+
+  const mensajes = {
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
+    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
+  }
+
+  const mensaje = mensajes[status]
+  console.log('Telefono:', telefono)
+  console.log('Mensaje:', mensaje)
+
+  if (mensaje && telefono) {
+    const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
+    })
+    const respData = await resp.json()
+    console.log('Respuesta Twilio:', respData)
+  }
+
+  cargarPedidosRepartidor()
+}
+// ── Delivery step buttons ──
+function stepClick(btn, idx) {
+  const steps = btn.parentElement.querySelectorAll('.step-btn');
+  steps.forEach((s, i) => {
+    if (i < idx) { s.className = 'step-btn done'; }
+    else if (i === idx) { s.className = 'step-btn active'; }
+    else { s.className = 'step-btn inactive'; }
+  });
+}
+
+// ── POPUP ANUNCIO ──
+async function verificarAnuncio() {
+  if (sessionStorage.getItem('guepack_anuncio_visto')) return
+  const { data } = await db.from('anuncios').select('*').eq('activo', true).limit(1).maybeSingle()
+  if (!data) return
+  sessionStorage.setItem('guepack_anuncio_visto', '1')
+  _mostrarPopupAnuncio(data)
+}
+
+function _mostrarPopupAnuncio(anuncio) {
+  let seg = Math.max(1, parseInt(anuncio.segundos) || 5)
+  const overlay = document.createElement('div')
+  overlay.id = 'popup-anuncio'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease'
+  overlay.innerHTML = `
+    <div style="position:relative;background:#fff;border-radius:20px;overflow:hidden;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <button onclick="cerrarPopupAnuncio()" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900">✕</button>
+      <img src="${anuncio.imagen_url}" alt="${anuncio.nombre_aliado || 'Anuncio'}" style="width:100%;display:block;max-height:420px;object-fit:cover">
+      <div style="padding:14px 16px;display:flex;gap:10px;align-items:center">
+        ${anuncio.link_url ? `<a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="flex:1;display:block;background:linear-gradient(135deg,#f05a1a,#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a>` : ''}
+        <button onclick="cerrarPopupAnuncio()" style="flex:1;background:#f0f0f0;color:#444;border:none;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer">Cerrar <span id="popup-countdown">(${seg})</span></button>
+      </div>
+    </div>`
+  document.body.appendChild(overlay)
+
+  const iv = setInterval(() => {
+    seg--
+    const el = document.getElementById('popup-countdown')
+    if (el) el.textContent = `(${seg})`
+    if (seg <= 0) { clearInterval(iv); cerrarPopupAnuncio() }
+  }, 1000)
+  overlay._interval = iv
+}
+
+function cerrarPopupAnuncio() {
+  const el = document.getElementById('popup-anuncio')
+  if (!el) return
+  if (el._interval) clearInterval(el._interval)
+  el.style.opacity = '0'
+  el.style.transition = 'opacity .25s'
+  setTimeout(() => el.remove(), 260)
+}
+
+// ── VIP ──
+const _VIP_NIVELES = [
+  { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
+  { min: 20, nivel: 'plata',  icono: '🥈', label: 'Plata',   bg: '#555555' },
+  { min: 10, nivel: 'bronce', icono: '🥉', label: 'Bronce',  bg: '#8B4513' },
+  { min:  0, nivel: 'normal', icono: '',   label: '',         bg: ''        }
+]
+
+const _VIP_TEMAS = {
+  normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
+  bronce: { blue:'#8B4513', blueDark:'#5D2E0C', blueLight:'#CD7F32', orange:'#CD7F32', orangeLight:'#DFA152', logo:'/icono_vip_bronce.png', sweep:'#CD7F32' },
+  plata:  { blue:'#555555', blueDark:'#333333', blueLight:'#808080', orange:'#909090', orangeLight:'#C0C0C0', logo:'/icono_vip_plata.png',  sweep:'#808080' },
+  oro:    { blue:'#B8860B', blueDark:'#8B6914', blueLight:'#DAA520', orange:'#FFD700', orangeLight:'#FFE44D', logo:'/logo_vip.png',       sweep:'#DAA520' }
+}
+
+function _calcNivel(total) {
+  return _VIP_NIVELES.find(v => total >= v.min)
+}
+
+function _aplicarTemaVip(nivel) {
+  const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+  const r = document.documentElement
+  r.style.setProperty('--blue',         t.blue)
+  r.style.setProperty('--blue-dark',    t.blueDark)
+  r.style.setProperty('--blue-light',   t.blueLight)
+  r.style.setProperty('--orange',       t.orange)
+  r.style.setProperty('--orange-light', t.orangeLight)
+  const logo = document.getElementById('header-logo')
+  if (logo) logo.src = t.logo
+  document.body.classList.remove('vip-bronce', 'vip-plata', 'vip-oro')
+  if (nivel !== 'normal') document.body.classList.add('vip-' + nivel)
+  _mostrarVipHeader(nivel)
+}
+
+function _sweepTema(color, callback) {
+  const old = document.getElementById('vip-sweep')
+  if (old) old.remove()
+  const sweep = document.createElement('div')
+  sweep.id = 'vip-sweep'
+  sweep.style.cssText = `position:fixed;top:0;left:0;right:0;bottom:0;background:${color};z-index:99997;pointer-events:none;clip-path:inset(0 100% 0 0)`
+  document.body.appendChild(sweep)
+  sweep.offsetWidth // reflow
+  sweep.style.transition = 'clip-path .55s cubic-bezier(.4,0,.2,1)'
+  sweep.style.clipPath = 'inset(0 0% 0 0)'
+  sweep.addEventListener('transitionend', () => {
+    callback()
+    requestAnimationFrame(() => {
+      sweep.style.clipPath = 'inset(0 0% 0 100%)'
+      sweep.addEventListener('transitionend', () => sweep.remove(), { once: true })
+    })
+  }, { once: true })
+}
+
+function _mostrarVipHeader(nivel) {
+  const existing = document.getElementById('vip-badge-header')
+  if (nivel === 'normal' || !nivel) { if (existing) existing.remove(); return }
+  const info = _VIP_NIVELES.find(v => v.nivel === nivel)
+  if (!info?.label) return
+  const t = _VIP_TEMAS[nivel]
+  if (existing) {
+    existing.textContent = info.icono + ' ' + info.label
+    existing.style.background = t.blueDark
+    existing.style.fontSize = '16px'
+    existing.style.padding = '6px 12px'
+    return
+  }
+  const badge = document.createElement('div')
+  badge.id = 'vip-badge-header'
+  badge.style.cssText = `display:inline-flex;align-items:center;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;padding:6px 12px;border-radius:20px;letter-spacing:.5px;white-space:nowrap`
+  badge.textContent = info.icono + ' ' + info.label
+  const actions = document.getElementById('header-actions')
+  if (actions) actions.insertBefore(badge, actions.firstChild)
+}
+
+const _NIVEL_ORDEN = { normal: 0, bronce: 1, plata: 2, oro: 3 }
+
+async function cargarVipUsuario(userId) {
+  console.log('[VIP] Consultando usuario:', userId)
+  const { data, error } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  console.log('[VIP] Respuesta Supabase →', { data, error })
+  if (!data) { console.warn('[VIP] Sin datos de usuario en tabla usuarios'); return }
+
+  const nivel = data.nivel_vip || 'normal'
+  console.log('[VIP] Nivel:', nivel, '| Total pedidos:', data.total_pedidos ?? 0)
+
+  const guardado = localStorage.getItem('guepack_nivel_vip')
+  const ordenGuardado = _NIVEL_ORDEN[guardado] ?? -1  // -1 = nunca visto antes
+  const ordenActual   = _NIVEL_ORDEN[nivel]   ?? 0
+
+  // Solo celebra si hay nivel previo guardado Y el nuevo es estrictamente mayor
+  const subioDeNivel = guardado !== null && ordenActual > ordenGuardado
+
+  // Siempre actualiza localStorage y aplica el tema
+  localStorage.setItem('guepack_nivel_vip', nivel)
+
+  if (subioDeNivel) {
+    const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+    _sweepTema(t.sweep, () => _aplicarTemaVip(nivel))
+    setTimeout(() => _celebrarSubidaNivel(nivel), 650)
+  } else {
+    _aplicarTemaVip(nivel)
+  }
+}
+
+async function actualizarVipTrasEntrega() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+  const userId = session.user.id
+  const { data: usuario } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  const totalAnterior = usuario?.total_pedidos || 0
+  const nuevoTotal = totalAnterior + 1
+  const nivelAnterior = _calcNivel(totalAnterior).nivel
+  const nuevoNivel = _calcNivel(nuevoTotal).nivel
+  await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
+  if (nuevoNivel !== nivelAnterior) {
+    const t = _VIP_TEMAS[nuevoNivel] || _VIP_TEMAS.normal
+    localStorage.setItem('guepack_nivel_vip', nuevoNivel)
+    _sweepTema(t.sweep, () => _aplicarTemaVip(nuevoNivel))
+    setTimeout(() => _celebrarSubidaNivel(nuevoNivel), 700)
+  } else {
+    _mostrarVipHeader(nuevoNivel)
+  }
+}
+
+function _celebrarSubidaNivel(nivel) {
+  const info = _VIP_NIVELES.find(v => v.nivel === nivel)
+  if (!info) return
+  const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
+  const overlay = document.createElement('div')
+  overlay.id = 'vip-celebracion'
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.84);z-index:99998;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .4s ease'
+  overlay.innerHTML = `
+    <div style="text-align:center;animation:fadeIn .5s ease .15s both">
+      <img src="${t.logo}" alt="VIP" style="max-width:180px;height:auto;margin-bottom:18px;filter:drop-shadow(0 0 28px ${t.orange})">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:54px;color:${t.orange};letter-spacing:3px;line-height:1;text-shadow:0 0 30px ${t.orange}90">${info.icono} ${info.label}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#fff;margin-top:14px;line-height:1.5">¡Felicidades!<br>Subiste a nivel ${info.label} 🎉</div>
+    </div>`
+  document.body.appendChild(overlay)
+  _confettiVip(nivel)
+  setTimeout(() => {
+    overlay.style.opacity = '0'
+    overlay.style.transition = 'opacity .5s'
+    setTimeout(() => overlay.remove(), 520)
+  }, 5000)
+}
+
+function _confettiVip(nivel) {
+  const canvas = document.createElement('canvas')
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999'
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  document.body.appendChild(canvas)
+  const ctx = canvas.getContext('2d')
+  const paletas = {
+    bronce: ['#CD7F32','#8B4513','#DFA152','#F4C87E','#fff'],
+    plata:  ['#C0C0C0','#A8A8A8','#E8E8E8','#fff','#b0c4de'],
+    oro:    ['#FFD700','#FFA500','#FFEC47','#fff','#B8860B']
+  }
+  const colors = paletas[nivel] || ['#f05a1a','#1a4fa0','#22c55e','#ffd700','#fff']
+  const particles = Array.from({ length: 160 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -30 - Math.random() * 300,
+    w: 6 + Math.random() * 11,
+    h: 3 + Math.random() * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    vx: (Math.random() - 0.5) * 2.5,
+    vy: 1.5 + Math.random() * 3.5,
+    rot: Math.random() * Math.PI * 2,
+    rotV: (Math.random() - 0.5) * 0.13
+  }))
+  let start = null
+  const TOTAL = 5500
+  function frame(ts) {
+    if (!start) start = ts
+    const el = ts - start
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const alpha = el > TOTAL - 900 ? Math.max(0, 1 - (el - (TOTAL - 900)) / 900) : 1
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.rot += p.rotV
+      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width }
+      ctx.save()
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot)
+      ctx.globalAlpha = alpha; ctx.fillStyle = p.color
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+      ctx.restore()
+    })
+    if (el < TOTAL) requestAnimationFrame(frame); else canvas.remove()
+  }
+  requestAnimationFrame(frame)
+}
+
+// ── MODAL DE CALIFICACIÓN ──
+let _calStars = 0
+
+function mostrarModalCalificacion(pedidoId, repartidor) {
+  console.log('[GUEPACK] mostrarModalCalificacion llamada — pedido:', pedidoId, 'repartidor:', repartidor)
+  const existing = document.getElementById('modal-calificacion')
+  if (existing) existing.remove()
+  _calStars = 0
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-calificacion'
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,20,50,0.75);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease'
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:24px;max-width:340px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div style="font-size:40px;margin-bottom:10px">⭐</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:1px;margin-bottom:6px">¿Cómo fue tu experiencia?</div>
+      <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-bottom:18px">Folio GK-${pedidoId}${repartidor ? ' · ' + repartidor : ''}</div>
+      <div id="cal-stars-row" style="display:flex;gap:4px;justify-content:center;margin-bottom:18px">
+        ${[1,2,3,4,5].map(n => `<span data-val="${n}" onmouseover="calHover(${n})" onmouseout="calResetHover()" onclick="calSelect(${n})" style="font-size:42px;cursor:pointer;color:#e0e0e0;transition:color .12s;line-height:1">★</span>`).join('')}
+      </div>
+      <textarea id="cal-comentario" placeholder="Cuéntanos tu experiencia (opcional)..." style="width:100%;border:2px solid #e0e6f0;border-radius:12px;padding:12px 14px;font-family:Montserrat,sans-serif;font-size:13px;color:#1a2740;resize:none;outline:none;height:80px;margin-bottom:16px;transition:border-color .2s" onfocus="this.style.borderColor='#2563c4'" onblur="this.style.borderColor='#e0e6f0'"></textarea>
+      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,#f05a1a,#ff7a3d);border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
+      <button onclick="cerrarModalCalificacion()" style="width:100%;padding:11px;background:transparent;border:none;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Omitir</button>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
+function calHover(n) {
+  document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
+    s.style.color = i < n ? '#f05a1a' : '#e0e0e0'
+  })
+}
+
+function calResetHover() {
+  document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
+    s.style.color = i < _calStars ? '#f05a1a' : '#e0e0e0'
+  })
+}
+
+function calSelect(n) {
+  _calStars = n
+  calResetHover()
+}
+
+async function enviarCalificacion(pedidoId, repartidor) {
+  if (!_calStars) {
+    mostrarToast('Selecciona al menos una estrella ⭐', 'var(--orange)')
+    return
+  }
+  const comentario = document.getElementById('cal-comentario').value.trim()
+  const { data: { session } } = await db.auth.getSession()
+  await db.from('calificaciones').insert({
+    pedido_id: pedidoId,
+    user_id: session?.user?.id || null,
+    repartidor: repartidor || null,
+    estrellas: _calStars,
+    comentario: comentario || null
+  })
+  cerrarModalCalificacion()
+  mostrarToast('¡Gracias por tu calificación! ⭐', 'var(--success)')
+}
+
+function cerrarModalCalificacion() {
+  const el = document.getElementById('modal-calificacion')
+  if (!el) return
+  el.style.opacity = '0'
+  el.style.transition = 'opacity .25s'
+  setTimeout(() => el.remove(), 260)
+}
+
+// ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
+
+function initMapsGuepack() {
+  const gdlBounds = new google.maps.LatLngBounds(
+    { lat: 20.50, lng: -103.55 },
+    { lat: 20.85, lng: -103.15 }
+  )
+  const opts = {
+    componentRestrictions: { country: 'mx' },
+    fields: ['formatted_address', 'address_components', 'geometry'],
+    bounds: gdlBounds,
+    strictBounds: false
+  }
+  const inputRec = document.getElementById('dir-recoleccion')
+  const inputEnt = document.getElementById('dir-entrega')
+  if (!inputRec || !inputEnt) return
+
+  new google.maps.places.Autocomplete(inputRec, opts)
+
+  const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
+  acEntrega.addListener('place_changed', function () {
+    const place = acEntrega.getPlace()
+    if (!place.geometry) return
+    _detectarZonaEntrega(place)
+  })
+}
+
+function _pointInPolygon(lat, lng, polygon) {
+  let inside = false
+  const x = lng, y = lat
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat
+    const xj = polygon[j].lng, yj = polygon[j].lat
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside
+  }
+  return inside
+}
+
+async function _detectarZonaEntrega(place) {
+  const aviso = document.getElementById('zona-aviso')
+  if (aviso) aviso.style.display = 'none'
+
+  const result = document.getElementById('zona-detect-result')
+  if (result) {
+    result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
+    result.innerHTML = '<span style="font-size:16px">⏳</span><span>Verificando zona...</span>'
+  }
+
+  const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
+
+  if (!zonas?.length || !zonas.some(z => z.coordenadas?.length >= 3)) {
+    _fallbackZonaCiudad(place, result)
+    return
+  }
+
+  const loc = place.geometry?.location
+  if (!loc) { _mostrarResultadoZona(result, false, null); return }
+
+  const lat = loc.lat(), lng = loc.lng()
+  const zonaEncontrada = zonas.find(z => z.coordenadas?.length >= 3 && _pointInPolygon(lat, lng, z.coordenadas))
+
+  if (zonaEncontrada) {
+    _zonaData = zonaEncontrada
+    selZone   = zonaEncontrada.nombre
+    _mostrarResultadoZona(result, true, zonaEncontrada)
+    updateQuote()
+  } else {
+    _zonaData = null
+    selZone   = null
+    _mostrarResultadoZona(result, false, null)
+  }
+}
+
+function _mostrarResultadoZona(el, disponible, zona) {
+  if (!el) return
+  if (disponible && zona) {
+    el.style.background = '#f0fdf4'
+    el.style.border     = '1.5px solid #86efac'
+    el.style.color      = '#16a34a'
+    el.innerHTML = `<span style="font-size:18px">✅</span><div><div>${zona.nombre}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Sobre $${zona.precio_sobre} · Grande $${zona.precio_grande}</div></div>`
+  } else {
+    el.style.background = '#fef2f2'
+    el.style.border     = '1.5px solid #fca5a5'
+    el.style.color      = '#dc2626'
+    el.innerHTML = '<span style="font-size:18px">❌</span><span>Lo sentimos, esta dirección está fuera de nuestra zona de cobertura</span>'
+  }
+}
+
+function _fallbackZonaCiudad(place, result) {
+  const comps    = place.address_components || []
+  const ciudad   = (comps.find(c => c.types.includes('locality'))?.long_name || '').toLowerCase()
+  const municipio = (comps.find(c => c.types.includes('administrative_area_level_2'))?.long_name || '').toLowerCase()
+  const zona     = ciudad || municipio
+  const noDisp   = ['tonalá','tonala'].some(z => zona.includes(z))
+  const disponible = ['guadalajara','zapopan','tlaquepaque','san pedro tlaquepaque'].some(z => zona.includes(z))
+
+  _zonaData = null; selZone = null
+  if (!result) return
+
+  if (noDisp) {
+    result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
+    result.innerHTML = '<span style="font-size:18px">❌</span><span>Tonalá no está en nuestra zona de cobertura</span>'
+  } else if (disponible) {
+    result.style.background = '#fffbeb'; result.style.border = '1.5px solid #fcd34d'; result.style.color = '#d97706'
+    result.innerHTML = '<span style="font-size:18px">⚠️</span><span>Zona sin precio configurado aún — contacta a GUEPACK</span>'
+  } else {
+    result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
+    result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
+  }
+}
+
+</script>
+<!-- ── Modo Lluvia ── -->
+<div id="lluvia-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;pointer-events:none">
+  <canvas id="lluvia-canvas" style="width:100%;height:100%"></canvas>
+</div>
+
+<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,#1a4fa0,#2563c4);color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
+  <div style="font-size:24px;margin-bottom:6px">🌧️</div>
+  <div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:4px">AVISO CLIMÁTICO</div>
+  <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="lluvia-mensaje">Por condiciones climáticas, es posible que tu pedido tenga retrasos. ¡Gracias por tu comprensión!</div>
+</div>
+
+<!-- FAB Soporte -->
+<button
+  onclick="abrirChat(null,'cliente','Soporte GUEPACK')"
+  style="position:fixed;bottom:80px;right:16px;z-index:998;width:56px;height:56px;border-radius:50%;background:#f05a1a;color:white;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(240,90,26,0.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:Montserrat,sans-serif;padding:0;transition:transform .15s,box-shadow .15s"
+  onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 28px rgba(240,90,26,0.6)'"
+  onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(240,90,26,0.5)'"
+>
+  <span style="font-size:22px;line-height:1">🎧</span>
+  <span style="font-size:8px;font-weight:900;letter-spacing:.5px">SOPORTE</span>
+</button>
+
+</body>
+</html>

@@ -27,7 +27,7 @@ self.addEventListener('message', event => {
 })
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return
-  if (event.request.url.includes('index.html')) {
+  if (event.request.url.includes('app.html')) {
     event.respondWith(fetch(event.request))
   }
 })

@@ -76,7 +76,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 2000))
   const { data: { session } } = await db.auth.getSession()
   if (session) {
-    window.location.href = 'index.html'
+    window.location.href = 'app.html'
   } else {
     window.location.href = 'landing.html.html'
   }

@@ -255,7 +255,7 @@ async function redirigirSegunRol(email) {
   console.log('Email:', email, 'Rol:', data, 'Error:', error)
   
   if (error || !data) {
-    window.location.href = 'index.html'
+    window.location.href = 'app.html'
     return
   }
 
@@ -264,7 +264,7 @@ async function redirigirSegunRol(email) {
   } else if (data.rol === 'repartidor') {
     window.location.href = 'repartidor.html'
   } else {
-    window.location.href = 'index.html'
+    window.location.href = 'app.html'
   }
 }
 
