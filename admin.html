@@ -1616,7 +1616,7 @@ async function cargarClientesWidget() {
     return
   }
   cont.innerHTML = data.map(c => {
-    const embedCode = `<script src='https://guepack.vercel.app/widget.js?client=${c.codigo}'><\/script>`
+    const embedCode = `<script src='https://guepack.com/widget.js?client=${c.codigo}'><\/script>`
     return `
     <div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px;border-left:4px solid ${c.activo ? 'var(--success)' : 'var(--gray-mid)'}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
