@@ -157,7 +157,7 @@ function initMapsAdmin() {
   <div class="tabs">
     <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
     <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
-    <button class="tab" onclick="showTab('chats')">💬 Chats</button>
+    <button class="tab" onclick="showTab('chats')" id="tab-btn-chats" style="position:relative">💬 Chats<span id="admin-chat-badge" style="display:none;position:absolute;top:3px;right:3px;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
     <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
@@ -629,7 +629,12 @@ function showTab(tab, btn) {
   document.getElementById('tab-' + tab).classList.add('active')
   const activeBtn = btn || (typeof event !== 'undefined' && event.target)
   if (activeBtn) { activeBtn.classList.add('active'); _moverIndicador(activeBtn) }
-  if (tab === 'chats') cargarChats()
+  if (tab === 'chats') {
+    cargarChats()
+    _adminUnreadCount = 0
+    const _ab = document.getElementById('admin-chat-badge')
+    if (_ab) _ab.style.display = 'none'
+  }
   if (tab === 'publicidad') cargarAnuncios()
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
@@ -1188,6 +1193,9 @@ async function cargarChats() {
 
 async function abrirChat(pedidoId, rol, titulo) {
   _chatPedidoId = pedidoId; _chatRol = rol
+  _adminUnreadCount = 0
+  const _ab = document.getElementById('admin-chat-badge')
+  if (_ab) _ab.style.display = 'none'
   if (document.getElementById('modal-chat')) cerrarChat()
   const modal = document.createElement('div')
   modal.id = 'modal-chat'
@@ -1221,6 +1229,11 @@ async function _cargarMensajesChat() {
   if (!c) return
   ;(data || []).forEach(m => _agregarBurbuja(m, false))
   c.scrollTop = c.scrollHeight
+  if (_chatPedidoId) {
+    db.from('mensajes').update({ leido: true }).eq('pedido_id', _chatPedidoId).eq('leido', false).then(() => {})
+  } else {
+    db.from('mensajes').update({ leido: true }).is('pedido_id', null).eq('tipo', 'soporte').eq('leido', false).then(() => {})
+  }
 }
 
 function _agregarBurbuja(msg, scroll = true) {
@@ -1251,6 +1264,29 @@ function cerrarChat() {
   if (_chatChannel) { db.removeChannel(_chatChannel); _chatChannel = null }
   const m = document.getElementById('modal-chat'); if (m) m.remove()
 }
+
+let _adminUnreadCount = 0
+
+if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+
+db.channel('admin-mensajes-global')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, payload => {
+    const msg = payload.new
+    if (msg.de === 'admin') return
+    const esSoporte = !msg.pedido_id && msg.tipo === 'soporte'
+    const esMismaConv = msg.pedido_id
+      ? (_chatPedidoId === msg.pedido_id)
+      : (esSoporte && _chatPedidoId === null)
+    if (esMismaConv && document.getElementById('modal-chat')) return
+    _adminUnreadCount++
+    const badge = document.getElementById('admin-chat-badge')
+    if (badge) { badge.textContent = _adminUnreadCount; badge.style.display = 'flex' }
+    if (Notification.permission === 'granted') {
+      const titulo = esSoporte ? '🆘 Nuevo mensaje de soporte' : '💬 Nuevo mensaje'
+      new Notification(titulo, { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'admin-' + (msg.pedido_id || 'soporte') })
+    }
+  })
+  .subscribe()
 
 async function cerrarSesion() {
   await db.auth.signOut()
