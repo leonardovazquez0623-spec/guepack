@@ -117,7 +117,22 @@
   /* Admin toast */
   #admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a2740; color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
   #admin-toast.show { transform: translateX(-50%) translateY(0); }
+  @keyframes slideUp { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 </style>
+<script>
+// Callback real — Google Maps lo llama cuando termina de cargar
+function initMapsAdmin() {
+  window._gMapsReady = true
+  var container = document.getElementById('zonas-map-container')
+  if (container && container.style.display !== 'none' && typeof _initZonasMap === 'function') {
+    _initZonasMap()
+    if (typeof window._pendingMapAction === 'function') {
+      var fn = window._pendingMapAction; window._pendingMapAction = null; fn()
+    }
+  }
+}
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
 </head>
 <body>
 
@@ -148,6 +163,7 @@
     <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
     <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
     <button class="tab" onclick="showTab('vip')">👑 VIP</button>
+    <button class="tab" onclick="showTab('zonas')">🗺️ Zonas</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -176,7 +192,8 @@
     <button onclick="filtrarFecha(2)" id="btn-2dias" class="btn" style="padding:6px 12px;font-size:10px;border-radius:8px;background:var(--gray);color:var(--text)">Hace 2 días</button>
   </div>
 </div>
-<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+  <button id="btn-optimizar" onclick="optimizarRuta()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px">🗺️ Optimizar Ruta</button>
   <button onclick="exportarExcel()" style="background:var(--success);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px">📊 Exportar Excel</button>
 </div>
     <div id="lista-pedidos">
@@ -494,6 +511,63 @@
 
   </div>
 
+  <!-- TAB ZONAS -->
+  <div id="tab-zonas" class="tab-content">
+
+    <!-- Acciones principales (siempre visibles) -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <button id="btn-abrir-mapa" onclick="_abrirEditorMapa()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">🗺️ Abrir editor de mapa</button>
+      <button onclick="zonaFormOpen(null)" style="background:var(--orange);color:white;border:none;border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">+ Nueva zona</button>
+    </div>
+
+    <!-- Contenedor del mapa (oculto por defecto) -->
+    <div id="zonas-map-container" style="display:none">
+      <div style="border-radius:16px;overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow);position:relative">
+        <div id="zonas-map" style="width:100%;height:340px;background:#e8edf5"></div>
+        <div id="zonas-map-hint" style="display:none;position:absolute;bottom:10px;left:10px;right:10px;background:rgba(10,20,50,0.82);color:#fff;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;padding:9px 14px;border-radius:10px;z-index:5;text-align:center"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+        <button id="btn-cerrar-poligono" onclick="_cerrarPoligono()" style="display:none;background:var(--blue-light);color:white;border:none;border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">⬡ Cerrar polígono</button>
+        <button id="btn-guardar-poligono" onclick="guardarPoligono()" style="display:none;background:var(--success);color:white;border:none;border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">💾 Guardar zona</button>
+        <button onclick="_cerrarEditorMapa()" style="background:var(--gray);color:var(--text);border:2px solid var(--gray-mid);border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-left:auto">✕ Cerrar mapa</button>
+      </div>
+    </div>
+
+    <!-- Lista de zonas -->
+    <div id="zonas-lista">
+      <div class="empty-state"><span class="empty-icon">🗺️</span><div class="empty-text">Cargando zonas...</div></div>
+    </div>
+
+    <!-- Formulario nueva/editar zona -->
+    <div id="zonas-form" class="card" style="display:none;margin-top:14px">
+      <div class="card-title" id="zonas-form-title">Nueva zona</div>
+      <input type="hidden" id="z-id">
+      <div class="form-group">
+        <label class="form-label">Nombre de la zona</label>
+        <input class="form-input" id="z-nombre" placeholder="Ej. Centro GDL" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color del polígono</label>
+        <input type="color" id="z-color" value="#1a4fa0" style="width:100%;height:44px;border:2px solid var(--gray);border-radius:10px;cursor:pointer;padding:3px 6px;background:white">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Precio Sobre/Chico ($)</label>
+          <input class="form-input" type="number" id="z-precio-sobre" placeholder="110" min="0" step="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Precio Grande ($)</label>
+          <input class="form-input" type="number" id="z-precio-grande" placeholder="150" min="0" step="1">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="guardarMetadataZona()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar y dibujar</button>
+        <button onclick="zonaFormClose()" style="padding:12px 16px;background:var(--gray);color:var(--text);border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -561,6 +635,7 @@ function showTab(tab, btn) {
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
   if (tab === 'vip') cargarVip()
+  if (tab === 'zonas') cargarZonas()
 }
 
 function _moverIndicador(tabEl) {
@@ -1688,6 +1763,512 @@ async function cargarFinanzas() {
 })()
 
 init()
+
+// ── Zonas de cobertura ────────────────────────────────────────────────────────
+
+let _zonasMap = null
+let _zonasPolygons = {}       // id → Polygon estático en el mapa
+let _editablePolygon = null   // Polygon editable (después de cerrar dibujo)
+let _editingZonaId = null
+
+// Estado del dibujo manual
+let _drawMode   = false
+let _drawColor  = '#1a4fa0'
+let _drawPoints = []          // [{lat,lng}, ...]
+let _drawMarkers    = []      // Marker por vértice
+let _drawPolyline   = null    // Polyline de vista previa
+let _drawFillPoly   = null    // Polygon semitransparente de vista previa
+let _mapClickLstnr  = null
+let _mapDblLstnr    = null
+let _clickTimer     = null
+
+function _abrirEditorMapa() {
+  document.getElementById('zonas-map-container').style.display = 'block'
+  document.getElementById('btn-abrir-mapa').style.display = 'none'
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      _initZonasMap()
+      if (_zonasMap && typeof window._pendingMapAction === 'function') {
+        var fn = window._pendingMapAction; window._pendingMapAction = null; fn()
+      }
+    })
+  })
+}
+
+function _cerrarEditorMapa() {
+  _limpiarDibujo()
+  if (_editablePolygon) { _editablePolygon.setMap(null); _editablePolygon = null }
+  document.getElementById('zonas-map-container').style.display = 'none'
+  document.getElementById('btn-abrir-mapa').style.display = 'inline-block'
+}
+
+function _initZonasMap() {
+  if (!window._gMapsReady || !window.google?.maps?.Map) return
+  const mapEl = document.getElementById('zonas-map')
+  if (!mapEl) return
+  if (_zonasMap) { google.maps.event.trigger(_zonasMap, 'resize'); return }
+
+  _zonasMap = new google.maps.Map(mapEl, {
+    center: { lat: 20.6597, lng: -103.3496 },
+    zoom: 12,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
+    clickableIcons: false
+  })
+
+  _cargarZonasEnMapa()
+}
+
+// ── Dibujo manual click-a-click ───────────────────────────────────────────────
+
+function _activarDibujo(color) {
+  if (!_zonasMap) return
+  _limpiarDibujo()
+  _drawMode  = true
+  _drawColor = color || '#1a4fa0'
+
+  _zonasMap.setOptions({ draggableCursor: 'crosshair', disableDoubleClickZoom: true })
+
+  // Click simple → agregar vértice (con debounce para no dispararse en doble-click)
+  _mapClickLstnr = google.maps.event.addListener(_zonasMap, 'click', function(e) {
+    if (_clickTimer) return
+    var lat = e.latLng.lat(), lng = e.latLng.lng()
+    _clickTimer = setTimeout(function() {
+      _clickTimer = null
+      _agregarPunto(lat, lng)
+    }, 220)
+  })
+
+  // Doble click → cerrar polígono
+  _mapDblLstnr = google.maps.event.addListener(_zonasMap, 'dblclick', function() {
+    if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null }
+    _cerrarPoligono()
+  })
+
+  _setHint('🖊️ Haz clic en el mapa para agregar vértices. Doble clic o "Cerrar polígono" para terminar.')
+  document.getElementById('btn-cerrar-poligono').style.display = 'inline-block'
+  document.getElementById('btn-guardar-poligono').style.display = 'none'
+  document.getElementById('zonas-map').scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+function _agregarPunto(lat, lng) {
+  var idx = _drawPoints.length
+  _drawPoints.push({ lat: lat, lng: lng })
+
+  // Marcador arrastrable para el vértice
+  var marker = new google.maps.Marker({
+    position: { lat: lat, lng: lng },
+    map: _zonasMap,
+    draggable: true,
+    cursor: 'grab',
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 7,
+      fillColor: _drawColor,
+      fillOpacity: 1,
+      strokeColor: '#ffffff',
+      strokeWeight: 2.5
+    },
+    zIndex: 10
+  })
+
+  // Al arrastrar el marcador, actualizar el punto y la vista previa
+  ;(function(i) {
+    google.maps.event.addListener(marker, 'drag', function() {
+      _drawPoints[i] = { lat: marker.getPosition().lat(), lng: marker.getPosition().lng() }
+      _actualizarVistaPreviaDibujo()
+    })
+  })(idx)
+
+  _drawMarkers.push(marker)
+  _actualizarVistaPreviaDibujo()
+
+  var n = _drawPoints.length
+  _setHint('🖊️ ' + n + ' vértice' + (n !== 1 ? 's' : '') + ' — ' + (n < 3 ? 'mínimo 3 para cerrar' : 'doble clic o "Cerrar polígono" para terminar'))
+}
+
+function _actualizarVistaPreviaDibujo() {
+  var pts = _drawPoints.map(function(p) { return { lat: p.lat, lng: p.lng } })
+
+  if (_drawPolyline) {
+    _drawPolyline.setPath(pts)
+  } else {
+    _drawPolyline = new google.maps.Polyline({
+      path: pts,
+      strokeColor: _drawColor,
+      strokeWeight: 2.5,
+      strokeOpacity: 0.85,
+      map: _zonasMap,
+      zIndex: 5
+    })
+  }
+
+  if (pts.length >= 3) {
+    if (_drawFillPoly) {
+      _drawFillPoly.setPath(pts)
+    } else {
+      _drawFillPoly = new google.maps.Polygon({
+        paths: pts,
+        fillColor: _drawColor,
+        fillOpacity: 0.12,
+        strokeOpacity: 0,
+        clickable: false,
+        map: _zonasMap,
+        zIndex: 4
+      })
+    }
+  }
+}
+
+function _cerrarPoligono() {
+  if (_drawPoints.length < 3) {
+    _setHint('⚠️ Necesitas al menos 3 vértices para cerrar el polígono.')
+    return
+  }
+
+  _drawMode = false
+  if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null }
+  if (_mapClickLstnr) { google.maps.event.removeListener(_mapClickLstnr); _mapClickLstnr = null }
+  if (_mapDblLstnr)   { google.maps.event.removeListener(_mapDblLstnr);   _mapDblLstnr = null }
+  _zonasMap.setOptions({ draggableCursor: null, disableDoubleClickZoom: false })
+
+  // Eliminar vista previa temporal
+  if (_drawPolyline) { _drawPolyline.setMap(null); _drawPolyline = null }
+  if (_drawFillPoly) { _drawFillPoly.setMap(null); _drawFillPoly = null }
+  _drawMarkers.forEach(function(m) { m.setMap(null) })
+  _drawMarkers = []
+
+  // Polígono editable final
+  if (_editablePolygon) _editablePolygon.setMap(null)
+  _editablePolygon = new google.maps.Polygon({
+    paths: _drawPoints.map(function(p) { return { lat: p.lat, lng: p.lng } }),
+    fillColor: _drawColor,
+    fillOpacity: 0.22,
+    strokeWeight: 2.5,
+    strokeColor: _drawColor,
+    editable: true,
+    draggable: false,
+    map: _zonasMap,
+    zIndex: 5
+  })
+
+  _drawPoints = []
+  document.getElementById('btn-cerrar-poligono').style.display = 'none'
+  document.getElementById('btn-guardar-poligono').style.display = 'inline-block'
+  _setHint('✅ Polígono cerrado. Arrastra los vértices para ajustar y pulsa "Guardar zona".')
+}
+
+function _limpiarDibujo() {
+  _drawMode = false
+  if (_clickTimer) { clearTimeout(_clickTimer); _clickTimer = null }
+  if (_mapClickLstnr) { google.maps.event.removeListener(_mapClickLstnr); _mapClickLstnr = null }
+  if (_mapDblLstnr)   { google.maps.event.removeListener(_mapDblLstnr);   _mapDblLstnr = null }
+  if (_drawPolyline) { _drawPolyline.setMap(null); _drawPolyline = null }
+  if (_drawFillPoly) { _drawFillPoly.setMap(null); _drawFillPoly = null }
+  _drawMarkers.forEach(function(m) { m.setMap(null) })
+  _drawMarkers = []
+  _drawPoints  = []
+  if (_zonasMap) _zonasMap.setOptions({ draggableCursor: null, disableDoubleClickZoom: false })
+  document.getElementById('btn-cerrar-poligono').style.display = 'none'
+  document.getElementById('btn-guardar-poligono').style.display = 'none'
+}
+
+async function _cargarZonasEnMapa() {
+  if (!_zonasMap) return
+  const { data } = await db.from('zonas_cobertura').select('*')
+  if (!data) return
+  Object.values(_zonasPolygons).forEach(p => p.setMap(null))
+  _zonasPolygons = {}
+  data.forEach(function(zona) {
+    if (!zona.coordenadas || zona.coordenadas.length < 3) return
+    _zonasPolygons[zona.id] = new google.maps.Polygon({
+      paths: zona.coordenadas.map(function(p) { return { lat: p.lat, lng: p.lng } }),
+      fillColor: zona.color || '#1a4fa0',
+      fillOpacity: zona.activa ? 0.18 : 0.04,
+      strokeWeight: 2,
+      strokeColor: zona.color || '#1a4fa0',
+      strokeOpacity: zona.activa ? 1 : 0.3,
+      map: _zonasMap,
+      zIndex: 0
+    })
+  })
+}
+
+async function cargarZonas() {
+  const { data } = await db.from('zonas_cobertura').select('*').order('id')
+  const lista = document.getElementById('zonas-lista')
+  if (!lista) return
+  if (!data?.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-mid);font-size:12px;font-weight:700;font-family:Montserrat,sans-serif">Sin zonas configuradas. Pulsa "+ Nueva zona" para empezar.</div>'
+    return
+  }
+  lista.innerHTML = data.map(function(z) {
+    var tienePoligono = z.coordenadas && z.coordenadas.length >= 3
+    return '<div class="card" style="margin-bottom:10px;padding:14px 16px">' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<div style="width:14px;height:14px;border-radius:3px;background:' + (z.color||'#1a4fa0') + ';flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:900;font-size:13px">' + z.nombre + '</div>' +
+          '<div style="font-size:10px;color:var(--gray-mid);font-weight:700;margin-top:2px">Sobre $' + z.precio_sobre + ' · Grande $' + z.precio_grande + ' · ' + (tienePoligono ? '✅ Con polígono' : '⚠️ Sin polígono') + '</div>' +
+        '</div>' +
+        '<label class="toggle">' +
+          '<input type="checkbox" ' + (z.activa ? 'checked' : '') + ' onchange="toggleZonaActiva(' + z.id + ', this.checked)">' +
+          '<span class="toggle-slider"></span>' +
+        '</label>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:10px">' +
+        '<button onclick="zonaEditar(' + z.id + ')" style="flex:1;padding:7px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✏️ Editar</button>' +
+        '<button onclick="zonaEditarPoligono(' + z.id + ')" style="flex:1;padding:7px;background:var(--gray);color:var(--text);border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🖊️ Polígono</button>' +
+        '<button onclick="zonaEliminar(' + z.id + ',' + JSON.stringify(z.nombre) + ')" style="flex:1;padding:7px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️</button>' +
+      '</div>' +
+    '</div>'
+  }).join('')
+}
+
+function zonaFormOpen(zona) {
+  document.getElementById('z-id').value           = zona ? zona.id : ''
+  document.getElementById('z-nombre').value       = zona ? zona.nombre : ''
+  document.getElementById('z-color').value        = zona ? (zona.color || '#1a4fa0') : '#1a4fa0'
+  document.getElementById('z-precio-sobre').value  = zona ? zona.precio_sobre : ''
+  document.getElementById('z-precio-grande').value = zona ? zona.precio_grande : ''
+  document.getElementById('zonas-form-title').textContent = zona ? 'Editar zona' : 'Nueva zona'
+  document.getElementById('zonas-form').style.display = 'block'
+  document.getElementById('zonas-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
+function zonaFormClose() {
+  document.getElementById('zonas-form').style.display = 'none'
+  document.getElementById('z-id').value = ''
+}
+
+async function guardarMetadataZona() {
+  var id            = document.getElementById('z-id').value
+  var nombre        = document.getElementById('z-nombre').value.trim()
+  var color         = document.getElementById('z-color').value
+  var precio_sobre  = parseFloat(document.getElementById('z-precio-sobre').value) || 0
+  var precio_grande = parseFloat(document.getElementById('z-precio-grande').value) || 0
+
+  if (!nombre)                         return showToast('⚠️ Ingresa el nombre de la zona')
+  if (!precio_sobre || !precio_grande) return showToast('⚠️ Ingresa ambos precios')
+
+  var result
+  if (id) {
+    result = await db.from('zonas_cobertura').update({ nombre, color, precio_sobre, precio_grande }).eq('id', id)
+    _editingZonaId = parseInt(id)
+  } else {
+    result = await db.from('zonas_cobertura').insert({ nombre, color, precio_sobre, precio_grande, activa: true }).select('id').single()
+    _editingZonaId = result.data?.id
+  }
+  if (result.error) return showToast('❌ Error: ' + result.error.message)
+
+  showToast('✅ Zona guardada. Ahora dibuja el polígono en el mapa.')
+  zonaFormClose()
+  cargarZonas()
+  if (document.getElementById('zonas-map-container').style.display === 'none') {
+    window._pendingMapAction = function() { _activarDibujo(color) }
+    _abrirEditorMapa()
+  } else {
+    _activarDibujo(color)
+  }
+}
+
+function zonaEditar(id) {
+  db.from('zonas_cobertura').select('*').eq('id', id).single().then(function(res) {
+    if (res.data) zonaFormOpen(res.data)
+  })
+}
+
+function zonaEditarPoligono(id) {
+  _editingZonaId = id
+  _limpiarDibujo()
+  if (_editablePolygon) { _editablePolygon.setMap(null); _editablePolygon = null }
+
+  if (document.getElementById('zonas-map-container').style.display === 'none') {
+    window._pendingMapAction = function() { zonaEditarPoligono(id) }
+    _abrirEditorMapa()
+    return
+  }
+
+  db.from('zonas_cobertura').select('coordenadas, color').eq('id', id).single().then(function(res) {
+    var data = res.data
+    if (!data) return
+    var color = data.color || '#1a4fa0'
+    _drawColor = color
+
+    if (!data.coordenadas || data.coordenadas.length < 3) {
+      // Sin coordenadas → iniciar dibujo desde cero
+      _activarDibujo(color)
+      _setHint('🖊️ Sin polígono previo. Haz clic en el mapa para crear los vértices.')
+      return
+    }
+
+    // Mostrar polígono existente como editable con vértices arrastrables
+    if (_zonasPolygons[id]) _zonasPolygons[id].setMap(null)
+    _editablePolygon = new google.maps.Polygon({
+      paths: data.coordenadas.map(function(p) { return { lat: p.lat, lng: p.lng } }),
+      fillColor: color,
+      fillOpacity: 0.22,
+      strokeWeight: 2.5,
+      strokeColor: color,
+      editable: true,
+      draggable: false,
+      map: _zonasMap,
+      zIndex: 5
+    })
+
+    var bounds = new google.maps.LatLngBounds()
+    data.coordenadas.forEach(function(p) { bounds.extend({ lat: p.lat, lng: p.lng }) })
+    _zonasMap.fitBounds(bounds, 40)
+
+    _setHint('✏️ Arrastra los vértices blancos para ajustar el polígono. Pulsa "Guardar zona" cuando termines.')
+    document.getElementById('btn-guardar-poligono').style.display = 'inline-block'
+    document.getElementById('zonas-map').scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+async function guardarPoligono() {
+  if (!_editablePolygon || !_editingZonaId) return showToast('⚠️ Dibuja primero un polígono en el mapa')
+  var path = _editablePolygon.getPath().getArray().map(function(p) { return { lat: p.lat(), lng: p.lng() } })
+  if (path.length < 3) return showToast('⚠️ El polígono necesita al menos 3 vértices')
+
+  var result = await db.from('zonas_cobertura').update({ coordenadas: path }).eq('id', _editingZonaId)
+  if (result.error) return showToast('❌ Error al guardar: ' + result.error.message)
+
+  showToast('✅ Polígono guardado correctamente')
+  _editablePolygon.setEditable(false)
+  _editablePolygon.setDraggable(false)
+  _editingZonaId = null
+  document.getElementById('btn-guardar-poligono').style.display = 'none'
+  _setHint('')
+  _cargarZonasEnMapa()
+  cargarZonas()
+}
+
+async function toggleZonaActiva(id, activa) {
+  var result = await db.from('zonas_cobertura').update({ activa }).eq('id', id)
+  if (result.error) showToast('❌ Error al actualizar')
+  else _cargarZonasEnMapa()
+}
+
+async function zonaEliminar(id, nombre) {
+  if (!confirm('¿Eliminar la zona "' + nombre + '"?')) return
+  var result = await db.from('zonas_cobertura').delete().eq('id', id)
+  if (result.error) return showToast('❌ Error: ' + result.error.message)
+  showToast('🗑️ Zona eliminada')
+  if (_zonasPolygons[id]) { _zonasPolygons[id].setMap(null); delete _zonasPolygons[id] }
+  cargarZonas()
+}
+
+function _setHint(msg) {
+  var el = document.getElementById('zonas-map-hint')
+  if (!el) return
+  el.textContent = msg
+  el.style.display = msg ? 'block' : 'none'
+}
+
+// ── Optimización de Ruta ─────────────────────────────────────────────────────
+
+const _ZONA_KEYS = {
+  'Norte':         ['zapopan', 'atemajac', 'tabachines', 'huentitán', 'huentitan', 'ciudad granja', 'tesistán', 'tesistan', 'el colli', 'lomas de zapopan', 'jardines de la cruz', 'residencial colón', 'villas de zapopan', 'santa fe'],
+  'Centro':        ['centro histórico', 'centro historico', 'santa tere', 'santa teresita', 'mexicaltzingo', 'analco', 'oblatos', 'reforma', 'atlas', 'miraflores', 'sector libertad', 'sector hidalgo', 'sector reform', 'independencia', 'alcalde'],
+  'Sur/Poniente':  ['tlaquepaque', 'chapalita', 'arcos', 'jardines del bosque', 'las fuentes', 'santa anita', 'americana', 'ladrón de guevara', 'ladron de guevara', 'providencia', 'vallarta', 'patria', 'universitaria', 'noche buena', 'colomos', 'fovissste'],
+  'Oriente':       ['tonalá', 'tonala', 'el castillo', 'san gaspar']
+}
+
+function _detectarZonaAdmin(dir) {
+  const d = (dir || '').toLowerCase()
+  for (const [zona, keys] of Object.entries(_ZONA_KEYS)) {
+    if (keys.some(k => d.includes(k))) return zona
+  }
+  return 'Otros'
+}
+
+function _extraerColonia(dir) {
+  const m = (dir || '').match(/col(?:onia)?[\.\s]+([^,\n]+)/i)
+  if (m) return m[1].trim()
+  const partes = (dir || '').split(',')
+  return partes.length > 1 ? partes[1].trim() : (dir || '').trim()
+}
+
+async function optimizarRuta() {
+  const btn = document.getElementById('btn-optimizar')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Calculando...' }
+
+  const hoy = new Date().toISOString().split('T')[0]
+  const { data: pedidos, error } = await db.from('pedidos')
+    .select('id, nombre, direccion_entrega, direccion_recoleccion, estado, tamanio')
+    .eq('fecha', hoy)
+    .in('estado', ['Pendiente', 'Asignado', 'En camino a recoleccion', 'En camino a entrega'])
+    .order('id', { ascending: true })
+
+  if (btn) { btn.disabled = false; btn.textContent = '🗺️ Optimizar Ruta' }
+
+  if (error || !pedidos?.length) {
+    showToast('Sin pedidos activos hoy para optimizar')
+    return
+  }
+
+  const grupos = {}
+  pedidos.forEach(p => {
+    const zona = _detectarZonaAdmin(p.direccion_entrega)
+    if (!grupos[zona]) grupos[zona] = []
+    grupos[zona].push(p)
+  })
+  Object.values(grupos).forEach(arr =>
+    arr.sort((a, b) => _extraerColonia(a.direccion_entrega).localeCompare(_extraerColonia(b.direccion_entrega)))
+  )
+  _mostrarModalRuta(grupos, pedidos.length)
+}
+
+function _mostrarModalRuta(grupos, total) {
+  const existing = document.getElementById('modal-ruta')
+  if (existing) existing.remove()
+
+  const zonaOrder = ['Norte', 'Centro', 'Sur/Poniente', 'Oriente', 'Otros']
+  const zonaIcono = { 'Norte': '⬆️', 'Centro': '🎯', 'Sur/Poniente': '⬇️', 'Oriente': '➡️', 'Otros': '📌' }
+  let num = 1
+  let html = ''
+
+  for (const zona of zonaOrder) {
+    const lista = grupos[zona]
+    if (!lista?.length) continue
+    html += `<div style="margin-bottom:18px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--blue);letter-spacing:1.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--gray)">
+        ${zonaIcono[zona] || '📌'} ${zona} <span style="font-size:12px;font-weight:700;font-family:Montserrat,sans-serif;color:var(--gray-mid)">(${lista.length})</span>
+      </div>`
+    lista.forEach(p => {
+      const mapsUrl = `https://maps.google.com?q=${encodeURIComponent(p.direccion_entrega || '')}`
+      html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray)">
+        <div style="background:var(--blue);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${num++}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--text)">GK-${String(p.id).padStart(4,'0')} · ${p.nombre}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion_entrega || '—'}</div>
+        </div>
+        <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--blue);font-size:20px;flex-shrink:0;text-decoration:none;line-height:1;margin-top:2px" title="Abrir en Maps">📍</a>
+      </div>`
+    })
+    html += '</div>'
+  }
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-ruta'
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,20,50,0.72);z-index:10000;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)'
+  modal.innerHTML = `
+    <div style="background:#fff;width:100%;max-width:520px;max-height:85vh;border-radius:20px 20px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:slideUp .3s cubic-bezier(.22,1,.36,1)">
+      <div style="background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;letter-spacing:2px">🗺️ Ruta Optimizada</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.65);font-family:Montserrat,sans-serif;font-weight:600">${total} parada${total !== 1 ? 's' : ''} · agrupadas por zona</div>
+        </div>
+        <button onclick="document.getElementById('modal-ruta').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <div style="overflow-y:auto;padding:16px 20px;flex:1">${html || '<div style="text-align:center;padding:24px;color:var(--gray-mid);font-size:13px;font-family:Montserrat,sans-serif;font-weight:700">Sin pedidos activos hoy</div>'}</div>
+    </div>`
+
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
 </script>
 </body>
 </html>
