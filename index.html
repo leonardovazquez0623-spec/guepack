@@ -1002,6 +1002,7 @@ if ('serviceWorker' in navigator) {
       if (!banner) return
       banner.style.display = 'flex'
       document.getElementById('update-btn').onclick = () => {
+        localStorage.setItem('guepack_actualizada', 'true')
         swWaiting.postMessage({ type: 'SKIP_WAITING' })
       }
     }
@@ -1086,6 +1087,11 @@ function selectMetodoPago(mp) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('guepack_actualizada')) {
+    localStorage.removeItem('guepack_actualizada')
+    setTimeout(() => mostrarToast('✅ ¡App actualizada a la última versión!', '#22c55e'), 500)
+  }
+
   document.getElementById('comprobante-input').addEventListener('change', function() {
     const file = this.files[0]
     if (!file) return
