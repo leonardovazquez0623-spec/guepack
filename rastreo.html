@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rastreo de envío – GUEPACK</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --blue: #1a4fa0;
+    --blue-dark: #0e3070;
+    --blue-light: #2563c4;
+    --orange: #f05a1a;
+    --orange-light: #ff7a3d;
+    --white: #ffffff;
+    --gray-light: #f4f6fb;
+    --gray: #e0e6f0;
+    --gray-mid: #8fa3c0;
+    --text: #1a2740;
+    --success: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Montserrat', sans-serif;
+    background: var(--gray-light);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 60%, var(--blue-light) 100%);
+    padding: 24px 20px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-header::after {
+    content: '';
+    position: absolute;
+    right: -30px; top: -30px;
+    width: 140px; height: 140px;
+    background: var(--orange);
+    opacity: .12;
+    border-radius: 50%;
+  }
+  .app-header::before {
+    content: '';
+    position: absolute;
+    right: 30px; bottom: -20px;
+    width: 80px; height: 80px;
+    background: var(--orange);
+    opacity: .08;
+    border-radius: 50%;
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    color: white;
+    letter-spacing: 3px;
+    position: relative;
+    z-index: 1;
+  }
+  .logo span { color: var(--orange); }
+  .header-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 3px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 480px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 24px rgba(26,79,160,0.10);
+    margin-bottom: 14px;
+  }
+
+  /* ── FOLIO / BADGE ── */
+  .folio {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    color: var(--blue);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    white-space: nowrap;
+  }
+  .badge-pending { background: rgba(240,90,26,0.1); color: var(--orange); }
+  .badge-transit { background: rgba(26,79,160,0.1); color: var(--blue); }
+  .badge-done    { background: rgba(34,197,94,0.1);  color: var(--success); }
+
+  /* ── TIMELINE ── */
+  .timeline { position: relative; padding-left: 28px; margin-top: 18px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px; top: 4px; bottom: 4px;
+    width: 2px;
+    background: var(--gray);
+  }
+  .tl-item { position: relative; margin-bottom: 22px; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot {
+    position: absolute;
+    left: -24px; top: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 3px solid var(--gray);
+    background: white;
+    transition: all .3s;
+  }
+  .tl-item.done .tl-dot    { background: var(--success); border-color: var(--success); }
+  .tl-item.current .tl-dot { background: var(--orange);  border-color: var(--orange);  animation: pulse 1.5s infinite; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(240,90,26,0.4); }
+    50%      { box-shadow: 0 0 0 6px rgba(240,90,26,0); }
+  }
+  .tl-title { font-size: 13px; font-weight: 700; color: var(--text); }
+  .tl-item.done .tl-title    { color: var(--success); }
+  .tl-item.current .tl-title { color: var(--orange); }
+  .tl-item.pending .tl-title { color: var(--gray-mid); }
+
+  /* ── ESTADO TEXTO ── */
+  .estado-texto {
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(240,90,26,0.07);
+    color: var(--orange);
+  }
+  .estado-texto.entregado { background: rgba(34,197,94,0.08); color: var(--success); }
+  .estado-texto.cancelado { background: rgba(239,68,68,0.08); color: #ef4444; }
+
+  /* ── BOTÓN NOTIFICACIONES ── */
+  .btn-notif {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--orange), var(--orange-light));
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn-notif:active { transform: scale(0.98); }
+  .btn-notif:disabled { opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-notif.activo {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+  }
+  .notif-msg {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    display: none;
+  }
+  .notif-msg.ok    { background: rgba(34,197,94,0.08); color: var(--success); }
+  .notif-msg.error { background: rgba(239,68,68,0.08); color: #ef4444; }
+
+  /* ── LOADING / ERROR ── */
+  .loading-state { text-align: center; padding: 40px 20px; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid var(--gray);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-state { text-align: center; padding: 40px 20px; }
+  .error-icon  { font-size: 52px; margin-bottom: 14px; }
+  .error-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--blue); margin-bottom: 8px; }
+  .error-text  { font-size: 13px; color: var(--gray-mid); font-weight: 600; line-height: 1.5; }
+
+  /* ── DETALLE PEDIDO ── */
+  .pedido-detalle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-mid);
+    margin-top: 3px;
+  }
+  .repartidor-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-top: 6px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="logo">GUE<span>PACK</span></div>
+  <div class="header-sub">Rastreo de envío en tiempo real</div>
+</div>
+
+<div class="container">
+
+  <!-- LOADING -->
+  <div id="loading-state" class="card loading-state">
+    <div class="spinner"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--gray-mid)">Buscando tu envío...</div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-state" class="card error-state" style="display:none">
+    <div class="error-icon">📦</div>
+    <div class="error-title">Envío no encontrado</div>
+    <div class="error-text">El link de rastreo no es válido o el envío ya fue entregado y archivado.</div>
+  </div>
+
+  <!-- PEDIDO -->
+  <div id="pedido-state" style="display:none">
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="folio" id="r-folio">GK-0</div>
+          <div class="pedido-detalle" id="r-detalle">—</div>
+          <div class="repartidor-label" id="r-repartidor"></div>
+        </div>
+        <div class="status-badge badge-transit" id="r-badge">—</div>
+      </div>
+      <div class="estado-texto" id="r-estado-texto">—</div>
+      <div class="timeline">
+        <div class="tl-item" id="rtl-recolectado">
+          <div class="tl-dot"></div>
+          <div class="tl-title">✅ Paquete recolectado</div>
+        </div>
+        <div class="tl-item" id="rtl-camino">
+          <div class="tl-dot"></div>
+          <div class="tl-title">🚚 En camino a entrega</div>
+        </div>
+        <div class="tl-item" id="rtl-llegando">
+          <div class="tl-dot"></div>
+          <div class="tl-title">⏰ A punto de llegar</div>
+        </div>
+        <div class="tl-item" id="rtl-entregado">
+          <div class="tl-dot"></div>
+          <div class="tl-title">📦 Entregado</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase">Notificaciones</div>
+      <button class="btn-notif" id="btn-notif" onclick="activarNotificaciones()">🔔 Activar notificaciones de estado</button>
+      <div class="notif-msg" id="notif-msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const _token = new URLSearchParams(window.location.search).get('token') || ''
+let _pedidoId = null
+let _estadoActual = null
+
+const ESTADO_MAP = {
+  'En camino a recoleccion': 0,
+  'En camino a entrega':     1,
+  'A punto de llegar':       2,
+  'Repartidor en domicilio': 2,
+  'Entregado':               4
+}
+
+const ESTADO_TEXTO = {
+  'Pendiente':                      '⏳ Pedido registrado, en espera de mensajero',
+  'Pendiente verificación de pago': '🧾 Verificando tu comprobante de pago',
+  'En camino a recoleccion':        '🏍️ Mensajero en camino a recolectar',
+  'En camino a entrega':            '🚚 Tu paquete va en camino a entregarse',
+  'A punto de llegar':              '⏰ ¡Tu repartidor está a punto de llegar!',
+  'Repartidor en domicilio':        '📍 Tu repartidor está en tu domicilio',
+  'Entregado':                      '✅ ¡Paquete entregado exitosamente!',
+  'Cancelado':                      '❌ Este pedido fue cancelado'
+}
+
+function actualizarUI(data) {
+  const estado = data.estado
+
+  // Badge
+  const badge = document.getElementById('r-badge')
+  badge.textContent = estado
+  badge.className = 'status-badge ' + (
+    estado === 'Entregado' ? 'badge-done' :
+    estado === 'Pendiente' || estado === 'Pendiente verificación de pago' || estado === 'Cancelado' ? 'badge-pending' :
+    'badge-transit'
+  )
+
+  // Texto descriptivo
+  const textoEl = document.getElementById('r-estado-texto')
+  textoEl.textContent = ESTADO_TEXTO[estado] || estado
+  textoEl.className = 'estado-texto' + (estado === 'Entregado' ? ' entregado' : estado === 'Cancelado' ? ' cancelado' : '')
+
+  // Repartidor
+  const repaEl = document.getElementById('r-repartidor')
+  if (data.repartidor) {
+    repaEl.textContent = '🏍️ Repartidor: ' + data.repartidor
+    repaEl.style.display = 'block'
+  }
+
+  // Timeline
+  const idx = ESTADO_MAP[estado] ?? -1
+  ;['rtl-recolectado','rtl-camino','rtl-llegando','rtl-entregado'].forEach((elId, i) => {
+    const el = document.getElementById(elId)
+    if (!el) return
+    el.className = 'tl-item ' + (idx < 0 ? 'pending' : i < idx ? 'done' : i === idx ? 'current' : 'pending')
+  })
+}
+
+async function init() {
+  if (!_token) { mostrarError(); return }
+
+  const { data, error } = await db.from('pedidos')
+    .select('id, nombre, tamanio, zona, estado, repartidor')
+    .eq('token_rastreo', _token)
+    .single()
+
+  document.getElementById('loading-state').style.display = 'none'
+  if (error || !data) { mostrarError(); return }
+
+  _pedidoId = data.id
+  _estadoActual = data.estado
+
+  document.getElementById('r-folio').textContent = 'GK-' + data.id
+  document.getElementById('r-detalle').textContent =
+    [data.nombre, data.tamanio, data.zona].filter(Boolean).join(' · ')
+
+  actualizarUI(data)
+  document.getElementById('pedido-state').style.display = 'block'
+
+  // Realtime — actualizaciones en vivo
+  db.channel('rastreo-pedido-' + data.id)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'pedidos',
+      filter: 'id=eq.' + data.id
+    }, async payload => {
+      const nuevo = payload.new
+      if (!nuevo || nuevo.estado === _estadoActual) return
+      _estadoActual = nuevo.estado
+      actualizarUI(nuevo)
+      await _enviarPushRastreo(data.id, nuevo.estado)
+    })
+    .subscribe()
+}
+
+async function _enviarPushRastreo(pedidoId, estado) {
+  const { data: tokens } = await db.from('tokens_rastreo')
+    .select('fcm_token')
+    .eq('pedido_id', pedidoId)
+  if (!tokens?.length) return
+  const titulo = 'GK-' + pedidoId + ' actualizado'
+  const cuerpo = ESTADO_TEXTO[estado] || estado
+  await Promise.all(tokens.map(t =>
+    fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ token: t.fcm_token, title: titulo, body: cuerpo })
+    }).catch(() => {})
+  ))
+}
+
+async function activarNotificaciones() {
+  const btn = document.getElementById('btn-notif')
+  const msgEl = document.getElementById('notif-msg')
+  btn.disabled = true
+  btn.textContent = '⏳ Configurando...'
+
+  const mostrarMensaje = (texto, tipo) => {
+    msgEl.textContent = texto
+    msgEl.className = 'notif-msg ' + tipo
+    msgEl.style.display = 'block'
+  }
+
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      mostrarMensaje('⚠️ Tu navegador no soporta notificaciones push', 'error')
+      btn.textContent = '🔔 No compatible'
+      return
+    }
+
+    const perm = await Notification.requestPermission()
+    if (perm !== 'granted') {
+      btn.disabled = false
+      btn.textContent = '🔔 Activar notificaciones de estado'
+      mostrarMensaje('⚠️ Permite las notificaciones en tu navegador para continuar', 'error')
+      return
+    }
+
+    const swReg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js')
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-messaging.js')
+
+    const firebaseApp = initializeApp({
+      apiKey: 'AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo',
+      authDomain: 'guepack-app.firebaseapp.com',
+      projectId: 'guepack-app',
+      storageBucket: 'guepack-app.firebasestorage.app',
+      messagingSenderId: '912683525841',
+      appId: '1:912683525841:web:a67f014362160ea29b87f0'
+    })
+
+    const messaging = getMessaging(firebaseApp)
+    const fcmToken = await getToken(messaging, {
+      vapidKey: 'BHhCITe5ZaJQpJS5aNtEAArVO15zwMR1e6baQxQG34pvjXV8Jk3r2P5QLfcX6bPSe4itfY5wFBai7nHX3MnyKDU',
+      serviceWorkerRegistration: swReg
+    })
+
+    if (!fcmToken) throw new Error('no-token')
+
+    await db.from('tokens_rastreo').upsert(
+      { pedido_id: _pedidoId, fcm_token: fcmToken },
+      { onConflict: 'fcm_token' }
+    )
+
+    btn.classList.add('activo')
+    btn.textContent = '✅ Notificaciones activadas'
+    mostrarMensaje('Te avisaremos cuando el estado de tu envío cambie', 'ok')
+
+  } catch (e) {
+    console.log('Error notificaciones:', e)
+    btn.disabled = false
+    btn.textContent = '🔔 Activar notificaciones de estado'
+    if (e.message !== 'no-token') {
+      mostrarMensaje('❌ No se pudieron activar las notificaciones. Intenta de nuevo.', 'error')
+    }
+  }
+}
+
+function mostrarError() {
+  document.getElementById('loading-state').style.display = 'none'
+  document.getElementById('error-state').style.display = 'block'
+}
+
+init()
+</script>
+</body>
+</html>

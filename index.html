@@ -854,6 +854,7 @@ async function cargarPedidoActivoGuardado() {
     if (!data) continue
     if (estadosFinales.includes(data.estado)) continue
     idsValidos.push(id)
+    if (data.token_rastreo) _pedidoTokens[data.id] = data.token_rastreo
     const ahora = new Date()
     const minutos = (ahora - new Date(data.created_at)) / 60000
     mostrarPedidoActivo(data.id, data.estado, data.repartidor, minutos > 5)
@@ -1150,6 +1151,7 @@ if (comprobanteFile) {
 }
 
 const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : 'Pendiente'
+const tokenRastreo = crypto.randomUUID()
 
 const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
@@ -1167,6 +1169,7 @@ const { data, error } = await db.from('pedidos').insert({
     comprobante_pago: comprobanteUrl,
     nombre_remitente: nombreRemitente || null,
     cupon_codigo: _cuponActivo?.codigo || null,
+    token_rastreo: tokenRastreo,
   }).select()
 
   if (error) {
@@ -1180,6 +1183,7 @@ const { data, error } = await db.from('pedidos').insert({
   }
 
   const folioReal = data[0].id
+  _pedidoTokens[folioReal] = tokenRastreo
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
   mostrarPedidoActivo(folioReal, 'Pendiente')
@@ -1458,7 +1462,21 @@ function seleccionarFecha(opcion) {
   }
 }
 // ── Pedidos Activos (multi-pedido) ──
-const _pedidos = {} // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
+const _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
+const _pedidoTokens = {}  // id -> token_rastreo
+
+function compartirRastreo(id) {
+  const token = _pedidoTokens[id]
+  if (!token) return
+  const url = 'https://guepack.vercel.app/rastreo.html?token=' + token
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      mostrarToast('🔗 Link de rastreo copiado', '#1a4fa0')
+    }).catch(() => { prompt('Copia este link:', url) })
+  } else {
+    prompt('Copia este link:', url)
+  }
+}
 
 const ESTADO_CONFIG = {
   'Pendiente':                   { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ En espera de mensajero' },
@@ -1498,9 +1516,12 @@ function _crearCardHTML(id) {
           </button>
         </div>
         <div id="pac-${id}-timer-domicilio" style="display:none;margin-top:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
-        <div style="margin-top:10px;display:flex;justify-content:flex-end" id="pac-${id}-cancelar-container">
-          <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="background:rgba(240,90,26,0.1);color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:7px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">
-            ❌ Cancelar pedido (<span id="pac-${id}-timer">5:00</span>)
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px" id="pac-${id}-cancelar-container">
+          <button onclick="compartirRastreo(${id})" style="flex:1;background:rgba(26,79,160,0.08);color:var(--blue);border:2px solid var(--blue);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
+            🔗 Compartir rastreo
+          </button>
+          <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="flex:1;background:rgba(240,90,26,0.1);color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
+            ❌ Cancelar (<span id="pac-${id}-timer">5:00</span>)
           </button>
         </div>
       </div>
