@@ -2308,10 +2308,15 @@ function cerrarModalCalificacion() {
 // ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
 
 function initMapsGuepack() {
+  const gdlBounds = new google.maps.LatLngBounds(
+    { lat: 20.50, lng: -103.55 },
+    { lat: 20.85, lng: -103.15 }
+  )
   const opts = {
     componentRestrictions: { country: 'mx' },
     fields: ['formatted_address', 'address_components', 'geometry'],
-    types: ['address']
+    bounds: gdlBounds,
+    strictBounds: false
   }
   const inputRec = document.getElementById('dir-recoleccion')
   const inputEnt = document.getElementById('dir-entrega')
