@@ -2169,105 +2169,160 @@ function _setHint(msg) {
 
 // ── Optimización de Ruta ─────────────────────────────────────────────────────
 
-const _ZONA_KEYS = {
-  'Norte':         ['zapopan', 'atemajac', 'tabachines', 'huentitán', 'huentitan', 'ciudad granja', 'tesistán', 'tesistan', 'el colli', 'lomas de zapopan', 'jardines de la cruz', 'residencial colón', 'villas de zapopan', 'santa fe'],
-  'Centro':        ['centro histórico', 'centro historico', 'santa tere', 'santa teresita', 'mexicaltzingo', 'analco', 'oblatos', 'reforma', 'atlas', 'miraflores', 'sector libertad', 'sector hidalgo', 'sector reform', 'independencia', 'alcalde'],
-  'Sur/Poniente':  ['tlaquepaque', 'chapalita', 'arcos', 'jardines del bosque', 'las fuentes', 'santa anita', 'americana', 'ladrón de guevara', 'ladron de guevara', 'providencia', 'vallarta', 'patria', 'universitaria', 'noche buena', 'colomos', 'fovissste'],
-  'Oriente':       ['tonalá', 'tonala', 'el castillo', 'san gaspar']
-}
-
-function _detectarZonaAdmin(dir) {
-  const d = (dir || '').toLowerCase()
-  for (const [zona, keys] of Object.entries(_ZONA_KEYS)) {
-    if (keys.some(k => d.includes(k))) return zona
-  }
-  return 'Otros'
-}
-
-function _extraerColonia(dir) {
-  const m = (dir || '').match(/col(?:onia)?[\.\s]+([^,\n]+)/i)
-  if (m) return m[1].trim()
-  const partes = (dir || '').split(',')
-  return partes.length > 1 ? partes[1].trim() : (dir || '').trim()
-}
+let _rutaData = null
 
 async function optimizarRuta() {
   const btn = document.getElementById('btn-optimizar')
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Calculando...' }
 
   const hoy = new Date().toISOString().split('T')[0]
-  const { data: pedidos, error } = await db.from('pedidos')
-    .select('id, nombre, direccion_entrega, direccion_recoleccion, estado, tamanio')
-    .eq('fecha', hoy)
-    .in('estado', ['Pendiente', 'Asignado', 'En camino a recoleccion', 'En camino a entrega'])
-    .order('id', { ascending: true })
+  const [{ data: pedidos, error }, { data: zonas }] = await Promise.all([
+    db.from('pedidos')
+      .select('id, nombre, direccion_entrega, zona, repartidor, estado')
+      .eq('fecha', hoy)
+      .in('estado', ['Pendiente', 'En camino a recoleccion', 'En camino a entrega'])
+      .order('id', { ascending: true }),
+    db.from('zonas_cobertura').select('id, nombre').order('id', { ascending: true })
+  ])
 
   if (btn) { btn.disabled = false; btn.textContent = '🗺️ Optimizar Ruta' }
 
   if (error || !pedidos?.length) {
-    showToast('Sin pedidos activos hoy para optimizar')
-    return
+    showToast('Sin pedidos activos hoy para optimizar'); return
   }
 
+  // Índice de orden de zonas: nombre → posición
+  const zonaIdx = {}
+  ;(zonas || []).forEach((z, i) => { zonaIdx[z.nombre] = i })
+
+  // Agrupar por repartidor
   const grupos = {}
   pedidos.forEach(p => {
-    const zona = _detectarZonaAdmin(p.direccion_entrega)
-    if (!grupos[zona]) grupos[zona] = []
-    grupos[zona].push(p)
+    const key = p.repartidor || '__sin_asignar__'
+    if (!grupos[key]) grupos[key] = []
+    grupos[key].push(p)
   })
-  Object.values(grupos).forEach(arr =>
-    arr.sort((a, b) => _extraerColonia(a.direccion_entrega).localeCompare(_extraerColonia(b.direccion_entrega)))
-  )
+
+  // Ordenar cada grupo: primero por zona (orden en zonas_cobertura), luego por dirección
+  Object.values(grupos).forEach(arr => {
+    arr.sort((a, b) => {
+      const za = zonaIdx[a.zona] ?? 999
+      const zb = zonaIdx[b.zona] ?? 999
+      if (za !== zb) return za - zb
+      return (a.direccion_entrega || '').localeCompare(b.direccion_entrega || '')
+    })
+  })
+
+  _rutaData = grupos
   _mostrarModalRuta(grupos, pedidos.length)
+}
+
+function _buildMapsRutaUrl(lista) {
+  const stops = lista.slice(0, 10)
+    .map(p => encodeURIComponent((p.direccion_entrega || '') + ', Guadalajara, México'))
+  return 'https://www.google.com/maps/dir/' + stops.join('/')
 }
 
 function _mostrarModalRuta(grupos, total) {
   const existing = document.getElementById('modal-ruta')
   if (existing) existing.remove()
 
-  const zonaOrder = ['Norte', 'Centro', 'Sur/Poniente', 'Oriente', 'Otros']
-  const zonaIcono = { 'Norte': '⬆️', 'Centro': '🎯', 'Sur/Poniente': '⬇️', 'Oriente': '➡️', 'Otros': '📌' }
-  let num = 1
-  let html = ''
+  const repaKeys = Object.keys(grupos).sort((a, b) => {
+    if (a === '__sin_asignar__') return 1
+    if (b === '__sin_asignar__') return -1
+    return a.localeCompare(b)
+  })
 
-  for (const zona of zonaOrder) {
-    const lista = grupos[zona]
-    if (!lista?.length) continue
-    html += `<div style="margin-bottom:18px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--blue);letter-spacing:1.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid var(--gray)">
-        ${zonaIcono[zona] || '📌'} ${zona} <span style="font-size:12px;font-weight:700;font-family:Montserrat,sans-serif;color:var(--gray-mid)">(${lista.length})</span>
-      </div>`
-    lista.forEach(p => {
-      const mapsUrl = `https://maps.google.com?q=${encodeURIComponent(p.direccion_entrega || '')}`
-      html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray)">
-        <div style="background:var(--blue);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${num++}</div>
+  let numGlobal = 1
+  let htmlSecciones = ''
+
+  repaKeys.forEach(repa => {
+    const lista = grupos[repa]
+    const esNoAsignado = repa === '__sin_asignar__'
+    const nombre = esNoAsignado ? '⚠️ Sin repartidor' : repa
+    const color = esNoAsignado ? '#f59e0b' : 'var(--blue)'
+    const mapsUrl = esNoAsignado ? null : _buildMapsRutaUrl(lista)
+
+    const itemsHtml = lista.map(p => {
+      const n = numGlobal++
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray)">
+        <div style="background:${color};color:#fff;font-family:'Bebas Neue',sans-serif;font-size:15px;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${n}</div>
         <div style="flex:1;min-width:0">
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--text)">GK-${String(p.id).padStart(4,'0')} · ${p.nombre}</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion_entrega || '—'}</div>
+          ${p.zona ? `<span style="background:rgba(26,79,160,.1);color:var(--blue);font-size:9px;font-weight:900;padding:2px 7px;border-radius:20px;letter-spacing:.5px">${p.zona}</span>` : ''}
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion_entrega || '—'}</div>
         </div>
-        <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--blue);font-size:20px;flex-shrink:0;text-decoration:none;line-height:1;margin-top:2px" title="Abrir en Maps">📍</a>
+        <a href="https://maps.google.com?q=${encodeURIComponent(p.direccion_entrega || '')}" target="_blank" rel="noopener" style="color:var(--blue);font-size:18px;flex-shrink:0;text-decoration:none;line-height:1;margin-top:3px" title="Ver en Maps">📍</a>
       </div>`
-    })
-    html += '</div>'
-  }
+    }).join('')
+
+    htmlSecciones += `<div style="margin-bottom:22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid ${esNoAsignado ? '#fef3c7' : 'var(--gray)'}">
+        <div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${color};letter-spacing:1px">🏍️ ${nombre}</div>
+          <div style="font-size:10px;color:var(--gray-mid);font-weight:700;font-family:Montserrat,sans-serif">${lista.length} parada${lista.length !== 1 ? 's' : ''}</div>
+        </div>
+        ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:7px 12px;background:var(--blue);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;text-decoration:none;letter-spacing:.5px">📍 Ver en Maps${lista.length > 10 ? ' (10)' : ''}</a>` : ''}
+      </div>
+      ${itemsHtml}
+    </div>`
+  })
 
   const modal = document.createElement('div')
   modal.id = 'modal-ruta'
   modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(10,20,50,0.72);z-index:10000;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)'
   modal.innerHTML = `
-    <div style="background:#fff;width:100%;max-width:520px;max-height:85vh;border-radius:20px 20px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:slideUp .3s cubic-bezier(.22,1,.36,1)">
+    <div style="background:#fff;width:100%;max-width:520px;max-height:88vh;border-radius:20px 20px 0 0;overflow:hidden;display:flex;flex-direction:column;animation:slideUp .3s cubic-bezier(.22,1,.36,1)">
       <div style="background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div>
           <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;letter-spacing:2px">🗺️ Ruta Optimizada</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.65);font-family:Montserrat,sans-serif;font-weight:600">${total} parada${total !== 1 ? 's' : ''} · agrupadas por zona</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.65);font-family:Montserrat,sans-serif;font-weight:600">${total} parada${total !== 1 ? 's' : ''} · agrupadas por repartidor y zona</div>
         </div>
         <button onclick="document.getElementById('modal-ruta').remove()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
-      <div style="overflow-y:auto;padding:16px 20px;flex:1">${html || '<div style="text-align:center;padding:24px;color:var(--gray-mid);font-size:13px;font-family:Montserrat,sans-serif;font-weight:700">Sin pedidos activos hoy</div>'}</div>
+      <div style="overflow-y:auto;padding:16px 20px;flex:1">
+        ${htmlSecciones || '<div style="text-align:center;padding:24px;color:var(--gray-mid);font-size:13px;font-family:Montserrat,sans-serif;font-weight:700">Sin pedidos activos hoy</div>'}
+      </div>
+      <div style="padding:14px 20px;border-top:2px solid var(--gray);flex-shrink:0;display:flex;gap:8px">
+        <button id="btn-asignar-rutas" onclick="asignarRutas()" style="flex:1;padding:13px;background:linear-gradient(135deg,var(--orange),var(--orange-light));color:#fff;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px">✅ Asignar rutas</button>
+        <button onclick="document.getElementById('modal-ruta').remove()" style="padding:13px 16px;background:var(--gray);color:var(--text);border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Cerrar</button>
+      </div>
     </div>`
 
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+async function asignarRutas() {
+  if (!_rutaData) return
+  const btn = document.getElementById('btn-asignar-rutas')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando...' }
+
+  const repaKeys = Object.keys(_rutaData).sort((a, b) => {
+    if (a === '__sin_asignar__') return 1
+    if (b === '__sin_asignar__') return -1
+    return a.localeCompare(b)
+  })
+
+  let orden = 1
+  const updates = []
+  repaKeys.forEach(repa => {
+    _rutaData[repa].forEach(p => {
+      updates.push(db.from('pedidos').update({ orden_ruta: orden++ }).eq('id', p.id))
+    })
+  })
+
+  const results = await Promise.all(updates)
+  const errores = results.filter(r => r.error)
+  if (errores.length) {
+    showToast('❌ Error al guardar algunas rutas')
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Asignar rutas' }
+    return
+  }
+
+  showToast('✅ Rutas asignadas correctamente')
+  document.getElementById('modal-ruta')?.remove()
+  _rutaData = null
 }
 </script>
 </body>
