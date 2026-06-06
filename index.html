@@ -1722,7 +1722,7 @@ async function enviarPushNotificacion(token, titulo, cuerpo) {
     await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ token, titulo, cuerpo })
+      body: JSON.stringify({ token, title: titulo, body: cuerpo })
     })
   } catch (e) { console.log('Error push:', e) }
 }
