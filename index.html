@@ -1465,10 +1465,33 @@ function seleccionarFecha(opcion) {
 const _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
 const _pedidoTokens = {}  // id -> token_rastreo
 
-function compartirRastreo(id) {
-  const token = _pedidoTokens[id]
-  if (!token) return
+async function compartirRastreo(id) {
+  let token = _pedidoTokens[id]
+  console.log('[GUEPACK] compartirRastreo id=' + id + ' token=' + token)
+
+  if (!token) {
+    // Intentar recuperar de Supabase
+    const { data } = await db.from('pedidos').select('token_rastreo').eq('id', id).single()
+    console.log('[GUEPACK] token desde Supabase:', data?.token_rastreo)
+    token = data?.token_rastreo || null
+
+    if (!token) {
+      // Generar nuevo token y guardarlo
+      token = crypto.randomUUID()
+      const { error } = await db.from('pedidos').update({ token_rastreo: token }).eq('id', id)
+      if (error) {
+        console.error('[GUEPACK] Error guardando token_rastreo:', error)
+        mostrarToast('❌ Error al generar link de rastreo', '#ef4444')
+        return
+      }
+      console.log('[GUEPACK] token generado y guardado:', token)
+    }
+    _pedidoTokens[id] = token
+  }
+
   const url = 'https://guepack.vercel.app/rastreo.html?token=' + token
+  console.log('[GUEPACK] URL de rastreo:', url)
+
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(() => {
       mostrarToast('🔗 Link de rastreo copiado', '#1a4fa0')
