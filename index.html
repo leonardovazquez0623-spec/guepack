@@ -81,6 +81,17 @@
   body.vip-plata .app-header::before {
     background: #f05a1a !important;
   }
+  body.vip-plata .btn-primary {
+    background: linear-gradient(135deg, #f05a1a, #ff7a3d) !important;
+    box-shadow: 0 4px 14px rgba(240,90,26,0.35) !important;
+  }
+  body.vip-plata .nav-tabs {
+    background: #0e3070 !important;
+  }
+  body.vip-plata .nav-tab.active {
+    color: #f05a1a !important;
+    border-bottom-color: #f05a1a !important;
+  }
   body.vip-bronce .app-header {
     background: linear-gradient(135deg, #5D2E0C 0%, #8B4513 50%, #CD7F32 100%) !important;
   }
@@ -504,7 +515,6 @@
   padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
-  margin-top: 8px;
   letter-spacing: 1px;
   transition: background .2s;
 }
@@ -2251,11 +2261,13 @@ function _mostrarVipHeader(nivel) {
   if (existing) {
     existing.textContent = info.icono + ' ' + info.label
     existing.style.background = t.blueDark
+    existing.style.fontSize = '16px'
+    existing.style.padding = '6px 12px'
     return
   }
   const badge = document.createElement('div')
   badge.id = 'vip-badge-header'
-  badge.style.cssText = `display:inline-block;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:4px 14px;border-radius:20px;letter-spacing:.5px;white-space:nowrap`
+  badge.style.cssText = `display:inline-flex;align-items:center;background:${t.blueDark};color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;padding:6px 12px;border-radius:20px;letter-spacing:.5px;white-space:nowrap`
   badge.textContent = info.icono + ' ' + info.label
   const actions = document.getElementById('header-actions')
   if (actions) actions.insertBefore(badge, actions.firstChild)
