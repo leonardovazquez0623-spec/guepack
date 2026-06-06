@@ -259,6 +259,8 @@ localStorage.setItem('guepack_pedidos_count', data.length)
       </div>
     `
   })
+
+  _cargarBadgesNoLeidos(data.map(p => p.id))
 }
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
@@ -453,6 +455,24 @@ async function cerrarSesion() {
 // ── Chat ──
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'repartidor'
 const _unread = {}
+
+async function _cargarBadgesNoLeidos(pedidoIds) {
+  if (!pedidoIds || !pedidoIds.length) return
+  const { data } = await db.from('mensajes')
+    .select('pedido_id')
+    .in('pedido_id', pedidoIds)
+    .eq('leido', false)
+    .neq('de', 'repartidor')
+  if (!data) return
+  const conteo = {}
+  data.forEach(m => { conteo[m.pedido_id] = (conteo[m.pedido_id] || 0) + 1 })
+  Object.entries(conteo).forEach(([pid, count]) => {
+    const numPid = Number(pid)
+    _unread[numPid] = count
+    const badge = document.getElementById('chat-badge-' + pid)
+    if (badge) { badge.textContent = count; badge.style.display = 'flex' }
+  })
+}
 
 async function abrirChat(pedidoId, rol, titulo) {
   _chatPedidoId = pedidoId; _chatRol = rol

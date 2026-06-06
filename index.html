@@ -836,6 +836,7 @@ async function cargarPedidoActivoGuardado() {
   }
 
   localStorage.setItem('guepack_pedidos_activos', JSON.stringify(idsValidos))
+  if (idsValidos.length) _cargarBadgesNoLeidos(idsValidos)
 }
 
 cargarPedidoActivoGuardado()
@@ -989,6 +990,7 @@ async function activarNotificaciones() {
 
     if (token) {
       console.log('Token FCM:', token)
+      _fcmToken = token
       const { data: { session } } = await db.auth.getSession()
       if (session) {
         await db.from('usuarios').update({ fcm_token: token }).eq('email', session.user.email)
@@ -1703,9 +1705,48 @@ function cerrarChat() {
 }
 
 const _unreadChat = {}
+let _fcmToken = null
+
+async function _obtenerFcmToken() {
+  if (_fcmToken) return _fcmToken
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return null
+  const { data } = await db.from('usuarios').select('fcm_token').eq('email', session.user.email).single()
+  _fcmToken = data?.fcm_token || null
+  return _fcmToken
+}
+
+async function enviarPushNotificacion(token, titulo, cuerpo) {
+  if (!token) return
+  try {
+    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ token, titulo, cuerpo })
+    })
+  } catch (e) { console.log('Error push:', e) }
+}
+
+async function _cargarBadgesNoLeidos(pedidoIds) {
+  if (!pedidoIds || !pedidoIds.length) return
+  const { data } = await db.from('mensajes')
+    .select('pedido_id')
+    .in('pedido_id', pedidoIds)
+    .eq('leido', false)
+    .neq('de', 'cliente')
+  if (!data) return
+  const conteo = {}
+  data.forEach(m => { conteo[m.pedido_id] = (conteo[m.pedido_id] || 0) + 1 })
+  Object.entries(conteo).forEach(([pid, count]) => {
+    const numPid = Number(pid)
+    _unreadChat[numPid] = count
+    const badge = document.getElementById('chat-badge-' + pid)
+    if (badge) { badge.textContent = count; badge.style.display = 'flex' }
+  })
+}
 
 db.channel('cliente-mensajes-global')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, payload => {
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, async payload => {
     const msg = payload.new
     if (msg.de === 'cliente') return
     const pid = msg.pedido_id
@@ -1714,9 +1755,8 @@ db.channel('cliente-mensajes-global')
     _unreadChat[pid] = (_unreadChat[pid] || 0) + 1
     const badge = document.getElementById('chat-badge-' + pid)
     if (badge) { badge.textContent = _unreadChat[pid]; badge.style.display = 'flex' }
-    if (Notification.permission === 'granted') {
-      new Notification('💬 Nuevo mensaje', { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'chat-' + pid })
-    }
+    const token = await _obtenerFcmToken()
+    enviarPushNotificacion(token, '💬 Nuevo mensaje', msg.texto || '...')
   })
   .subscribe()
 

@@ -887,52 +887,61 @@ function filtrarFecha(dias) {
   cargarPedidos()
 }
 
+let cargandoPedidos = false
+
 async function cargarPedidos() {
-  const contenedor = document.getElementById('lista-pedidos')
-  contenedor.innerHTML = ''
+  if (cargandoPedidos) return
+  cargandoPedidos = true
+  try {
+    const contenedor = document.getElementById('lista-pedidos')
 
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() - diaFiltro)
-  const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
-  const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
+    const fecha = new Date()
+    fecha.setDate(fecha.getDate() - diaFiltro)
+    const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
+    const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
 
-  const { data, error } = await db.from('pedidos').select('*')
-    .gte('created_at', inicio)
-    .lte('created_at', fin)
-    .order('created_at', { ascending: false })
-  if (error) { console.error(error); return }
+    const { data, error } = await db.from('pedidos').select('*')
+      .gte('created_at', inicio)
+      .lte('created_at', fin)
+      .order('created_at', { ascending: false })
+    if (error) { console.error(error); return }
 
-  document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
-  document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
-  document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
+    document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
+    document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+    document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
 
-  // Pendiente verificación de pago
-  const porVerificar = data.filter(p => p.estado === 'Pendiente verificación de pago')
-  if (porVerificar.length > 0) {
-    contenedor.innerHTML += renderAccordion('🧾 Verificar pago', porVerificar, 'por-verificar', true, undefined, undefined, '#f59e0b')
-  }
+    let html = ''
 
-  // Sin asignar (excluye cancelados y por verificar)
-  const sinAsignar = data.filter(p => !p.repartidor && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
-  contenedor.innerHTML += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', false)
+    // Pendiente verificación de pago
+    const porVerificar = data.filter(p => p.estado === 'Pendiente verificación de pago')
+    if (porVerificar.length > 0) {
+      html += renderAccordion('🧾 Verificar pago', porVerificar, 'por-verificar', true, undefined, undefined, '#f59e0b')
+    }
 
-  // Por repartidor (excluye cancelados)
-  const { data: repartidores } = await db.from('repartidores').select('*')
-  repartidores.forEach(repa => {
-    const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
-    const activos = pedidosRepa.filter(p => p.estado !== 'Entregado').length
-    const entregados = pedidosRepa.filter(p => p.estado === 'Entregado').length
-    contenedor.innerHTML += renderAccordion('🏍️ ' + repa.nombre, pedidosRepa, 'repa-' + repa.id, false, activos, entregados)
-  })
+    // Sin asignar (excluye cancelados y por verificar)
+    const sinAsignar = data.filter(p => !p.repartidor && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
+    html += renderAccordion('⚠️ Sin asignar', sinAsignar, 'sin-asignar', false)
 
-  // Cancelados
-  const cancelados = data.filter(p => p.estado === 'Cancelado')
-  if (cancelados.length > 0) {
-    contenedor.innerHTML += renderAccordion('❌ Cancelados', cancelados, 'cancelados', false, undefined, undefined, '#ef4444')
-  }
+    // Por repartidor (excluye cancelados)
+    const { data: repartidores } = await db.from('repartidores').select('*')
+    ;(repartidores || []).forEach(repa => {
+      const pedidosRepa = data.filter(p => p.repartidor === repa.nombre && p.estado !== 'Cancelado' && p.estado !== 'Pendiente verificación de pago')
+      const activos = pedidosRepa.filter(p => p.estado !== 'Entregado').length
+      const entregados = pedidosRepa.filter(p => p.estado === 'Entregado').length
+      html += renderAccordion('🏍️ ' + repa.nombre, pedidosRepa, 'repa-' + repa.id, false, activos, entregados)
+    })
 
-  if (data.length === 0) {
-    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-text">No hay pedidos hoy</div></div>'
+    // Cancelados
+    const cancelados = data.filter(p => p.estado === 'Cancelado')
+    if (cancelados.length > 0) {
+      html += renderAccordion('❌ Cancelados', cancelados, 'cancelados', false, undefined, undefined, '#ef4444')
+    }
+
+    contenedor.innerHTML = data.length === 0
+      ? '<div class="empty-state"><span class="empty-icon">📦</span><div class="empty-text">No hay pedidos hoy</div></div>'
+      : html
+  } finally {
+    cargandoPedidos = false
   }
 }
 
