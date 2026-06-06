@@ -348,6 +348,58 @@ function initMapsAdmin() {
     <div id="lista-anuncios">
       <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600">Cargando...</div>
     </div>
+
+    <!-- NOTIFICACIÓN PUSH A TODOS -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">📣 Notificación push a clientes</div>
+      <div class="form-group">
+        <label class="form-label">Título</label>
+        <input type="text" id="notif-titulo" class="form-input" placeholder="Ej. ¡Oferta especial hoy!">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mensaje</label>
+        <textarea id="notif-mensaje" class="form-input" rows="3" placeholder="Escribe el mensaje para tus clientes..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="enviarNotificacionTodos()" id="btn-enviar-notif" style="width:100%">📤 Enviar a todos</button>
+    </div>
+
+    <!-- CUPONES -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">🎟️ Cupones</div>
+      <input type="hidden" id="cupon-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Código</label>
+          <input type="text" id="cupon-codigo" class="form-input" placeholder="GUEPACK20" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descuento</label>
+          <input type="number" id="cupon-descuento" class="form-input" placeholder="20" min="1">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select id="cupon-tipo" class="form-input">
+            <option value="porcentaje">% Porcentaje</option>
+            <option value="pesos">$ Pesos fijos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Usos máximos</label>
+          <input type="number" id="cupon-usos" class="form-input" placeholder="Ilimitado" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha de expiración</label>
+        <input type="date" id="cupon-expiracion" class="form-input">
+      </div>
+      <button class="btn btn-primary" onclick="guardarCupon()" style="width:100%;margin-bottom:16px">💾 Guardar cupón</button>
+      <div class="card-title" style="padding:0;margin-bottom:12px;font-size:12px">📋 Cupones guardados</div>
+      <div id="lista-cupones">
+        <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB WIDGET -->
@@ -635,7 +687,7 @@ function showTab(tab, btn) {
     const _ab = document.getElementById('admin-chat-badge')
     if (_ab) _ab.style.display = 'none'
   }
-  if (tab === 'publicidad') cargarAnuncios()
+  if (tab === 'publicidad') { cargarAnuncios(); cargarCupones() }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
@@ -1333,7 +1385,10 @@ async function cargarAnuncios() {
           <div style="font-size:10px;font-weight:700;margin-top:2px;color:${a.activo ? 'var(--success)' : '#999'}">${a.activo ? '🟢 Activo' : '⚫ Inactivo'} · ⏱ ${a.segundos || 5}s</div>
         </div>
       </div>
-      <button onclick="editarAnuncio(${a.id})" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:0.5px">✏️ Editar</button>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <button onclick="editarAnuncio(${a.id})" style="padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;letter-spacing:0.5px">✏️ Editar</button>
+        <button onclick="eliminarAnuncio(${a.id})" style="padding:9px 14px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">🗑️</button>
+      </div>
     </div>`).join('')
 }
 
@@ -1412,6 +1467,122 @@ function _resetFormPub() {
   document.getElementById('pub-img-label').textContent = '📷 Subir imagen'
   document.getElementById('pub-img-preview').style.display = 'none'
   _pubImagenUrl = ''
+}
+
+async function eliminarAnuncio(id) {
+  if (!confirm('¿Eliminar este anuncio?')) return
+  const { error } = await db.from('anuncios').delete().eq('id', id)
+  if (error) return showToast('❌ Error al eliminar')
+  showToast('🗑️ Anuncio eliminado')
+  cargarAnuncios()
+}
+
+async function enviarNotificacionTodos() {
+  const titulo = document.getElementById('notif-titulo').value.trim()
+  const mensaje = document.getElementById('notif-mensaje').value.trim()
+  if (!titulo || !mensaje) return showToast('⚠️ Ingresa título y mensaje')
+  const btn = document.getElementById('btn-enviar-notif')
+  btn.disabled = true; btn.textContent = '⏳ Enviando...'
+  const { data: usuarios } = await db.from('usuarios').select('fcm_token').eq('rol', 'cliente').not('fcm_token', 'is', null)
+  if (!usuarios?.length) {
+    showToast('⚠️ No hay clientes con notificaciones activas')
+    btn.disabled = false; btn.textContent = '📤 Enviar a todos'
+    return
+  }
+  let ok = 0, fail = 0
+  await Promise.all(usuarios.map(async u => {
+    if (!u.fcm_token) return
+    try {
+      const r = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ token: u.fcm_token, title: titulo, body: mensaje })
+      })
+      if (r.ok) ok++; else fail++
+    } catch { fail++ }
+  }))
+  btn.disabled = false; btn.textContent = '📤 Enviar a todos'
+  showToast(`✅ Enviado a ${ok} cliente${ok !== 1 ? 's' : ''}${fail ? ' · ❌ ' + fail + ' fallidos' : ''}`)
+}
+
+async function cargarCupones() {
+  const cont = document.getElementById('lista-cupones')
+  if (!cont) return
+  const { data } = await db.from('cupones').select('*').order('created_at', { ascending: false })
+  if (!data?.length) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin cupones creados</div>'
+    return
+  }
+  const hoy = new Date().toISOString().split('T')[0]
+  cont.innerHTML = data.map(c => {
+    const descLabel = c.tipo === 'porcentaje' ? c.descuento + '% OFF' : '$' + c.descuento + ' OFF'
+    const exp = c.fecha_expiracion ? new Date(c.fecha_expiracion + 'T12:00:00').toLocaleDateString('es-MX') : 'Sin límite'
+    const vencido = c.fecha_expiracion && c.fecha_expiracion < hoy
+    const agotado = c.usos_maximos && (c.usos_actuales || 0) >= c.usos_maximos
+    const estado = vencido ? '⚫ Vencido' : agotado ? '🔴 Agotado' : '🟢 Activo'
+    const color = (vencido || agotado) ? '#ef4444' : 'var(--success)'
+    return `<div style="background:white;border-radius:12px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px;border-left:4px solid ${color}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--blue)">${c.codigo}</span>
+        <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--orange)">${descLabel}</span>
+      </div>
+      <div style="font-size:10px;font-weight:700;color:#999;margin-bottom:10px">Vence: ${exp} · ${c.usos_actuales || 0}/${c.usos_maximos || '∞'} usos · ${estado}</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <button onclick="editarCupon(${c.id})" style="padding:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
+        <button onclick="eliminarCupon(${c.id})" style="padding:8px 12px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function guardarCupon() {
+  const codigo = document.getElementById('cupon-codigo').value.trim().toUpperCase()
+  const descuento = parseFloat(document.getElementById('cupon-descuento').value)
+  const tipo = document.getElementById('cupon-tipo').value
+  const usos = parseInt(document.getElementById('cupon-usos').value) || null
+  const expiracion = document.getElementById('cupon-expiracion').value || null
+  const id = document.getElementById('cupon-id').value
+  if (!codigo || !descuento) return showToast('⚠️ Ingresa código y descuento')
+  const payload = { codigo, descuento, tipo, usos_maximos: usos, fecha_expiracion: expiracion }
+  let error
+  if (id) {
+    ;({ error } = await db.from('cupones').update(payload).eq('id', id))
+  } else {
+    ;({ error } = await db.from('cupones').insert({ ...payload, usos_actuales: 0 }))
+  }
+  if (error) return showToast('❌ Error: ' + error.message)
+  showToast('✅ Cupón guardado')
+  _resetFormCupon()
+  cargarCupones()
+}
+
+async function editarCupon(id) {
+  const { data } = await db.from('cupones').select('*').eq('id', id).single()
+  if (!data) return
+  document.getElementById('cupon-id').value = data.id
+  document.getElementById('cupon-codigo').value = data.codigo
+  document.getElementById('cupon-descuento').value = data.descuento
+  document.getElementById('cupon-tipo').value = data.tipo || 'porcentaje'
+  document.getElementById('cupon-usos').value = data.usos_maximos || ''
+  document.getElementById('cupon-expiracion').value = data.fecha_expiracion || ''
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function eliminarCupon(id) {
+  if (!confirm('¿Eliminar este cupón?')) return
+  const { error } = await db.from('cupones').delete().eq('id', id)
+  if (error) return showToast('❌ Error al eliminar')
+  showToast('🗑️ Cupón eliminado')
+  cargarCupones()
+}
+
+function _resetFormCupon() {
+  document.getElementById('cupon-id').value = ''
+  document.getElementById('cupon-codigo').value = ''
+  document.getElementById('cupon-descuento').value = ''
+  document.getElementById('cupon-tipo').value = 'porcentaje'
+  document.getElementById('cupon-usos').value = ''
+  document.getElementById('cupon-expiracion').value = ''
 }
 
 // Actualiza labels de toggles en tiempo real
