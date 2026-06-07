@@ -275,33 +275,93 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   }
 }
 
+const _timerParadaIntervals = {}
+
 function _renderParadasRepartidor(pedidoId, paradas) {
   const el = document.getElementById('paradas-rep-' + pedidoId)
   if (!el) return
   el.style.display = 'block'
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
-  const proxima = paradas.find(p => p.estado !== 'completada')
 
   el.innerHTML = `
     <div style="background:#f0f4ff;border-radius:10px;padding:10px 12px;border:1.5px solid rgba(26,79,160,0.15)">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--blue);margin-bottom:8px;letter-spacing:.5px">
         📍 PARADAS — ${completadas}/${total} completadas
       </div>
-      ${paradas.map(p => {
-        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
-        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_curso' ? 'var(--orange)' : '#8fa3c0'
-        const esActiva = proxima?.id === p.id
-        const btnHtml = esActiva
-          ? `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 10px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">Completar</button>`
-          : (p.estado === 'completada' && p.foto_url ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>` : '')
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
-          <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}: <span style="font-weight:600;opacity:.8">${p.direccion}</span></span>
-          ${btnHtml}
+      ${paradas.map((p, idx) => {
+        const anteriorCompletada = idx === 0 || paradas[idx - 1].estado === 'completada'
+        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_domicilio' ? '📍' : p.estado === 'en_camino' ? '🚚' : '⏳'
+        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_domicilio' ? '#f05a1a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+
+        let btnHtml = ''
+        if (p.estado === 'completada') {
+          btnHtml = p.foto_url
+            ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>`
+            : '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#16a34a;font-weight:700">✅ listo</span>'
+        } else if (!anteriorCompletada) {
+          btnHtml = '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#c0c0c0;font-weight:700">🔒</span>'
+        } else if (p.estado === 'pendiente') {
+          btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer">🚚 En camino</button>`
+        } else if (p.estado === 'en_camino') {
+          btnHtml = `<button onclick="paradaEnDomicilio(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer">📍 Ya llegué</button>`
+        } else if (p.estado === 'en_domicilio') {
+          btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#ef4444">⏱ 7:00</span>
+            <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">📸 Completar</button>
+          </div>`
+        }
+
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
+          <div>
+            <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}</span>
+            <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#8fa3c0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+            ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
+          </div>
+          <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
         </div>`
       }).join('')}
     </div>
   `
+
+  // Iniciar timers para paradas en domicilio
+  paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
+}
+
+function _iniciarTimerParada(paradaId) {
+  const key = 'guepack_timer_p_' + paradaId
+  if (!localStorage.getItem(key)) localStorage.setItem(key, Date.now().toString())
+
+  if (_timerParadaIntervals[paradaId]) clearInterval(_timerParadaIntervals[paradaId])
+
+  _timerParadaIntervals[paradaId] = setInterval(() => {
+    const el = document.getElementById('timer-parada-' + paradaId)
+    if (!el) { clearInterval(_timerParadaIntervals[paradaId]); return }
+    const inicio = parseInt(localStorage.getItem(key) || Date.now())
+    const segsTranscurridos = Math.floor((Date.now() - inicio) / 1000)
+    const restantes = Math.max(0, 7 * 60 - segsTranscurridos)
+    const mins = Math.floor(restantes / 60)
+    const segs = restantes % 60
+    el.textContent = `⏱ ${mins}:${segs.toString().padStart(2, '0')}`
+    if (restantes === 0) {
+      el.textContent = '⏱ ¡Tiempo!'
+      el.style.color = '#ef4444'
+      clearInterval(_timerParadaIntervals[paradaId])
+    }
+  }, 1000)
+}
+
+async function paradaEnCamino(pedidoId, paradaId) {
+  const { error } = await db.from('paradas').update({ estado: 'en_camino' }).eq('id', paradaId)
+  if (error) { alert('Error al actualizar parada'); return }
+  cargarPedidos()
+}
+
+async function paradaEnDomicilio(pedidoId, paradaId) {
+  const { error } = await db.from('paradas').update({ estado: 'en_domicilio' }).eq('id', paradaId)
+  if (error) { alert('Error al actualizar parada'); return }
+  localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
+  cargarPedidos()
 }
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
@@ -570,6 +630,8 @@ async function confirmarParada(pedidoId, paradaId, orden, total) {
     completada_at: new Date().toISOString()
   }).eq('id', paradaId)
 
+  localStorage.removeItem('guepack_timer_p_' + paradaId)
+  if (_timerParadaIntervals[paradaId]) { clearInterval(_timerParadaIntervals[paradaId]); delete _timerParadaIntervals[paradaId] }
   document.getElementById('modal-parada').remove()
   cargarPedidos()
 }
