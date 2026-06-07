@@ -2150,7 +2150,7 @@ async function cargarVip() {
     const total = u.total_pedidos || 0
     const nivel = u.nivel_vip || 'normal'
     const info = nivelInfo[nivel] || nivelInfo.normal
-    const nombre = u.nombre || u.email?.split('@')[0] || 'Cliente'
+    const nombre = u.email?.split('@')[0] || 'Cliente'
 
     let barHtml = ''
     if (info.next) {
@@ -2207,7 +2207,7 @@ async function cargarClientesVip() {
   }
   cont.innerHTML = data.map(u => {
     const info = _VIP_INFO[u.nivel_vip] || _VIP_INFO.bronce
-    const nombre = u.nombre || u.email || 'Cliente'
+    const nombre = u.email || 'Cliente'
     return `
     <div style="background:${info.bg};border-radius:12px;padding:14px 16px;margin-bottom:8px;border-left:4px solid ${info.border};display:flex;justify-content:space-between;align-items:center">
       <div>
