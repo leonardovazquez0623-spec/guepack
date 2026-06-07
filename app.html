@@ -846,6 +846,26 @@ async function verificarSesion() {
   verificarAnuncio()
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
+  _cargarEmpresaUsuario(session.user)
+}
+
+async function _cargarEmpresaUsuario(user) {
+  const codigo = user?.user_metadata?.empresa_codigo
+  if (!codigo) return
+  const { data: empresa } = await db.from('empresas_afiliadas').select('*').eq('codigo', codigo).eq('activo', true).single()
+  if (!empresa) return
+  _empresaData = empresa
+  // Ocultar card de zona y mostrar badge corporativo
+  const zonaCard = document.getElementById('zona-detect-result')?.closest('.card')
+  if (zonaCard) zonaCard.style.display = 'none'
+  // Badge corporativo debajo de dir-entrega
+  const avisoZona = document.getElementById('zona-aviso')
+  if (avisoZona) {
+    avisoZona.style.display = 'block'
+    avisoZona.style.background = '#e0f2fe'
+    avisoZona.style.color = '#0369a1'
+    avisoZona.textContent = '🏢 Cuenta corporativa: ' + empresa.nombre + ' · El precio se calcula por kilómetro'
+  }
 }
 
 function cargarNombreRemitente(user) {
@@ -1078,7 +1098,11 @@ async function activarNotificaciones() {
 
 activarNotificaciones()
 let selSize = null, selZone = null, selMetodoPago = null
-let _zonaData = null   // zona detectada desde Supabase zonas_cobertura
+let _zonaData = null        // zona detectada desde Supabase zonas_cobertura
+let _empresaData = null     // datos de empresa afiliada del usuario logueado
+let _corporativoPrecio = null  // precio calculado por km para corporativos
+let _corporativoKm = null      // distancia calculada
+let _entregaPlace = null       // último place seleccionado en dir-entrega
 
 const prices = {
   centro: { sobre: 110, grande: 150 },
@@ -1164,11 +1188,12 @@ async function submitRequest() {
   const instrucciones = document.getElementById('instrucciones-recoleccion').value
   const metodoPago = selMetodoPago
 
-  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !_zonaData || !metodoPago) {
+  const zonaOK = _empresaData ? _corporativoPrecio != null : _zonaData != null
+  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
-    t.textContent = !_zonaData
-      ? '⚠️ La dirección de entrega debe estar en nuestra zona de cobertura'
+    t.textContent = !zonaOK
+      ? (_empresaData ? '⚠️ Ingresa ambas direcciones para calcular el precio corporativo' : '⚠️ La dirección de entrega debe estar en nuestra zona de cobertura')
       : '⚠️ Llena todos los campos y selecciona fecha, tamaño y método de pago'
     document.body.appendChild(t)
     setTimeout(() => t.remove(), 3000)
@@ -1186,8 +1211,10 @@ if (aviso && aviso.style.display !== 'none' && aviso.innerHTML.includes('🟠'))
 }
 const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
-const precioBase = selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande
-const precio = _cuponActivo
+const precioBase = _empresaData
+  ? _corporativoPrecio
+  : (selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande)
+const precio = _cuponActivo && !_empresaData
   ? (_cuponActivo.tipo === 'porcentaje'
       ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
       : Math.max(0, precioBase - _cuponActivo.descuento))
@@ -1214,7 +1241,7 @@ const { data, error } = await db.from('pedidos').insert({
     direccion_entrega: dir_entrega,
     fecha: fecha,
     tamanio: selSize,
-    zona: _zonaData.nombre,
+    zona: _empresaData ? ('Corporativo · ' + _corporativoKm + ' km') : _zonaData.nombre,
     precio: precio,
     estado: estadoInicial,
     user_id: userId,
@@ -1224,6 +1251,7 @@ const { data, error } = await db.from('pedidos').insert({
     nombre_remitente: nombreRemitente || null,
     cupon_codigo: _cuponActivo?.codigo || null,
     token_rastreo: tokenRastreo,
+    empresa_codigo: _empresaData?.codigo || null,
   }).select()
 
   if (error) {
@@ -2036,6 +2064,9 @@ function resetForm() {
   selSize = null
   selZone = null
   _zonaData = null
+  _corporativoPrecio = null
+  _corporativoKm = null
+  _entregaPlace = null
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
   const _zdr = document.getElementById('zona-detect-result')
   if (_zdr) { _zdr.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'; _zdr.innerHTML = '<span style="font-size:16px">📍</span><span>Se detectará al ingresar tu dirección de entrega</span>' }
@@ -2673,7 +2704,17 @@ function initMapsGuepack() {
   acEntrega.addListener('place_changed', function () {
     const place = acEntrega.getPlace()
     if (!place.geometry) return
-    _detectarZonaEntrega(place)
+    _entregaPlace = place
+    if (_empresaData) {
+      _calcularPrecioCorporativo()
+    } else {
+      _detectarZonaEntrega(place)
+    }
+  })
+
+  // Recalcular precio corporativo si ya hay lugar de entrega y cambia la recolección
+  inputRec.addEventListener('change', function () {
+    if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
   })
 }
 
@@ -2758,6 +2799,62 @@ function _fallbackZonaCiudad(place, result) {
   } else {
     result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
     result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
+  }
+}
+
+function _calcularPrecioCorporativo() {
+  const origen = document.getElementById('dir-recoleccion').value.trim()
+  if (!origen) {
+    const aviso = document.getElementById('zona-aviso')
+    if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#fffbeb'; aviso.style.color = '#d97706'; aviso.textContent = '⚠️ Ingresa la dirección de recolección para calcular el precio' }
+    return
+  }
+  if (!_entregaPlace?.geometry) return
+
+  const service = new google.maps.DistanceMatrixService()
+  service.getDistanceMatrix({
+    origins: [origen],
+    destinations: [_entregaPlace.geometry.location],
+    travelMode: google.maps.TravelMode.DRIVING,
+    unitSystem: google.maps.UnitSystem.METRIC
+  }, (response, status) => {
+    if (status !== 'OK') { mostrarToast('❌ Error al calcular distancia', '#ef4444'); return }
+    const el = response.rows[0]?.elements[0]
+    if (!el || el.status !== 'OK') { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
+    const km = Math.round((el.distance.value / 1000) * 10) / 10
+    _mostrarCotizacionCorporativa(km)
+  })
+}
+
+function _mostrarCotizacionCorporativa(km) {
+  const e = _empresaData
+  const tarifaBase   = e.tarifa_base    || 95
+  const kmMinimo     = e.km_minimo      || 12
+  const tarifaExtra  = e.tarifa_base_extra || 115
+  const precioKmExt  = e.precio_km_extra  || 10
+  const iva          = e.iva             || 0.16
+
+  const subtotal = km <= kmMinimo
+    ? tarifaBase
+    : tarifaExtra + precioKmExt * (km - kmMinimo)
+  const total = Math.round(subtotal * (1 + iva) * 100) / 100
+
+  _corporativoPrecio = total
+  _corporativoKm = km
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+  if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
+  if (quoteDetail) quoteDetail.textContent = km + ' km · Subtotal $' + subtotal.toFixed(2) + ' + IVA 16% · ' + e.nombre
+  if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
+
+  const aviso = document.getElementById('zona-aviso')
+  if (aviso) {
+    aviso.style.display = 'block'
+    aviso.style.background = '#e0f2fe'
+    aviso.style.color = '#0369a1'
+    aviso.textContent = '🏢 ' + e.nombre + ' · ' + km + ' km'
   }
 }
 

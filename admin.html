@@ -186,6 +186,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
     <button class="tab" onclick="showTab('vip')">👑 VIP</button>
     <button class="tab" onclick="showTab('zonas')">🗺️ Zonas</button>
+    <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -694,6 +695,52 @@ function initMapsAdmin() {
 
   </div>
 
+  <!-- TAB EMPRESAS -->
+  <div id="tab-empresas" class="tab-content">
+    <div class="card">
+      <div class="card-title">🏢 Empresa afiliada</div>
+      <input type="hidden" id="emp-id">
+      <div class="form-group">
+        <label class="form-label">Nombre de la empresa</label>
+        <input type="text" id="emp-nombre" class="form-input" placeholder="ACME Corp">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Código de afiliación</label>
+        <input type="text" id="emp-codigo" class="form-input" placeholder="CORP2024" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Tarifa base (0-N km)</label>
+          <input type="number" id="emp-tarifa-base" class="form-input" value="95" placeholder="95">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Km mínimos</label>
+          <input type="number" id="emp-km-min" class="form-input" value="12" placeholder="12">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tarifa base (+N km)</label>
+          <input type="number" id="emp-tarifa-extra" class="form-input" value="115" placeholder="115">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Precio por km extra</label>
+          <input type="number" id="emp-precio-km" class="form-input" value="10" placeholder="10">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Estado:</span>
+        <button id="emp-activo-btn" onclick="empToggleActivo()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">● Activo</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
+        <button onclick="_resetFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">✕</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Empresas registradas</div>
+      <div id="lista-empresas"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -740,6 +787,97 @@ async function toggleLluvia() {
   setTimeout(() => toast.remove(), 2500)
 }
 
+// ── Empresas afiliadas ──
+let _empActivo = true
+
+function empToggleActivo() {
+  _empActivo = !_empActivo
+  const btn = document.getElementById('emp-activo-btn')
+  btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
+  btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
+  btn.textContent      = _empActivo ? '● Activo' : '● Inactivo'
+}
+
+async function cargarEmpresas() {
+  const cont = document.getElementById('lista-empresas')
+  if (!cont) return
+  const { data } = await db.from('empresas_afiliadas').select('*').order('created_at', { ascending: false })
+  if (!data?.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin empresas registradas</div>'; return }
+  cont.innerHTML = data.map(e => `
+    <div style="background:${e.activo ? '#f0fdf4' : '#f9fafb'};border:1.5px solid ${e.activo ? '#86efac' : '#e0e0e0'};border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
+        <div style="font-family:monospace;font-size:12px;font-weight:700;color:var(--blue);margin-top:2px;letter-spacing:1px">${e.codigo}</div>
+        <div style="font-size:10px;color:#888;font-weight:600;margin-top:4px">
+          0-${e.km_minimo} km: $${e.tarifa_base} · +${e.km_minimo} km: $${e.tarifa_base_extra || 115} + $${e.precio_km_extra}/km · IVA ${Math.round((e.iva || 0.16) * 100)}%
+        </div>
+        <div style="font-size:10px;font-weight:700;color:${e.activo ? '#16a34a' : '#ef4444'};margin-top:2px">${e.activo ? '● Activo' : '● Inactivo'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+        <button onclick="editarEmpresa(${e.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
+        <button onclick="eliminarEmpresa(${e.id},'${(e.nombre||'').replace(/'/g,"\\'")} ')" style="padding:6px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
+      </div>
+    </div>
+  `).join('')
+}
+
+async function guardarEmpresa() {
+  const id          = document.getElementById('emp-id').value
+  const nombre      = document.getElementById('emp-nombre').value.trim()
+  const codigo      = document.getElementById('emp-codigo').value.trim().toUpperCase()
+  const tarifaBase  = parseFloat(document.getElementById('emp-tarifa-base').value) || 95
+  const kmMin       = parseInt(document.getElementById('emp-km-min').value)         || 12
+  const tarifaExtra = parseFloat(document.getElementById('emp-tarifa-extra').value) || 115
+  const precioKm    = parseFloat(document.getElementById('emp-precio-km').value)    || 10
+  if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
+  const payload = { nombre, codigo, tarifa_base: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, precio_km_extra: precioKm, iva: 0.16, activo: _empActivo }
+  const { error } = id
+    ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
+    : await db.from('empresas_afiliadas').insert(payload)
+  if (error) { showToast('❌ ' + error.message); return }
+  showToast(id ? '✅ Empresa actualizada' : '✅ Empresa creada')
+  _resetFormEmpresa()
+  cargarEmpresas()
+}
+
+async function editarEmpresa(id) {
+  const { data } = await db.from('empresas_afiliadas').select('*').eq('id', id).single()
+  if (!data) return
+  document.getElementById('emp-id').value           = data.id
+  document.getElementById('emp-nombre').value       = data.nombre
+  document.getElementById('emp-codigo').value       = data.codigo
+  document.getElementById('emp-tarifa-base').value  = data.tarifa_base
+  document.getElementById('emp-km-min').value       = data.km_minimo
+  document.getElementById('emp-tarifa-extra').value = data.tarifa_base_extra || 115
+  document.getElementById('emp-precio-km').value    = data.precio_km_extra
+  _empActivo = data.activo
+  const btn = document.getElementById('emp-activo-btn')
+  btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
+  btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
+  btn.textContent      = _empActivo ? '● Activo' : '● Inactivo'
+  document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
+}
+
+async function eliminarEmpresa(id, nombre) {
+  if (!confirm('¿Eliminar empresa "' + nombre.trim() + '"?')) return
+  const { error } = await db.from('empresas_afiliadas').delete().eq('id', id)
+  if (error) { showToast('❌ Error al eliminar'); return }
+  showToast('🗑️ Empresa eliminada')
+  cargarEmpresas()
+}
+
+function _resetFormEmpresa() {
+  document.getElementById('emp-id').value = ''
+  ;['emp-nombre','emp-codigo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+  document.getElementById('emp-tarifa-base').value  = '95'
+  document.getElementById('emp-km-min').value       = '12'
+  document.getElementById('emp-tarifa-extra').value = '115'
+  document.getElementById('emp-precio-km').value    = '10'
+  _empActivo = true
+  const btn = document.getElementById('emp-activo-btn')
+  if (btn) { btn.style.background = '#dcfce7'; btn.style.color = '#16a34a'; btn.textContent = '● Activo' }
+}
+
 async function init() {
   cargarEstadoLluvia()
   const { data: { session } } = await db.auth.getSession()
@@ -776,6 +914,7 @@ function showTab(tab, btn) {
   if (tab === 'finanzas') cargarFinanzas()
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') cargarZonas()
+  if (tab === 'empresas') cargarEmpresas()
 }
 
 function _moverIndicador(tabEl) {
@@ -1360,6 +1499,7 @@ function renderPedido(pedido) {
           <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
           <div class="order-client">${pedido.nombre}</div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:1px">De: ${pedido.nombre_remitente}</div>` : ''}
+          ${pedido.empresa_codigo ? `<div style="display:inline-block;margin-top:3px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">🏢 CORPORATIVO · ${pedido.empresa_codigo}</div>` : ''}
         </div>
         <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : pedido.estado === 'Pendiente verificación de pago' ? 'badge-verify' : 'badge-transit'}">${pedido.estado}</div>
       </div>
