@@ -765,10 +765,10 @@ function showTab(tab, btn) {
   if (tab === 'nuevo') {
     db.auth.getSession().then(({ data: { session } }) => {
       if (!session) return
-      db.from('usuarios').select('nombre').eq('email', session.user.email).single().then(({ data }) => {
-        const campo = document.getElementById('a-nombre-remitente')
-        if (campo && data?.nombre && !campo.value) campo.value = data.nombre
-      })
+      const campo = document.getElementById('a-nombre-remitente')
+      if (campo && !campo.value) {
+        campo.value = session.user.user_metadata?.nombre || session.user.user_metadata?.full_name || session.user.email || ''
+      }
     })
   }
   if (tab === 'widget') cargarClientesWidget()
@@ -2198,7 +2198,7 @@ async function cargarClientesVip() {
   const cont = document.getElementById('fin-vip-lista')
   if (!cont) return
   const { data } = await db.from('usuarios')
-    .select('id, email, nombre, total_pedidos, nivel_vip, created_at')
+    .select('id, email, total_pedidos, nivel_vip, created_at')
     .in('nivel_vip', ['bronce', 'plata', 'oro'])
     .order('total_pedidos', { ascending: false })
   if (!data || data.length === 0) {
