@@ -296,7 +296,7 @@ async function registrar() {
   if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
 
   if (empresaCodigo) {
-    const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activo', true).single()
+    const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activa', true).single()
     if (!empresa) { showError('Código de empresa no válido'); return; }
   }
 

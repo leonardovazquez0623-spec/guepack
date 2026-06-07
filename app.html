@@ -852,7 +852,7 @@ async function verificarSesion() {
 async function _cargarEmpresaUsuario(user) {
   const codigo = user?.user_metadata?.empresa_codigo
   if (!codigo) return
-  const { data: empresa } = await db.from('empresas_afiliadas').select('*').eq('codigo', codigo).eq('activo', true).single()
+  const { data: empresa } = await db.from('empresas_afiliadas').select('*').eq('codigo', codigo).eq('activa', true).single()
   if (!empresa) return
   _empresaData = empresa
   // Ocultar card de zona y mostrar badge corporativo
