@@ -243,6 +243,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
+          <div id="paradas-rep-${pedido.id}" style="display:none;margin-bottom:10px"></div>
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
             <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:#1a4fa0;color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
               💬 Chat
@@ -261,6 +262,46 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   })
 
   _cargarBadgesNoLeidos(data.map(p => p.id))
+
+  // Cargar paradas para todos los pedidos de una vez
+  const ids = data.map(p => p.id)
+  if (ids.length) {
+    const { data: todasParadas } = await db.from('paradas').select('*').in('pedido_id', ids).order('orden')
+    if (todasParadas?.length) {
+      const porPedido = {}
+      todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
+      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas))
+    }
+  }
+}
+
+function _renderParadasRepartidor(pedidoId, paradas) {
+  const el = document.getElementById('paradas-rep-' + pedidoId)
+  if (!el) return
+  el.style.display = 'block'
+  const total = paradas.length
+  const completadas = paradas.filter(p => p.estado === 'completada').length
+  const proxima = paradas.find(p => p.estado !== 'completada')
+
+  el.innerHTML = `
+    <div style="background:#f0f4ff;border-radius:10px;padding:10px 12px;border:1.5px solid rgba(26,79,160,0.15)">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--blue);margin-bottom:8px;letter-spacing:.5px">
+        📍 PARADAS — ${completadas}/${total} completadas
+      </div>
+      ${paradas.map(p => {
+        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
+        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_curso' ? 'var(--orange)' : '#8fa3c0'
+        const esActiva = proxima?.id === p.id
+        const btnHtml = esActiva
+          ? `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 10px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">Completar</button>`
+          : (p.estado === 'completada' && p.foto_url ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>` : '')
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
+          <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}: <span style="font-weight:600;opacity:.8">${p.direccion}</span></span>
+          ${btnHtml}
+        </div>`
+      }).join('')}
+    </div>
+  `
 }
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
@@ -445,6 +486,92 @@ async function confirmarEntrega(id, telefono, nombre) {
 
   document.getElementById('modal-entrega').remove()
   await cambiarEstado(id, 'Entregado', telefono, nombre)
+}
+
+function abrirModalParada(pedidoId, paradaId, orden, total) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-parada'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,50,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📍 Confirmar Parada ${orden} / ${total}</div>
+      <div style="margin-bottom:16px">
+        <input type="file" id="parada-foto" accept="image/*" capture="environment" style="display:none">
+        <label for="parada-foto" id="btn-parada-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
+        <div id="parada-foto-preview" style="margin-top:10px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">Firma de recibido</div>
+        <canvas id="parada-canvas" width="340" height="140" style="border:2px solid #e0e0e0;border-radius:12px;width:100%;touch-action:none;background:#fafafa"></canvas>
+        <button onclick="limpiarFirmaParada()" style="margin-top:6px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;background:none;border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;color:#666">Limpiar firma</button>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-parada').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
+        <button id="btn-confirmar-parada" onclick="confirmarParada(${pedidoId}, ${paradaId}, ${orden}, ${total})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar parada</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+
+  // Firma canvas
+  const canvas = document.getElementById('parada-canvas')
+  const ctx = canvas.getContext('2d')
+  let drawing = false
+  canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY) })
+  canvas.addEventListener('mousemove', e => { if (!drawing) return; ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke() })
+  canvas.addEventListener('mouseup', () => { drawing = false })
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.beginPath(); ctx.moveTo(t.clientX - r.left, t.clientY - r.top) }, { passive: false })
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.lineTo(t.clientX - r.left, t.clientY - r.top); ctx.stroke() }, { passive: false })
+  canvas.addEventListener('touchend', () => { drawing = false })
+  ctx.strokeStyle = '#1a2740'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
+
+  document.getElementById('parada-foto').addEventListener('change', function() {
+    if (!this.files[0]) return
+    const url = URL.createObjectURL(this.files[0])
+    document.getElementById('parada-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:180px;object-fit:cover">`
+    document.getElementById('btn-parada-foto').textContent = '✅ Foto lista'
+    document.getElementById('btn-parada-foto').style.background = '#22c55e'
+  })
+}
+
+function limpiarFirmaParada() {
+  const canvas = document.getElementById('parada-canvas')
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+}
+
+async function confirmarParada(pedidoId, paradaId, orden, total) {
+  const btn = document.getElementById('btn-confirmar-parada')
+  btn.textContent = 'Subiendo...'; btn.disabled = true
+
+  const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
+  let fotoUrl = null, firmaUrl = null
+
+  const fotoInput = document.getElementById('parada-foto')
+  if (fotoInput.files[0]) {
+    const ruta = `GK-${pedidoId}/parada-${orden}.jpg`
+    const { error } = await db.storage.from('evidencias').upload(ruta, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/parada-${orden}.jpg`
+  }
+
+  const canvas = document.getElementById('parada-canvas')
+  await new Promise(resolve => canvas.toBlob(async blob => {
+    if (blob) {
+      const ruta = `GK-${pedidoId}/firma-parada-${orden}.png`
+      const { error } = await db.storage.from('evidencias').upload(ruta, blob, { contentType: 'image/png', upsert: true })
+      if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-parada-${orden}.png`
+    }
+    resolve()
+  }, 'image/png'))
+
+  await db.from('paradas').update({
+    estado: 'completada',
+    foto_url: fotoUrl,
+    firma_url: firmaUrl,
+    completada_at: new Date().toISOString()
+  }).eq('id', paradaId)
+
+  document.getElementById('modal-parada').remove()
+  cargarPedidos()
 }
 
 async function cerrarSesion() {

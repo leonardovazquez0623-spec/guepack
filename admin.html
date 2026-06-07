@@ -138,14 +138,20 @@ function initMapsAdmin() {
   )
   const acOpts = {
     componentRestrictions: { country: 'mx' },
-    fields: ['formatted_address'],
+    fields: ['formatted_address', 'address_components', 'geometry'],
     bounds: gdlBounds,
     strictBounds: false
   }
   const inputRec = document.getElementById('a-recoleccion')
   const inputEnt = document.getElementById('a-entrega')
   if (inputRec) new google.maps.places.Autocomplete(inputRec, acOpts)
-  if (inputEnt) new google.maps.places.Autocomplete(inputEnt, acOpts)
+  if (inputEnt) {
+    const acEnt = new google.maps.places.Autocomplete(inputEnt, acOpts)
+    acEnt.addListener('place_changed', function () {
+      const place = acEnt.getPlace()
+      if (place.geometry) _aDetectarZonaEntrega(place)
+    })
+  }
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
@@ -254,6 +260,7 @@ function initMapsAdmin() {
           <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
           <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
         </div>
+        <div id="a-zona-detect-result" style="display:none;padding:13px 14px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;display:flex;align-items:center;gap:10px;min-height:46px"></div>
       </div>
 
       <div class="form-group">
@@ -284,24 +291,6 @@ function initMapsAdmin() {
         <div class="size-option" id="a-sz-grande" onclick="selectSize('grande')">
           <span class="size-icon">📦</span>
           <span class="size-name">Grande</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🗺️ Zona</div>
-      <div class="zone-grid">
-        <div class="zone-option" id="a-zn-centro" onclick="selectZone('centro')">
-          <span class="zone-icon">🏙️</span>
-          <span class="zone-name">Centro GDL</span>
-        </div>
-        <div class="zone-option" id="a-zn-norte" onclick="selectZone('norte')">
-          <span class="zone-icon">⬆️</span>
-          <span class="zone-name">Zona Norte</span>
-        </div>
-        <div class="zone-option" id="a-zn-sur" onclick="selectZone('sur')">
-          <span class="zone-icon">⬇️</span>
-          <span class="zone-name">Zona Sur</span>
         </div>
       </div>
     </div>
@@ -713,7 +702,7 @@ const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-let selSize = null, selZone = null
+let selSize = null, selZone = null, _aZonaData = null
 const prices = {
   centro: { sobre: 110, grande: 150 },
   norte: { sobre: 150, grande: 200 },
@@ -1022,6 +1011,76 @@ async function aVerificarDisponibilidad(fecha) {
     aviso.innerHTML = '🟢 ¡Disponible! Recolección el día seleccionado'
   }
 }
+async function _aDetectarZonaEntrega(place) {
+  const result = document.getElementById('a-zona-detect-result')
+  result.style.display = 'flex'
+  result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
+  result.innerHTML = '<span style="font-size:16px">⏳</span><span>Verificando zona...</span>'
+
+  const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
+
+  if (!zonas?.length || !zonas.some(z => z.coordenadas?.length >= 3)) {
+    _aFallbackZonaCiudad(place, result); return
+  }
+
+  const loc = place.geometry?.location
+  if (!loc) { _aMostrarResultadoZona(result, false, null); return }
+
+  const lat = loc.lat(), lng = loc.lng()
+  const zonaEncontrada = zonas.find(z => z.coordenadas?.length >= 3 && _pointInPolygon(lat, lng, z.coordenadas))
+
+  if (zonaEncontrada) {
+    _aZonaData = zonaEncontrada
+    selZone = zonaEncontrada.nombre
+    _aMostrarResultadoZona(result, true, zonaEncontrada)
+    aUpdateQuote()
+  } else {
+    _aZonaData = null; selZone = null
+    _aMostrarResultadoZona(result, false, null)
+  }
+}
+
+function _pointInPolygon(lat, lng, polygon) {
+  let inside = false
+  const x = lng, y = lat
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat
+    const xj = polygon[j].lng, yj = polygon[j].lat
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside
+  }
+  return inside
+}
+
+function _aMostrarResultadoZona(el, disponible, zona) {
+  if (!el) return
+  if (disponible && zona) {
+    el.style.background = '#f0fdf4'; el.style.border = '1.5px solid #86efac'; el.style.color = '#16a34a'
+    el.innerHTML = `<span style="font-size:18px">✅</span><div><div>${zona.nombre}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Sobre $${zona.precio_sobre} · Grande $${zona.precio_grande}</div></div>`
+  } else {
+    el.style.background = '#fef2f2'; el.style.border = '1.5px solid #fca5a5'; el.style.color = '#dc2626'
+    el.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de la zona de cobertura</span>'
+  }
+}
+
+function _aFallbackZonaCiudad(place, result) {
+  const comps = place.address_components || []
+  const ciudad = (comps.find(c => c.types.includes('locality'))?.long_name || '').toLowerCase()
+  const municipio = (comps.find(c => c.types.includes('administrative_area_level_2'))?.long_name || '').toLowerCase()
+  const zona = ciudad || municipio
+  _aZonaData = null; selZone = null
+  if (!result) return
+  if (['tonalá','tonala'].some(z => zona.includes(z))) {
+    result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
+    result.innerHTML = '<span style="font-size:18px">❌</span><span>Tonalá no está en nuestra zona de cobertura</span>'
+  } else if (['guadalajara','zapopan','tlaquepaque','san pedro tlaquepaque'].some(z => zona.includes(z))) {
+    result.style.background = '#fffbeb'; result.style.border = '1.5px solid #fcd34d'; result.style.color = '#d97706'
+    result.innerHTML = '<span style="font-size:18px">⚠️</span><span>Zona sin precio configurado — contacta a GUEPACK</span>'
+  } else {
+    result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
+    result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
+  }
+}
+
 function selectSize(sz) {
   selSize = sz
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
@@ -1037,9 +1096,8 @@ function selectZone(zone) {
 }
 
 function aUpdateQuote() {
-  if (!selSize || !selZone) return
-  const precioBase = prices[selZone][selSize]
-  const zoneLabel = { centro: 'Centro GDL', norte: 'Zona Norte', sur: 'Zona Sur' }[selZone]
+  if (!selSize || !_aZonaData) return
+  const precioBase = selSize === 'sobre' ? _aZonaData.precio_sobre : _aZonaData.precio_grande
   const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize]
   let amountHtml = '$' + precioBase
   if (_aCuponActivo) {
@@ -1049,7 +1107,7 @@ function aUpdateQuote() {
     amountHtml = '<span style="text-decoration:line-through;font-size:0.55em;opacity:0.55">$' + precioBase + '</span> $' + precioFinal
   }
   document.getElementById('a-quote-amount').innerHTML = amountHtml
-  document.getElementById('a-quote-detail').textContent = sizeLabel + ' · ' + zoneLabel
+  document.getElementById('a-quote-detail').textContent = sizeLabel + ' · ' + _aZonaData.nombre
   document.getElementById('a-quote').style.display = 'flex'
 }
 function updateQuote() { aUpdateQuote() }
@@ -1064,8 +1122,8 @@ async function crearPedidoAdmin() {
   const fecha = document.getElementById('a-fecha-seleccionada').value
   const metodoPago = document.getElementById('a-metodo-pago').value
 
-  if (!nombre || !whatsapp || !recoleccion || !entrega || !fecha || !selSize || !selZone) {
-    showToast('⚠️ Llena todos los campos y selecciona fecha, tamaño y zona'); return
+  if (!nombre || !whatsapp || !recoleccion || !entrega || !fecha || !selSize || !_aZonaData) {
+    showToast('⚠️ Llena todos los campos, selecciona fecha, tamaño y dirección de entrega con zona detectada'); return
   }
 
   const aAviso = document.getElementById('a-aviso-fecha')
@@ -1073,7 +1131,7 @@ async function crearPedidoAdmin() {
     showToast('⚠️ No es posible registrar por horario o capacidad. Selecciona otra fecha.'); return
   }
 
-  const precioBase = prices[selZone][selSize]
+  const precioBase = selSize === 'sobre' ? _aZonaData.precio_sobre : _aZonaData.precio_grande
   const precio = _aCuponActivo
     ? (_aCuponActivo.tipo === 'porcentaje'
         ? Math.round(precioBase * (1 - _aCuponActivo.descuento / 100))
@@ -1086,7 +1144,7 @@ async function crearPedidoAdmin() {
     direccion_recoleccion: recoleccion,
     direccion_entrega: entrega,
     instrucciones: instrucciones || null,
-    fecha, tamanio: selSize, zona: selZone,
+    fecha, tamanio: selSize, zona: _aZonaData.nombre,
     precio,
     metodo_pago: metodoPago || null,
     cupon_codigo: _aCuponActivo?.codigo || null,
@@ -1124,9 +1182,11 @@ function _aResetForm() {
     const btn = document.getElementById(id)
     if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
   })
-  selSize = null; selZone = null
+  selSize = null; selZone = null; _aZonaData = null
   _aCuponActivo = null
-  document.querySelectorAll('.size-option, .zone-option').forEach(o => o.classList.remove('selected'))
+  document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
+  const zdr = document.getElementById('a-zona-detect-result')
+  if (zdr) zdr.style.display = 'none'
 }
 
 let diaFiltro = 0
@@ -1163,6 +1223,21 @@ async function cargarPedidos() {
       .lte('created_at', fin)
       .order('created_at', { ascending: false })
     if (error) { console.error(error); return }
+
+    // Cargar conteos de paradas para todos los pedidos
+    const pedidoIds = data.map(p => p.id)
+    let _paradasConteo = {} // pedido_id -> {total, completadas}
+    if (pedidoIds.length) {
+      const { data: todasParadas } = await db.from('paradas').select('pedido_id, estado').in('pedido_id', pedidoIds)
+      if (todasParadas?.length) {
+        todasParadas.forEach(p => {
+          if (!_paradasConteo[p.pedido_id]) _paradasConteo[p.pedido_id] = { total: 0, completadas: 0 }
+          _paradasConteo[p.pedido_id].total++
+          if (p.estado === 'completada') _paradasConteo[p.pedido_id].completadas++
+        })
+      }
+    }
+    data.forEach(p => { p._paradas = _paradasConteo[p.id] || null })
 
     document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
     document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
@@ -1295,6 +1370,7 @@ function renderPedido(pedido) {
         <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
         ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;margin-top:4px">📝 ${pedido.instrucciones}</div>` : ''}
         ${pedido.metodo_pago ? `<div style="color:#999;font-size:11px;margin-top:4px">💳 ${pedido.metodo_pago}</div>` : ''}
+        ${pedido._paradas ? `<div style="margin-top:5px;display:inline-flex;align-items:center;gap:4px;background:rgba(26,79,160,0.08);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:900;color:var(--blue)">📍 ${pedido._paradas.completadas}/${pedido._paradas.total} paradas</div>` : ''}
       </div>
       ${pedido.estado !== 'Cancelado' ? `
       <div class="order-actions">

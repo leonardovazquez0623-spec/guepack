@@ -652,6 +652,13 @@
   </div>
   <div id="zona-aviso" style="display:none;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;margin-top:4px"></div>
 </div>
+
+<div id="paradas-container"></div>
+
+<button type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:10px;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
+  ➕ Agregar parada
+</button>
+
           <div class="form-group">
   <label class="form-label">Instrucciones de recolección (opcional)</label>
   <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Recoger Pedido Folio XFB12867, entregar en recepción..."></textarea>
@@ -1231,6 +1238,22 @@ const { data, error } = await db.from('pedidos').insert({
 
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo
+
+  // Guardar paradas adicionales
+  if (_paradasList.length) {
+    const paradasValidas = _paradasList.filter(p => p.direccion.trim())
+    if (paradasValidas.length) {
+      await db.from('paradas').insert(
+        paradasValidas.map((p, i) => ({
+          pedido_id: folioReal,
+          orden: i + 2, // la parada principal es orden 1
+          direccion: p.direccion.trim(),
+          instrucciones: p.instrucciones?.trim() || null,
+          estado: 'pendiente'
+        }))
+      )
+    }
+  }
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
   mostrarPedidoActivo(folioReal, 'Pendiente')
@@ -1514,6 +1537,64 @@ function seleccionarFecha(opcion) {
 const _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
 const _pedidoTokens = {}  // id -> token_rastreo
 
+// ── Paradas múltiples ────────────────────────────────────────────────────────
+let _paradasList = [] // [{direccion, instrucciones}]
+
+function agregarParada() {
+  const idx = _paradasList.length
+  _paradasList.push({ direccion: '', instrucciones: '' })
+  const cont = document.getElementById('paradas-container')
+  const div = document.createElement('div')
+  div.id = 'parada-item-' + idx
+  div.style.cssText = 'background:var(--gray-light);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1.5px solid var(--gray)'
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue)">📍 Parada ${idx + 2}</span>
+      <button type="button" onclick="eliminarParada(${idx})" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✕</button>
+    </div>
+    <input type="text" id="parada-dir-${idx}" class="form-input" placeholder="Dirección de entrega" style="margin-bottom:6px" oninput="_paradasList[${idx}].direccion=this.value">
+    <input type="text" id="parada-inst-${idx}" class="form-input" placeholder="Instrucciones (opcional)" style="font-size:12px" oninput="_paradasList[${idx}].instrucciones=this.value">
+  `
+  cont.appendChild(div)
+  // Attach Places autocomplete if Maps already loaded
+  if (window.google?.maps?.places && _mapsPlacesOpts) {
+    const inp = document.getElementById('parada-dir-' + idx)
+    new google.maps.places.Autocomplete(inp, _mapsPlacesOpts)
+  }
+}
+
+function eliminarParada(idx) {
+  _paradasList.splice(idx, 1)
+  const cont = document.getElementById('paradas-container')
+  cont.innerHTML = ''
+  const tmp = _paradasList.slice()
+  _paradasList = []
+  tmp.forEach(p => {
+    agregarParada()
+    const i = _paradasList.length - 1
+    _paradasList[i] = p
+    document.getElementById('parada-dir-' + i).value = p.direccion
+    document.getElementById('parada-inst-' + i).value = p.instrucciones || ''
+  })
+}
+
+async function _cargarParadasPedido(pedidoId) {
+  const { data } = await db.from('paradas').select('*').eq('pedido_id', pedidoId).order('orden')
+  const el = document.getElementById('pac-' + pedidoId + '-paradas')
+  if (!el) return
+  if (!data?.length) { el.style.display = 'none'; return }
+  el.style.display = 'block'
+  el.innerHTML = '<div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:.8px;margin-bottom:6px">PARADAS</div>' +
+    data.map(p => {
+      const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
+      const color = p.estado === 'completada' ? 'var(--success)' : p.estado === 'en_curso' ? 'var(--orange)' : '#8fa3c0'
+      const evidencia = p.foto_url
+        ? ` · <a href="${p.foto_url}" target="_blank" rel="noopener" style="font-size:10px;color:var(--blue);font-weight:700;text-decoration:none">📸 ver evidencia</a>`
+        : ''
+      return `<div style="font-size:11px;font-weight:700;color:${color};padding:2px 0">${icon} Parada ${p.orden}${evidencia}</div>`
+    }).join('')
+}
+
 async function compartirRastreo(id) {
   let token = _pedidoTokens[id]
   console.log('[GUEPACK] compartirRastreo id=' + id + ' token=' + token)
@@ -1587,6 +1668,7 @@ function _crearCardHTML(id) {
             <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
           </button>
         </div>
+        <div id="pac-${id}-paradas" style="display:none;margin-top:8px;padding:8px 10px;background:var(--gray-light);border-radius:10px;font-family:Montserrat,sans-serif"></div>
         <div id="pac-${id}-timer-domicilio" style="display:none;margin-top:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
         <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px" id="pac-${id}-cancelar-container">
           <button onclick="compartirRastreo(${id})" style="flex:1;background:rgba(26,79,160,0.08);color:var(--blue);border:2px solid var(--blue);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
@@ -1617,6 +1699,14 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false) {
   container.style.display = 'block'
 
   _actualizarCard(id, estado, repartidor)
+  _cargarParadasPedido(id)
+
+  // Realtime paradas
+  db.channel('paradas-cliente-' + id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + id }, () => {
+      _cargarParadasPedido(id)
+    })
+    .subscribe()
 
   // Timer de 5 minutos para cancelar
   if (_pedidos[id]?.intervalCancelar) clearInterval(_pedidos[id].intervalCancelar)
@@ -1966,6 +2056,11 @@ function resetForm() {
     const btn = document.getElementById(id)
     if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
   })
+
+  // Paradas
+  _paradasList = []
+  const _pc = document.getElementById('paradas-container')
+  if (_pc) _pc.innerHTML = ''
 
   // Cupón
   _cuponActivo = null
@@ -2554,17 +2649,20 @@ function cerrarModalCalificacion() {
 
 // ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
 
+let _mapsPlacesOpts = null
+
 function initMapsGuepack() {
   const gdlBounds = new google.maps.LatLngBounds(
     { lat: 20.50, lng: -103.55 },
     { lat: 20.85, lng: -103.15 }
   )
-  const opts = {
+  _mapsPlacesOpts = {
     componentRestrictions: { country: 'mx' },
     fields: ['formatted_address', 'address_components', 'geometry'],
     bounds: gdlBounds,
     strictBounds: false
   }
+  const opts = _mapsPlacesOpts
   const inputRec = document.getElementById('dir-recoleccion')
   const inputEnt = document.getElementById('dir-entrega')
   if (!inputRec || !inputEnt) return

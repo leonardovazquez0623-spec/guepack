@@ -270,6 +270,11 @@
       </div>
     </div>
 
+    <div class="card" id="r-paradas-card" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase">Paradas</div>
+      <div id="r-paradas-list"></div>
+    </div>
+
     <div class="card">
       <div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase">Notificaciones</div>
       <button class="btn-notif" id="btn-notif" onclick="activarNotificaciones()">🔔 Activar notificaciones de estado</button>
@@ -361,6 +366,18 @@ async function init() {
   actualizarUI(data)
   document.getElementById('pedido-state').style.display = 'block'
 
+  // Cargar paradas
+  const { data: paradas } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
+  _renderParadasRastreo(paradas)
+
+  // Realtime paradas
+  db.channel('rastreo-paradas-' + data.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + data.id }, async () => {
+      const { data: p2 } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
+      _renderParadasRastreo(p2)
+    })
+    .subscribe()
+
   // Realtime — actualizaciones en vivo
   db.channel('rastreo-pedido-' + data.id)
     .on('postgres_changes', {
@@ -376,6 +393,25 @@ async function init() {
       await _enviarPushRastreo(data.id, nuevo.estado)
     })
     .subscribe()
+}
+
+function _renderParadasRastreo(paradas) {
+  const card = document.getElementById('r-paradas-card')
+  const list = document.getElementById('r-paradas-list')
+  if (!paradas?.length) { card.style.display = 'none'; return }
+  card.style.display = 'block'
+  const completadas = paradas.filter(p => p.estado === 'completada').length
+  list.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--gray-mid);margin-bottom:10px">${completadas}/${paradas.length} completadas</div>` +
+    paradas.map(p => {
+      const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
+      const color = p.estado === 'completada' ? 'var(--success)' : p.estado === 'en_curso' ? 'var(--orange)' : 'var(--gray-mid)'
+      const evidencia = p.foto_url
+        ? `<br><a href="${p.foto_url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);font-weight:700;text-decoration:none">📸 Ver evidencia</a>`
+        : ''
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--gray);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:${color}">
+        ${icon} Parada ${p.orden}: <span style="font-weight:600;color:var(--text)">${p.direccion}</span>${evidencia}
+      </div>`
+    }).join('')
 }
 
 async function _enviarPushRastreo(pedidoId, estado) {
