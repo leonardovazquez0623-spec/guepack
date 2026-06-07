@@ -130,6 +130,22 @@ function initMapsAdmin() {
       var fn = window._pendingMapAction; window._pendingMapAction = null; fn()
     }
   }
+
+  // Places autocomplete en formulario Nuevo Pedido
+  const gdlBounds = new google.maps.LatLngBounds(
+    { lat: 20.50, lng: -103.55 },
+    { lat: 20.85, lng: -103.15 }
+  )
+  const acOpts = {
+    componentRestrictions: { country: 'mx' },
+    fields: ['formatted_address'],
+    bounds: gdlBounds,
+    strictBounds: false
+  }
+  const inputRec = document.getElementById('a-recoleccion')
+  const inputEnt = document.getElementById('a-entrega')
+  if (inputRec) new google.maps.places.Autocomplete(inputRec, acOpts)
+  if (inputEnt) new google.maps.places.Autocomplete(inputEnt, acOpts)
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
@@ -208,41 +224,54 @@ function initMapsAdmin() {
   <div id="tab-nuevo" class="tab-content">
     <div class="card">
       <div class="card-title">📬 Datos del envío</div>
+
       <div class="form-group">
-        <label class="form-label">Nombre completo</label>
+        <label class="form-label">Nombre del destinatario</label>
         <input type="text" id="a-nombre" class="form-input" placeholder="Ej. María García">
       </div>
+
+      <div class="form-group">
+        <label class="form-label">Nombre del remitente</label>
+        <input type="text" id="a-nombre-remitente" class="form-input" placeholder="Quien envía">
+      </div>
+
       <div class="form-group">
         <label class="form-label">WhatsApp</label>
         <input type="tel" id="a-whatsapp" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
       </div>
+
       <div class="form-group">
- <div class="form-group">
-  <label class="form-label">Dirección recolección</label>
-  <div style="display:flex;gap:8px;margin-bottom:6px">
-    <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-    <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
-  </div>
-</div>
-<div class="form-group">
-  <label class="form-label">Dirección entrega</label>
-  <div style="display:flex;gap:8px;margin-bottom:6px">
-    <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-    <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
-  </div>
-</div>
+        <label class="form-label">Dirección de recolección</label>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+          <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+        </div>
       </div>
+
       <div class="form-group">
-  <label class="form-label">Fecha de recolección</label>
-  <div style="display:flex;gap:8px;margin-bottom:8px">
-    <button type="button" id="a-btn-hoy" onclick="aSeleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">📅 Hoy</button>
-    <button type="button" id="a-btn-manana" onclick="aSeleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">📅 Mañana</button>
-    <button type="button" id="a-btn-otra" onclick="aSeleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">🗓️ Otra</button>
-  </div>
-  <input type="date" id="a-input-fecha-custom" class="form-input" style="display:none">
-  <input type="hidden" id="a-fecha-seleccionada">
-  <div id="a-aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
-</div>
+        <label class="form-label">Dirección de entrega</label>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+          <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Instrucciones de recolección</label>
+        <textarea id="a-instrucciones" class="form-input" rows="2" placeholder="Ej. Recoger en recepción, preguntar por Juan..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fecha de recolección</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button type="button" id="a-btn-hoy" onclick="aSeleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Hoy 😉</button>
+          <button type="button" id="a-btn-manana" onclick="aSeleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Día siguiente 🤙</button>
+          <button type="button" id="a-btn-otra" onclick="aSeleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Otra fecha 💁‍♂️</button>
+        </div>
+        <input type="date" id="a-input-fecha-custom" class="form-input" style="display:none">
+        <input type="hidden" id="a-fecha-seleccionada">
+        <div id="a-aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -284,6 +313,31 @@ function initMapsAdmin() {
         <div style="color:rgba(255,255,255,0.55);font-size:10px;font-weight:600" id="a-quote-detail">—</div>
       </div>
       <div style="font-size:36px">🚀</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💳 Método de pago</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button type="button" id="a-mp-efectivo" onclick="aSeleccionarMetodoPago('Efectivo')"
+          style="padding:12px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--text)">
+          💵 Efectivo
+        </button>
+        <button type="button" id="a-mp-transferencia" onclick="aSeleccionarMetodoPago('Transferencia')"
+          style="padding:12px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--text)">
+          🏦 Transferencia
+        </button>
+      </div>
+      <input type="hidden" id="a-metodo-pago">
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏷️ ¿Tienes un cupón?</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="a-cupon-input" class="form-input" placeholder="Código de descuento"
+          style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
+        <button onclick="aAplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;white-space:nowrap">Aplicar</button>
+      </div>
+      <div id="a-cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
     </div>
 
     <button class="btn btn-primary" onclick="crearPedidoAdmin()">Crear Pedido →</button>
@@ -719,6 +773,15 @@ function showTab(tab, btn) {
     if (_ab) _ab.style.display = 'none'
   }
   if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
+  if (tab === 'nuevo') {
+    db.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      db.from('usuarios').select('nombre').eq('email', session.user.email).single().then(({ data }) => {
+        const campo = document.getElementById('a-nombre-remitente')
+        if (campo && data?.nombre && !campo.value) campo.value = data.nombre
+      })
+    })
+  }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
@@ -829,43 +892,104 @@ async function aBorrarDireccion(id, tipo) {
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 2500)
 }
+function aEsFindeSemana(fecha) {
+  const dia = new Date(fecha + 'T00:00:00').getDay()
+  return dia === 0 || dia === 6
+}
+
+function aProximoLunes(fecha) {
+  const d = new Date(fecha + 'T00:00:00')
+  const dia = d.getDay()
+  d.setDate(d.getDate() + (dia === 6 ? 2 : 1))
+  return d.toISOString().split('T')[0]
+}
+
 function aSeleccionarFecha(opcion) {
-  const hoy = new Date()
-  const mañana = new Date()
-  mañana.setDate(mañana.getDate() + 1)
   const formatear = (d) => d.toISOString().split('T')[0]
 
   const btns = ['a-btn-hoy', 'a-btn-manana', 'a-btn-otra']
   btns.forEach(id => {
     const btn = document.getElementById(id)
-    if (btn) {
-      btn.style.background = 'var(--gray-light)'
-      btn.style.color = 'var(--text)'
-      btn.style.borderColor = 'var(--gray)'
-    }
+    if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
   })
 
+  let fechaSeleccionada = null
+
   if (opcion === 'hoy') {
-    document.getElementById('a-fecha-seleccionada').value = formatear(hoy)
+    const hora = new Date().getHours()
+    fechaSeleccionada = hora >= 15
+      ? formatear(new Date(new Date().setDate(new Date().getDate() + 1)))
+      : formatear(new Date())
+    if (hora >= 15) showToast('⏰ Ya pasaron las 3 PM — pedido agendado para mañana')
+    if (aEsFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = aProximoLunes(fechaSeleccionada)
+      showToast('📅 Fin de semana — agendado para el lunes ' + fechaSeleccionada)
+    }
+    document.getElementById('a-fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('a-input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('a-btn-hoy')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    aVerificarDisponibilidad(formatear(hoy))
+    aVerificarDisponibilidad(fechaSeleccionada)
+
   } else if (opcion === 'mañana') {
-    document.getElementById('a-fecha-seleccionada').value = formatear(mañana)
+    const hora = new Date().getHours()
+    const diasSumar = hora >= 15 ? 2 : 1
+    const base = new Date(); base.setDate(base.getDate() + diasSumar)
+    fechaSeleccionada = formatear(base)
+    let mostroToast = false
+    if (aEsFindeSemana(fechaSeleccionada)) {
+      fechaSeleccionada = aProximoLunes(fechaSeleccionada)
+      showToast('📅 Fin de semana — agendado para el lunes ' + fechaSeleccionada)
+      mostroToast = true
+    }
+    document.getElementById('a-fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('a-input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('a-btn-manana')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    aVerificarDisponibilidad(formatear(mañana))
+    if (!mostroToast) aVerificarDisponibilidad(fechaSeleccionada)
+
   } else {
     document.getElementById('a-input-fecha-custom').style.display = 'block'
     document.getElementById('a-input-fecha-custom').onchange = (e) => {
-      document.getElementById('a-fecha-seleccionada').value = e.target.value
-      aVerificarDisponibilidad(e.target.value)
+      let fecha = e.target.value
+      if (aEsFindeSemana(fecha)) {
+        fecha = aProximoLunes(fecha)
+        e.target.value = fecha
+        showToast('📅 Fin de semana — fecha cambiada al lunes ' + fecha)
+      }
+      document.getElementById('a-fecha-seleccionada').value = fecha
+      aVerificarDisponibilidad(fecha)
     }
     const btn = document.getElementById('a-btn-otra')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
   }
+}
+
+function aSeleccionarMetodoPago(metodo) {
+  document.getElementById('a-metodo-pago').value = metodo
+  const btns = { 'Efectivo': 'a-mp-efectivo', 'Transferencia': 'a-mp-transferencia' }
+  Object.entries(btns).forEach(([m, id]) => {
+    const btn = document.getElementById(id)
+    if (m === metodo) { btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)' }
+    else { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
+  })
+}
+
+let _aCuponActivo = null
+
+async function aAplicarCupon() {
+  const codigo = document.getElementById('a-cupon-input').value.trim().toUpperCase()
+  const resultado = document.getElementById('a-cupon-resultado')
+  resultado.style.display = 'block'
+  if (!codigo) { _aCuponActivo = null; resultado.style.background = '#fee2e2'; resultado.style.color = '#ef4444'; resultado.textContent = '❌ Ingresa un código'; aUpdateQuote(); return }
+  const { data } = await db.from('cupones').select('*').eq('codigo', codigo).single()
+  if (!data) { _aCuponActivo = null; resultado.style.background = '#fee2e2'; resultado.style.color = '#ef4444'; resultado.textContent = '❌ Cupón no encontrado'; aUpdateQuote(); return }
+  if (data.fecha_expiracion && new Date(data.fecha_expiracion) < new Date()) { _aCuponActivo = null; resultado.style.background = '#fee2e2'; resultado.style.color = '#ef4444'; resultado.textContent = '❌ Cupón expirado'; aUpdateQuote(); return }
+  if (data.usos_maximos && data.usos_actuales >= data.usos_maximos) { _aCuponActivo = null; resultado.style.background = '#fee2e2'; resultado.style.color = '#ef4444'; resultado.textContent = '❌ Cupón agotado'; aUpdateQuote(); return }
+  _aCuponActivo = data
+  resultado.style.background = '#dcfce7'; resultado.style.color = '#16a34a'
+  resultado.textContent = '✅ Cupón aplicado — ' + (data.tipo === 'porcentaje' ? data.descuento + '% de descuento' : '$' + data.descuento + ' de descuento')
+  aUpdateQuote()
 }
 
 async function aVerificarDisponibilidad(fecha) {
@@ -912,46 +1036,97 @@ function selectZone(zone) {
   updateQuote()
 }
 
-function updateQuote() {
+function aUpdateQuote() {
   if (!selSize || !selZone) return
-  const price = prices[selZone][selSize]
+  const precioBase = prices[selZone][selSize]
   const zoneLabel = { centro: 'Centro GDL', norte: 'Zona Norte', sur: 'Zona Sur' }[selZone]
   const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize]
-  document.getElementById('a-quote-amount').textContent = '$' + price
+  let amountHtml = '$' + precioBase
+  if (_aCuponActivo) {
+    const precioFinal = _aCuponActivo.tipo === 'porcentaje'
+      ? Math.round(precioBase * (1 - _aCuponActivo.descuento / 100))
+      : Math.max(0, precioBase - _aCuponActivo.descuento)
+    amountHtml = '<span style="text-decoration:line-through;font-size:0.55em;opacity:0.55">$' + precioBase + '</span> $' + precioFinal
+  }
+  document.getElementById('a-quote-amount').innerHTML = amountHtml
   document.getElementById('a-quote-detail').textContent = sizeLabel + ' · ' + zoneLabel
   document.getElementById('a-quote').style.display = 'flex'
 }
+function updateQuote() { aUpdateQuote() }
 
 async function crearPedidoAdmin() {
-  const nombre = document.getElementById('a-nombre').value
-  const whatsapp = document.getElementById('a-whatsapp').value
-  const recoleccion = document.getElementById('a-recoleccion').value
-  const entrega = document.getElementById('a-entrega').value
+  const nombre = document.getElementById('a-nombre').value.trim()
+  const nombreRemitente = document.getElementById('a-nombre-remitente').value.trim()
+  const whatsapp = document.getElementById('a-whatsapp').value.trim()
+  const recoleccion = document.getElementById('a-recoleccion').value.trim()
+  const entrega = document.getElementById('a-entrega').value.trim()
+  const instrucciones = document.getElementById('a-instrucciones').value.trim()
   const fecha = document.getElementById('a-fecha-seleccionada').value
+  const metodoPago = document.getElementById('a-metodo-pago').value
 
   if (!nombre || !whatsapp || !recoleccion || !entrega || !fecha || !selSize || !selZone) {
-    alert('Llena todos los campos y selecciona fecha, tamaño y zona'); return
+    showToast('⚠️ Llena todos los campos y selecciona fecha, tamaño y zona'); return
   }
 
   const aAviso = document.getElementById('a-aviso-fecha')
   if (aAviso && aAviso.style.display !== 'none' && aAviso.innerHTML.includes('🟠')) {
-    alert('⚠️ No es posible registrar por horario o capacidad. Selecciona otra fecha.')
-    return
+    showToast('⚠️ No es posible registrar por horario o capacidad. Selecciona otra fecha.'); return
   }
+
+  const precioBase = prices[selZone][selSize]
+  const precio = _aCuponActivo
+    ? (_aCuponActivo.tipo === 'porcentaje'
+        ? Math.round(precioBase * (1 - _aCuponActivo.descuento / 100))
+        : Math.max(0, precioBase - _aCuponActivo.descuento))
+    : precioBase
 
   const { error } = await db.from('pedidos').insert({
     nombre, whatsapp,
+    nombre_remitente: nombreRemitente || null,
     direccion_recoleccion: recoleccion,
     direccion_entrega: entrega,
+    instrucciones: instrucciones || null,
     fecha, tamanio: selSize, zona: selZone,
-    precio: prices[selZone][selSize],
-    estado: 'Pendiente'
+    precio,
+    metodo_pago: metodoPago || null,
+    cupon_codigo: _aCuponActivo?.codigo || null,
+    estado: 'Pendiente',
+    token_rastreo: crypto.randomUUID()
   })
 
-  if (error) { alert('Error al crear pedido'); return }
-  alert('✅ Pedido creado exitosamente!')
+  if (error) { showToast('❌ Error al crear pedido'); return }
+
+  if (_aCuponActivo) {
+    db.from('cupones').update({ usos_actuales: (_aCuponActivo.usos_actuales || 0) + 1 }).eq('id', _aCuponActivo.id).then(() => {})
+  }
+
+  showToast('✅ Pedido creado exitosamente!')
+  _aResetForm()
   showTab('pedidos')
   cargarPedidos()
+}
+
+function _aResetForm() {
+  ;['a-nombre','a-nombre-remitente','a-whatsapp','a-recoleccion','a-entrega','a-instrucciones','a-cupon-input'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = ''
+  })
+  document.getElementById('a-fecha-seleccionada').value = ''
+  document.getElementById('a-input-fecha-custom').style.display = 'none'
+  document.getElementById('a-aviso-fecha').style.display = 'none'
+  document.getElementById('a-metodo-pago').value = ''
+  document.getElementById('a-cupon-resultado').style.display = 'none'
+  document.getElementById('a-quote').style.display = 'none'
+  ;['a-btn-hoy','a-btn-manana','a-btn-otra'].forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
+  })
+  ;['a-mp-efectivo','a-mp-transferencia'].forEach(id => {
+    const btn = document.getElementById(id)
+    if (btn) { btn.style.background = 'var(--gray-light)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--gray)' }
+  })
+  selSize = null; selZone = null
+  _aCuponActivo = null
+  document.querySelectorAll('.size-option, .zone-option').forEach(o => o.classList.remove('selected'))
 }
 
 let diaFiltro = 0
