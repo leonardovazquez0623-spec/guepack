@@ -1103,6 +1103,10 @@ let _empresaData = null     // datos de empresa afiliada del usuario logueado
 let _corporativoPrecio = null  // precio calculado por km para corporativos
 let _corporativoKm = null      // distancia calculada
 let _entregaPlace = null       // último place seleccionado en dir-entrega
+let _multiParadaPrecio = null  // precio calculado para rutas multi-parada
+let _multiParadaKm = null      // km totales del recorrido completo
+let _multiParadaZonaData = null // zona de la última parada
+const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
   centro: { sobre: 110, grande: 150 },
@@ -1159,6 +1163,12 @@ function selectZone(zone) {
 }
 
 function updateQuote() {
+  // Multi-parada: si ya tenemos km y zona calculados, recalcular con el tamaño actual
+  const _pv = _paradasList.filter(p => p.direccion.trim())
+  if (_pv.length > 0 && _multiParadaZonaData && _multiParadaKm != null) {
+    _actualizarPrecioMultiParada(1 + _pv.length, _multiParadaKm, _multiParadaZonaData)
+    return
+  }
   if (!selSize || !_zonaData) return;
   const precioBase = selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande;
   const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize];
@@ -1188,7 +1198,9 @@ async function submitRequest() {
   const instrucciones = document.getElementById('instrucciones-recoleccion').value
   const metodoPago = selMetodoPago
 
-  const zonaOK = _empresaData ? _corporativoPrecio != null : _zonaData != null
+  const _pv = _paradasList.filter(p => p.direccion.trim())
+  const _esMultiParada = _pv.length > 0
+  const zonaOK = _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _zonaData != null
   if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
@@ -1213,7 +1225,9 @@ const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
 const precioBase = _empresaData
   ? _corporativoPrecio
-  : (selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande)
+  : _esMultiParada
+    ? _multiParadaPrecio
+    : (selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande)
 const precio = _cuponActivo && !_empresaData
   ? (_cuponActivo.tipo === 'porcentaje'
       ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
@@ -1241,7 +1255,11 @@ const { data, error } = await db.from('pedidos').insert({
     direccion_entrega: dir_entrega,
     fecha: fecha,
     tamanio: selSize,
-    zona: _empresaData ? ('Corporativo · ' + _corporativoKm + ' km') : _zonaData.nombre,
+    zona: _empresaData
+      ? ('Corporativo · ' + _corporativoKm + ' km')
+      : _esMultiParada
+        ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
+        : _zonaData.nombre,
     precio: precio,
     estado: estadoInicial,
     user_id: userId,
@@ -1602,7 +1620,16 @@ function agregarParada() {
   // Attach Places autocomplete if Maps already loaded
   if (window.google?.maps?.places && _mapsPlacesOpts) {
     const inp = document.getElementById('parada-dir-' + idx)
-    new google.maps.places.Autocomplete(inp, _mapsPlacesOpts)
+    const ac = new google.maps.places.Autocomplete(inp, _mapsPlacesOpts)
+    ac.addListener('place_changed', () => {
+      const pl = ac.getPlace()
+      const dir = pl?.formatted_address || pl?.name
+      if (dir) {
+        _paradasList[idx].direccion = dir
+        inp.value = dir
+        _calcularCotizacionMultiParada()
+      }
+    })
   }
 }
 
@@ -1619,6 +1646,17 @@ function eliminarParada(idx) {
     document.getElementById('parada-dir-' + i).value = p.direccion
     document.getElementById('parada-inst-' + i).value = p.instrucciones || ''
   })
+  // Recalcular cotización tras eliminar parada
+  if (_paradasList.filter(p => p.direccion.trim()).length === 0) {
+    _multiParadaPrecio = null; _multiParadaKm = null; _multiParadaZonaData = null
+    if (_zonaData) {
+      const result = document.getElementById('zona-detect-result')
+      _mostrarResultadoZona(result, true, _zonaData)
+      updateQuote()
+    }
+  } else {
+    _calcularCotizacionMultiParada()
+  }
 }
 
 async function _cargarParadasPedido(pedidoId) {
@@ -2105,6 +2143,7 @@ function resetForm() {
 
   // Paradas
   _paradasList = []
+  _multiParadaPrecio = null; _multiParadaKm = null; _multiParadaZonaData = null
   const _pc = document.getElementById('paradas-container')
   if (_pc) _pc.innerHTML = ''
 
@@ -2770,8 +2809,13 @@ async function _detectarZonaEntrega(place) {
   if (zonaEncontrada) {
     _zonaData = zonaEncontrada
     selZone   = zonaEncontrada.nombre
-    _mostrarResultadoZona(result, true, zonaEncontrada)
-    updateQuote()
+    // Si hay paradas adicionales, calcular ruta completa multi-parada
+    if (_paradasList.filter(p => p.direccion.trim()).length > 0) {
+      _calcularCotizacionMultiParada()
+    } else {
+      _mostrarResultadoZona(result, true, zonaEncontrada)
+      updateQuote()
+    }
   } else {
     _zonaData = null
     selZone   = null
@@ -2880,6 +2924,126 @@ function _mostrarCotizacionCorporativa(km) {
     aviso.style.color = '#0369a1'
     aviso.textContent = '🏢 ' + e.nombre + ' · ' + km + ' km'
   }
+}
+
+async function _calcularCotizacionMultiParada() {
+  const origen = document.getElementById('dir-recoleccion').value.trim()
+  const destPrincipal = document.getElementById('dir-entrega').value.trim()
+  if (!origen || !destPrincipal) return
+
+  const paradasDirs = _paradasList.map(p => p.direccion.trim()).filter(Boolean)
+  if (paradasDirs.length === 0) return
+
+  // Ruta completa: recolección → dir-entrega → parada1 → ... → última parada
+  const allStops = [destPrincipal, ...paradasDirs]
+  const lastStop = allStops[allStops.length - 1]
+  const intermediates = allStops.slice(0, allStops.length - 1)
+  const totalParadas = allStops.length // dir-entrega + todas las paradas
+
+  const result = document.getElementById('zona-detect-result')
+  if (result) {
+    result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
+    result.innerHTML = '<span style="font-size:16px">⏳</span><span>Calculando ruta completa (' + totalParadas + ' paradas)...</span>'
+  }
+  const quoteBox = document.getElementById('quote-display')
+  if (quoteBox) quoteBox.style.display = 'none'
+
+  // 1. Distancia total via Routes API
+  let kmTotal = null
+  try {
+    const reqBody = {
+      origin: { address: origen },
+      destination: { address: lastStop },
+      travelMode: 'DRIVE'
+    }
+    if (intermediates.length > 0) reqBody.intermediates = intermediates.map(a => ({ address: a }))
+    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': 'AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A',
+        'X-Goog-FieldMask': 'routes.distanceMeters'
+      },
+      body: JSON.stringify(reqBody)
+    })
+    const data = await resp.json()
+    if (!data.routes?.[0]?.distanceMeters) {
+      mostrarToast('⚠️ No se pudo calcular la ruta multi-parada', 'var(--orange)')
+      return
+    }
+    kmTotal = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
+  } catch (e) {
+    mostrarToast('❌ Error al calcular distancia multi-parada', '#ef4444')
+    return
+  }
+
+  // 2. Detectar zona de la ÚLTIMA parada (geocodificando)
+  let zonaFinal = _zonaData // fallback a zona de dir-entrega
+  if (paradasDirs.length > 0 && window.google?.maps) {
+    const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
+    if (zonas?.length) {
+      await new Promise(resolve => {
+        new google.maps.Geocoder().geocode({ address: lastStop }, (results, status) => {
+          if (status === 'OK' && results[0]?.geometry?.location) {
+            const lat = results[0].geometry.location.lat()
+            const lng = results[0].geometry.location.lng()
+            const found = zonas.find(z => z.coordenadas?.length >= 3 && _pointInPolygon(lat, lng, z.coordenadas))
+            if (found) zonaFinal = found
+          }
+          resolve()
+        })
+      })
+    }
+  }
+
+  if (!zonaFinal) {
+    if (result) {
+      result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
+      result.innerHTML = '<span style="font-size:18px">❌</span><span>La última parada está fuera de nuestra zona de cobertura</span>'
+    }
+    return
+  }
+
+  _multiParadaZonaData = zonaFinal
+  _multiParadaKm = kmTotal
+  _zonaData = zonaFinal
+  selZone = zonaFinal.nombre
+
+  _actualizarPrecioMultiParada(totalParadas, kmTotal, zonaFinal)
+}
+
+function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
+  if (!selSize) return
+
+  const precioBase = selSize === 'sobre' ? zona.precio_sobre : zona.precio_grande
+  let total, desglose
+
+  if (zona.precio_por_km) {
+    // Tarifa base + distancia × precio por km
+    const cargoDist = Math.round(kmTotal * zona.precio_por_km * 10) / 10
+    total = Math.round((precioBase + cargoDist) * 10) / 10
+    desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
+  } else {
+    // Tarifa fija + cargo por cada parada adicional (la primera está incluida)
+    const cargoParadas = (totalParadas - 1) * CARGO_POR_PARADA
+    total = precioBase + cargoParadas
+    desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
+  }
+
+  _multiParadaPrecio = total
+
+  const result = document.getElementById('zona-detect-result')
+  if (result) {
+    result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#f0fdf4;border:1.5px solid #86efac;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a;display:flex;align-items:center;gap:10px;min-height:46px'
+    result.innerHTML = '<span style="font-size:18px">✅</span><div><div>' + zona.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
+  }
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox = document.getElementById('quote-display')
+  if (quoteAmount) quoteAmount.innerHTML = '$' + total
+  if (quoteDetail) quoteDetail.textContent = desglose
+  if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
 }
 
 </script>
