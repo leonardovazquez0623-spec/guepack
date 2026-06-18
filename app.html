@@ -590,6 +590,47 @@
       line-height: 1.35;
     }
   }
+  /* ── Tour GuepGato ── */
+  @keyframes tourFadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes tourBounce {
+    0%, 100% { transform: translateY(0); }
+    40%      { transform: translateY(-16px); }
+    60%      { transform: translateY(-8px); }
+  }
+  .tour-modal {
+    position: fixed; z-index: 10002;
+    background: white; border-radius: 20px;
+    padding: 20px 20px 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+    max-width: 340px; width: calc(100% - 40px);
+    animation: tourFadeInUp .3s ease;
+  }
+  .tour-modal-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  .tour-modal-bottom { bottom: 100px; left: 50%; transform: translateX(-50%); }
+  .tour-modal-top    { top: 80px;   left: 50%; transform: translateX(-50%); }
+  .tour-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: #d0d5dd; transition: background .2s;
+  }
+  .tour-dot.active { background: var(--blue); }
+  .tour-btn-primary {
+    flex: 1; padding: 11px 16px; background: var(--blue); color: white;
+    border: none; border-radius: 10px; font-family: Montserrat,sans-serif;
+    font-weight: 900; font-size: 13px; cursor: pointer;
+  }
+  .tour-btn-secondary {
+    flex: 1; padding: 11px 14px; background: transparent; color: var(--blue);
+    border: 2px solid var(--blue); border-radius: 10px;
+    font-family: Montserrat,sans-serif; font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .tour-highlight {
+    position: relative !important; z-index: 10001 !important;
+    box-shadow: 0 0 0 4px var(--blue), 0 0 20px rgba(30,86,199,0.5) !important;
+    border-radius: 14px !important;
+  }
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
@@ -888,6 +929,7 @@ async function verificarSesion() {
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
   _cargarEmpresaUsuario(session.user)
+  iniciarTourSiNecesario()
 }
 
 async function _cargarEmpresaUsuario(user) {
@@ -3258,6 +3300,166 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Tour GuepGato — se activa una sola vez al registrarse
+// ─────────────────────────────────────────────────────────────────
+const _TOUR_STEPS = [
+  {
+    targetQuery: null,
+    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: true, catAnim: 'tourFadeInUp .4s ease',
+    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos 🐱',
+    modalPos: 'center',
+    btns: [
+      { label: 'Saltar tour', action: 'skip', primary: false },
+      { label: '¡Empezar!',   action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '#form-state .card',
+    catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'bottom:236px;left:16px',
+    text: '¡Aquí llenas los datos de tu envío! Nombre, dirección, tamaño y fecha 📦',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',   action: 'prev', primary: false },
+      { label: 'Siguiente',  action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: 'button[onclick*="agregarParada"]',
+    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
+    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '#pedido-activo-container',
+    catSrc: '/gato_s_der.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:50%;left:8px;transform:translateY(-50%)',
+    text: '¡Aquí verás el estado de tus envíos en tiempo real! Con chat y rastreo incluidos 🚚',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '.bottom-bar',
+    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
+    text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
+    modalPos: 'top',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: null,
+    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: true, catAnim: 'tourBounce 1s ease infinite',
+    text: '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉',
+    modalPos: 'center',
+    btns: [
+      { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
+    ]
+  }
+]
+
+let _tourStep = 0
+let _tourHighlightEl = null
+
+function iniciarTourSiNecesario() {
+  if (localStorage.getItem('guepack_tour_completado')) return
+  _tourStep = 0
+  _renderTourStep()
+}
+
+function _renderTourStep() {
+  const step = _TOUR_STEPS[_tourStep]
+
+  // Mostrar overlay
+  document.getElementById('tour-overlay').style.display = 'block'
+
+  // Quitar highlight anterior
+  if (_tourHighlightEl) {
+    _tourHighlightEl.classList.remove('tour-highlight')
+    _tourHighlightEl = null
+  }
+
+  // Aplicar highlight al elemento del paso
+  if (step.targetQuery) {
+    const el = document.querySelector(step.targetQuery)
+    if (el) {
+      // Forzar visibilidad mínima para el resaltado
+      if (el.style.display === 'none') el.style.display = 'block'
+      el.classList.add('tour-highlight')
+      _tourHighlightEl = el
+    }
+  }
+
+  // Dots de progreso
+  const dotsHtml = _TOUR_STEPS.map((_, i) =>
+    `<span class="tour-dot${i === _tourStep ? ' active' : ''}"></span>`
+  ).join('')
+
+  // Botones
+  const btnsHtml = step.btns.map(btn =>
+    `<button class="${btn.primary ? 'tour-btn-primary' : 'tour-btn-secondary'}" onclick="_tourAction('${btn.action}')">${btn.label}</button>`
+  ).join('')
+
+  // Cat inline (pasos 0 y 5)
+  const catInlineHtml = step.catInModal
+    ? `<img src="${step.catSrc}" alt="GuepGato" style="display:block;margin:0 auto 14px;max-width:${step.catMaxW}px;width:100%;animation:${step.catAnim}">`
+    : ''
+
+  // Inyectar modal
+  const modal = document.getElementById('tour-modal')
+  modal.className = `tour-modal tour-modal-${step.modalPos}`
+  modal.innerHTML = `
+    ${catInlineHtml}
+    <p style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2332;line-height:1.5;margin:0 0 14px;text-align:center">${step.text}</p>
+    <div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">${dotsHtml}</div>
+    <div style="display:flex;gap:8px">${btnsHtml}</div>
+  `
+
+  // Cat externo (pasos 1-4)
+  const catFixed = document.getElementById('tour-cat-fixed')
+  if (!step.catInModal && step.catFixedStyle) {
+    catFixed.src = step.catSrc
+    catFixed.style.cssText = `position:fixed;z-index:10003;pointer-events:none;max-width:${step.catMaxW}px;animation:${step.catAnim};${step.catFixedStyle}`
+    catFixed.style.display = 'block'
+  } else {
+    catFixed.style.display = 'none'
+    catFixed.src = ''
+  }
+}
+
+function _tourAction(action) {
+  if (action === 'next') {
+    _tourStep = Math.min(_tourStep + 1, _TOUR_STEPS.length - 1)
+    _renderTourStep()
+  } else if (action === 'prev') {
+    _tourStep = Math.max(_tourStep - 1, 0)
+    _renderTourStep()
+  } else {
+    // 'skip' o 'finish'
+    _cerrarTour()
+  }
+}
+
+function _cerrarTour() {
+  localStorage.setItem('guepack_tour_completado', 'true')
+  if (_tourHighlightEl) {
+    _tourHighlightEl.classList.remove('tour-highlight')
+    _tourHighlightEl = null
+  }
+  document.getElementById('tour-overlay').style.display = 'none'
+}
+
 </script>
 <!-- ── Modo Lluvia ── -->
 <div id="lluvia-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;pointer-events:none">
@@ -3280,6 +3482,12 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   <span style="font-size:22px;line-height:1">🎧</span>
   <span style="font-size:8px;font-weight:900;letter-spacing:.5px">SOPORTE</span>
 </button>
+
+<!-- ── Tour GuepGato ── -->
+<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.75)">
+  <img id="tour-cat-fixed" src="" alt="GuepGato" style="display:none;position:fixed;z-index:10003;pointer-events:none">
+  <div id="tour-modal" class="tour-modal tour-modal-center"></div>
+</div>
 
 </body>
 </html>
