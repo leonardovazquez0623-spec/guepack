@@ -556,7 +556,7 @@
 <link rel="apple-touch-icon" href="/Icono_gp.png">
 <meta name="theme-color" content="#1a4fa0">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack" defer></script>
 </head>
 <body>
 <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a4fa0;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
@@ -2682,7 +2682,7 @@ function cerrarModalCalificacion() {
 
 let _mapsPlacesOpts = null
 
-function initMapsGuepack() {
+window.initMapsGuepack = function() {
   const gdlBounds = new google.maps.LatLngBounds(
     { lat: 20.50, lng: -103.55 },
     { lat: 20.85, lng: -103.15 }
