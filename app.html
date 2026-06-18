@@ -2987,37 +2987,71 @@ async function _calcularCotizacionMultiParada() {
       travelMode: 'DRIVE'
     }
     if (intermediates.length > 0) reqBody.intermediates = intermediates.map(a => ({ address: a }))
-    const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+
+    console.log('[multiParada] Routes API → body enviado:', JSON.stringify(reqBody, null, 2))
+
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': 'AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A',
-        'X-Goog-FieldMask': 'routes.distanceMeters'
+        'X-Goog-FieldMask': 'routes.distanceMeters,routes.legs.distanceMeters'
       },
       body: JSON.stringify(reqBody)
     })
-    const data = await resp.json()
+
+    console.log('[multiParada] Response status:', response.status, response.statusText)
+    const rawText = await response.text()
+    console.log('[multiParada] Response body:', rawText)
+
+    let data
+    try {
+      data = JSON.parse(rawText)
+    } catch (parseErr) {
+      console.error('[multiParada] Error completo:', parseErr)
+      mostrarToast('❌ Respuesta inválida de Google Routes', '#ef4444')
+      return
+    }
+
+    if (data.error) {
+      console.error('[multiParada] Error completo:', data.error)
+      mostrarToast('⚠️ Google Routes: ' + (data.error.message || 'error desconocido'), 'var(--orange)')
+      if (result) {
+        result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
+        result.innerHTML = '<span style="font-size:18px">❌</span><span>Error de ruta: ' + (data.error.message || 'sin detalle') + '</span>'
+      }
+      return
+    }
+
     if (!data.routes?.[0]?.distanceMeters) {
+      console.warn('[multiParada] distanceMeters ausente — routes[0]:', JSON.stringify(data.routes?.[0]))
       mostrarToast('⚠️ No se pudo calcular la ruta multi-parada', 'var(--orange)')
       return
     }
     kmTotal = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
-  } catch (e) {
+    console.log('[multiParada] km totales calculados:', kmTotal)
+  } catch (error) {
+    console.error('[multiParada] Error completo:', error)
     mostrarToast('❌ Error al calcular distancia multi-parada', '#ef4444')
     return
   }
 
   // 2. Detectar zona de la ÚLTIMA parada (geocodificando)
   let zonaFinal = _zonaData // fallback a zona de dir-entrega
+  console.log('[multiParada] zona fallback (dir-entrega):', _zonaData?.nombre || 'ninguna')
   if (paradasDirs.length > 0 && window.google?.maps) {
     const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
+    console.log('[multiParada] zonas de cobertura cargadas:', zonas?.length, zonas?.map(z => z.nombre))
     if (zonas?.length) {
       await new Promise(resolve => {
+        console.log('[multiParada] geocodificando última parada:', lastStop)
         new google.maps.Geocoder().geocode({ address: lastStop }, (results, status) => {
+          console.log('[multiParada] Geocoder status:', status, '| results:', results?.[0]?.geometry?.location?.lat(), results?.[0]?.geometry?.location?.lng())
           if (status === 'OK' && results[0]?.geometry?.location) {
             const lat = results[0].geometry.location.lat()
             const lng = results[0].geometry.location.lng()
             const found = zonas.find(z => z.coordenadas?.length >= 3 && _pointInPolygon(lat, lng, z.coordenadas))
+            console.log('[multiParada] zona encontrada para última parada:', found?.nombre || 'ninguna — usando fallback')
             if (found) zonaFinal = found
           }
           resolve()
