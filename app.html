@@ -3114,17 +3114,32 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   }
 
   const precioBase = selSize === 'sobre' ? zona.precio_sobre : zona.precio_grande
+  const precioPorKm = zona.precio_por_km ?? null
+
+  console.log('[multiParada] _actualizarPrecioMultiParada — valores:')
+  console.log('  zona.nombre     :', zona.nombre)
+  console.log('  selSize         :', selSize)
+  console.log('  precioBase      :', precioBase, '(precio_sobre:', zona.precio_sobre, '/ precio_grande:', zona.precio_grande, ')')
+  console.log('  zona.precio_por_km:', zona.precio_por_km, '→ precioPorKm:', precioPorKm)
+  console.log('  kmTotal         :', kmTotal)
+  console.log('  totalParadas    :', totalParadas)
+
   let total, desglose
 
-  if (zona.precio_por_km) {
-    // Tarifa base + distancia × precio por km
-    const cargoDist = Math.round(kmTotal * zona.precio_por_km * 10) / 10
-    total = Math.round((precioBase + cargoDist) * 10) / 10
-    desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
+  if (precioPorKm != null && precioPorKm > 0) {
+    // Fórmula: precio_base + (km_totales × precio_por_km)
+    const cargoDist = Math.round(kmTotal * precioPorKm * 100) / 100
+    total = Math.round(precioBase + cargoDist)
+    console.log('  cargoDist (km×$/km):', kmTotal, '×', precioPorKm, '=', cargoDist)
+    console.log('  total (base+dist)  :', precioBase, '+', cargoDist, '=', total)
+    desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Base: $' + precioBase + ' + Dist: $' + cargoDist + ' | Total: $' + total
   } else {
-    // Tarifa fija + cargo por cada parada adicional (la primera está incluida)
+    // Sin precio_por_km configurado: tarifa base + cargo fijo por parada extra
     const cargoParadas = (totalParadas - 1) * CARGO_POR_PARADA
     total = precioBase + cargoParadas
+    console.warn('  ⚠️ precio_por_km no configurado en zona "' + zona.nombre + '" — usando cargo fijo:', CARGO_POR_PARADA, 'por parada extra')
+    console.log('  cargoParadas:', totalParadas - 1, '×', CARGO_POR_PARADA, '=', cargoParadas)
+    console.log('  total (base+paradas):', precioBase, '+', cargoParadas, '=', total)
     desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
   }
 
