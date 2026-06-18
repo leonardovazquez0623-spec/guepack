@@ -879,28 +879,50 @@ async function cargarPedidoActivoGuardado() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
 
-  const raw = localStorage.getItem('guepack_pedidos_activos')
-  const ids = raw ? JSON.parse(raw) : []
-  if (!ids.length) return
+  const estadosFinales = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
 
-  const estadosFinales = ['Entregado', 'Cancelado', 'Intento de entrega fallido']
-  const idsValidos = []
+  // Supabase es la fuente principal — trae todos los pedidos del usuario y filtra los finales en JS
+  const { data: todosPedidos, error } = await db.from('pedidos')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
 
-  for (const id of ids) {
-    const { data, error } = await db.from('pedidos').select('*').eq('id', id).single()
-    if (error || !data) {
-      // Query falló (auth no lista, red, etc.) — conservar el ID sin borrarlo
-      idsValidos.push(id)
-      continue
+  if (error) {
+    console.warn('[cargarPedidos] Error consultando Supabase — usando localStorage como fallback:', error)
+    // Fallback: usar IDs de localStorage si Supabase falla (sin red, auth no lista, etc.)
+    const raw = localStorage.getItem('guepack_pedidos_activos')
+    const ids = raw ? JSON.parse(raw) : []
+    if (!ids.length) return
+    for (const id of ids) {
+      const { data: pd, error: err2 } = await db.from('pedidos').select('*').eq('id', id).single()
+      if (err2 || !pd || estadosFinales.includes(pd.estado)) continue
+      if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
+      const minutos = (new Date() - new Date(pd.created_at)) / 60000
+      mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5)
     }
-    if (estadosFinales.includes(data.estado)) continue
-    idsValidos.push(id)
-    if (data.token_rastreo) _pedidoTokens[data.id] = data.token_rastreo
-    const ahora = new Date()
-    const minutos = (ahora - new Date(data.created_at)) / 60000
-    mostrarPedidoActivo(data.id, data.estado, data.repartidor, minutos > 5)
+    return
   }
 
+  const pedidosActivos = (todosPedidos || []).filter(p => !estadosFinales.includes(p.estado))
+
+  if (!pedidosActivos.length) {
+    console.log('[cargarPedidos] Sin pedidos activos en Supabase')
+    localStorage.removeItem('guepack_pedidos_activos')
+    return
+  }
+
+  console.log('[cargarPedidos] Pedidos activos desde Supabase:', pedidosActivos.length)
+  const idsValidos = []
+  const ahora = new Date()
+
+  for (const pd of pedidosActivos) {
+    idsValidos.push(pd.id)
+    if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
+    const minutos = (ahora - new Date(pd.created_at)) / 60000
+    mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5)
+  }
+
+  // Sincronizar localStorage con los IDs reales de Supabase
   localStorage.setItem('guepack_pedidos_activos', JSON.stringify(idsValidos))
   if (idsValidos.length) _cargarBadgesNoLeidos(idsValidos)
 }
