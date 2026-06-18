@@ -831,10 +831,15 @@ async function guardarEmpresa() {
   const precioKm    = parseFloat(document.getElementById('emp-precio-km').value)    || 10
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
   const payload = { nombre, codigo, tarifa_base: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, precio_km_extra: precioKm, iva: 0.16, activa: _empActivo }
+  console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   const { error } = id
     ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
     : await db.from('empresas_afiliadas').insert(payload)
-  if (error) { showToast('❌ ' + error.message); return }
+  if (error) {
+    console.error('[guardarEmpresa] Error Supabase:', error)
+    showToast('❌ ' + error.message)
+    return
+  }
   showToast(id ? '✅ Empresa actualizada' : '✅ Empresa creada')
   _resetFormEmpresa()
   cargarEmpresas()
