@@ -2948,6 +2948,14 @@ function _mostrarCotizacionCorporativa(km) {
   }
 }
 
+function _mostrarErrorRuta22(resultEl) {
+  mostrarToast('⚠️ Error 22: No pudimos calcular la ruta. Verifica que las direcciones sean correctas e intenta de nuevo', 'var(--orange)')
+  if (resultEl) {
+    resultEl.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
+    resultEl.innerHTML = '<span style="font-size:18px">❌</span><span>Error 22: Verifica que las direcciones sean correctas e intenta de nuevo</span>'
+  }
+}
+
 async function _calcularCotizacionMultiParada() {
   console.log('[multiParada] _calcularCotizacionMultiParada iniciado | paradas:', JSON.stringify(_paradasList))
   const origen = document.getElementById('dir-recoleccion').value.trim()
@@ -2964,6 +2972,13 @@ async function _calcularCotizacionMultiParada() {
   }
   console.log('[multiParada] Calculando ruta:', origen, '→', destPrincipal, '→', paradasDirs)
 
+  // Normaliza una dirección: si no tiene contexto de ciudad/estado, agrega Guadalajara
+  function _normalizarDir(dir) {
+    const ctx = ['guadalajara','zapopan','jalisco','méxico','mexico']
+    const lower = dir.toLowerCase()
+    return ctx.some(c => lower.includes(c)) ? dir : dir + ', Guadalajara, Jalisco, México'
+  }
+
   // Ruta correcta: origin=recolección, intermediates=[dir-entrega, parada1…penúltima], destination=última parada
   // dir-recoleccion NUNCA debe entrar en intermediates — solo es el origin
   const allDeliveries = [destPrincipal, ...paradasDirs]         // dir-entrega + paradas adicionales
@@ -2971,13 +2986,17 @@ async function _calcularCotizacionMultiParada() {
   const intermediates = allDeliveries.slice(0, allDeliveries.length - 1) // todo excepto la última
   const totalParadas = allDeliveries.length // dir-entrega + todas las paradas adicionales
 
-  console.log('[multiParada] Estructura de ruta construida:')
-  console.log('  origin (recolección)  :', origen)
-  console.log('  intermediates         :', intermediates)
-  console.log('  destination (última)  :', lastStop)
-  if (intermediates.includes(origen)) {
-    console.error('[multiParada] ⚠️ BUG: dir-recoleccion está duplicada en intermediates — abortando')
-    return
+  // Aplicar normalización a todas las direcciones
+  const origenNorm = _normalizarDir(origen)
+  const lastStopNorm = _normalizarDir(lastStop)
+  const intermediatesNorm = intermediates.map(_normalizarDir)
+
+  console.log('[multiParada] Estructura de ruta construida (normalizada):')
+  console.log('  origin (recolección)  :', origenNorm)
+  console.log('  intermediates         :', intermediatesNorm)
+  console.log('  destination (última)  :', lastStopNorm)
+  if (intermediatesNorm.some(i => i.startsWith(origenNorm) || origenNorm.startsWith(i.split(',')[0]))) {
+    console.warn('[multiParada] ⚠️ dir-recoleccion podría estar duplicada en intermediates — verificar manualmente')
   }
 
   const result = document.getElementById('zona-detect-result')
@@ -2992,11 +3011,11 @@ async function _calcularCotizacionMultiParada() {
   let kmTotal = null
   try {
     const reqBody = {
-      origin: { address: origen },
-      destination: { address: lastStop },
+      origin: { address: origenNorm },
+      destination: { address: lastStopNorm },
       travelMode: 'DRIVE'
     }
-    if (intermediates.length > 0) reqBody.intermediates = intermediates.map(a => ({ address: a }))
+    if (intermediatesNorm.length > 0) reqBody.intermediates = intermediatesNorm.map(a => ({ address: a }))
 
     console.log('[multiParada] Routes API → body enviado:', JSON.stringify(reqBody, null, 2))
     console.log('[multiParada] Body STRINGIFY real:', JSON.stringify(reqBody))
@@ -3020,30 +3039,26 @@ async function _calcularCotizacionMultiParada() {
       data = JSON.parse(rawText)
     } catch (parseErr) {
       console.error('[multiParada] Error completo:', parseErr)
-      mostrarToast('❌ Respuesta inválida de Google Routes', '#ef4444')
+      _mostrarErrorRuta22(result)
       return
     }
 
     if (data.error) {
       console.error('[multiParada] Error completo:', data.error)
-      mostrarToast('⚠️ Google Routes: ' + (data.error.message || 'error desconocido'), 'var(--orange)')
-      if (result) {
-        result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
-        result.innerHTML = '<span style="font-size:18px">❌</span><span>Error de ruta: ' + (data.error.message || 'sin detalle') + '</span>'
-      }
+      _mostrarErrorRuta22(result)
       return
     }
 
     if (!data.routes?.[0]?.distanceMeters) {
       console.warn('[multiParada] distanceMeters ausente — routes[0]:', JSON.stringify(data.routes?.[0]))
-      mostrarToast('⚠️ No se pudo calcular la ruta multi-parada', 'var(--orange)')
+      _mostrarErrorRuta22(result)
       return
     }
     kmTotal = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
     console.log('[multiParada] km totales calculados:', kmTotal)
   } catch (error) {
     console.error('[multiParada] Error completo:', error)
-    mostrarToast('❌ Error al calcular distancia multi-parada', '#ef4444')
+    _mostrarErrorRuta22(result)
     return
   }
 
@@ -3055,8 +3070,8 @@ async function _calcularCotizacionMultiParada() {
     console.log('[multiParada] zonas de cobertura cargadas:', zonas?.length, zonas?.map(z => z.nombre))
     if (zonas?.length) {
       await new Promise(resolve => {
-        console.log('[multiParada] geocodificando última parada:', lastStop)
-        new google.maps.Geocoder().geocode({ address: lastStop }, (results, status) => {
+        console.log('[multiParada] geocodificando última parada:', lastStopNorm)
+        new google.maps.Geocoder().geocode({ address: lastStopNorm }, (results, status) => {
           console.log('[multiParada] Geocoder status:', status, '| results:', results?.[0]?.geometry?.location?.lat(), results?.[0]?.geometry?.location?.lng())
           if (status === 'OK' && results[0]?.geometry?.location) {
             const lat = results[0].geometry.location.lat()
@@ -3088,7 +3103,15 @@ async function _calcularCotizacionMultiParada() {
 }
 
 function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
-  if (!selSize) return
+  const result = document.getElementById('zona-detect-result')
+  if (!selSize) {
+    // Zona detectada pero falta seleccionar tamaño — reemplaza el spinner
+    if (result) {
+      result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fffbeb;border:1.5px solid #fcd34d;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#d97706;display:flex;align-items:center;gap:10px;min-height:46px'
+      result.innerHTML = '<span style="font-size:18px">📦</span><div><div>' + zona.nombre + ' · ' + kmTotal + ' km · ' + totalParadas + ' paradas</div><div style="font-size:10px;opacity:.8;margin-top:2px">Selecciona el tamaño del paquete para ver el precio</div></div>'
+    }
+    return
+  }
 
   const precioBase = selSize === 'sobre' ? zona.precio_sobre : zona.precio_grande
   let total, desglose
@@ -3107,7 +3130,6 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 
   _multiParadaPrecio = total
 
-  const result = document.getElementById('zona-detect-result')
   if (result) {
     result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#f0fdf4;border:1.5px solid #86efac;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a;display:flex;align-items:center;gap:10px;min-height:46px'
     result.innerHTML = '<span style="font-size:18px">✅</span><div><div>' + zona.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
