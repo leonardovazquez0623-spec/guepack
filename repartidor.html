@@ -114,7 +114,7 @@
 <div class="delivery-header">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <div class="delivery-name" id="delivery-nombre">Hola 👋</div>
+      <div class="delivery-name" id="delivery-nombre">Hola </div>
       <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-top:4px">
     </div>
     <button onclick="cerrarSesion()" class="btn-logout">🚪 Salir</button>
@@ -440,16 +440,26 @@ function _iniciarTimerParada(paradaId) {
 }
 
 async function paradaEnCamino(pedidoId, paradaId) {
+  console.log('[paradaEnCamino] pedidoId:', pedidoId, 'paradaId:', paradaId)
   const { error } = await db.from('paradas').update({ estado: 'en_camino' }).eq('id', paradaId)
-  if (error) { alert('Error al actualizar parada'); return }
-  cargarPedidos()
+  if (error) { console.error('[paradaEnCamino] Error Supabase:', error); alert('Error al actualizar parada'); return }
+  console.log('[paradaEnCamino] Parada actualizada a en_camino OK')
+  const { data: { session } } = await db.auth.getSession()
+  console.log('[paradaEnCamino] Session email:', session?.user?.email)
+  if (!session) { window.location.href = 'login.html'; return }
+  cargarPedidos(session.user.email)
 }
 
 async function paradaEnDomicilio(pedidoId, paradaId) {
+  console.log('[paradaEnDomicilio] pedidoId:', pedidoId, 'paradaId:', paradaId)
   const { error } = await db.from('paradas').update({ estado: 'en_domicilio' }).eq('id', paradaId)
-  if (error) { alert('Error al actualizar parada'); return }
+  if (error) { console.error('[paradaEnDomicilio] Error Supabase:', error); alert('Error al actualizar parada'); return }
+  console.log('[paradaEnDomicilio] Parada actualizada a en_domicilio OK')
   localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
-  cargarPedidos()
+  const { data: { session } } = await db.auth.getSession()
+  console.log('[paradaEnDomicilio] Session email:', session?.user?.email)
+  if (!session) { window.location.href = 'login.html'; return }
+  cargarPedidos(session.user.email)
 }
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
@@ -711,17 +721,29 @@ async function confirmarParada(pedidoId, paradaId, orden, total) {
     resolve()
   }, 'image/png'))
 
-  await db.from('paradas').update({
+  console.log('[confirmarParada] Actualizando parada', paradaId, '→ completada | foto:', fotoUrl, 'firma:', firmaUrl)
+  const { error: paradaError } = await db.from('paradas').update({
     estado: 'completada',
     foto_url: fotoUrl,
     firma_url: firmaUrl,
     completada_at: new Date().toISOString()
   }).eq('id', paradaId)
+  if (paradaError) {
+    console.error('[confirmarParada] Error al actualizar parada:', paradaError)
+    alert('Error al guardar la parada. Intenta de nuevo.')
+    btn.textContent = '✅ Confirmar parada'; btn.disabled = false
+    return
+  }
+  console.log('[confirmarParada] Parada marcada como completada OK')
 
   localStorage.removeItem('guepack_timer_p_' + paradaId)
   if (_timerParadaIntervals[paradaId]) { clearInterval(_timerParadaIntervals[paradaId]); delete _timerParadaIntervals[paradaId] }
   document.getElementById('modal-parada').remove()
-  cargarPedidos()
+
+  const { data: { session } } = await db.auth.getSession()
+  console.log('[confirmarParada] Session email:', session?.user?.email)
+  if (!session) { window.location.href = 'login.html'; return }
+  cargarPedidos(session.user.email)
 }
 
 async function cerrarSesion() {
