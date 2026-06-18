@@ -255,12 +255,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
           </div>
-          <div id="status-steps-${pedido.id}" class="status-steps" style="display:none">
-            <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
-            <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
-            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
-            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
-          </div>
+          <div id="status-steps-${pedido.id}" class="status-steps"></div>
         </div>
       </div>
     `
@@ -277,17 +272,25 @@ localStorage.setItem('guepack_pedidos_count', data.length)
       todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
       Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)]))
     }
-    // Pedidos sin paradas: revelar los 4 botones normales (que empiezan ocultos)
+    // Pedidos sin paradas: inyectar los 4 botones normales
     data.forEach(pedido => {
-      if (!porPedido[pedido.id]) {
-        const stepsEl = document.getElementById('status-steps-' + pedido.id)
-        if (stepsEl) stepsEl.style.display = ''
-      }
+      if (!porPedido[pedido.id]) _renderBotonesNormales(pedido)
     })
   }
 }
 
 const _timerParadaIntervals = {}
+
+function _renderBotonesNormales(pedido) {
+  const stepsEl = document.getElementById('status-steps-' + pedido.id)
+  if (!stepsEl) return
+  stepsEl.innerHTML = `
+    <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
+    <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
+    <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
+    <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
+  `
+}
 
 function _renderParadasRepartidor(pedidoId, paradas, pedido) {
   const el = document.getElementById('paradas-rep-' + pedidoId)
@@ -298,9 +301,8 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
     return
   }
 
-  // ── Flujo normal (1 destino) — revelar los 4 botones normales ──
-  const _stepsNormal = document.getElementById('status-steps-' + pedidoId)
-  if (_stepsNormal) _stepsNormal.style.display = ''
+  // ── Flujo normal (1 destino) — inyectar los 4 botones normales ──
+  if (pedido) _renderBotonesNormales(pedido)
   el.style.display = 'block'
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
@@ -362,7 +364,6 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
   }
   const wa = (pedido?.whatsapp || '').replace(/'/g, "\\'")
   const nom = (pedido?.nombre || '').replace(/'/g, "\\'")
-  stepsEl.style.display = 'flex'
   stepsEl.style.flexDirection = 'column'
   stepsEl.style.gap = '8px'
   stepsEl.innerHTML = `
