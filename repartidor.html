@@ -229,7 +229,9 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   }
 
 
+  const pedidosMap = {}
   data.forEach(pedido => {
+    pedidosMap[pedido.id] = pedido
     contenedor.innerHTML += `
       <div class="route-card">
         <div class="route-top">
@@ -250,7 +252,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
           </div>
-          <div class="status-steps">
+          <div id="status-steps-${pedido.id}" class="status-steps">
             <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
             <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
             <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
@@ -270,16 +272,23 @@ localStorage.setItem('guepack_pedidos_count', data.length)
     if (todasParadas?.length) {
       const porPedido = {}
       todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
-      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas))
+      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas, pedidosMap[Number(pedidoId)]))
     }
   }
 }
 
 const _timerParadaIntervals = {}
 
-function _renderParadasRepartidor(pedidoId, paradas) {
+function _renderParadasRepartidor(pedidoId, paradas, pedido) {
   const el = document.getElementById('paradas-rep-' + pedidoId)
   if (!el) return
+
+  if (paradas.length >= 2) {
+    _renderParadasMulti(pedidoId, paradas, pedido, el)
+    return
+  }
+
+  // ── Flujo normal (1 destino) — sin cambios ──
   el.style.display = 'block'
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
@@ -324,8 +333,87 @@ function _renderParadasRepartidor(pedidoId, paradas) {
     </div>
   `
 
-  // Iniciar timers para paradas en domicilio
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
+}
+
+function _renderParadasMulti(pedidoId, paradas, pedido, el) {
+  const total = paradas.length
+  const completadas = paradas.filter(p => p.estado === 'completada').length
+  const todasCompletadas = completadas === total
+  const enRuta = ['En camino a entrega', 'A punto de llegar', 'Repartidor en domicilio'].includes(pedido?.estado)
+
+  // Reemplaza los 4 botones por 2 botones grandes
+  const stepsEl = document.getElementById('status-steps-' + pedidoId)
+  if (stepsEl) {
+    const wa = (pedido?.whatsapp || '').replace(/'/g, "\\'")
+    const nom = (pedido?.nombre || '').replace(/'/g, "\\'")
+    stepsEl.style.flexDirection = 'column'
+    stepsEl.style.gap = '8px'
+    stepsEl.innerHTML = `
+      <button
+        onclick="iniciarRutaMulti(${pedidoId}, '${wa}', '${nom}')"
+        ${enRuta ? 'disabled' : ''}
+        style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:${enRuta ? 'default' : 'pointer'};background:${enRuta ? '#22c55e' : 'var(--orange)'};color:white;opacity:${enRuta ? '0.75' : '1'}">
+        ${enRuta ? '✅ EN CAMINO' : '🚚 EN CAMINO'}
+      </button>
+      <button
+        id="btn-ruta-completa-${pedidoId}"
+        onclick="completarRutaMulti(${pedidoId}, '${wa}', '${nom}')"
+        ${todasCompletadas ? '' : 'disabled'}
+        style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;background:#1a4fa0;color:white;opacity:${todasCompletadas ? '1' : '0.4'};cursor:${todasCompletadas ? 'pointer' : 'not-allowed'}">
+        🏁 RUTA COMPLETA
+      </button>
+    `
+  }
+
+  // Las paradas solo se muestran una vez que el repartidor inició la ruta
+  if (!enRuta) {
+    el.style.display = 'none'
+    return
+  }
+
+  el.style.display = 'block'
+  el.innerHTML = `
+    <div style="background:#f0f4ff;border-radius:10px;padding:10px 12px;border:1.5px solid rgba(26,79,160,0.15)">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--blue);margin-bottom:8px;letter-spacing:.5px">
+        📍 PARADAS — ${completadas}/${total} completadas
+      </div>
+      ${paradas.map(p => {
+        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_camino' ? '🚚' : '⏳'
+        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+
+        let btnHtml = ''
+        if (p.estado === 'completada') {
+          btnHtml = p.foto_url
+            ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>`
+            : '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#16a34a;font-weight:700">✅ listo</span>'
+        } else if (p.estado === 'pendiente') {
+          btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer">🚚 En camino</button>`
+        } else if (p.estado === 'en_camino') {
+          btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:#22c55e;color:white;cursor:pointer">✅ Ya llegué</button>`
+        } else if (p.estado === 'en_domicilio') {
+          btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">📸 Completar</button>`
+        }
+
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
+          <div>
+            <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:${color}">${icon} #${p.orden}</span>
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+            ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
+          </div>
+          <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
+        </div>`
+      }).join('')}
+    </div>
+  `
+}
+
+async function iniciarRutaMulti(pedidoId, telefono, nombre) {
+  await cambiarEstado(pedidoId, 'En camino a entrega', telefono, nombre)
+}
+
+async function completarRutaMulti(pedidoId, telefono, nombre) {
+  await cambiarEstado(pedidoId, 'Entregado', telefono, nombre)
 }
 
 function _iniciarTimerParada(paradaId) {
