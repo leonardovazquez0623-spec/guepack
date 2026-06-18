@@ -1660,6 +1660,7 @@ function seleccionarFecha(opcion) {
 // ── Pedidos Activos (multi-pedido) ──
 const _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
 const _pedidoTokens = {}  // id -> token_rastreo
+let _historialPedidosMap = {}  // id -> pedido completo (para calificar desde historial)
 
 // ── Paradas múltiples ────────────────────────────────────────────────────────
 let _paradasList = [] // [{direccion, instrucciones}]
@@ -2243,27 +2244,41 @@ function switchMainView(view) {
 async function cargarHistorial() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
-console.log('User ID buscando:', session.user.id)
+
   const { data, error } = await db.from('pedidos')
     .select('*')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
 
-  if (error) { console.error(error); return; }
-  console.log('Pedidos historial:', data?.length, data)
+  if (error) { console.error(error); return }
 
   const contenedor = document.getElementById('lista-historial')
   if (!contenedor) return
   contenedor.innerHTML = ''
 
-  if (data.length === 0) {
+  if (!data.length) {
     contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><div class="empty-text">No tienes pedidos aún</div></div>'
     return
+  }
+
+  // Guardar en mapa para calificar sin strings en onclick
+  _historialPedidosMap = {}
+  data.forEach(p => { _historialPedidosMap[p.id] = p })
+
+  // Consultar qué pedidos Entregados ya tienen calificación (una sola query)
+  const idsEntregados = data.filter(p => p.estado === 'Entregado').map(p => p.id)
+  const calificadosSet = new Set()
+  if (idsEntregados.length) {
+    const { data: cals } = await db.from('calificaciones').select('pedido_id').in('pedido_id', idsEntregados)
+    cals?.forEach(c => calificadosSet.add(c.pedido_id))
   }
 
   data.forEach(pedido => {
     const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX')
     const badgeClass = pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit'
+    const yaCalificado = calificadosSet.has(pedido.id)
+    const mostrarCalificar = pedido.estado === 'Entregado' && !yaCalificado
+
     contenedor.innerHTML += `
       <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -2276,9 +2291,19 @@ console.log('User ID buscando:', session.user.id)
             <div class="status-badge ${badgeClass}">${pedido.estado}</div>
           </div>
         </div>
+        ${mostrarCalificar ? `
+        <button onclick="_calificarPedidoHistorial(${pedido.id})" style="margin-top:10px;width:100%;padding:9px 14px;border:1.5px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,0.08);color:#b45309;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+          ⭐ Calificar este envío
+        </button>` : ''}
       </div>
     `
   })
+}
+
+function _calificarPedidoHistorial(id) {
+  const pedido = _historialPedidosMap[id]
+  if (!pedido) return
+  mostrarModalCalificacion(id, pedido.repartidor)
 }
 
 function verEvidencia(fotoUrl, firmaUrl) {
