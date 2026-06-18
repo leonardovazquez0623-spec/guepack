@@ -266,15 +266,22 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   // Cargar paradas para todos los pedidos de una vez
   const ids = data.map(p => p.id)
   if (ids.length) {
-    const { data: todasParadas } = await db.from('paradas').select('*').in('pedido_id', ids).order('orden')
+    const { data: todasParadas, error: paradasError } = await db.from('paradas').select('*').in('pedido_id', ids).order('orden')
+    console.log('[cargarPedidos] ids consultados:', ids, '| todasParadas recibidas:', todasParadas, '| error:', paradasError)
     const porPedido = {}
     if (todasParadas?.length) {
       todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
-      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)]))
+      console.log('[cargarPedidos] porPedido keys:', Object.keys(porPedido), '| tipos de key:', Object.keys(porPedido).map(k => typeof k))
+      Object.entries(porPedido).forEach(([pedidoId, paradas]) => {
+        console.log(`[cargarPedidos] pedido ${pedidoId} tiene ${paradas.length} parada(s) → llamando a _renderParadasRepartidor`)
+        _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)])
+      })
     }
     // Pedidos sin paradas: inyectar los 4 botones normales
     data.forEach(pedido => {
-      if (!porPedido[pedido.id]) _renderBotonesNormales(pedido)
+      const tieneParadas = porPedido[pedido.id] !== undefined
+      console.log(`[cargarPedidos] pedido ${pedido.id} (tipo: ${typeof pedido.id}) → tieneParadas: ${tieneParadas} → llamando a ${tieneParadas ? '(ya procesado arriba)' : '_renderBotonesNormales'}`)
+      if (!tieneParadas) _renderBotonesNormales(pedido)
     })
   }
 }
@@ -293,15 +300,18 @@ function _renderBotonesNormales(pedido) {
 }
 
 function _renderParadasRepartidor(pedidoId, paradas, pedido) {
+  console.log(`[_renderParadasRepartidor] pedidoId: ${pedidoId} | paradas.length: ${paradas.length} | paradas:`, paradas)
   const el = document.getElementById('paradas-rep-' + pedidoId)
-  if (!el) return
+  if (!el) { console.warn(`[_renderParadasRepartidor] #paradas-rep-${pedidoId} no encontrado`); return }
 
   if (paradas.length >= 2) {
+    console.log(`[_renderParadasRepartidor] → _renderParadasMulti (${paradas.length} paradas)`)
     _renderParadasMulti(pedidoId, paradas, pedido, el)
     return
   }
 
   // ── Flujo normal (1 destino) — inyectar los 4 botones normales ──
+  console.log(`[_renderParadasRepartidor] → _renderBotonesNormales (${paradas.length} parada)`)
   if (pedido) _renderBotonesNormales(pedido)
   el.style.display = 'block'
   const total = paradas.length
