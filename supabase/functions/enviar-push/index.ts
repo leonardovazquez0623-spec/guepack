@@ -84,7 +84,27 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         message: {
           token,
-          notification: { title, body },
+          notification: {
+            title,
+            body,
+            sound: 'default'
+          },
+          android: {
+            notification: {
+              title,
+              body,
+              sound: 'default',
+              channel_id: 'guepack_pedidos'
+            }
+          },
+          apns: {
+            payload: {
+              aps: {
+                alert: { title, body },
+                sound: 'default'
+              }
+            }
+          },
           webpush: {
             notification: {
               title,
