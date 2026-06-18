@@ -275,7 +275,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
     if (todasParadas?.length) {
       const porPedido = {}
       todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
-      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas, pedidosMap[Number(pedidoId)]))
+      Object.entries(porPedido).forEach(([pedidoId, paradas]) => _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)]))
     }
   }
 }
