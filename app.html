@@ -559,29 +559,36 @@
       display: flex;
       flex-direction: row;
       align-items: flex-start;
-      gap: 20px;
-      padding: 24px 28px;
+      gap: 24px;
+      /* padding-bottom: 80px restaura lo que .pb-safe aporta y que el shorthand de padding pisaría */
+      padding: 24px 28px 80px;
     }
     #main-content {
-      flex: 1;
+      flex: 0 0 55%;
+      max-width: 55%;
       min-width: 0;
       order: 1;
     }
     #pedido-activo-container {
-      flex: 0 0 340px;
-      width: 340px;
+      flex: 0 0 40%;
+      max-width: 40%;
       order: 2;
       position: sticky;
       top: 76px;
       max-height: calc(100vh - 96px);
       overflow-y: auto;
       margin-bottom: 0 !important;
-      /* scrollbar delgado */
       scrollbar-width: thin;
       scrollbar-color: var(--gray) transparent;
     }
     #pedido-activo-container::-webkit-scrollbar { width: 4px; }
     #pedido-activo-container::-webkit-scrollbar-thumb { background: var(--gray); border-radius: 4px; }
+    /* Botones dentro del panel de pedidos activos: permitir wrap y ajustar tamaño */
+    #pedido-activo-container button {
+      white-space: normal !important;
+      font-size: 10px !important;
+      line-height: 1.35;
+    }
   }
 </style>
 <link rel="manifest" href="/manifest.json">
