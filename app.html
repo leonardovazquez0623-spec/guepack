@@ -929,7 +929,7 @@ async function verificarSesion() {
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
   _cargarEmpresaUsuario(session.user)
-  iniciarTourSiNecesario()
+  iniciarTour()
 }
 
 async function _cargarEmpresaUsuario(user) {
@@ -3372,11 +3372,12 @@ const _TOUR_STEPS = [
 let _tourStep = 0
 let _tourHighlightEl = null
 
-function iniciarTourSiNecesario() {
+function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
   _tourStep = 0
   _renderTourStep()
 }
+const iniciarTourSiNecesario = iniciarTour
 
 function _renderTourStep() {
   const step = _TOUR_STEPS[_tourStep]
