@@ -804,14 +804,14 @@ async function cargarEmpresas() {
   const { data } = await db.from('empresas_afiliadas').select('*').order('created_at', { ascending: false })
   if (!data?.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin empresas registradas</div>'; return }
   cont.innerHTML = data.map(e => `
-    <div style="background:${e.activo ? '#f0fdf4' : '#f9fafb'};border:1.5px solid ${e.activo ? '#86efac' : '#e0e0e0'};border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+    <div style="background:${e.activa ? '#f0fdf4' : '#f9fafb'};border:1.5px solid ${e.activa ? '#86efac' : '#e0e0e0'};border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <div style="flex:1;min-width:0">
         <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
         <div style="font-family:monospace;font-size:12px;font-weight:700;color:var(--blue);margin-top:2px;letter-spacing:1px">${e.codigo}</div>
         <div style="font-size:10px;color:#888;font-weight:600;margin-top:4px">
           0-${e.km_minimo} km: $${e.tarifa_base} · +${e.km_minimo} km: $${e.tarifa_base_extra || 115} + $${e.precio_km_extra}/km · IVA ${Math.round((e.iva || 0.16) * 100)}%
         </div>
-        <div style="font-size:10px;font-weight:700;color:${e.activo ? '#16a34a' : '#ef4444'};margin-top:2px">${e.activo ? '● Activo' : '● Inactivo'}</div>
+        <div style="font-size:10px;font-weight:700;color:${e.activa ? '#16a34a' : '#ef4444'};margin-top:2px">${e.activa ? '● Activo' : '● Inactivo'}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
         <button onclick="editarEmpresa(${e.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
@@ -830,7 +830,7 @@ async function guardarEmpresa() {
   const tarifaExtra = parseFloat(document.getElementById('emp-tarifa-extra').value) || 115
   const precioKm    = parseFloat(document.getElementById('emp-precio-km').value)    || 10
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
-  const payload = { nombre, codigo, tarifa_base: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, precio_km_extra: precioKm, iva: 0.16, activo: _empActivo }
+  const payload = { nombre, codigo, tarifa_base: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, precio_km_extra: precioKm, iva: 0.16, activa: _empActivo }
   const { error } = id
     ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
     : await db.from('empresas_afiliadas').insert(payload)
@@ -850,7 +850,7 @@ async function editarEmpresa(id) {
   document.getElementById('emp-km-min').value       = data.km_minimo
   document.getElementById('emp-tarifa-extra').value = data.tarifa_base_extra || 115
   document.getElementById('emp-precio-km').value    = data.precio_km_extra
-  _empActivo = data.activo
+  _empActivo = data.activa
   const btn = document.getElementById('emp-activo-btn')
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
   btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
