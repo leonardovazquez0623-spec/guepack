@@ -1600,6 +1600,15 @@ const _pedidoTokens = {}  // id -> token_rastreo
 
 // ── Paradas múltiples ────────────────────────────────────────────────────────
 let _paradasList = [] // [{direccion, instrucciones}]
+let _debounceMultiParada = null
+
+function _paradaDirChange(idx, val) {
+  _paradasList[idx].direccion = val
+  clearTimeout(_debounceMultiParada)
+  if (val.trim().length > 6) {
+    _debounceMultiParada = setTimeout(_calcularCotizacionMultiParada, 700)
+  }
+}
 
 function agregarParada() {
   const idx = _paradasList.length
@@ -1613,23 +1622,13 @@ function agregarParada() {
       <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue)">📍 Parada ${idx + 2}</span>
       <button type="button" onclick="eliminarParada(${idx})" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✕</button>
     </div>
-    <input type="text" id="parada-dir-${idx}" class="form-input" placeholder="Dirección de entrega" style="margin-bottom:6px" oninput="_paradasList[${idx}].direccion=this.value">
+    <input type="text" id="parada-dir-${idx}" class="form-input" placeholder="Dirección de entrega" style="margin-bottom:6px" oninput="_paradaDirChange(${idx},this.value)">
     <input type="text" id="parada-inst-${idx}" class="form-input" placeholder="Instrucciones (opcional)" style="font-size:12px" oninput="_paradasList[${idx}].instrucciones=this.value">
   `
   cont.appendChild(div)
-  // Attach Places autocomplete if Maps already loaded
+  // Attach Places autocomplete if Maps already loaded (centralized in _attachAutocompletePararadas)
   if (window.google?.maps?.places && _mapsPlacesOpts) {
-    const inp = document.getElementById('parada-dir-' + idx)
-    const ac = new google.maps.places.Autocomplete(inp, _mapsPlacesOpts)
-    ac.addListener('place_changed', () => {
-      const pl = ac.getPlace()
-      const dir = pl?.formatted_address || pl?.name
-      if (dir) {
-        _paradasList[idx].direccion = dir
-        inp.value = dir
-        _calcularCotizacionMultiParada()
-      }
-    })
+    _attachAutocompletePararadas(_mapsPlacesOpts)
   }
 }
 
@@ -2770,7 +2769,29 @@ window.initMapsGuepack = function() {
   inputRec.addEventListener('change', function () {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
   })
+
+  // Vincular autocomplete a paradas que ya existan en el DOM al cargar Maps
+  _attachAutocompletePararadas(opts)
 }
+
+function _attachAutocompletePararadas(opts) {
+  document.querySelectorAll('[id^="parada-dir-"]').forEach(inp => {
+    const idx = parseInt(inp.id.replace('parada-dir-', ''))
+    if (isNaN(idx)) return
+    if (inp.dataset.acAttached) return // evitar doble attach
+    inp.dataset.acAttached = '1'
+    const ac = new google.maps.places.Autocomplete(inp, opts || _mapsPlacesOpts)
+    ac.addListener('place_changed', () => {
+      const pl = ac.getPlace()
+      const dir = pl?.formatted_address || pl?.name
+      if (dir) {
+        _paradasList[idx].direccion = dir
+        inp.value = dir
+        console.log('[multiParada] place_changed parada', idx, '→', dir)
+        _calcularCotizacionMultiParada()
+      }
+    })
+  })
 
 function _pointInPolygon(lat, lng, polygon) {
   let inside = false
@@ -2927,12 +2948,20 @@ function _mostrarCotizacionCorporativa(km) {
 }
 
 async function _calcularCotizacionMultiParada() {
+  console.log('[multiParada] _calcularCotizacionMultiParada iniciado | paradas:', JSON.stringify(_paradasList))
   const origen = document.getElementById('dir-recoleccion').value.trim()
   const destPrincipal = document.getElementById('dir-entrega').value.trim()
-  if (!origen || !destPrincipal) return
+  if (!origen || !destPrincipal) {
+    console.log('[multiParada] Falta origen o destino principal — abortando')
+    return
+  }
 
   const paradasDirs = _paradasList.map(p => p.direccion.trim()).filter(Boolean)
-  if (paradasDirs.length === 0) return
+  if (paradasDirs.length === 0) {
+    console.log('[multiParada] No hay paradas con dirección — abortando')
+    return
+  }
+  console.log('[multiParada] Calculando ruta:', origen, '→', destPrincipal, '→', paradasDirs)
 
   // Ruta completa: recolección → dir-entrega → parada1 → ... → última parada
   const allStops = [destPrincipal, ...paradasDirs]
