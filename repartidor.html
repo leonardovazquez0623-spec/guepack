@@ -137,6 +137,9 @@ const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
+// Mapa de pedidos cargados — usado por abrirModalEntrega y confirmarEntrega
+let _pedidosRep = {}
+
 // ── Sonido GUEPACK (hecho con ❤️ por Claude) ──
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
 
@@ -229,9 +232,9 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   }
 
 
-  const pedidosMap = {}
+  _pedidosRep = {}
   data.forEach(pedido => {
-    pedidosMap[pedido.id] = pedido
+    _pedidosRep[pedido.id] = pedido
     contenedor.innerHTML += `
       <div class="route-card">
         <div class="route-top">
@@ -256,7 +259,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
             <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
             <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
             <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
-            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', ${JSON.stringify(pedido.nombre_remitente || null)})">⏰ Llegando</div>
+            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
           </div>
         </div>
       </div>
@@ -516,8 +519,9 @@ console.log('Buscando user_id:', pedidoCompleto?.user_id, 'Usuario:', usuario)
   cargarPedidos(session.user.email)
 }
 
-function abrirModalEntrega(id, telefono, nombre, nombreRemitente = null) {
-  const _folioLabel = nombreRemitente ? `GK-${id} · ${nombreRemitente.trim().split(' ')[0]}` : `GK-${id}`
+function abrirModalEntrega(id) {
+  const _ped = _pedidosRep[id] || {}
+  const _folioLabel = _ped.nombre_remitente ? `GK-${id} · ${_ped.nombre_remitente.trim().split(' ')[0]}` : `GK-${id}`
   const modal = document.createElement('div')
   modal.id = 'modal-entrega'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
@@ -540,7 +544,7 @@ function abrirModalEntrega(id, telefono, nombre, nombreRemitente = null) {
 
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-entrega').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
-        <button id="btn-confirmar-entrega" onclick="confirmarEntrega(${id}, '${telefono}', '${nombre}')" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar entrega</button>
+        <button id="btn-confirmar-entrega" onclick="confirmarEntrega(${id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar entrega</button>
       </div>
     </div>
   `
@@ -580,7 +584,8 @@ function limpiarFirma() {
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
 }
 
-async function confirmarEntrega(id, telefono, nombre) {
+async function confirmarEntrega(id) {
+  const { whatsapp: telefono, nombre } = _pedidosRep[id] || {}
   const btn = document.getElementById('btn-confirmar-entrega')
   btn.textContent = 'Subiendo...'
   btn.disabled = true
