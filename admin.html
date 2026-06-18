@@ -1496,9 +1496,8 @@ function renderPedido(pedido) {
     <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : pedido.estado === 'Pendiente verificación de pago' ? 'border-left:4px solid #f59e0b' : ''}">
       <div class="order-header">
         <div>
-          <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+          <div class="order-id">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
           <div class="order-client">${pedido.nombre}</div>
-          ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:1px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${pedido.empresa_codigo ? `<div style="display:inline-block;margin-top:3px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">🏢 CORPORATIVO · ${pedido.empresa_codigo}</div>` : ''}
         </div>
         <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Cancelado' ? 'badge-cancelled' : pedido.estado === 'Pendiente verificación de pago' ? 'badge-verify' : 'badge-transit'}">${pedido.estado}</div>

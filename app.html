@@ -939,7 +939,7 @@ async function cargarPedidoActivoGuardado() {
       if (err2 || !pd || estadosFinales.includes(pd.estado)) continue
       if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
       const minutos = (new Date() - new Date(pd.created_at)) / 60000
-      mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5)
+      mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente)
     }
     return
   }
@@ -960,7 +960,7 @@ async function cargarPedidoActivoGuardado() {
     idsValidos.push(pd.id)
     if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
     const minutos = (ahora - new Date(pd.created_at)) / 60000
-    mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5)
+    mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente)
   }
 
   // Sincronizar localStorage con los IDs reales de Supabase
@@ -1365,7 +1365,7 @@ const { data, error } = await db.from('pedidos').insert({
   }
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
-  mostrarPedidoActivo(folioReal, 'Pendiente')
+  mostrarPedidoActivo(folioReal, 'Pendiente', null, false, nombreRemitente)
 resetForm()
 
 const toast = document.createElement('div')
@@ -1792,12 +1792,14 @@ function _guardarIds() {
   localStorage.setItem('guepack_pedidos_activos', JSON.stringify(Object.keys(_pedidos).map(Number)))
 }
 
-function _crearCardHTML(id) {
+function _crearCardHTML(id, nombreRemitente = null) {
+  const _primerNombre = nombreRemitente ? nombreRemitente.trim().split(' ')[0] : null
+  const _folioLabel = _primerNombre ? `GK-${id} · ${_primerNombre}` : `GK-${id}`
   return `
     <div id="pac-${id}" style="background:white;border-radius:16px;box-shadow:0 4px 24px rgba(26,79,160,0.10);border-left:4px solid var(--blue);margin-bottom:10px;overflow:hidden;transition:border-color .4s">
       <div onclick="togglePedidoCard(${id})" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer">
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);letter-spacing:2px">GK-${id}</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);letter-spacing:2px">${_folioLabel}</span>
           <span class="status-badge badge-transit" id="pac-${id}-badge">...</span>
         </div>
         <span id="pac-${id}-arrow" style="font-size:14px;color:#8fa3c0">▼</span>
@@ -1806,7 +1808,7 @@ function _crearCardHTML(id) {
         <div style="font-size:12px;font-weight:700;color:#8fa3c0;margin-bottom:4px" id="pac-${id}-estado"></div>
         <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-repartidor"></div>
         <div id="pac-${id}-chat-wrap" style="display:none;margin-top:8px">
-          <button onclick="abrirChat(${id},'cliente','Chat GK-${id}')" style="width:100%;padding:10px;background:#1a4fa0;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative">
+          <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="width:100%;padding:10px;background:#1a4fa0;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative">
             💬 Chat con repartidor
             <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
           </button>
@@ -1833,11 +1835,11 @@ function togglePedidoCard(id) {
   arrow.textContent = visible ? '▶' : '▼'
 }
 
-function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false) {
+function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, nombreRemitente = null) {
   const container = document.getElementById('pedido-activo-container')
 
   if (!document.getElementById('pac-' + id)) {
-    container.insertAdjacentHTML('beforeend', _crearCardHTML(id))
+    container.insertAdjacentHTML('beforeend', _crearCardHTML(id, nombreRemitente))
   }
   container.style.display = 'block'
 
@@ -2266,7 +2268,7 @@ console.log('User ID buscando:', session.user.id)
       <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-size:13px;font-weight:700">GK-${pedido.id}</div>
+            <div style="font-size:13px;font-weight:700">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
             <div style="font-size:11px;color:var(--gray-mid);font-weight:600">${fecha} · ${pedido.tamanio} · ${pedido.zona}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -2338,7 +2340,7 @@ async function cargarPedidos() {
       <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}">
         <div class="order-header">
           <div>
-            <div class="order-id">GK-${pedido.id} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
+            <div class="order-id">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
             <div class="order-client">${pedido.nombre}</div>
           </div>
           <div class="status-badge ${pedido.estado === 'Pendiente' ? 'badge-pending' : pedido.estado === 'Entregado' ? 'badge-done' : 'badge-transit'}">${pedido.estado}</div>
@@ -2435,7 +2437,7 @@ async function cargarPedidosRepartidor() {
       <div class="route-card">
         <div class="route-top">
           <div>
-            <div class="route-number">GK-${pedido.id}</div>
+            <div class="route-number">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
             <div class="route-type">${pedido.tamanio} · ${pedido.zona}</div>
           </div>
         </div>

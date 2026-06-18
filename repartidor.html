@@ -236,7 +236,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
       <div class="route-card">
         <div class="route-top">
           <div>
-            <div class="route-number">GK-${pedido.id}</div>
+            <div class="route-number">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
             <div class="route-type">${pedido.tamanio} · ${pedido.zona}</div>
           </div>
         </div>
@@ -256,7 +256,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
             <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
             <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
             <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
-            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
+            <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', ${JSON.stringify(pedido.nombre_remitente || null)})">⏰ Llegando</div>
           </div>
         </div>
       </div>
@@ -516,13 +516,14 @@ console.log('Buscando user_id:', pedidoCompleto?.user_id, 'Usuario:', usuario)
   cargarPedidos(session.user.email)
 }
 
-function abrirModalEntrega(id, telefono, nombre) {
+function abrirModalEntrega(id, telefono, nombre, nombreRemitente = null) {
+  const _folioLabel = nombreRemitente ? `GK-${id} · ${nombreRemitente.trim().split(' ')[0]}` : `GK-${id}`
   const modal = document.createElement('div')
   modal.id = 'modal-entrega'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📦 Confirmar entrega GK-${id}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📦 Confirmar entrega ${_folioLabel}</div>
 
       <div style="margin-bottom:16px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">📸 Foto de evidencia</div>
