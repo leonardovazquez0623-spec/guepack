@@ -1439,6 +1439,21 @@ async function mostrarDirecciones(tipo) {
 function usarDireccion(inputId, direccion) {
   document.getElementById(inputId).value = direccion
   document.getElementById('modal-direcciones').remove()
+
+  if (inputId === 'dir-entrega' && window.google?.maps) {
+    new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
+      if (status !== 'OK' || !results[0]) return
+      const place = results[0]
+      _entregaPlace = place
+      if (_empresaData) {
+        _calcularPrecioCorporativo()
+      } else {
+        _detectarZonaEntrega(place)
+      }
+    })
+  } else if (inputId === 'dir-recoleccion') {
+    if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
+  }
 }
 
 async function guardarDireccion(inputId, tipo) {
