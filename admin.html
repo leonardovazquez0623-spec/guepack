@@ -809,7 +809,7 @@ async function cargarEmpresas() {
         <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
         <div style="font-family:monospace;font-size:12px;font-weight:700;color:var(--blue);margin-top:2px;letter-spacing:1px">${e.codigo}</div>
         <div style="font-size:10px;color:#888;font-weight:600;margin-top:4px">
-          0-${e.km_minimo} km: $${e.tarifa_base} · +${e.km_minimo} km: $${e.tarifa_base_extra || 115} + $${e.precio_km_extra}/km · IVA ${Math.round((e.iva || 0.16) * 100)}%
+          0-${e.km_minimo} km: $${e.tarifa_minima} · +${e.km_minimo} km: $${e.tarifa_base_extra || 115} + $${e.tarifa_km}/km · IVA ${Math.round((e.iva || 0.16) * 100)}%
         </div>
         <div style="font-size:10px;font-weight:700;color:${e.activa ? '#16a34a' : '#ef4444'};margin-top:2px">${e.activa ? '● Activo' : '● Inactivo'}</div>
       </div>
@@ -830,7 +830,7 @@ async function guardarEmpresa() {
   const tarifaExtra = parseFloat(document.getElementById('emp-tarifa-extra').value) || 115
   const precioKm    = parseFloat(document.getElementById('emp-precio-km').value)    || 10
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
-  const payload = { nombre, codigo, tarifa_base: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, precio_km_extra: precioKm, iva: 0.16, activa: _empActivo }
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   const { error } = id
     ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
@@ -851,10 +851,10 @@ async function editarEmpresa(id) {
   document.getElementById('emp-id').value           = data.id
   document.getElementById('emp-nombre').value       = data.nombre
   document.getElementById('emp-codigo').value       = data.codigo
-  document.getElementById('emp-tarifa-base').value  = data.tarifa_base
+  document.getElementById('emp-tarifa-base').value  = data.tarifa_minima
   document.getElementById('emp-km-min').value       = data.km_minimo
   document.getElementById('emp-tarifa-extra').value = data.tarifa_base_extra || 115
-  document.getElementById('emp-precio-km').value    = data.precio_km_extra
+  document.getElementById('emp-precio-km').value    = data.tarifa_km
   _empActivo = data.activa
   const btn = document.getElementById('emp-activo-btn')
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
