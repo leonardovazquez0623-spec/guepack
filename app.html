@@ -1766,8 +1766,15 @@ async function compartirRastreo(id) {
   const url = 'https://guepack.com/rastreo.html?token=' + token
   console.log('[GUEPACK] URL de rastreo:', url)
 
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => {
+  const shareText = '¡Revisa tu envío con GUEPACK en tiempo real! 📦'
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '!GUEPACK Express 😎', text: shareText, url })
+    } catch (e) {
+      if (e.name !== 'AbortError') console.warn('[GUEPACK] navigator.share falló:', e)
+    }
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(shareText + '\n' + url).then(() => {
       mostrarToast('🔗 Link de rastreo copiado', '#1a4fa0')
     }).catch(() => { prompt('Copia este link:', url) })
   } else {
