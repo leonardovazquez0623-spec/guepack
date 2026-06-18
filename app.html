@@ -2292,7 +2292,7 @@ async function cargarHistorial() {
           </div>
         </div>
         ${mostrarCalificar ? `
-        <button onclick="_calificarPedidoHistorial(${pedido.id})" style="margin-top:10px;width:100%;padding:9px 14px;border:1.5px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,0.08);color:#b45309;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+        <button id="cal-btn-${pedido.id}" onclick="_calificarPedidoHistorial(${pedido.id})" style="margin-top:10px;width:100%;padding:9px 14px;border:1.5px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,0.08);color:#b45309;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
           ⭐ Calificar este envío
         </button>` : ''}
       </div>
@@ -2802,15 +2802,18 @@ async function enviarCalificacion(pedidoId, repartidor) {
   }
   const comentario = document.getElementById('cal-comentario').value.trim()
   const { data: { session } } = await db.auth.getSession()
-  await db.from('calificaciones').insert({
+  const { error: calError } = await db.from('calificaciones').insert({
     pedido_id: pedidoId,
     user_id: session?.user?.id || null,
     repartidor: repartidor || null,
     estrellas: _calStars,
     comentario: comentario || null
   })
+  if (calError) { mostrarToast('Error al guardar calificación, intenta de nuevo', 'var(--orange)'); return }
   cerrarModalCalificacion()
   mostrarToast('¡Gracias por tu calificación! ⭐', 'var(--success)')
+  const calBtn = document.getElementById('cal-btn-' + pedidoId)
+  if (calBtn) calBtn.remove()
 }
 
 function cerrarModalCalificacion() {
