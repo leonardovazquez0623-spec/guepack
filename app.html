@@ -3374,8 +3374,11 @@ let _tourHighlightEl = null
 
 function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
-  _tourStep = 0
-  _renderTourStep()
+  // Defer: el HTML del overlay está después de </script> y puede no estar parseado aún
+  setTimeout(() => {
+    _tourStep = 0
+    _renderTourStep()
+  }, 0)
 }
 const iniciarTourSiNecesario = iniciarTour
 
@@ -3412,26 +3415,36 @@ function _renderTourStep() {
     `<button class="${btn.primary ? 'tour-btn-primary' : 'tour-btn-secondary'}" onclick="_tourAction('${btn.action}')">${btn.label}</button>`
   ).join('')
 
-  // Cat inline (pasos 0 y 5)
+  // Cat inline (pasos 0 y 5) — sin ningún ${} en style para evitar falsos positivos del linter CSS
   const catInlineHtml = step.catInModal
-    ? `<img src="${step.catSrc}" alt="GuepGato" style="display:block;margin:0 auto 14px;max-width:${step.catMaxW}px;width:100%;animation:${step.catAnim}">`
+    ? '<img id="tour-cat-inline" src="' + step.catSrc + '" alt="GuepGato" style="display:block;margin:0 auto 14px;width:100%">'
     : ''
 
   // Inyectar modal
   const modal = document.getElementById('tour-modal')
-  modal.className = `tour-modal tour-modal-${step.modalPos}`
-  modal.innerHTML = `
-    ${catInlineHtml}
-    <p style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2332;line-height:1.5;margin:0 0 14px;text-align:center">${step.text}</p>
-    <div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">${dotsHtml}</div>
-    <div style="display:flex;gap:8px">${btnsHtml}</div>
-  `
+  if (!modal) return
+  modal.className = 'tour-modal tour-modal-' + step.modalPos
+  modal.innerHTML = catInlineHtml +
+    '<p style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2332;line-height:1.5;margin:0 0 14px;text-align:center">' + step.text + '</p>' +
+    '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">' + dotsHtml + '</div>' +
+    '<div style="display:flex;gap:8px">' + btnsHtml + '</div>'
+
+  // Aplicar max-width y animation al cat inline vía JS (fuera del string HTML)
+  if (step.catInModal) {
+    const inlineCat = modal.querySelector('#tour-cat-inline')
+    if (inlineCat) {
+      inlineCat.style.maxWidth = step.catMaxW + 'px'
+      if (step.catAnim) inlineCat.style.animation = step.catAnim
+    }
+  }
 
   // Cat externo (pasos 1-4)
   const catFixed = document.getElementById('tour-cat-fixed')
+  if (!catFixed) return
   if (!step.catInModal && step.catFixedStyle) {
     catFixed.src = step.catSrc
-    catFixed.style.cssText = `position:fixed;z-index:10003;pointer-events:none;max-width:${step.catMaxW}px;animation:${step.catAnim};${step.catFixedStyle}`
+    catFixed.style.cssText = 'position:fixed;z-index:10003;pointer-events:none;max-width:' + step.catMaxW + 'px;' + step.catFixedStyle
+    catFixed.style.animation = step.catAnim
     catFixed.style.display = 'block'
   } else {
     catFixed.style.display = 'none'
