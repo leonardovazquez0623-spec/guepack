@@ -609,7 +609,7 @@
     animation: tourFadeInUp .3s ease;
   }
   .tour-modal-center { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-  .tour-modal-bottom { bottom: 100px; left: 50%; transform: translateX(-50%); }
+  .tour-modal-bottom { bottom: 80px; left: 50%; transform: translateX(-50%); }
   .tour-modal-top    { top: 80px;   left: 50%; transform: translateX(-50%); }
   .tour-dot {
     display: inline-block; width: 8px; height: 8px;
@@ -629,6 +629,11 @@
   .tour-highlight {
     position: relative !important; z-index: 10001 !important;
     box-shadow: 0 0 0 4px var(--blue), 0 0 20px rgba(30,86,199,0.5) !important;
+    border-radius: 14px !important;
+  }
+  .tour-highlight-white {
+    position: relative !important; z-index: 10001 !important;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.6) !important;
     border-radius: 14px !important;
   }
 </style>
@@ -3306,9 +3311,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 const _TOUR_STEPS = [
   {
     targetQuery: null,
-    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: true, catAnim: 'tourFadeInUp .4s ease',
-    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos 🐱',
-    modalPos: 'center',
+    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'bottom:45%;left:calc(50% - 140px)',
+    overlayGradient: true,
+    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos ',
+    modalPos: 'bottom', modalStyle: 'bottom:60px',
     btns: [
       { label: 'Saltar tour', action: 'skip', primary: false },
       { label: '¡Empezar!',   action: 'next', primary: true  }
@@ -3329,6 +3336,7 @@ const _TOUR_STEPS = [
     targetQuery: 'button[onclick*="agregarParada"]',
     catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
     catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
+    highlightClass: 'tour-highlight-white',
     text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
     modalPos: 'bottom',
     btns: [
@@ -3349,10 +3357,10 @@ const _TOUR_STEPS = [
   },
   {
     targetQuery: '.bottom-bar',
-    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
     catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
     text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
-    modalPos: 'top',
+    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:90%;max-width:400px',
     btns: [
       { label: 'Anterior',  action: 'prev', primary: false },
       { label: 'Siguiente', action: 'next', primary: true  }
@@ -3360,9 +3368,11 @@ const _TOUR_STEPS = [
   },
   {
     targetQuery: null,
-    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: true, catAnim: 'tourBounce 1s ease infinite',
+    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: false, catAnim: 'tourBounce 1s ease infinite',
+    catFixedStyle: 'bottom:54%;left:calc(50% - 140px)',
+    overlayGradient: true,
     text: '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉',
-    modalPos: 'center',
+    modalPos: 'bottom', modalStyle: 'bottom:60px',
     btns: [
       { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
     ]
@@ -3371,11 +3381,32 @@ const _TOUR_STEPS = [
 
 let _tourStep = 0
 let _tourHighlightEl = null
+let _tourHighlightClass = 'tour-highlight'
 
 function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
-  // Defer: el HTML del overlay está después de </script> y puede no estar parseado aún
-  setTimeout(() => {
+  // Asegurar que los elementos del tour existen en el DOM (fallback si fueron eliminados)
+  if (!document.getElementById('tour-overlay')) {
+    var ov = document.createElement('div')
+    ov.id = 'tour-overlay'
+    ov.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75)'
+    document.body.appendChild(ov)
+  }
+  if (!document.getElementById('tour-modal')) {
+    var tm = document.createElement('div')
+    tm.id = 'tour-modal'
+    tm.className = 'tour-modal tour-modal-center'
+    tm.style.display = 'none'
+    document.body.appendChild(tm)
+  }
+  if (!document.getElementById('tour-cat-fixed')) {
+    var tc = document.createElement('img')
+    tc.id = 'tour-cat-fixed'
+    tc.alt = 'GuepGato'
+    tc.style.cssText = 'display:none;position:fixed;z-index:10001;pointer-events:none'
+    document.body.appendChild(tc)
+  }
+  setTimeout(function() {
     _tourStep = 0
     _renderTourStep()
   }, 0)
@@ -3385,67 +3416,75 @@ const iniciarTourSiNecesario = iniciarTour
 function _renderTourStep() {
   const step = _TOUR_STEPS[_tourStep]
 
-  // Mostrar overlay
-  document.getElementById('tour-overlay').style.display = 'block'
+  const overlay = document.getElementById('tour-overlay')
+  if (!overlay) return
+  overlay.style.display = 'block'
+  overlay.style.background = step.overlayGradient ? 'rgba(240,90,26,0.15)' : 'rgba(0,0,0,0.75)'
 
-  // Quitar highlight anterior
   if (_tourHighlightEl) {
-    _tourHighlightEl.classList.remove('tour-highlight')
+    _tourHighlightEl.classList.remove(_tourHighlightClass)
     _tourHighlightEl = null
   }
 
-  // Aplicar highlight al elemento del paso
+  _tourHighlightClass = step.highlightClass || 'tour-highlight'
+
   if (step.targetQuery) {
     const el = document.querySelector(step.targetQuery)
     if (el) {
-      // Forzar visibilidad mínima para el resaltado
       if (el.style.display === 'none') el.style.display = 'block'
-      el.classList.add('tour-highlight')
+      el.classList.add(_tourHighlightClass)
       _tourHighlightEl = el
     }
   }
 
-  // Dots de progreso
-  const dotsHtml = _TOUR_STEPS.map((_, i) =>
-    `<span class="tour-dot${i === _tourStep ? ' active' : ''}"></span>`
-  ).join('')
+  // Sin backticks para evitar confusión del parser en archivos HTML
+  const dotsHtml = _TOUR_STEPS.map(function(_, i) {
+    return '<span class="tour-dot' + (i === _tourStep ? ' active' : '') + '"></span>'
+  }).join('')
 
-  // Botones
-  const btnsHtml = step.btns.map(btn =>
-    `<button class="${btn.primary ? 'tour-btn-primary' : 'tour-btn-secondary'}" onclick="_tourAction('${btn.action}')">${btn.label}</button>`
-  ).join('')
+  const btnsHtml = step.btns.map(function(btn) {
+    var cls = btn.primary ? 'tour-btn-primary' : 'tour-btn-secondary'
+    return '<button class="' + cls + '" onclick="_tourAction(\'' + btn.action + '\')">' + btn.label + '</button>'
+  }).join('')
 
-  // Cat inline (pasos 0 y 5) — sin ningún ${} en style para evitar falsos positivos del linter CSS
+  // Sin src en el string HTML — se asigna vía JS para evitar que el linter URL-encode la expresión
   const catInlineHtml = step.catInModal
-    ? '<img id="tour-cat-inline" src="' + step.catSrc + '" alt="GuepGato" style="display:block;margin:0 auto 14px;width:100%">'
+    ? '<img id="tour-cat-inline" alt="GuepGato" style="display:block;margin:0 auto 14px;width:100%">'
     : ''
 
-  // Inyectar modal
   const modal = document.getElementById('tour-modal')
   if (!modal) return
   modal.className = 'tour-modal tour-modal-' + step.modalPos
+  modal.style.cssText = 'display:block;position:fixed;z-index:10002;' + (step.modalStyle || '')
   modal.innerHTML = catInlineHtml +
     '<p style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2332;line-height:1.5;margin:0 0 14px;text-align:center">' + step.text + '</p>' +
     '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">' + dotsHtml + '</div>' +
     '<div style="display:flex;gap:8px">' + btnsHtml + '</div>'
 
-  // Aplicar max-width y animation al cat inline vía JS (fuera del string HTML)
   if (step.catInModal) {
     const inlineCat = modal.querySelector('#tour-cat-inline')
     if (inlineCat) {
+      inlineCat.src = step.catSrc
       inlineCat.style.maxWidth = step.catMaxW + 'px'
       if (step.catAnim) inlineCat.style.animation = step.catAnim
     }
   }
 
-  // Cat externo (pasos 1-4)
   const catFixed = document.getElementById('tour-cat-fixed')
   if (!catFixed) return
   if (!step.catInModal && step.catFixedStyle) {
     catFixed.src = step.catSrc
-    catFixed.style.cssText = 'position:fixed;z-index:10003;pointer-events:none;max-width:' + step.catMaxW + 'px;' + step.catFixedStyle
+    catFixed.style.cssText = 'position:fixed;z-index:10001;pointer-events:none;max-width:' + step.catMaxW + 'px;' + step.catFixedStyle
     catFixed.style.animation = step.catAnim
     catFixed.style.display = 'block'
+    // Para pasos sin objetivo (bienvenida/final): posicionar gato justo encima del modal
+    if (!step.targetQuery) {
+      var rect = modal.getBoundingClientRect()
+      catFixed.style.bottom = (window.innerHeight - rect.top + 12) + 'px'
+      catFixed.style.left = 'calc(50% - ' + (step.catMaxW / 2) + 'px)'
+      catFixed.style.top = ''
+      catFixed.style.transform = ''
+    }
   } else {
     catFixed.style.display = 'none'
     catFixed.src = ''
@@ -3468,10 +3507,15 @@ function _tourAction(action) {
 function _cerrarTour() {
   localStorage.setItem('guepack_tour_completado', 'true')
   if (_tourHighlightEl) {
-    _tourHighlightEl.classList.remove('tour-highlight')
+    _tourHighlightEl.classList.remove(_tourHighlightClass)
     _tourHighlightEl = null
   }
-  document.getElementById('tour-overlay').style.display = 'none'
+  var cat = document.getElementById('tour-cat-fixed')
+  if (cat) { cat.style.animation = 'none'; cat.style.display = 'none'; cat.src = '' }
+  var modal = document.getElementById('tour-modal')
+  if (modal) { modal.style.display = 'none'; modal.innerHTML = '' }
+  var overlay = document.getElementById('tour-overlay')
+  if (overlay) overlay.style.display = 'none'
 }
 
 </script>
@@ -3498,10 +3542,9 @@ function _cerrarTour() {
 </button>
 
 <!-- ── Tour GuepGato ── -->
-<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.75)">
-  <img id="tour-cat-fixed" src="" alt="GuepGato" style="display:none;position:fixed;z-index:10003;pointer-events:none">
-  <div id="tour-modal" class="tour-modal tour-modal-center"></div>
-</div>
+<img id="tour-cat-fixed" src="" alt="GuepGato" style="display:none;position:fixed;z-index:10001;pointer-events:none">
+<div id="tour-modal" class="tour-modal tour-modal-center" style="display:none"></div>
+<div id="tour-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75)"></div>
 
 </body>
 </html>
