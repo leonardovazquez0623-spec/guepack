@@ -1862,6 +1862,7 @@ function _crearCardHTML(id, nombreRemitente = null) {
       <div id="pac-${id}-body" style="padding:0 16px 14px">
         <div style="font-size:12px;font-weight:700;color:#8fa3c0;margin-bottom:4px" id="pac-${id}-estado"></div>
         <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-repartidor"></div>
+        <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-placas"></div>
         <div id="pac-${id}-chat-wrap" style="display:none;margin-top:8px">
           <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="width:100%;padding:10px;background:#1a4fa0;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative">
             💬 Chat con repartidor
@@ -1976,6 +1977,7 @@ function _actualizarCard(id, estado, repartidor) {
     repaEl.textContent = '🏍️ Repartidor: ' + repartidor
     repaEl.style.display = 'block'
     if (chatWrap) chatWrap.style.display = 'block'
+    _mostrarPlacasRepartidor(id, repartidor)
   }
 
   // Timer domicilio
@@ -2004,6 +2006,16 @@ function _actualizarCard(id, estado, repartidor) {
   } else if (estado !== 'Repartidor en domicilio') {
     if (_pedidos[id]?.intervalDomicilio) { clearInterval(_pedidos[id].intervalDomicilio); _pedidos[id].intervalDomicilio = null }
     if (timerDom) timerDom.style.display = 'none'
+  }
+}
+
+async function _mostrarPlacasRepartidor(pedidoId, nombreRepartidor) {
+  const el = document.getElementById('pac-' + pedidoId + '-placas')
+  if (!el || !nombreRepartidor) return
+  const { data } = await db.from('repartidores').select('placas').eq('nombre', nombreRepartidor).single()
+  if (data?.placas) {
+    el.textContent = '🔖 Placas: ' + data.placas
+    el.style.display = 'block'
   }
 }
 
@@ -3360,7 +3372,7 @@ const _TOUR_STEPS = [
     catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
     catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
     text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
-    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:90%;max-width:400px',
+    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:40%;transform:translateX(-50%);width:90%;max-width:400px',
     btns: [
       { label: 'Anterior',  action: 'prev', primary: false },
       { label: 'Siguiente', action: 'next', primary: true  }
