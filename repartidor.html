@@ -47,6 +47,21 @@
     transition: background .2s;
   }
   .btn-logout:hover { background: var(--orange); }
+  .profile-avatar-btn {
+    width: 80px; height: 80px;
+    border-radius: 40%;
+    border: 2px solid rgba(255,255,255,0.6);
+    cursor: pointer;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.2);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700; font-size: 35px; color: rgb(255, 255, 255);
+    flex-shrink: 0;
+    transition: border-color .2s;
+  }
+  .profile-avatar-btn:hover { border-color: white; }
+  .profile-avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
   .container { padding: 16px; max-width: 480px; margin: 0 auto; }
   .card-title {
     font-size: 11px;
@@ -117,7 +132,10 @@
       <div class="delivery-name" id="delivery-nombre">Hola </div>
       <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-top:4px">
     </div>
-    <button onclick="cerrarSesion()" class="btn-logout">🚪 Salir</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <button onclick="cerrarSesion()" class="btn-logout">Salir</button>
+      <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
+    </div>
   </div>
 </div>
 
@@ -182,6 +200,8 @@ function rugidoGuepack() {
   })
 }
 
+let _repaUserId = null
+
 async function init() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return; }
@@ -189,8 +209,10 @@ async function init() {
   const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
   if (!data || data.rol !== 'repartidor') { window.location.href = 'login.html'; return; }
 
+  _repaUserId = session.user.id
+
   const nombre = session.user.user_metadata?.nombre || session.user.email
-  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre + ' 👋'
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre + 
 
   cargarPedidos(session.user.email)
 }
@@ -204,7 +226,8 @@ async function cargarPedidos(email) {
   }
 
   const nombreRepa = repaData.nombre
-  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa + ' 👋'
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa 
+  _cargarAvatarRepartidor(repaData)
 
   const { data, error } = await db.from('pedidos')
     .select('*')
@@ -897,6 +920,70 @@ setInterval(async () => {
   console.log('Session:', session?.user?.email)
   if (session) cargarPedidos(session.user.email)
 }, 10000)
+
+// ── Avatar de perfil (repartidor) ────────────────────────────────────────────
+
+let _repaFotoUrl = null
+
+function _cargarAvatarRepartidor(repaData) {
+  _repaFotoUrl = repaData.foto_perfil || null
+  _renderAvatarRepartidor()
+}
+
+function _renderAvatarRepartidor() {
+  const el = document.getElementById('repa-header-avatar')
+  if (!el) return
+  if (_repaFotoUrl) {
+    el.innerHTML = '<img src="' + _repaFotoUrl + '" alt="perfil">'
+  } else {
+    const nombre = document.getElementById('delivery-nombre')?.textContent || '?'
+    el.textContent = (nombre.replace('Hola, ','').charAt(0) || '?').toUpperCase()
+  }
+}
+
+function _abrirModalFotoRepartidor() {
+  const existing = document.getElementById('modal-foto-repa')
+  if (existing) existing.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-foto-repa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px'
+  const fotoHtml = _repaFotoUrl
+    ? '<img id="mfr-img" src="' + _repaFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
+    : '<div style="width:90px;height:90px;border-radius:50%;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">🏍️</div>'
+  modal.innerHTML = '<div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:320px;text-align:center">'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
+    + fotoHtml
+    + '<input type="file" id="mfr-input" accept="image/*" style="display:none">'
+    + '<label for="mfr-input" style="display:block;padding:11px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
+    + '<div id="mfr-status" style="font-family:Montserrat,sans-serif;font-size:12px;color:#888;min-height:18px;margin-bottom:10px"></div>'
+    + '<button onclick="document.getElementById(\'modal-foto-repa\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cerrar</button>'
+    + '</div>'
+  document.body.appendChild(modal)
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove() })
+  document.getElementById('mfr-input').addEventListener('change', _subirFotoRepartidor)
+}
+
+async function _subirFotoRepartidor(e) {
+  const file = e.target.files[0]
+  if (!file || !_repaUserId) return
+  const status = document.getElementById('mfr-status')
+  if (status) status.textContent = '⏳ Subiendo...'
+  const ext = file.name.split('.').pop() || 'jpg'
+  const path = 'repartidores/' + _repaUserId + '.' + ext
+  const { error: upError } = await db.storage.from('perfiles').upload(path, file, { upsert: true })
+  if (upError) { if (status) status.textContent = '❌ ' + upError.message; return }
+  const { data: urlData } = db.storage.from('perfiles').getPublicUrl(path)
+  const publicUrl = urlData.publicUrl + '?t=' + Date.now()
+  const { data: { session } } = await db.auth.getSession()
+  if (session) {
+    await db.from('repartidores').update({ foto_perfil: urlData.publicUrl }).eq('email', session.user.email)
+  }
+  _repaFotoUrl = publicUrl
+  _renderAvatarRepartidor()
+  const img = document.getElementById('mfr-img')
+  if (img) img.src = publicUrl
+  if (status) status.textContent = '✅ Foto actualizada'
+}
 </script>
 
 <button id="btn-activar-sonido" onclick="audioCtx.resume().then(() => document.getElementById('btn-activar-sonido').style.display='none')" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:14px 20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
