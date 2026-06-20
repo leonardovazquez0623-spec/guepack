@@ -118,6 +118,39 @@
   #admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a2740; color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
   #admin-toast.show { transform: translateX(-50%) translateY(0); }
   @keyframes slideUp { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+  /* ── Sidebar (desktop) ── */
+  #sidebar { display: none; }
+  #main-wrapper { flex: 1; min-width: 0; }
+
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 11px 14px; border: none; border-radius: 10px;
+    background: transparent; color: rgba(255,255,255,0.72);
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+    cursor: pointer; text-align: left; letter-spacing: .3px;
+    margin-bottom: 2px; transition: background .15s, color .15s;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,.12); color: white; }
+  .sidebar-item.active { background: var(--orange); color: white; }
+
+  @media (min-width: 768px) {
+    body { display: flex; flex-direction: row; align-items: flex-start; }
+
+    #sidebar {
+      display: flex; flex-direction: column;
+      width: 220px; min-width: 220px;
+      height: 100vh; position: sticky; top: 0;
+      background: #0e3070; overflow-y: auto; z-index: 100;
+      scrollbar-width: none;
+    }
+    #sidebar::-webkit-scrollbar { display: none; }
+
+    .app-header { display: none; }
+    .tabs { display: none !important; }
+    #btn-lluvia-container { display: none !important; }
+    .container { max-width: 100%; padding: 24px 28px; }
+  }
 </style>
 <script>
 // Callback real — Google Maps lo llama cuando termina de cargar
@@ -157,6 +190,34 @@ function initMapsAdmin() {
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
 </head>
 <body>
+
+<!-- ══ SIDEBAR (solo desktop) ══ -->
+<div id="sidebar">
+  <div style="padding:22px 16px 16px">
+    <img src="/logo_principal.png" alt="GUEPACK" style="width:100%;max-width:168px;height:auto;display:block;filter:brightness(0) invert(1)">
+  </div>
+  <nav style="flex:1;padding:0 10px">
+    <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')">📋 Pedidos</button>
+    <button class="sidebar-item" id="snav-nuevo" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
+    <button class="sidebar-item" id="snav-chats" onclick="showTab('chats')" style="position:relative">💬 Chats<span id="sidebar-chat-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
+    <button class="sidebar-item" id="snav-publicidad" onclick="showTab('publicidad')">📢 Publicidad</button>
+    <button class="sidebar-item" id="snav-widget" onclick="showTab('widget')">📦 Widget</button>
+    <button class="sidebar-item" id="snav-calificaciones" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
+    <button class="sidebar-item" id="snav-finanzas" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="sidebar-item" id="snav-vip" onclick="showTab('vip')">👑 VIP</button>
+    <button class="sidebar-item" id="snav-zonas" onclick="showTab('zonas')">🗺️ Zonas</button>
+    <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')">🏢 Empresas</button>
+    <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')">🏍️ Repartidores</button>
+    <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
+  </nav>
+  <div style="padding:12px 10px 18px">
+    <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
+    <button onclick="cerrarSesion()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.65);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;text-align:center">🚪 Salir</button>
+  </div>
+</div>
+
+<!-- ══ CONTENIDO PRINCIPAL ══ -->
+<div id="main-wrapper">
 
 <div class="app-header">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -903,14 +964,16 @@ async function cargarEstadoLluvia() {
 
 function actualizarBotonLluvia(activa) {
   const btn = document.getElementById('btn-lluvia')
-  if (activa) {
-    btn.textContent = '🌧️ Modo lluvia: ON'
-    btn.style.background = '#1a6fa0'
-    btn.style.boxShadow = '0 4px 14px rgba(26,111,160,0.5)'
-  } else {
-    btn.textContent = '🌤️ Modo lluvia: OFF'
-    btn.style.background = 'var(--blue)'
-    btn.style.boxShadow = 'var(--shadow)'
+  const sbtn = document.getElementById('sidebar-btn-lluvia')
+  const label = activa ? '🌧️ Modo lluvia: ON' : '🌤️ Modo lluvia: OFF'
+  if (btn) {
+    btn.textContent = label
+    btn.style.background = activa ? '#1a6fa0' : 'var(--blue)'
+    btn.style.boxShadow = activa ? '0 4px 14px rgba(26,111,160,0.5)' : 'var(--shadow)'
+  }
+  if (sbtn) {
+    sbtn.textContent = label
+    sbtn.style.background = activa ? 'rgba(26,111,160,0.6)' : 'rgba(255,255,255,.12)'
   }
 }
 
@@ -1468,11 +1531,17 @@ function showTab(tab, btn) {
   document.getElementById('tab-' + tab).classList.add('active')
   const activeBtn = btn || (typeof event !== 'undefined' && event.target)
   if (activeBtn) { activeBtn.classList.add('active'); _moverIndicador(activeBtn) }
+  // Sincronizar sidebar
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'))
+  const snavBtn = document.getElementById('snav-' + tab)
+  if (snavBtn) snavBtn.classList.add('active')
   if (tab === 'chats') {
     cargarChats()
     _adminUnreadCount = 0
     const _ab = document.getElementById('admin-chat-badge')
     if (_ab) _ab.style.display = 'none'
+    const _sb = document.getElementById('sidebar-chat-badge')
+    if (_sb) _sb.style.display = 'none'
   }
   if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
   if (tab === 'nuevo') {
@@ -2340,6 +2409,8 @@ db.channel('admin-mensajes-global')
     _adminUnreadCount++
     const badge = document.getElementById('admin-chat-badge')
     if (badge) { badge.textContent = _adminUnreadCount; badge.style.display = 'flex' }
+    const sbadge = document.getElementById('sidebar-chat-badge')
+    if (sbadge) { sbadge.textContent = _adminUnreadCount; sbadge.style.display = 'flex' }
     if (Notification.permission === 'granted') {
       const titulo = esSoporte ? '🆘 Nuevo mensaje de soporte' : '💬 Nuevo mensaje'
       new Notification(titulo, { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'admin-' + (msg.pedido_id || 'soporte') })
@@ -3643,5 +3714,6 @@ async function asignarRutas() {
   _rutaData = null
 }
 </script>
+</div><!-- /#main-wrapper -->
 </body>
 </html>
