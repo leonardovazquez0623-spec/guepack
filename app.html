@@ -519,6 +519,20 @@
   transition: background .2s;
 }
 .btn-logout:hover { background: var(--orange); }
+.hamburger-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  font-size: 22px;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative; z-index: 10;
+  transition: background .2s;
+}
+.hamburger-btn:hover { background: rgba(255,255,255,0.3); }
 
   .profile-avatar-btn {
     width: 90px; height: 90px;
@@ -688,12 +702,9 @@
   <div class="app-header">
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
       <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:200px;height:auto;display:block">
-      <div id="header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoCliente()" title="Mi perfil"></div>
+      <button class="hamburger-btn" onclick="_abrirDrawer()" title="Menú">☰</button>
     </div>
     <div class="header-sub">Paquetería Local · Guadalajara</div>
-    <div id="header-actions" style="display:flex;align-items:center;gap:8px;margin-top:6px">
-      <button onclick="cerrarSesion()" class="btn-logout">Cerrar sesión</button>
-    </div>
   </div>
 
   <!-- Client Bottom Bar -->
@@ -2773,6 +2784,8 @@ async function actualizarVipTrasEntrega() {
   const nivelAnterior = _calcNivel(totalAnterior).nivel
   const nuevoNivel = _calcNivel(nuevoTotal).nivel
   await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
+  _clienteTotalPedidos = nuevoTotal
+  _clienteNivelVip = nuevoNivel
   if (nuevoNivel !== nivelAnterior) {
     const t = _VIP_TEMAS[nuevoNivel] || _VIP_TEMAS.normal
     localStorage.setItem('guepack_nivel_vip', nuevoNivel)
@@ -2809,14 +2822,25 @@ let _clienteUserId = null
 let _clienteEmail = ''
 let _clienteFotoUrl = null
 let _clienteCodigoReferido = null
+let _clienteNombre = ''
+let _clienteWhatsapp = ''
+let _clienteTotalPedidos = 0
+let _clienteNivelVip = 'normal'
+let _clienteEnviosGratis = 0
 
 async function _cargarAvatarCliente(user) {
   _clienteUserId = user.id
   _clienteEmail = user.email || ''
-  const { data } = await db.from('usuarios').select('foto_perfil, codigo_referido_propio').eq('user_id', user.id).single()
+  const { data } = await db.from('usuarios')
+    .select('foto_perfil, codigo_referido_propio, nombre, whatsapp, total_pedidos, nivel_vip, envios_gratis')
+    .eq('user_id', user.id).single()
   _clienteFotoUrl = data?.foto_perfil || null
   _clienteCodigoReferido = data?.codigo_referido_propio || null
-  _renderAvatarCliente()
+  _clienteNombre = data?.nombre || user?.user_metadata?.nombre || ''
+  _clienteWhatsapp = data?.whatsapp || ''
+  _clienteTotalPedidos = data?.total_pedidos || 0
+  _clienteNivelVip = data?.nivel_vip || 'normal'
+  _clienteEnviosGratis = data?.envios_gratis || 0
   if (!_clienteCodigoReferido) _generarYGuardarCodigo()
 }
 
@@ -2849,13 +2873,12 @@ function _copiarCodigoReferido() {
 }
 
 function _renderAvatarCliente() {
-  const el = document.getElementById('header-avatar')
-  if (!el) return
+  const drawerAv = document.getElementById('drawer-foto-avatar')
+  if (!drawerAv) return
   if (_clienteFotoUrl) {
-    el.innerHTML = '<img src="' + _clienteFotoUrl + '" alt="perfil">'
+    drawerAv.innerHTML = '<img src="' + _clienteFotoUrl + '" style="width:100%;height:100%;object-fit:cover">'
   } else {
-    const iniciales = (_clienteEmail.charAt(0) || '?').toUpperCase()
-    el.textContent = iniciales
+    drawerAv.innerHTML = '<span>' + (_clienteEmail.charAt(0) || '?').toUpperCase() + '</span>'
   }
 }
 
@@ -2868,22 +2891,13 @@ function _abrirModalFotoCliente() {
   const fotoHtml = _clienteFotoUrl
     ? '<img id="mfp-img" src="' + _clienteFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
     : '<div style="width:90px;height:90px;border-radius:50%;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' + (_clienteEmail.charAt(0)||'?').toUpperCase() + '</div>'
-  const codRef = _clienteCodigoReferido || '...'
   modal.innerHTML = '<div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:320px;text-align:center">'
-    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi perfil</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
     + fotoHtml
     + '<input type="file" id="mfp-input" accept="image/*" style="display:none">'
     + '<label for="mfp-input" style="display:block;padding:11px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
     + '<div id="mfp-status" style="font-family:Montserrat,sans-serif;font-size:12px;color:#888;min-height:18px;margin-bottom:10px"></div>'
-    + '<div style="border-top:1px solid #eef1f6;padding-top:14px;margin-top:4px">'
-    + '<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">🎁 Mi código de referido</div>'
-    + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:4px;line-height:1;margin-bottom:8px">' + codRef + '</div>'
-    + '<div style="display:flex;gap:8px;justify-content:center">'
-    + '<button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:8px 14px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>'
-    + '</div>'
-    + '<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aab8cc;margin-top:8px;line-height:1.4">Comparte este código. Cuando tu referido llegue a Bronce VIP ganas envíos gratis.</div>'
-    + '</div>'
-    + '<button onclick="document.getElementById(\'modal-foto-perfil\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666;margin-top:14px">Cerrar</button>'
+    + '<button onclick="document.getElementById(\'modal-foto-perfil\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cerrar</button>'
     + '</div>'
   document.body.appendChild(modal)
   modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove() })
@@ -2910,6 +2924,167 @@ async function _subirFotoCliente(e) {
     if (fotoEl) fotoEl.outerHTML = '<img id="mfp-img" src="' + publicUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
   }
   if (status) status.textContent = '✅ Foto actualizada'
+}
+
+// ── Drawer lateral ────────────────────────────────────────────────────────────
+
+function _maskEmail(email) {
+  const [local, domain] = (email || '').split('@')
+  if (!local || !domain) return email || ''
+  return local.slice(0, Math.min(3, local.length)) + '***@' + domain
+}
+function _maskWa(wa) {
+  if (!wa || wa.length < 4) return wa ? '***-***-' + wa : '—'
+  return '***-***-' + wa.slice(-3)
+}
+
+function _abrirDrawer() {
+  if (document.getElementById('side-drawer')) return
+
+  const nivel = _clienteNivelVip || 'normal'
+  const total = _clienteTotalPedidos || 0
+  const _vipIcons  = { normal:'👤', bronce:'🥉', plata:'🥈', oro:'🥇' }
+  const _vipLabels = { normal:'Normal', bronce:'Bronce', plata:'Plata', oro:'Oro VIP' }
+  const _vipColors = { normal:'#8fa3c0', bronce:'#CD7F32', plata:'#808080', oro:'#DAA520' }
+
+  const nivelData   = _calcNivel(total)
+  const nivelIdx    = _VIP_NIVELES.findIndex(v => v.nivel === nivel)
+  const nextNivelData = nivelIdx > 0 ? _VIP_NIVELES[nivelIdx - 1] : null
+
+  let vipBarHtml = ''
+  if (nextNivelData) {
+    const pct = Math.round(Math.min(1, (total - nivelData.min) / (nextNivelData.min - nivelData.min)) * 100)
+    const faltan = nextNivelData.min - total
+    vipBarHtml = `
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-bottom:4px">
+          <span>Hacia ${_vipLabels[nextNivelData.nivel]}</span><span>${total}/${nextNivelData.min} envíos</span>
+        </div>
+        <div style="background:#f0f0f0;border-radius:6px;height:8px;overflow:hidden">
+          <div style="background:${_vipColors[nivel]};height:100%;width:${pct}%;border-radius:6px"></div>
+        </div>
+        <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-top:4px">
+          Faltan <strong style="color:${_vipColors[nivel]}">${faltan}</strong> para ${_vipLabels[nextNivelData.nivel]}
+        </div>
+      </div>`
+  } else {
+    vipBarHtml = `<div style="font-size:10px;color:#DAA520;font-family:Montserrat,sans-serif;margin-top:6px;font-weight:700">🎉 ¡Nivel máximo alcanzado!</div>`
+  }
+
+  const avatarHtml = _clienteFotoUrl
+    ? `<img src="${_clienteFotoUrl}" style="width:100%;height:100%;object-fit:cover">`
+    : `<span>${(_clienteEmail.charAt(0) || '?').toUpperCase()}</span>`
+
+  const overlay = document.createElement('div')
+  overlay.id = 'drawer-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:15000;opacity:0;transition:opacity .3s'
+  overlay.addEventListener('click', _cerrarDrawer)
+
+  const drawer = document.createElement('div')
+  drawer.id = 'side-drawer'
+  drawer.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:min(300px,88vw);background:white;z-index:15001;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:-6px 0 32px rgba(0,0,0,0.18)'
+
+  drawer.innerHTML = `
+    <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:24px 20px 20px;position:relative;flex-shrink:0">
+      <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;line-height:1">✕</button>
+      <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:68px;height:68px;border-radius:50%;border:3px solid rgba(255,255,255,0.7);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:24px;color:white;margin-bottom:10px;flex-shrink:0">${avatarHtml}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:white;line-height:1.2">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.65);font-family:Montserrat,sans-serif;font-weight:600;margin-top:3px">${_maskEmail(_clienteEmail)}</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px">
+
+      <div style="margin-bottom:18px">
+        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">👤 Datos<div style="flex:1;height:1px;background:#eef1f6"></div></div>
+        <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:5px"><span style="font-weight:700;color:#1a2740">Correo:</span> ${_maskEmail(_clienteEmail)}</div>
+        <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:12px"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</div>
+        <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#1a4fa0">🔑 Cambiar contraseña</button>
+      </div>
+
+      <div style="margin-bottom:18px">
+        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">🎁 Referidos<div style="flex:1;height:1px;background:#eef1f6"></div></div>
+        <div style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:6px">Tu código de referido</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:3px;line-height:1">${_clienteCodigoReferido || '...'}</div>
+          <button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:6px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>
+          <button onclick="_compartirCodigoReferido()" style="padding:6px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">🔗 Compartir</button>
+        </div>
+        ${_clienteEnviosGratis > 0 ? `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;color:#16a34a;margin-bottom:10px">🎟️ ${_clienteEnviosGratis} envíos gratis disponibles</div>` : ''}
+        <div id="drawer-referidos-lista" style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600">Cargando...</div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">🏆 Nivel VIP<div style="flex:1;height:1px;background:#eef1f6"></div></div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+          <div style="font-size:32px;line-height:1">${_vipIcons[nivel]}</div>
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${_vipColors[nivel]};letter-spacing:1px;line-height:1">${_vipLabels[nivel]}</div>
+            <div style="font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;color:#8fa3c0">${total} envíos realizados</div>
+          </div>
+        </div>
+        ${vipBarHtml}
+      </div>
+
+    </div>
+
+    <div style="padding:16px;border-top:1px solid #eef1f6;flex-shrink:0">
+      <button onclick="cerrarSesion()" style="width:100%;padding:12px;background:rgba(240,90,26,0.08);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#f05a1a;letter-spacing:.5px">🚪 Cerrar sesión</button>
+    </div>`
+
+  document.body.appendChild(overlay)
+  document.body.appendChild(drawer)
+  requestAnimationFrame(() => { overlay.style.opacity = '1'; drawer.style.transform = 'translateX(0)' })
+  _cargarReferidosDrawer()
+}
+
+function _cerrarDrawer() {
+  const overlay = document.getElementById('drawer-overlay')
+  const drawer  = document.getElementById('side-drawer')
+  if (!overlay || !drawer) return
+  overlay.style.opacity = '0'
+  drawer.style.transform = 'translateX(100%)'
+  setTimeout(() => { overlay.remove(); drawer.remove() }, 320)
+}
+
+async function _cargarReferidosDrawer() {
+  if (!_clienteUserId) return
+  const el = document.getElementById('drawer-referidos-lista')
+  if (!el) return
+  const { data } = await db.from('referidos')
+    .select('referido_email, referido_nombre, estado, created_at')
+    .eq('referidor_user_id', _clienteUserId)
+    .order('created_at', { ascending: false })
+  if (!data || !data.length) {
+    el.innerHTML = '<div style="color:#c0c8d8;font-family:Montserrat,sans-serif">Sin referidos aún</div>'
+    return
+  }
+  const col = { pendiente: '#f59e0b', aprobado: '#22c55e', rechazado: '#ef4444' }
+  el.innerHTML = data.map(r => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f2f6">
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#1a2740;font-weight:600">${r.referido_nombre || r.referido_email}</div>
+      <div style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:20px;background:${col[r.estado] || '#888'}20;color:${col[r.estado] || '#888'};font-family:Montserrat,sans-serif">${r.estado}</div>
+    </div>`).join('')
+}
+
+async function _cambiarContrasena(btn) {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session?.user?.email) return
+  if (btn) { btn.textContent = '⏳ Enviando...'; btn.disabled = true }
+  await db.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin + '/login.html' })
+  if (btn) { btn.textContent = '✅ Email enviado'; setTimeout(() => { btn.textContent = '🔑 Cambiar contraseña'; btn.disabled = false }, 3000) }
+}
+
+function _compartirCodigoReferido() {
+  if (!_clienteCodigoReferido) return
+  const txt = '¡Regístrate en GUEPACK Express con mi código ' + _clienteCodigoReferido + ' y obtén beneficios! guepack.com'
+  if (navigator.share) {
+    navigator.share({ title: 'GUEPACK Express', text: txt }).catch(() => {})
+  } else {
+    navigator.clipboard.writeText(txt).catch(() => {
+      const ta = document.createElement('textarea'); ta.value = txt
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
+    })
+  }
 }
 
 function _celebrarSubidaNivel(nivel) {
