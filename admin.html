@@ -3402,14 +3402,14 @@ async function cargarZonas() {
           '<div style="font-size:10px;color:var(--gray-mid);font-weight:700;margin-top:2px">Sobre $' + z.precio_sobre + ' · Grande $' + z.precio_grande + ' · ' + (tienePoligono ? '✅ Con polígono' : '⚠️ Sin polígono') + '</div>' +
         '</div>' +
         '<label class="toggle">' +
-          '<input type="checkbox" ' + (z.activa ? 'checked' : '') + ' onchange="toggleZonaActiva(' + z.id + ', this.checked)">' +
+          '<input type="checkbox" ' + (z.activa ? 'checked' : '') + ' onchange="toggleZonaActiva(\'' + z.id + '\', this.checked)">' +
           '<span class="toggle-slider"></span>' +
         '</label>' +
       '</div>' +
       '<div style="display:flex;gap:6px;margin-top:10px">' +
-        '<button onclick="zonaEditar(' + z.id + ')" style="flex:1;padding:7px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✏️ Editar</button>' +
-        '<button onclick="zonaEditarPoligono(' + z.id + ')" style="flex:1;padding:7px;background:var(--gray);color:var(--text);border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🖊️ Polígono</button>' +
-        '<button onclick="zonaEliminar(' + z.id + ',' + JSON.stringify(z.nombre) + ')" style="flex:1;padding:7px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️</button>' +
+        '<button onclick="zonaEditar(\'' + z.id + '\')" style="flex:1;padding:7px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✏️ Editar</button>' +
+        '<button onclick="zonaEditarPoligono(\'' + z.id + '\')" style="flex:1;padding:7px;background:var(--gray);color:var(--text);border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🖊️ Polígono</button>' +
+        '<button onclick="zonaEliminar(\'' + z.id + '\',\'' + (z.nombre||'').replace(/'/g,"\\\'") + '\')" style="flex:1;padding:7px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️</button>' +
       '</div>' +
     '</div>'
   }).join('')
