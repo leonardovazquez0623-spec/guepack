@@ -968,7 +968,7 @@ async function verificarSesion() {
   verificarAnuncio()
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
-  _cargarEmpresaUsuario(session.user)
+  await _cargarEmpresaUsuario(session.user)
   await _cargarAvatarCliente(session.user)
   iniciarTour()
 }
@@ -3524,7 +3524,23 @@ function _fallbackZonaCiudad(place, result) {
 }
 
 async function _calcularPrecioGeneral() {
-  if (_empresaData) return
+  // Guard: si _empresaData aún no cargó (race condition), recargar desde sesión
+  if (!_empresaData) {
+    const { data: { session } } = await db.auth.getSession()
+    if (session?.user?.user_metadata?.empresa_codigo) {
+      console.log('[precio] Race condition — usuario corporativo, recargando _empresaData')
+      await _cargarEmpresaUsuario(session.user)
+    }
+  }
+
+  if (_empresaData) {
+    console.log('[precio] Tipo: empresa —', _empresaData.nombre, '| tipo_tarifa:', _empresaData.tipo_tarifa)
+    _calcularPrecioCorporativo()
+    return
+  }
+
+  console.log('[precio] Tipo: general — usando precios_generales')
+
   const origen  = document.getElementById('dir-recoleccion').value.trim()
   const destino = document.getElementById('dir-entrega').value.trim()
   if (!origen) {
@@ -3630,7 +3646,7 @@ async function _calcularPrecioCorporativo() {
 
 function _mostrarCotizacionCorporativa(km) {
   const e = _empresaData
-  const tarifaBase   = e.tarifa_base    || 95
+  const tarifaBase   = e.tarifa_minima  || 95
   const kmMinimo     = e.km_minimo      || 12
   const tarifaExtra  = e.tarifa_base_extra || 115
   const precioKmExt  = e.precio_km_extra  || 10
