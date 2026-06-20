@@ -3540,29 +3540,35 @@ async function toggleZonaActiva(id, activa) {
   else _cargarZonasEnMapa()
 }
 
-async function zonaEliminar(id, nombre) {
-  console.log('[zonaEliminar] click id:', id, 'tipo:', typeof id, 'nombre:', nombre)
-  if (!confirm('Eliminar la zona "' + nombre + '"?')) { console.log('[zonaEliminar] cancelado'); return }
-  console.log('[zonaEliminar] DELETE zonas_cobertura id =', id)
-  const { data, error } = await db.from('zonas_cobertura').delete().eq('id', id).select()
-  console.log('[zonaEliminar] resultado data:', data, 'error:', error)
-  if (error) {
-    console.error('[zonaEliminar] Error Supabase:', error)
-    showToast('Error: ' + error.message)
-    return
+function zonaEliminar(id, nombre) {
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
+      <div style="font-size:40px;margin-bottom:12px">🗑️</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;margin-bottom:8px">¿Eliminar zona?</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:13px;color:#8fa3c0;margin-bottom:24px;line-height:1.5">
+        <span style="color:#1a4fa0;font-weight:900">${nombre}</span><br>Esta acción no se puede deshacer.
+      </div>
+      <div style="display:flex;gap:10px">
+        <button id="zona-cancel-btn" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:#8fa3c0;letter-spacing:.5px">❌ Cancelar</button>
+        <button id="zona-confirm-btn" style="flex:1;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(239,68,68,0.35)">🗑️ Eliminar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+
+  overlay.querySelector('#zona-cancel-btn').onclick = () => overlay.remove()
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove() }
+
+  overlay.querySelector('#zona-confirm-btn').onclick = async () => {
+    overlay.remove()
+    const { error } = await db.from('zonas_cobertura').delete().eq('id', id)
+    if (error) { showToast('❌ Error: ' + error.message); return }
+    if (_zonasPolygons[id]) { _zonasPolygons[id].setMap(null); delete _zonasPolygons[id] }
+    showToast('✅ Zona eliminada')
+    cargarZonas()
   }
-  if (!data || data.length === 0) {
-    console.warn('[zonaEliminar] DELETE ok pero 0 filas afectadas - verificar RLS o id incorrecto')
-  }
-  showToast('Zona eliminada')
-  if (_zonasPolygons[id]) {
-    console.log('[zonaEliminar] eliminando poligono del mapa id:', id)
-    _zonasPolygons[id].setMap(null)
-    delete _zonasPolygons[id]
-  } else {
-    console.log('[zonaEliminar] sin poligono en mapa para id:', id)
-  }
-  cargarZonas()
 }
 
 function _setHint(msg) {
