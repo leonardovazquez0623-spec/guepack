@@ -3395,10 +3395,21 @@ window.initMapsGuepack = function() {
   new google.maps.places.Autocomplete(inputRec, opts)
 
   const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
-  acEntrega.addListener('place_changed', function () {
+  acEntrega.addListener('place_changed', async function () {
     const place = acEntrega.getPlace()
     if (!place.geometry) return
     _entregaPlace = place
+
+    // Si _empresaData aún no cargó (race condition con initMapsGuepack), esperar
+    if (!_empresaData) {
+      const { data: { session } } = await db.auth.getSession()
+      if (session?.user?.user_metadata?.empresa_codigo) {
+        await _cargarEmpresaUsuario(session.user)
+      }
+    }
+
+    console.log('[place_changed] _empresaUsuario:', _empresaUsuario)
+
     if (_empresaData) {
       _calcularPrecioCorporativo()
     } else {
@@ -3407,7 +3418,13 @@ window.initMapsGuepack = function() {
   })
 
   // Recalcular precio si ya hay lugar de entrega y cambia la recolección
-  inputRec.addEventListener('change', function () {
+  inputRec.addEventListener('change', async function () {
+    if (!_empresaData) {
+      const { data: { session } } = await db.auth.getSession()
+      if (session?.user?.user_metadata?.empresa_codigo) {
+        await _cargarEmpresaUsuario(session.user)
+      }
+    }
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
     else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
   })
