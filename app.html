@@ -1425,7 +1425,7 @@ const { data, error } = await db.from('pedidos').insert({
       : _esMultiParada
         ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
         : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km',
-    precio: precio,
+    precio: Math.round(Number(precio) || 0),
     estado: estadoInicial,
     user_id: userId,
     instrucciones: instrucciones,
