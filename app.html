@@ -3209,26 +3209,43 @@ async function _cargarCreditoDrawer() {
   const el = document.getElementById('drawer-credito-content')
   if (!el || !_empresaUsuario) return
 
-  const empresa   = _empresaUsuario
-  const tipoCred  = empresa.tipo_credito || 'Semanal'
-  const ahora     = new Date()
+  const empresa  = _empresaUsuario
+  const tipoCred = empresa.tipo_credito || 'Semanal'
+  const ahora    = new Date()
   let inicioP, finP, labelPeriodo, proximoCorte
 
+  // ── Corte fin de mes: penúltimo día del mes a las 18:30 ──
+  // (28d→d27, 29d→d28, 30d→d29, 31d→d30)
+  function _corteFinMes(anio, mes) {
+    const diasMes = new Date(anio, mes + 1, 0).getDate()
+    return new Date(anio, mes, diasMes - 1, 18, 30, 0, 0)
+  }
+  let cfm = _corteFinMes(ahora.getFullYear(), ahora.getMonth())
+  if (cfm <= ahora) cfm = _corteFinMes(ahora.getFullYear(), ahora.getMonth() + 1)
+  const corteFinMes = cfm
+
   if (tipoCred === 'Semanal') {
-    const dia = ahora.getDay() // 0=dom, 1=lun…6=sáb
+    const dia = ahora.getDay() // 0=dom…6=sáb
     const diasDesde = dia === 0 ? 6 : dia - 1
     inicioP = new Date(ahora); inicioP.setHours(0,0,0,0); inicioP.setDate(inicioP.getDate() - diasDesde)
     finP = new Date(inicioP); finP.setDate(finP.getDate() + 6); finP.setHours(23,59,59,999)
-    // Próximo viernes
-    const diasParaV = dia === 0 ? 5 : dia <= 5 ? 5 - dia : 5 + 7 - dia
-    proximoCorte = new Date(ahora); proximoCorte.setDate(ahora.getDate() + (dia === 5 ? 0 : diasParaV))
     labelPeriodo = 'Semana ' + inicioP.toLocaleDateString('es-MX', { day:'numeric', month:'short' }) + ' – ' + finP.toLocaleDateString('es-MX', { day:'numeric', month:'short' })
+
+    // Próximo viernes a las 18:30
+    const diasParaV = dia === 0 ? 5 : dia <= 5 ? 5 - dia : 5 + 7 - dia
+    const cv = new Date(ahora)
+    cv.setDate(ahora.getDate() + (dia === 5 ? 0 : diasParaV))
+    cv.setHours(18, 30, 0, 0)
+    if (cv <= ahora) cv.setDate(cv.getDate() + 7) // ya pasó las 6:30pm del viernes → sig. viernes
+
+    // El que llegue primero: viernes o fin de mes
+    proximoCorte = cv < corteFinMes ? cv : corteFinMes
   } else {
     inicioP = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0,0,0,0)
     finP    = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0, 23,59,59,999)
-    proximoCorte = new Date(finP)
     const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
     labelPeriodo = meses[ahora.getMonth()].charAt(0).toUpperCase() + meses[ahora.getMonth()].slice(1) + ' ' + ahora.getFullYear()
+    proximoCorte = corteFinMes
   }
 
   const { data: { session } } = await db.auth.getSession()
@@ -3266,7 +3283,7 @@ async function _cargarCreditoDrawer() {
         <span style="font-size:16px">📅</span>
         <div>
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;color:#f05a1a;text-transform:uppercase;letter-spacing:.5px">Próximo corte</div>
-          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#1a2740;text-transform:capitalize">${corteStr}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#1a2740;text-transform:capitalize">${corteStr} · 6:30 PM</div>
         </div>
       </div>
     </div>
