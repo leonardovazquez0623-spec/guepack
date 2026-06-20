@@ -978,7 +978,8 @@ async function _cargarEmpresaUsuario(user) {
   if (!codigo) return
   const { data: empresa } = await db.from('empresas_afiliadas').select('*').eq('codigo', codigo).eq('activa', true).single()
   if (!empresa) return
-  _empresaData = empresa
+  _empresaData    = empresa
+  _empresaUsuario = empresa
   // Ocultar card de zona y mostrar badge corporativo
   const zonaCard = document.getElementById('zona-detect-result')?.closest('.card')
   if (zonaCard) zonaCard.style.display = 'none'
@@ -1012,6 +1013,7 @@ async function _cargarEmpresaUsuario(user) {
   if (empresa.tipo_tarifa === 'diaria') {
     _mostrarCotizacionDiaria()
   }
+  console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
 }
 
 function _bloquearFormularioEmpresa() {
@@ -1279,6 +1281,7 @@ activarNotificaciones()
 let selSize = null, selZone = null, selMetodoPago = null
 let _zonaData = null        // zona detectada desde Supabase zonas_cobertura
 let _empresaData = null     // datos de empresa afiliada del usuario logueado
+let _empresaUsuario = null  // alias público de _empresaData (accesible desde consola)
 let _corporativoPrecio = null  // precio calculado por km para corporativos
 let _corporativoKm = null      // distancia calculada
 let _entregaPlace = null       // último place seleccionado en dir-entrega
