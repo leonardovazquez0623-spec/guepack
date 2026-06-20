@@ -267,26 +267,18 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           </div>
         </div>
         <div class="route-body">
-          <div class="route-addr">
-            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
-              <span style="flex-shrink:0;font-weight:900">De:</span>
-              <span style="flex:1">${pedido.direccion_recoleccion}</span>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:16px;line-height:1">🗺️</a>
+          <div class="route-addr" style="margin-bottom:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="flex-shrink:0;font-weight:900;font-size:12px">De:</span>
+              <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_recoleccion}</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">🗺️</a>
             </div>
-            <div style="display:flex;align-items:flex-start;gap:6px">
-              <span style="flex-shrink:0;font-weight:900">A:</span>
-              <span style="flex:1">${pedido.direccion_entrega}</span>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:16px;line-height:1">🗺️</a>
-            </div>
+            <hr style="border:none;border-top:1px solid rgba(26,79,160,0.1);margin:8px 0 0">
           </div>
-          <a id="maps-btn-completa-${pedido.id}"
-             href="https://www.google.com/maps/dir/${encodeURIComponent(pedido.direccion_recoleccion)}/${encodeURIComponent(pedido.direccion_entrega)}"
-             target="_blank"
-             style="display:inline-flex;align-items:center;gap:5px;margin:6px 0 10px;padding:6px 12px;background:#e8f4fd;border-radius:8px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;border:1.5px solid rgba(26,79,160,0.2)">🗺️ Ver ruta completa</a>
           <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
-          <div id="paradas-rep-${pedido.id}" style="display:none;margin-bottom:10px"></div>
+          <div id="paradas-rep-${pedido.id}" style="margin-bottom:4px"></div>
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
             <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:#1a4fa0;color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
               💬 Chat
@@ -335,6 +327,19 @@ function _renderBotonesNormales(pedido) {
     <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'En camino a recoleccion' || pedido.estado === 'En camino a entrega' ? 'inactive' : 'done'}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
     <div class="step-btn ${pedido.estado === 'Repartidor en domicilio' ? 'active' : 'inactive'}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
   `
+  // Inyectar entrega única en paradas-rep
+  const _pEl = document.getElementById('paradas-rep-' + pedido.id)
+  if (_pEl) {
+    const _mapsUrl = 'https://www.google.com/maps/dir/' + encodeURIComponent(pedido.direccion_recoleccion) + '/' + encodeURIComponent(pedido.direccion_entrega)
+    _pEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#8fa3c0;flex-shrink:0">#1</span>
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_entrega}</span>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+      </div>
+      <a href="${_mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
+    `
+  }
 }
 
 function _renderParadasRepartidor(pedidoId, paradas, pedido) {
@@ -354,56 +359,42 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
   el.style.display = 'block'
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
+  const _mapsUrl1 = 'https://www.google.com/maps/dir/' + [pedido.direccion_recoleccion, ...paradas.map(p => p.direccion)].map(d => encodeURIComponent(d)).join('/')
 
   el.innerHTML = `
-    <div style="background:#f0f4ff;border-radius:10px;padding:10px 12px;border:1.5px solid rgba(26,79,160,0.15)">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--blue);margin-bottom:8px;letter-spacing:.5px">
-        📍 PARADAS — ${completadas}/${total} completadas
-      </div>
-      ${paradas.map((p, idx) => {
-        const anteriorCompletada = idx === 0 || paradas[idx - 1].estado === 'completada'
-        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_domicilio' ? '📍' : p.estado === 'en_camino' ? '🚚' : '⏳'
-        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_domicilio' ? '#f05a1a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+    <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#8fa3c0;margin:4px 0 6px;letter-spacing:.3px">Paradas ${completadas}/${total} completadas</div>
+    ${paradas.map((p, idx) => {
+      const anteriorCompletada = idx === 0 || paradas[idx - 1].estado === 'completada'
+      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_domicilio' ? '#f05a1a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
 
-        let btnHtml = ''
-        if (p.estado === 'completada') {
-          btnHtml = p.foto_url
-            ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>`
-            : '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#16a34a;font-weight:700">✅ listo</span>'
-        } else if (!anteriorCompletada) {
-          btnHtml = '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#c0c0c0;font-weight:700">🔒</span>'
-        } else if (p.estado === 'pendiente') {
-          btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer">🚚 En camino</button>`
-        } else if (p.estado === 'en_camino') {
-          btnHtml = `<button onclick="paradaEnDomicilio(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer">📍 Ya llegué</button>`
-        } else if (p.estado === 'en_domicilio') {
-          btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#ef4444">⏱ 7:00</span>
-            <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:5px 10px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">📸 Completar</button>
-          </div>`
-        }
-
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
-          <div>
-            <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}</span>
-            <div style="display:flex;align-items:center;gap:4px">
-              <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#8fa3c0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
-            </div>
-            ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
-          </div>
-          <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
+      let btnHtml = ''
+      if (p.estado === 'completada') {
+        btnHtml = p.foto_url
+          ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸</a>`
+          : '<span style="font-size:10px;color:#16a34a">✅</span>'
+      } else if (!anteriorCompletada) {
+        btnHtml = '<span style="font-size:10px;color:#c0c0c0">🔒</span>'
+      } else if (p.estado === 'pendiente') {
+        btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap">🚚 En camino</button>`
+      } else if (p.estado === 'en_camino') {
+        btnHtml = `<button onclick="paradaEnDomicilio(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer;white-space:nowrap">📍 Ya llegué</button>`
+      } else if (p.estado === 'en_domicilio') {
+        btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 7:00</span>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>
         </div>`
-      }).join('')}
-    </div>
-  `
+      }
 
-  // Actualizar URL de ruta completa incluyendo las paradas
-  const _btnMaps = document.getElementById('maps-btn-completa-' + pedidoId)
-  if (_btnMaps && pedido) {
-    const _dirs = [pedido.direccion_recoleccion, pedido.direccion_entrega, ...paradas.map(p => p.direccion)]
-    _btnMaps.href = 'https://www.google.com/maps/dir/' + _dirs.map(d => encodeURIComponent(d)).join('/')
-  }
+      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color};flex-shrink:0">#${p.orden}</span>
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</span>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+        ${p.instrucciones ? `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;flex-shrink:0">📝</span>` : ''}
+        <div style="flex-shrink:0">${btnHtml}</div>
+      </div>`
+    }).join('')}
+    <a href="${_mapsUrl1}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
+  `
 
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
 }
@@ -440,56 +431,39 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
     </button>
   `
 
-  // Las paradas solo se muestran una vez que el repartidor inició la ruta
-  if (!enRuta) {
-    el.style.display = 'none'
-    return
-  }
-
   el.style.display = 'block'
+  const _mapsUrlM = 'https://www.google.com/maps/dir/' + [pedido.direccion_recoleccion, ...paradas.map(p => p.direccion)].map(d => encodeURIComponent(d)).join('/')
+
   el.innerHTML = `
-    <div style="background:#f0f4ff;border-radius:10px;padding:10px 12px;border:1.5px solid rgba(26,79,160,0.15)">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--blue);margin-bottom:8px;letter-spacing:.5px">
-        📍 PARADAS — ${completadas}/${total} completadas
-      </div>
-      ${paradas.map(p => {
-        const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_camino' ? '🚚' : '⏳'
-        const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+    <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#8fa3c0;margin:4px 0 6px;letter-spacing:.3px">Paradas ${completadas}/${total} completadas</div>
+    ${paradas.map(p => {
+      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_camino' ? 'var(--orange)' : p.estado === 'en_domicilio' ? '#f05a1a' : '#8fa3c0'
 
-        let btnHtml = ''
-        if (p.estado === 'completada') {
-          btnHtml = p.foto_url
-            ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸 evidencia</a>`
-            : '<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#16a34a;font-weight:700">✅ listo</span>'
-        } else if (p.estado === 'pendiente') {
-          btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer">🚚 En camino</button>`
-        } else if (p.estado === 'en_camino') {
-          btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:#22c55e;color:white;cursor:pointer">✅ Ya llegué</button>`
-        } else if (p.estado === 'en_domicilio') {
-          btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:6px 12px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer">📸 Completar</button>`
-        }
+      let btnHtml = ''
+      if (p.estado === 'completada') {
+        btnHtml = p.foto_url
+          ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸</a>`
+          : '<span style="font-size:10px;color:#16a34a">✅</span>'
+      } else if (!enRuta) {
+        btnHtml = '<span style="font-size:10px;color:#c0c0c0">🔒</span>'
+      } else if (p.estado === 'pendiente') {
+        btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap">🚚 En camino</button>`
+      } else if (p.estado === 'en_camino') {
+        btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#22c55e;color:white;cursor:pointer;white-space:nowrap">✅ Ya llegué</button>`
+      } else if (p.estado === 'en_domicilio') {
+        btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>`
+      }
 
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
-          <div>
-            <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:${color}">${icon} #${p.orden}</span>
-            <div style="display:flex;align-items:center;gap:4px">
-              <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
-            </div>
-            ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
-          </div>
-          <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
-        </div>`
-      }).join('')}
-    </div>
+      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color};flex-shrink:0">#${p.orden}</span>
+        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</span>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+        ${p.instrucciones ? `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;flex-shrink:0">📝</span>` : ''}
+        <div style="flex-shrink:0">${btnHtml}</div>
+      </div>`
+    }).join('')}
+    <a href="${_mapsUrlM}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
   `
-
-  // Actualizar URL de ruta completa incluyendo todas las paradas
-  const _btnMapsM = document.getElementById('maps-btn-completa-' + pedidoId)
-  if (_btnMapsM && pedido) {
-    const _dirsM = [pedido.direccion_recoleccion, pedido.direccion_entrega, ...paradas.map(p => p.direccion)]
-    _btnMapsM.href = 'https://www.google.com/maps/dir/' + _dirsM.map(d => encodeURIComponent(d)).join('/')
-  }
 }
 
 async function iniciarRutaMulti(pedidoId, telefono, nombre) {
