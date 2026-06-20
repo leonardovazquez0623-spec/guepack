@@ -4030,14 +4030,38 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 
   _multiParadaPrecio = total
 
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+
+  // Tarifa diaria corporativa: comparar precio calculado vs tarifa fija
+  if (_empresaData?.tipo_tarifa === 'diaria') {
+    const tarifa = Number(_empresaData.tarifa_diaria) || 380
+    _multiParadaPrecio = tarifa
+    _corporativoPrecio = tarifa
+
+    if (result) {
+      result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#e0f2fe;border:1.5px solid #7dd3fc;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#0369a1;display:flex;align-items:center;gap:10px;min-height:46px'
+      result.innerHTML = '<span style="font-size:18px">📅</span><div><div>' + _empresaData.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
+    }
+    if (quoteAmount) quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+    if (quoteDetail) {
+      const lineas = ['📍 Distancia: ' + kmTotal + ' km · ' + totalParadas + ' paradas']
+      if (total > tarifa) lineas.push('💰 Precio estimado: <s>$' + total.toFixed(2) + '</s>')
+      lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
+      lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
+      quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+    }
+    if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
+    const aviso = document.getElementById('zona-aviso')
+    if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#e0f2fe'; aviso.style.color = '#0369a1'; aviso.textContent = '📅 Tarifa diaria · ' + _empresaData.nombre }
+    return
+  }
+
   if (result) {
     result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#f0fdf4;border:1.5px solid #86efac;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a;display:flex;align-items:center;gap:10px;min-height:46px'
     result.innerHTML = '<span style="font-size:18px">✅</span><div><div>' + zona.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
   }
-
-  const quoteAmount = document.getElementById('quote-amount')
-  const quoteDetail = document.getElementById('quote-detail')
-  const quoteBox = document.getElementById('quote-display')
   if (quoteAmount) quoteAmount.innerHTML = '$' + total
   if (quoteDetail) quoteDetail.textContent = desglose
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
