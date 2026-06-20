@@ -988,7 +988,9 @@ async function _cargarEmpresaUsuario(user) {
     avisoZona.style.display = 'block'
     avisoZona.style.background = '#e0f2fe'
     avisoZona.style.color = '#0369a1'
-    avisoZona.textContent = '🏢 Cuenta corporativa: ' + empresa.nombre + ' · El precio se calcula por kilómetro'
+    avisoZona.textContent = empresa.tipo_tarifa === 'diaria'
+      ? '🏢 Cuenta corporativa: ' + empresa.nombre + ' · Tarifa diaria: $' + (empresa.tarifa_diaria || 380)
+      : '🏢 Cuenta corporativa: ' + empresa.nombre + ' · El precio se calcula por kilómetro'
   }
   // Cuenta suspendida — bloquear formulario completo
   if (empresa.pedidos_activos === false) {
@@ -1006,6 +1008,10 @@ async function _cargarEmpresaUsuario(user) {
   // Ocultar cupón (no aplica en cuenta corporativa)
   const cuponCard = document.getElementById('cupon-card')
   if (cuponCard) cuponCard.style.display = 'none'
+  // Para tarifa diaria: mostrar precio inmediatamente (no requiere calcular KM)
+  if (empresa.tipo_tarifa === 'diaria') {
+    _mostrarCotizacionDiaria()
+  }
 }
 
 function _bloquearFormularioEmpresa() {
@@ -1429,7 +1435,7 @@ const { data, error } = await db.from('pedidos').insert({
     fecha: fecha,
     tamanio: selSize,
     zona: _empresaData
-      ? ('Corporativo · ' + _corporativoKm + ' km')
+      ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
       : _esMultiParada
         ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
         : _zonaData.nombre,
@@ -2321,6 +2327,7 @@ function resetForm() {
   _corporativoPrecio = null
   _corporativoKm = null
   _entregaPlace = null
+  if (_empresaData?.tipo_tarifa === 'diaria') _mostrarCotizacionDiaria()
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
   const _zdr = document.getElementById('zona-detect-result')
   if (_zdr) { _zdr.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'; _zdr.innerHTML = '<span style="font-size:16px">📍</span><span>Se detectará al ingresar tu dirección de entrega</span>' }
@@ -3527,6 +3534,7 @@ function _fallbackZonaCiudad(place, result) {
 }
 
 async function _calcularPrecioCorporativo() {
+  if (_empresaData?.tipo_tarifa === 'diaria') { _mostrarCotizacionDiaria(); return }
   const origen = document.getElementById('dir-recoleccion').value.trim()
   if (!origen) {
     const aviso = document.getElementById('zona-aviso')
@@ -3588,6 +3596,28 @@ function _mostrarCotizacionCorporativa(km) {
     aviso.style.background = '#e0f2fe'
     aviso.style.color = '#0369a1'
     aviso.textContent = '🏢 ' + e.nombre + ' · ' + km + ' km'
+  }
+}
+
+function _mostrarCotizacionDiaria() {
+  const e = _empresaData
+  const tarifa = e.tarifa_diaria || 380
+  _corporativoPrecio = tarifa
+  _corporativoKm = null
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+  if (quoteAmount) quoteAmount.innerHTML = '$' + Number(tarifa).toFixed(2)
+  if (quoteDetail) quoteDetail.textContent = 'Tarifa diaria · ' + e.nombre
+  if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
+
+  const aviso = document.getElementById('zona-aviso')
+  if (aviso) {
+    aviso.style.display = 'block'
+    aviso.style.background = '#e0f2fe'
+    aviso.style.color = '#0369a1'
+    aviso.textContent = '🏢 ' + e.nombre + ' · Tarifa diaria: $' + tarifa
   }
 }
 

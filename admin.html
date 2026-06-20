@@ -710,7 +710,20 @@ function initMapsAdmin() {
         <label class="form-label">Código de afiliación</label>
         <input type="text" id="emp-codigo" class="form-input" placeholder="CORP2024" oninput="this.value=this.value.toUpperCase()">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">Tipo de tarifa</label>
+        <div class="size-grid">
+          <div class="size-option selected" id="emp-tt-km" onclick="empSeleccionarTipoTarifa('km')">
+            <span class="size-icon">📏</span>
+            <span class="size-name">Tarifa por KM</span>
+          </div>
+          <div class="size-option" id="emp-tt-diaria" onclick="empSeleccionarTipoTarifa('diaria')">
+            <span class="size-icon">📅</span>
+            <span class="size-name">Tarifa diaria</span>
+          </div>
+        </div>
+      </div>
+      <div id="emp-campos-km" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="form-group">
           <label class="form-label">Tarifa base (0-N km)</label>
           <input type="number" id="emp-tarifa-base" class="form-input" value="95" placeholder="95">
@@ -728,6 +741,12 @@ function initMapsAdmin() {
           <input type="number" id="emp-precio-km" class="form-input" value="10" placeholder="10">
         </div>
       </div>
+      <div id="emp-campo-diaria" style="display:none;margin-bottom:4px">
+        <div class="form-group">
+          <label class="form-label">Tarifa diaria ($)</label>
+          <input type="number" id="emp-tarifa-diaria" class="form-input" value="380" placeholder="380" min="0">
+        </div>
+      </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Afiliación:</span>
@@ -738,17 +757,13 @@ function initMapsAdmin() {
           <button id="emp-pedidos-btn" onclick="empTogglePedidos()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">✅ Activos</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="margin-bottom:14px">
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">Tipo de crédito</label>
           <select id="emp-tipo-credito" class="form-input">
             <option value="Semanal">📅 Semanal</option>
             <option value="Mensual">🗓️ Mensual</option>
           </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Tarifa diaria ($)</label>
-          <input type="number" id="emp-tarifa-diaria" class="form-input" value="380" placeholder="380" min="0">
         </div>
       </div>
       <div style="display:flex;gap:8px">
@@ -866,6 +881,19 @@ async function toggleLluvia() {
 // ── Empresas afiliadas ──
 let _empActivo = true
 let _empPedidosActivos = true
+let _empTipoTarifa = 'km'
+
+function empSeleccionarTipoTarifa(tipo) {
+  _empTipoTarifa = tipo
+  const btnKm    = document.getElementById('emp-tt-km')
+  const btnDia   = document.getElementById('emp-tt-diaria')
+  const camposKm = document.getElementById('emp-campos-km')
+  const campoDia = document.getElementById('emp-campo-diaria')
+  if (btnKm)    btnKm.classList.toggle('selected', tipo === 'km')
+  if (btnDia)   btnDia.classList.toggle('selected', tipo === 'diaria')
+  if (camposKm) camposKm.style.display = tipo === 'km' ? 'grid' : 'none'
+  if (campoDia) campoDia.style.display = tipo === 'diaria' ? 'block' : 'none'
+}
 
 function empToggleActivo() {
   _empActivo = !_empActivo
@@ -900,7 +928,7 @@ async function cargarEmpresas() {
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
           <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${e.pedidos_activos !== false ? '#dcfce7' : '#fee2e2'};color:${e.pedidos_activos !== false ? '#16a34a' : '#ef4444'}">${e.pedidos_activos !== false ? '✅ Pedidos activos' : '❌ Suspendida'}</span>
           <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1">📅 ${e.tipo_credito || 'Semanal'}</span>
-          ${e.tarifa_diaria ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#f0fdf4;color:#16a34a">$${e.tarifa_diaria}/día</span>` : ''}
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${e.tipo_tarifa === 'diaria' ? '#fef9c3' : '#ede9fe'};color:${e.tipo_tarifa === 'diaria' ? '#854d0e' : '#7c3aed'}">${e.tipo_tarifa === 'diaria' ? '📅 Tarifa diaria · $' + (e.tarifa_diaria || 380) : '📏 Por KM'}</span>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
@@ -922,7 +950,7 @@ async function guardarEmpresa() {
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
   const tipoCredito  = document.getElementById('emp-tipo-credito')?.value || 'Semanal'
   const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
-  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria }
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   const { error } = id
     ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
@@ -963,6 +991,7 @@ async function editarEmpresa(id) {
   if (tcEl) tcEl.value = data.tipo_credito || 'Semanal'
   const tdEl = document.getElementById('emp-tarifa-diaria')
   if (tdEl) tdEl.value = data.tarifa_diaria || 380
+  empSeleccionarTipoTarifa(data.tipo_tarifa || 'km')
   document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
 }
 
@@ -991,6 +1020,7 @@ function _resetFormEmpresa() {
   if (tcEl) tcEl.value = 'Semanal'
   const tdEl = document.getElementById('emp-tarifa-diaria')
   if (tdEl) tdEl.value = '380'
+  empSeleccionarTipoTarifa('km')
 }
 
 // ── Repartidores ─────────────────────────────────────────────────────────────
