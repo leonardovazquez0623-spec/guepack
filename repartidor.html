@@ -267,7 +267,22 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           </div>
         </div>
         <div class="route-body">
-          <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
+          <div class="route-addr">
+            <div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px">
+              <span style="flex-shrink:0;font-weight:900">De:</span>
+              <span style="flex:1">${pedido.direccion_recoleccion}</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:16px;line-height:1">🗺️</a>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:6px">
+              <span style="flex-shrink:0;font-weight:900">A:</span>
+              <span style="flex:1">${pedido.direccion_entrega}</span>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:16px;line-height:1">🗺️</a>
+            </div>
+          </div>
+          <a id="maps-btn-completa-${pedido.id}"
+             href="https://www.google.com/maps/dir/${encodeURIComponent(pedido.direccion_recoleccion)}/${encodeURIComponent(pedido.direccion_entrega)}"
+             target="_blank"
+             style="display:inline-flex;align-items:center;gap:5px;margin:6px 0 10px;padding:6px 12px;background:#e8f4fd;border-radius:8px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;border:1.5px solid rgba(26,79,160,0.2)">🗺️ Ver ruta completa</a>
           <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
@@ -371,7 +386,10 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
           <div>
             <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}</span>
-            <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#8fa3c0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#8fa3c0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+            </div>
             ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
           </div>
           <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
@@ -379,6 +397,13 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
       }).join('')}
     </div>
   `
+
+  // Actualizar URL de ruta completa incluyendo las paradas
+  const _btnMaps = document.getElementById('maps-btn-completa-' + pedidoId)
+  if (_btnMaps && pedido) {
+    const _dirs = [pedido.direccion_recoleccion, pedido.direccion_entrega, ...paradas.map(p => p.direccion)]
+    _btnMaps.href = 'https://www.google.com/maps/dir/' + _dirs.map(d => encodeURIComponent(d)).join('/')
+  }
 
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
 }
@@ -447,7 +472,10 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(26,79,160,0.08)">
           <div>
             <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:${color}">${icon} #${p.orden}</span>
-            <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+            </div>
             ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600">📝 ${p.instrucciones}</div>` : ''}
           </div>
           <div style="flex-shrink:0;margin-left:8px">${btnHtml}</div>
@@ -455,6 +483,13 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       }).join('')}
     </div>
   `
+
+  // Actualizar URL de ruta completa incluyendo todas las paradas
+  const _btnMapsM = document.getElementById('maps-btn-completa-' + pedidoId)
+  if (_btnMapsM && pedido) {
+    const _dirsM = [pedido.direccion_recoleccion, pedido.direccion_entrega, ...paradas.map(p => p.direccion)]
+    _btnMapsM.href = 'https://www.google.com/maps/dir/' + _dirsM.map(d => encodeURIComponent(d)).join('/')
+  }
 }
 
 async function iniciarRutaMulti(pedidoId, telefono, nombre) {
