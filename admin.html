@@ -194,7 +194,7 @@ function initMapsAdmin() {
 <!-- ══ SIDEBAR (solo desktop) ══ -->
 <div id="sidebar">
   <div style="padding:22px 16px 16px">
-    <img src="/logo_principal.png" alt="GUEPACK" style="max-width:140px;height:auto;display:block">
+    <img src="/logo_principal.png" alt="GUEPACK" style="max-width:200px;height:auto;display:block">
   </div>
   <nav style="flex:1;padding:0 10px">
     <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')">📋 Pedidos</button>
@@ -3541,11 +3541,27 @@ async function toggleZonaActiva(id, activa) {
 }
 
 async function zonaEliminar(id, nombre) {
-  if (!confirm('¿Eliminar la zona "' + nombre + '"?')) return
-  var result = await db.from('zonas_cobertura').delete().eq('id', id)
-  if (result.error) return showToast('❌ Error: ' + result.error.message)
+  console.log('[zonaEliminar] click — id:', id, '| tipo:', typeof id, '| nombre:', nombre)
+  if (!confirm('¿Eliminar la zona "' + nombre + '"?')) { console.log('[zonaEliminar] cancelado'); return }
+  console.log('[zonaEliminar] enviando DELETE a zonas_cobertura donde id =', id)
+  const { data, error } = await db.from('zonas_cobertura').delete().eq('id', id).select()
+  console.log('[zonaEliminar] resultado — data:', data, '| error:', error)
+  if (error) {
+    console.error('[zonaEliminar] Error Supabase:', error)
+    showToast('❌ Error: ' + error.message)
+    return
+  }
+  if (!data || data.length === 0) {
+    console.warn('[zonaEliminar] DELETE ejecutado pero 0 filas afectadas — ¿RLS bloqueando? ¿id incorrecto?')
+  }
   showToast('🗑️ Zona eliminada')
-  if (_zonasPolygons[id]) { _zonasPolygons[id].setMap(null); delete _zonasPolygons[id] }
+  if (_zonasPolygons[id]) {
+    console.log('[zonaEliminar] eliminando polígono del mapa para id:', id)
+    _zonasPolygons[id].setMap(null)
+    delete _zonasPolygons[id]
+  } else {
+    console.log('[zonaEliminar] no había polígono en mapa para id:', id)
+  }
   cargarZonas()
 }
 
