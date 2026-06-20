@@ -3665,6 +3665,7 @@ function _mostrarCotizacionGeneral(km, precios) {
 }
 
 async function _calcularPrecioCorporativo() {
+  console.log('[precio] tipo_tarifa:', _empresaUsuario?.tipo_tarifa)
 
   // Verificar que la dirección de entrega esté dentro del LIMITE CIUDAD
   if (_entregaPlace?.geometry?.location) {
