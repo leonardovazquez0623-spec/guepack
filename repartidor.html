@@ -272,6 +272,10 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <span style="flex-shrink:0;font-weight:900;font-size:12px">De:</span>
               <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_recoleccion}</span>
               <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">🗺️</a>
+              ${pedido.foto_recoleccion
+                ? '<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#22c55e;flex-shrink:0">✅ Recolectado</span>'
+                : `<button onclick="abrirModalRecoleccion(${pedido.id})" id="btn-recoleccion-${pedido.id}" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:3px 7px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;flex-shrink:0;white-space:nowrap">Recolectado</button>`
+              }
             </div>
             <hr style="border:none;border-top:1px solid rgba(26,79,160,0.1);margin:8px 0 0">
           </div>
@@ -970,6 +974,109 @@ function _abrirModalFotoRepartidor() {
   document.body.appendChild(modal)
   modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove() })
   document.getElementById('mfr-input').addEventListener('change', _subirFotoRepartidor)
+}
+
+function abrirModalRecoleccion(pedidoId) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-recoleccion'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📦 Evidencia de recolección GK-${pedidoId}</div>
+      <div style="margin-bottom:16px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">📸 Foto de recolección</div>
+        <input type="file" id="recol-foto" accept="image/*" capture="environment" style="display:none">
+        <label for="recol-foto" id="btn-recol-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
+        <div id="recol-foto-preview" style="margin-top:10px"></div>
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">✍️ Firma de remitente</div>
+        <canvas id="recol-canvas" width="340" height="160" style="border:2px solid #e0e0e0;border-radius:12px;width:100%;touch-action:none;background:#fafafa"></canvas>
+        <button onclick="limpiarFirmaRecoleccion()" style="margin-top:6px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;background:none;border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;color:#666">Limpiar firma</button>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-recoleccion').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
+        <button id="btn-confirmar-recoleccion" onclick="confirmarRecoleccion(${pedidoId})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar recolección</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+
+  const canvas = document.getElementById('recol-canvas')
+  const ctx = canvas.getContext('2d')
+  let dibujando = false
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect()
+    const src = e.touches ? e.touches[0] : e
+    return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) }
+  }
+  canvas.addEventListener('mousedown', e => { dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) })
+  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() })
+  canvas.addEventListener('mouseup', () => dibujando = false)
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }, { passive: false })
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
+  canvas.addEventListener('touchend', () => dibujando = false)
+
+  document.getElementById('recol-foto').addEventListener('change', function() {
+    const file = this.files[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    document.getElementById('recol-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.15)">`
+    const btn = document.getElementById('btn-recol-foto')
+    btn.textContent = '✅ Foto tomada — cambiar'
+    btn.style.background = '#22c55e'
+  })
+}
+
+function limpiarFirmaRecoleccion() {
+  const canvas = document.getElementById('recol-canvas')
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+}
+
+async function confirmarRecoleccion(pedidoId) {
+  const btn = document.getElementById('btn-confirmar-recoleccion')
+  btn.textContent = 'Subiendo...'; btn.disabled = true
+
+  const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
+  let fotoUrl = null, firmaUrl = null
+
+  const fotoInput = document.getElementById('recol-foto')
+  if (fotoInput.files[0]) {
+    const { error } = await db.storage.from('evidencias').upload(`GK-${pedidoId}/recoleccion.jpg`, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/recoleccion.jpg`
+  }
+
+  const canvas = document.getElementById('recol-canvas')
+  await new Promise(resolve => canvas.toBlob(async blob => {
+    if (blob) {
+      const { error } = await db.storage.from('evidencias').upload(`GK-${pedidoId}/firma-recoleccion.png`, blob, { contentType: 'image/png', upsert: true })
+      if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-recoleccion.png`
+    }
+    resolve()
+  }, 'image/png'))
+
+  const update = {}
+  if (fotoUrl) update.foto_recoleccion = fotoUrl
+  if (firmaUrl) update.firma_recoleccion = firmaUrl
+  if (Object.keys(update).length) {
+    await db.from('pedidos').update(update).eq('id', pedidoId)
+  }
+
+  document.getElementById('modal-recoleccion').remove()
+
+  const btnRecol = document.getElementById('btn-recoleccion-' + pedidoId)
+  if (btnRecol) {
+    btnRecol.textContent = '✅ Recolectado'
+    btnRecol.disabled = true
+    btnRecol.style.background = '#22c55e'
+    btnRecol.style.cursor = 'default'
+    btnRecol.style.opacity = '0.8'
+    btnRecol.onclick = null
+  }
+  if (_pedidosRep[pedidoId]) {
+    _pedidosRep[pedidoId].foto_recoleccion = fotoUrl
+    _pedidosRep[pedidoId].firma_recoleccion = firmaUrl
+  }
 }
 
 async function _subirFotoRepartidor(e) {
