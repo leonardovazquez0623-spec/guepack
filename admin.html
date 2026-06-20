@@ -993,15 +993,36 @@ async function guardarEmpresa() {
   const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
   const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
-  const { error } = id
-    ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
-    : await db.from('empresas_afiliadas').insert(payload)
+  let error, nuevaEmpresaId = null
+  if (id) {
+    ;({ error } = await db.from('empresas_afiliadas').update(payload).eq('id', id))
+  } else {
+    const { data: insertada, error: insertErr } = await db.from('empresas_afiliadas').insert(payload).select('id').single()
+    error = insertErr
+    if (insertada) nuevaEmpresaId = insertada.id
+  }
   if (error) {
     console.error('[guardarEmpresa] Error Supabase:', error)
     showToast('❌ ' + error.message)
     return
   }
-  showToast(id ? '✅ Empresa actualizada' : '✅ Empresa creada')
+
+  if (nuevaEmpresaId && _empTipoTarifa === 'km') {
+    const rangosDefault = [
+      { empresa_id: nuevaEmpresaId, km_desde: 0,  km_hasta: 3,   precio: 115 },
+      { empresa_id: nuevaEmpresaId, km_desde: 3,  km_hasta: 10,  precio: 130 },
+      { empresa_id: nuevaEmpresaId, km_desde: 10, km_hasta: 15,  precio: 160 },
+      { empresa_id: nuevaEmpresaId, km_desde: 15, km_hasta: 20,  precio: 185 },
+      { empresa_id: nuevaEmpresaId, km_desde: 20, km_hasta: 25,  precio: 200 },
+      { empresa_id: nuevaEmpresaId, km_desde: 25, km_hasta: null, precio: 200 }
+    ]
+    const { error: rangosErr } = await db.from('rangos_precio_empresa').insert(rangosDefault)
+    if (rangosErr) console.error('[guardarEmpresa] Error insertando rangos default:', rangosErr)
+    showToast('✅ Empresa creada con rangos de precio default')
+  } else {
+    showToast(id ? '✅ Empresa actualizada' : '✅ Empresa creada')
+  }
+
   _resetFormEmpresa()
   cargarEmpresas()
 }
