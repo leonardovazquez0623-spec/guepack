@@ -318,9 +318,21 @@ localStorage.setItem('guepack_pedidos_count', data.length)
       if (!tieneParadas) _renderBotonesNormales(pedido)
     })
   }
+
+  // Suscribir realtime paradas INSERT para cada pedido activo
+  data.forEach(pedido => _subscribirParadasRealtime(pedido))
 }
 
 const _timerParadaIntervals = {}
+const _paradasChannels = {}
+
+function _toastRepa(msg, color = '#1a4fa0') {
+  const t = document.createElement('div')
+  t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:10px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden'
+  t.textContent = msg
+  document.body.appendChild(t)
+  setTimeout(() => t.remove(), 4000)
+}
 
 function _renderBotonesNormales(pedido) {
   const stepsEl = document.getElementById('status-steps-' + pedido.id)
@@ -499,6 +511,20 @@ function _iniciarTimerParada(paradaId) {
       clearInterval(_timerParadaIntervals[paradaId])
     }
   }, 1000)
+}
+
+function _subscribirParadasRealtime(pedido) {
+  const pid = pedido.id
+  if (_paradasChannels[pid]) db.removeChannel(_paradasChannels[pid])
+  _paradasChannels[pid] = db.channel('paradas-repa-' + pid)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + pid }, async payload => {
+      const { data: todasParadas } = await db.from('paradas').select('*').eq('pedido_id', pid).order('orden')
+      if (!todasParadas) return
+      _renderParadasRepartidor(pid, todasParadas, _pedidosRep[pid])
+      _toastRepa('📍 Nueva parada: ' + payload.new.direccion)
+      if (navigator.vibrate) navigator.vibrate([100, 50, 200])
+    })
+    .subscribe()
 }
 
 async function paradaEnCamino(pedidoId, paradaId) {
