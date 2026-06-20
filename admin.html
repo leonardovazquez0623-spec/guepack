@@ -724,7 +724,10 @@ function initMapsAdmin() {
   <!-- TAB EMPRESAS -->
   <div id="tab-empresas" class="tab-content">
     <div class="card">
-      <div class="card-title">🏢 Empresa afiliada</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" id="emp-form-titulo" style="margin-bottom:0">🏢 Nueva empresa</div>
+        <button onclick="_resetFormEmpresa()" style="padding:5px 14px;background:var(--orange);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">+ Nueva empresa</button>
+      </div>
       <input type="hidden" id="emp-id">
       <div class="form-group">
         <label class="form-label">Nombre de la empresa</label>
@@ -806,8 +809,8 @@ function initMapsAdmin() {
         </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
-        <button onclick="_resetFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">✕</button>
+        <button id="btn-guardar-empresa" onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
+        <button onclick="_resetFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
       </div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -1058,6 +1061,10 @@ async function editarEmpresa(id) {
   if (tdEl) tdEl.value = data.tarifa_diaria || 380
   empSeleccionarTipoTarifa(data.tipo_tarifa || 'km')
   if ((data.tipo_tarifa || 'km') === 'km') empCargarRangos(data.id)
+  const titulo = document.getElementById('emp-form-titulo')
+  if (titulo) titulo.textContent = '✏️ Editar empresa'
+  const btnG = document.getElementById('btn-guardar-empresa')
+  if (btnG) btnG.textContent = '✏️ Actualizar empresa'
   document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
 }
 
@@ -1090,6 +1097,10 @@ function _resetFormEmpresa() {
   const tablaR = document.getElementById('emp-rangos-tabla')
   if (tablaR) tablaR.innerHTML = ''
   empSeleccionarTipoTarifa('km')
+  const titulo = document.getElementById('emp-form-titulo')
+  if (titulo) titulo.textContent = '🏢 Nueva empresa'
+  const btnG = document.getElementById('btn-guardar-empresa')
+  if (btnG) btnG.textContent = '💾 Guardar empresa'
 }
 
 // ── Rangos de precio empresa ─────────────────────────────────────────────────
