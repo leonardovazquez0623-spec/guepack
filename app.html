@@ -3665,7 +3665,6 @@ function _mostrarCotizacionGeneral(km, precios) {
 }
 
 async function _calcularPrecioCorporativo() {
-  if (_empresaData?.tipo_tarifa === 'diaria') { _mostrarCotizacionDiaria(); return }
 
   // Verificar que la dirección de entrega esté dentro del LIMITE CIUDAD
   if (_entregaPlace?.geometry?.location) {
@@ -3709,6 +3708,12 @@ async function _calcularPrecioCorporativo() {
     const data = await response.json()
     if (!data.routes?.[0]?.distanceMeters) { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
     const km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
+
+    if (_empresaData?.tipo_tarifa === 'diaria') {
+      const { data: precios } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
+      _mostrarCotizacionDiaria(km, precios)
+      return
+    }
 
     let rangos = []
     if (_empresaData?.tipo_tarifa === 'km') {
@@ -3783,17 +3788,43 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
   }
 }
 
-function _mostrarCotizacionDiaria() {
-  const e = _empresaData
-  const tarifa = e.tarifa_diaria || 380
+function _mostrarCotizacionDiaria(km = null, precios = null) {
+  const e      = _empresaData
+  const tarifa = Number(e.tarifa_diaria) || 380
+
   _corporativoPrecio = tarifa
-  _corporativoKm = null
+  _corporativoKm     = km
+
+  // Calcular precio por KM con precios_generales para comparar
+  let precioKm = null
+  if (km !== null && precios) {
+    const tarifaBase    = Number(precios.tarifa_base)     || 115
+    const kmMinimo      = Number(precios.km_minimo)       || 5
+    const precioKmExtra = Number(precios.precio_km_extra) || 13
+    const iva           = Number(precios.iva)             || 0.16
+    const kmExtra  = Math.max(0, km - kmMinimo)
+    const subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
+    const ivaAmt   = Math.round(subtotal * iva * 100) / 100
+    precioKm = Math.round((subtotal + ivaAmt) * 100) / 100
+  }
 
   const quoteAmount = document.getElementById('quote-amount')
   const quoteDetail = document.getElementById('quote-detail')
   const quoteBox    = document.getElementById('quote-display')
-  if (quoteAmount) quoteAmount.innerHTML = '$' + Number(tarifa).toFixed(2)
-  if (quoteDetail) quoteDetail.textContent = 'Tarifa diaria · ' + e.nombre
+
+  if (quoteAmount) quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+
+  if (quoteDetail) {
+    const lineas = []
+    if (km !== null) lineas.push('📍 Distancia: ' + km + ' km')
+    if (precioKm !== null && precioKm > tarifa) {
+      lineas.push('💰 Precio estimado: <s>$' + precioKm.toFixed(2) + '</s>')
+    }
+    lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
+    lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
+    quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+  }
+
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
 
   const aviso = document.getElementById('zona-aviso')
@@ -3801,7 +3832,7 @@ function _mostrarCotizacionDiaria() {
     aviso.style.display = 'block'
     aviso.style.background = '#e0f2fe'
     aviso.style.color = '#0369a1'
-    aviso.textContent = '🏢 ' + e.nombre + ' · Tarifa diaria: $' + tarifa
+    aviso.textContent = '📅 Tarifa diaria · ' + e.nombre
   }
 }
 
