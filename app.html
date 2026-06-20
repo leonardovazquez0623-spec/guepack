@@ -1009,10 +1009,6 @@ async function _cargarEmpresaUsuario(user) {
     mpOpciones.innerHTML = `<div class="mp-option selected" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${tipo}</div>`
   }
   selMetodoPago = 'Crédito'
-  // Para tarifa diaria: mostrar precio inmediatamente (no requiere calcular KM)
-  if (empresa.tipo_tarifa === 'diaria') {
-    _mostrarCotizacionDiaria()
-  }
   console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
 }
 
