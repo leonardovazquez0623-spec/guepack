@@ -980,6 +980,9 @@ async function _cargarEmpresaUsuario(user) {
   if (!empresa) return
   _empresaData    = empresa
   _empresaUsuario = empresa
+  // Ocultar cupón — nunca aplica a cuentas corporativas
+  const cuponCard = document.getElementById('cupon-card')
+  if (cuponCard) cuponCard.style.display = 'none'
   // Ocultar card de zona y mostrar badge corporativo
   const zonaCard = document.getElementById('zona-detect-result')?.closest('.card')
   if (zonaCard) zonaCard.style.display = 'none'
@@ -1006,9 +1009,6 @@ async function _cargarEmpresaUsuario(user) {
     mpOpciones.innerHTML = `<div class="mp-option selected" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${tipo}</div>`
   }
   selMetodoPago = 'Crédito'
-  // Ocultar cupón (no aplica en cuenta corporativa)
-  const cuponCard = document.getElementById('cupon-card')
-  if (cuponCard) cuponCard.style.display = 'none'
   // Para tarifa diaria: mostrar precio inmediatamente (no requiere calcular KM)
   if (empresa.tipo_tarifa === 'diaria') {
     _mostrarCotizacionDiaria()
