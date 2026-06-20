@@ -969,7 +969,7 @@ async function verificarSesion() {
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
   _cargarEmpresaUsuario(session.user)
-  _cargarAvatarCliente(session.user)
+  await _cargarAvatarCliente(session.user)
   iniciarTour()
 }
 
@@ -2824,6 +2824,7 @@ let _clienteFotoUrl = null
 let _clienteCodigoReferido = null
 let _clienteNombre = ''
 let _clienteWhatsapp = ''
+let _clienteWhatsappEditado = false
 let _clienteTotalPedidos = 0
 let _clienteNivelVip = 'normal'
 let _clienteEnviosGratis = 0
@@ -2832,12 +2833,13 @@ async function _cargarAvatarCliente(user) {
   _clienteUserId = user.id
   _clienteEmail = user.email || ''
   const { data } = await db.from('usuarios')
-    .select('foto_perfil, codigo_referido_propio, nombre, whatsapp, total_pedidos, nivel_vip, envios_gratis')
+    .select('foto_perfil, codigo_referido_propio, nombre, whatsapp, whatsapp_editado, total_pedidos, nivel_vip, envios_gratis')
     .eq('user_id', user.id).single()
   _clienteFotoUrl = data?.foto_perfil || null
   _clienteCodigoReferido = data?.codigo_referido_propio || null
   _clienteNombre = data?.nombre || user?.user_metadata?.nombre || ''
   _clienteWhatsapp = data?.whatsapp || ''
+  _clienteWhatsappEditado = data?.whatsapp_editado || false
   _clienteTotalPedidos = data?.total_pedidos || 0
   _clienteNivelVip = data?.nivel_vip || 'normal'
   _clienteEnviosGratis = data?.envios_gratis || 0
@@ -2846,6 +2848,13 @@ async function _cargarAvatarCliente(user) {
 
 async function _generarYGuardarCodigo() {
   if (!_clienteUserId) return
+  // Verificar en DB antes de generar — nunca sobreescribir un código existente
+  const { data: check } = await db.from('usuarios')
+    .select('codigo_referido_propio').eq('user_id', _clienteUserId).single()
+  if (check?.codigo_referido_propio) {
+    _clienteCodigoReferido = check.codigo_referido_propio
+    return
+  }
   const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
   const nums = '0123456789'
   let code, intentos = 0
@@ -2997,7 +3006,14 @@ function _abrirDrawer() {
       <div style="margin-bottom:18px">
         <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">👤 Datos<div style="flex:1;height:1px;background:#eef1f6"></div></div>
         <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:5px"><span style="font-weight:700;color:#1a2740">Correo:</span> ${_maskEmail(_clienteEmail)}</div>
-        <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:12px"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</div>
+        <div id="drawer-wa-row" style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</span>
+            ${_clienteWhatsappEditado
+              ? '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
+              : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'}
+          </div>
+        </div>
         <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#1a4fa0">🔑 Cambiar contraseña</button>
       </div>
 
@@ -3085,6 +3101,74 @@ function _compartirCodigoReferido() {
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
     })
   }
+}
+
+// ── Edición de WhatsApp (una sola vez) ────────────────────────────────────────
+
+function _editarWhatsapp() {
+  const warn = document.createElement('div')
+  warn.id = 'modal-wa-warn'
+  warn.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px'
+  warn.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;max-width:280px;text-align:center;font-family:Montserrat,sans-serif">'
+    + '<div style="font-size:34px;margin-bottom:8px">⚠️</div>'
+    + '<div style="font-weight:900;font-size:14px;color:#1a2740;margin-bottom:8px">Cambio de WhatsApp</div>'
+    + '<div style="font-size:12px;color:#5a6a8a;line-height:1.5;margin-bottom:18px">Solo puedes cambiar tu número de WhatsApp <strong>UNA VEZ</strong>. Esta acción no se puede deshacer. ¿Deseas continuar?</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="document.getElementById(\'modal-wa-warn\').remove()" style="flex:1;padding:10px;border:1.5px solid #e0e6f0;border-radius:8px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>'
+    + '<button onclick="document.getElementById(\'modal-wa-warn\').remove();_mostrarInputWhatsapp()" style="flex:1;padding:10px;background:#f05a1a;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Continuar</button>'
+    + '</div></div>'
+  document.body.appendChild(warn)
+}
+
+function _mostrarInputWhatsapp() {
+  const waRow = document.getElementById('drawer-wa-row')
+  if (!waRow) return
+  waRow.innerHTML = '<div style="display:flex;gap:6px;align-items:center">'
+    + '<input id="drawer-wa-input" type="tel" maxlength="10" placeholder="Nuevo número (10 dígitos)" oninput="this.value=this.value.replace(/\\D/g,\'\')" style="flex:1;padding:7px 10px;border:2px solid #1a4fa0;border-radius:8px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#1a2740;background:#f4f6fb">'
+    + '<button onclick="_guardarNuevoWhatsapp()" style="padding:7px 12px;background:#1a4fa0;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✔</button>'
+    + '<button onclick="_cerrarEditarWhatsapp()" style="padding:7px 8px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">✕</button>'
+    + '</div>'
+    + '<div id="drawer-wa-error" style="font-size:10px;color:#ef4444;font-family:Montserrat,sans-serif;margin-top:4px;display:none">Número inválido o ya está registrado</div>'
+  setTimeout(() => { const i = document.getElementById('drawer-wa-input'); if (i) i.focus() }, 30)
+}
+
+async function _guardarNuevoWhatsapp() {
+  const input = document.getElementById('drawer-wa-input')
+  const errEl = document.getElementById('drawer-wa-error')
+  if (!input) return
+  const val = input.value.trim()
+  if (!/^\d{10}$/.test(val)) {
+    input.style.borderColor = '#ef4444'
+    if (errEl) { errEl.textContent = 'Debe ser exactamente 10 dígitos'; errEl.style.display = 'block' }
+    return
+  }
+  const { data: dup } = await db.from('usuarios').select('id').eq('whatsapp', val).maybeSingle()
+  if (dup) {
+    input.style.borderColor = '#ef4444'
+    if (errEl) { errEl.textContent = 'Ese número ya está registrado'; errEl.style.display = 'block' }
+    return
+  }
+  await db.from('usuarios').update({ whatsapp: val, whatsapp_editado: true }).eq('user_id', _clienteUserId)
+  _clienteWhatsapp = val
+  _clienteWhatsappEditado = true
+  const waRow = document.getElementById('drawer-wa-row')
+  if (waRow) {
+    waRow.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
+      + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ' + _maskWa(val) + '</span>'
+      + '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
+      + '</div>'
+  }
+}
+
+function _cerrarEditarWhatsapp() {
+  const waRow = document.getElementById('drawer-wa-row')
+  if (!waRow) return
+  const lockOrBtn = _clienteWhatsappEditado
+    ? '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
+    : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'
+  waRow.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
+    + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ' + _maskWa(_clienteWhatsapp) + '</span>'
+    + lockOrBtn + '</div>'
 }
 
 function _celebrarSubidaNivel(nivel) {
