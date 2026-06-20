@@ -3809,7 +3809,13 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
   const quoteDetail = document.getElementById('quote-detail')
   const quoteBox    = document.getElementById('quote-display')
 
-  if (quoteAmount) quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+  if (quoteAmount) {
+    if (precioKm !== null && precioKm > tarifa) {
+      quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + precioKm.toFixed(2) + '</span>$' + tarifa.toFixed(2) + '</span>'
+    } else {
+      quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+    }
+  }
 
   if (quoteDetail) {
     const lineas = []
@@ -4044,7 +4050,13 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
       result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#e0f2fe;border:1.5px solid #7dd3fc;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#0369a1;display:flex;align-items:center;gap:10px;min-height:46px'
       result.innerHTML = '<span style="font-size:18px">📅</span><div><div>' + _empresaData.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
     }
-    if (quoteAmount) quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+    if (quoteAmount) {
+      if (total > tarifa) {
+        quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + total.toFixed(2) + '</span>$' + tarifa.toFixed(2) + '</span>'
+      } else {
+        quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+      }
+    }
     if (quoteDetail) {
       const lineas = ['📍 Distancia: ' + kmTotal + ' km · ' + totalParadas + ' paradas']
       if (total > tarifa) lineas.push('💰 Precio estimado: <s>$' + total.toFixed(2) + '</s>')
