@@ -1632,11 +1632,7 @@ function usarDireccion(inputId, direccion) {
       if (status !== 'OK' || !results[0]) return
       const place = results[0]
       _entregaPlace = place
-      if (_empresaData) {
-        _calcularPrecioCorporativo()
-      } else {
-        _detectarZonaEntrega(place)
-      }
+      _detectarZonaEntrega(place)
     })
   } else if (inputId === 'dir-recoleccion') {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
@@ -3411,11 +3407,7 @@ window.initMapsGuepack = function() {
 
     console.log('[place_changed] _empresaUsuario:', _empresaUsuario)
 
-    if (_empresaData) {
-      _calcularPrecioCorporativo()
-    } else {
-      _detectarZonaEntrega(place)
-    }
+    _detectarZonaEntrega(place)
   })
 
   // Recalcular precio si ya hay lugar de entrega y cambia la recolección
@@ -3475,6 +3467,8 @@ async function _verificarLimiteCiudad(lat, lng) {
 }
 
 async function _detectarZonaEntrega(place) {
+  console.log('[zona] _detectarZonaEntrega llamada con:', place)
+
   const aviso = document.getElementById('zona-aviso')
   if (aviso) aviso.style.display = 'none'
 
@@ -3484,29 +3478,45 @@ async function _detectarZonaEntrega(place) {
     result.innerHTML = '<span style="font-size:16px">⏳</span><span>Verificando zona...</span>'
   }
 
-  const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
-
-  if (!zonas?.length || !zonas.some(z => z.coordenadas?.length >= 3)) {
-    _fallbackZonaCiudad(place, result)
-    return
-  }
-
   const loc = place.geometry?.location
   if (!loc) { _mostrarResultadoZona(result, false, null); return }
 
   const lat = loc.lat(), lng = loc.lng()
+  console.log('[zona] lat:', lat, 'lng:', lng, '| corporativo:', !!_empresaData)
 
-  // Verificar que la dirección esté dentro del LIMITE CIUDAD
+  // Verificar LIMITE CIUDAD — aplica a todos los usuarios
   const enLimite = await _verificarLimiteCiudad(lat, lng)
+  console.log('[zona] enLimite:', enLimite)
   if (!enLimite) {
-    _zonaData = null; selZone = null; _precioGeneralTotal = null; _precioGeneralKm = null
+    _zonaData = null; selZone = null
+    _precioGeneralTotal = null; _precioGeneralKm = null
+    _corporativoPrecio  = null; _corporativoKm   = null
     if (result) {
       result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
-      result.innerHTML = '<span style="font-size:18px">❌</span><span>Dirección fuera de nuestra zona de entrega</span>'
+      result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de nuestra zona de entrega</span>'
     }
     const qb = document.getElementById('quote-display')
     if (qb) qb.style.display = 'none'
     mostrarToast('⚠️ El area donde deseas enviar no esta disponible para entrega. Por favor elige otra direccion dentro de nuestra zona', '#ef4444')
+    return
+  }
+
+  // Usuario corporativo: ya verificado dentro del limite, calcular precio corporativo
+  if (_empresaData) {
+    console.log('[zona] corporativo dentro del limite — llamando _calcularPrecioCorporativo')
+    if (result) {
+      result.style.background = '#e0f2fe'; result.style.border = '1.5px solid #7dd3fc'; result.style.color = '#0369a1'
+      result.innerHTML = '<span style="font-size:18px">🏢</span><span>Dentro de cobertura · ' + _empresaData.nombre + '</span>'
+    }
+    _calcularPrecioCorporativo()
+    return
+  }
+
+  // Usuario normal: buscar zona de precio especifica
+  const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
+
+  if (!zonas?.length || !zonas.some(z => z.coordenadas?.length >= 3)) {
+    _fallbackZonaCiudad(place, result)
     return
   }
 
@@ -3515,7 +3525,6 @@ async function _detectarZonaEntrega(place) {
   if (zonaEncontrada) {
     _zonaData = zonaEncontrada
     selZone   = zonaEncontrada.nombre
-    // Si hay paradas adicionales, calcular ruta completa multi-parada
     if (_paradasList.filter(p => p.direccion.trim()).length > 0) {
       _calcularCotizacionMultiParada()
     } else {
