@@ -1863,16 +1863,17 @@ function abrirModalAgregarParada(pedidoId) {
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
 
-  window._paradaPlaceSelected = null
-  const input = document.getElementById('parada-dir-input')
-  if (window.google?.maps?.places) {
-    const opts = Object.assign({}, _mapsPlacesOpts, { types: ['geocode', 'establishment'] })
-    const ac = new google.maps.places.Autocomplete(input, opts)
-    ac.addListener('place_changed', () => {
-      const p = ac.getPlace()
-      if (p?.formatted_address || p?.name) window._paradaPlaceSelected = p.formatted_address || p.name
-    })
-  }
+  setTimeout(() => {
+    const input = document.getElementById('parada-dir-input')
+    if (input && window.google?.maps?.places) {
+      const opts = Object.assign({}, _mapsPlacesOpts, { types: ['geocode', 'establishment'] })
+      const ac = new google.maps.places.Autocomplete(input, opts)
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace()
+        input.value = place.formatted_address || place.name || input.value
+      })
+    }
+  }, 100)
 }
 
 async function confirmarAgregarParada(pedidoId) {
@@ -1880,7 +1881,7 @@ async function confirmarAgregarParada(pedidoId) {
   const dirInput  = document.getElementById('parada-dir-input')
   const instInput = document.getElementById('parada-inst-input')
 
-  const direccion = window._paradaPlaceSelected || dirInput.value.trim()
+  const direccion = dirInput.value.trim()
   if (!direccion) { mostrarToast('⚠️ Selecciona una dirección válida', '#f59e0b'); return }
 
   btn.textContent = 'Agregando...'; btn.disabled = true
