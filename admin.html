@@ -723,10 +723,16 @@ function initMapsAdmin() {
 
   <!-- TAB EMPRESAS -->
   <div id="tab-empresas" class="tab-content">
-    <div class="card">
+
+    <!-- Botón Nueva empresa (siempre visible) -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button onclick="_abrirFormEmpresa()" style="padding:9px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px">+ Nueva empresa</button>
+    </div>
+
+    <!-- Formulario (oculto por default) -->
+    <div id="emp-form-card" class="card" style="display:none;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div class="card-title" id="emp-form-titulo" style="margin-bottom:0">🏢 Nueva empresa</div>
-        <button onclick="_resetFormEmpresa()" style="padding:5px 14px;background:var(--orange);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">+ Nueva empresa</button>
       </div>
       <input type="hidden" id="emp-id">
       <div class="form-group">
@@ -810,10 +816,11 @@ function initMapsAdmin() {
       </div>
       <div style="display:flex;gap:8px">
         <button id="btn-guardar-empresa" onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
-        <button onclick="_resetFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
+        <button onclick="_cerrarFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
       </div>
-    </div>
-    <div class="card" style="margin-top:16px">
+    </div><!-- /emp-form-card -->
+
+    <div class="card">
       <div class="card-title">Empresas registradas</div>
       <div id="lista-empresas"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
     </div>
@@ -1065,7 +1072,8 @@ async function editarEmpresa(id) {
   if (titulo) titulo.textContent = '✏️ Editar empresa'
   const btnG = document.getElementById('btn-guardar-empresa')
   if (btnG) btnG.textContent = '✏️ Actualizar empresa'
-  document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
+  const card = document.getElementById('emp-form-card')
+  if (card) { card.style.display = 'block'; card.scrollIntoView({ behavior: 'smooth' }) }
 }
 
 async function eliminarEmpresa(id, nombre) {
@@ -1076,7 +1084,13 @@ async function eliminarEmpresa(id, nombre) {
   cargarEmpresas()
 }
 
-function _resetFormEmpresa() {
+function _cerrarFormEmpresa() {
+  const card = document.getElementById('emp-form-card')
+  if (card) card.style.display = 'none'
+}
+
+function _abrirFormEmpresa() {
+  // Resetear a modo CREAR
   document.getElementById('emp-id').value = ''
   ;['emp-nombre','emp-codigo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
   document.getElementById('emp-tarifa-base').value  = '95'
@@ -1101,6 +1115,15 @@ function _resetFormEmpresa() {
   if (titulo) titulo.textContent = '🏢 Nueva empresa'
   const btnG = document.getElementById('btn-guardar-empresa')
   if (btnG) btnG.textContent = '💾 Guardar empresa'
+  // Mostrar formulario y hacer scroll
+  const card = document.getElementById('emp-form-card')
+  if (card) { card.style.display = 'block'; card.scrollIntoView({ behavior: 'smooth' }) }
+}
+
+function _resetFormEmpresa() {
+  // Llamado después de guardar: resetea campos Y oculta el formulario
+  _abrirFormEmpresa()
+  _cerrarFormEmpresa()
 }
 
 // ── Rangos de precio empresa ─────────────────────────────────────────────────
