@@ -3658,30 +3658,59 @@ async function _calcularPrecioCorporativo() {
     const data = await response.json()
     if (!data.routes?.[0]?.distanceMeters) { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
     const km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
-    _mostrarCotizacionCorporativa(km)
+
+    let rangos = []
+    if (_empresaData?.tipo_tarifa === 'km') {
+      const { data: r } = await db.from('rangos_precio_empresa').select('*').eq('empresa_id', _empresaData.id).order('km_desde')
+      rangos = r || []
+    }
+
+    _mostrarCotizacionCorporativa(km, rangos)
   } catch (e) {
     mostrarToast('❌ Error al calcular distancia', '#ef4444')
   }
 }
 
-function _mostrarCotizacionCorporativa(km) {
-  const e = _empresaData
-  const tarifaBase   = e.tarifa_minima    || 95
-  const kmMinimo     = e.km_minimo        || 12
-  const tarifaExtra  = e.tarifa_base_extra || 115
-  const precioKmExt  = e.tarifa_km        || 10
-  const iva          = e.iva              || 0.16
+function _mostrarCotizacionCorporativa(km, rangos = []) {
+  const e   = _empresaData
+  const iva = e.iva || 0.16
 
-  const subtotal = km <= kmMinimo
-    ? tarifaBase
-    : tarifaExtra + precioKmExt * (km - kmMinimo)
-  const total = Math.round(subtotal * (1 + iva) * 100) / 100
+  let precio_base, desglose
+
+  if (rangos.length > 0) {
+    // Buscar rango que contenga el km real
+    let rango = rangos.find(r => km >= r.km_desde && (r.km_hasta == null || km <= r.km_hasta))
+    // Si ningún rango coincide, usar el último (rango abierto)
+    if (!rango) rango = rangos[rangos.length - 1]
+
+    const esUltimoRango = rango.km_hasta == null
+    if (esUltimoRango) {
+      const tarifa_km = e.tarifa_km || 10
+      const kmExtra   = Math.max(0, km - rango.km_desde)
+      precio_base = rango.precio + kmExtra * tarifa_km
+      desglose    = '📍 ' + km + ' km · Rango ' + rango.km_desde + '+ km · $' + rango.precio + (kmExtra > 0 ? ' + ' + kmExtra.toFixed(1) + ' km × $' + tarifa_km : '')
+    } else {
+      precio_base = rango.precio
+      desglose    = '📍 ' + km + ' km · Rango ' + rango.km_desde + '-' + rango.km_hasta + ' km · $' + rango.precio
+    }
+  } else {
+    // Sin rangos configurados → tarifa fija clásica
+    const tarifaBase  = e.tarifa_minima     || 95
+    const kmMinimo    = e.km_minimo         || 12
+    const tarifaExtra = e.tarifa_base_extra || 115
+    const tarifa_km   = e.tarifa_km         || 10
+    precio_base = km <= kmMinimo ? tarifaBase : tarifaExtra + tarifa_km * (km - kmMinimo)
+    desglose    = '📍 ' + km + ' km · Subtotal $' + precio_base.toFixed(2)
+  }
+
+  const total = Math.round(precio_base * (1 + iva) * 100) / 100
 
   console.log('[corporativo] km:', km)
   console.log('[corporativo] km_minimo:', _empresaUsuario.km_minimo)
   console.log('[corporativo] tarifa_minima:', _empresaUsuario.tarifa_minima)
   console.log('[corporativo] tarifa_base_extra:', _empresaUsuario.tarifa_base_extra)
   console.log('[corporativo] tarifa_km:', _empresaUsuario.tarifa_km)
+  console.log('[corporativo] rangos:', rangos)
   console.log('[corporativo] precio calculado:', total)
 
   _corporativoPrecio = total
@@ -3691,7 +3720,7 @@ function _mostrarCotizacionCorporativa(km) {
   const quoteDetail = document.getElementById('quote-detail')
   const quoteBox    = document.getElementById('quote-display')
   if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
-  if (quoteDetail) quoteDetail.textContent = km + ' km · Subtotal $' + subtotal.toFixed(2) + ' + IVA 16% · ' + e.nombre
+  if (quoteDetail) quoteDetail.textContent = desglose + ' + IVA ' + Math.round(iva * 100) + '% = $' + total.toFixed(2) + ' · ' + e.nombre
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
 
   const aviso = document.getElementById('zona-aviso')

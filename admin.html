@@ -771,6 +771,21 @@ function initMapsAdmin() {
           <input type="number" id="emp-tarifa-diaria" class="form-input" value="380" placeholder="380" min="0">
         </div>
       </div>
+      <!-- Rangos de precio escalonado (solo visible cuando tipo_tarifa = 'km') -->
+      <div id="emp-rangos-section" style="display:none;margin-top:10px;margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label class="form-label" style="margin-bottom:0">Rangos de precio escalonado</label>
+          <button onclick="empAgregarRango()" style="padding:4px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">+ Agregar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:4px">
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Desde (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Hasta (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Precio ($)</span>
+          <span></span>
+        </div>
+        <div id="emp-rangos-tabla"></div>
+        <button onclick="guardarRangosEmpresa()" style="width:100%;margin-top:8px;padding:10px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar rangos</button>
+      </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Afiliación:</span>
@@ -909,14 +924,16 @@ let _empTipoTarifa = 'km'
 
 function empSeleccionarTipoTarifa(tipo) {
   _empTipoTarifa = tipo
-  const btnKm    = document.getElementById('emp-tt-km')
-  const btnDia   = document.getElementById('emp-tt-diaria')
-  const camposKm = document.getElementById('emp-campos-km')
-  const campoDia = document.getElementById('emp-campo-diaria')
-  if (btnKm)    btnKm.classList.toggle('selected', tipo === 'km')
-  if (btnDia)   btnDia.classList.toggle('selected', tipo === 'diaria')
-  if (camposKm) camposKm.style.display = tipo === 'km' ? 'grid' : 'none'
-  if (campoDia) campoDia.style.display = tipo === 'diaria' ? 'block' : 'none'
+  const btnKm      = document.getElementById('emp-tt-km')
+  const btnDia     = document.getElementById('emp-tt-diaria')
+  const camposKm   = document.getElementById('emp-campos-km')
+  const campoDia   = document.getElementById('emp-campo-diaria')
+  const rangosSecc = document.getElementById('emp-rangos-section')
+  if (btnKm)      btnKm.classList.toggle('selected', tipo === 'km')
+  if (btnDia)     btnDia.classList.toggle('selected', tipo === 'diaria')
+  if (camposKm)   camposKm.style.display   = tipo === 'km' ? 'grid'  : 'none'
+  if (campoDia)   campoDia.style.display   = tipo === 'diaria' ? 'block' : 'none'
+  if (rangosSecc) rangosSecc.style.display = tipo === 'km' ? 'block' : 'none'
 }
 
 function empToggleActivo() {
@@ -1016,6 +1033,7 @@ async function editarEmpresa(id) {
   const tdEl = document.getElementById('emp-tarifa-diaria')
   if (tdEl) tdEl.value = data.tarifa_diaria || 380
   empSeleccionarTipoTarifa(data.tipo_tarifa || 'km')
+  if ((data.tipo_tarifa || 'km') === 'km') empCargarRangos(data.id)
   document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
 }
 
@@ -1044,7 +1062,73 @@ function _resetFormEmpresa() {
   if (tcEl) tcEl.value = 'Semanal'
   const tdEl = document.getElementById('emp-tarifa-diaria')
   if (tdEl) tdEl.value = '380'
+  _empRangos = []
+  const tablaR = document.getElementById('emp-rangos-tabla')
+  if (tablaR) tablaR.innerHTML = ''
   empSeleccionarTipoTarifa('km')
+}
+
+// ── Rangos de precio empresa ─────────────────────────────────────────────────
+
+let _empRangos = []  // [{id?, km_desde, km_hasta, precio}]
+
+async function empCargarRangos(empresaId) {
+  const { data } = await db.from('rangos_precio_empresa').select('*').eq('empresa_id', empresaId).order('km_desde')
+  _empRangos = (data || []).map(r => ({ id: r.id, km_desde: r.km_desde, km_hasta: r.km_hasta, precio: r.precio }))
+  _empRenderRangos()
+}
+
+function _empRenderRangos() {
+  const tabla = document.getElementById('emp-rangos-tabla')
+  if (!tabla) return
+  if (!_empRangos.length) {
+    tabla.innerHTML = '<div style="color:#999;font-size:11px;font-family:Montserrat,sans-serif;font-weight:600;padding:6px 0">Sin rangos. Pulsa "+ Agregar" para crear el primero.</div>'
+    return
+  }
+  tabla.innerHTML = _empRangos.map((r, i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:5px" data-idx="${i}">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.km_desde ?? ''}" oninput="_empRangos[${i}].km_desde=parseFloat(this.value)||0">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="∞ (abierto)" value="${r.km_hasta ?? ''}" oninput="_empRangos[${i}].km_hasta=this.value===''?null:parseFloat(this.value)">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.precio ?? ''}" oninput="_empRangos[${i}].precio=parseFloat(this.value)||0">
+      <button onclick="empEliminarRango(${i})" style="padding:0;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;cursor:pointer;width:32px;height:36px;display:flex;align-items:center;justify-content:center">🗑️</button>
+    </div>
+  `).join('')
+}
+
+function empAgregarRango() {
+  const ultimo = _empRangos[_empRangos.length - 1]
+  const desde  = ultimo ? (ultimo.km_hasta != null ? ultimo.km_hasta : (ultimo.km_desde + 5)) : 0
+  _empRangos.push({ km_desde: desde, km_hasta: null, precio: 0 })
+  _empRenderRangos()
+}
+
+function empEliminarRango(idx) {
+  _empRangos.splice(idx, 1)
+  _empRenderRangos()
+}
+
+async function guardarRangosEmpresa() {
+  const empId = document.getElementById('emp-id').value
+  if (!empId) { showToast('⚠️ Guarda la empresa primero'); return }
+  if (!_empRangos.length) { showToast('⚠️ Agrega al menos un rango'); return }
+
+  // Validar que cada rango tenga km_desde y precio
+  for (const r of _empRangos) {
+    if (r.km_desde == null || r.precio == null || r.precio <= 0) {
+      showToast('⚠️ Verifica que todos los rangos tengan Desde y Precio'); return
+    }
+  }
+
+  // Borrar rangos anteriores e insertar los nuevos
+  const { error: delErr } = await db.from('rangos_precio_empresa').delete().eq('empresa_id', empId)
+  if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
+
+  const rows = _empRangos.map(r => ({ empresa_id: empId, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
+  const { error: insErr } = await db.from('rangos_precio_empresa').insert(rows)
+  if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
+
+  showToast('✅ Rangos guardados')
+  empCargarRangos(empId)
 }
 
 // ── Repartidores ─────────────────────────────────────────────────────────────
