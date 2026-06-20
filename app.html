@@ -2832,9 +2832,26 @@ let _clienteEnviosGratis = 0
 async function _cargarAvatarCliente(user) {
   _clienteUserId = user.id
   _clienteEmail = user.email || ''
-  const { data } = await db.from('usuarios')
+
+  // Query principal — si falla (columna nueva no existe aún), fallback a columnas base
+  const { data, error } = await db.from('usuarios')
     .select('foto_perfil, codigo_referido_propio, nombre, whatsapp, whatsapp_editado, total_pedidos, nivel_vip, envios_gratis')
     .eq('user_id', user.id).single()
+
+  if (error) {
+    console.warn('[_cargarAvatarCliente] Query principal falló:', error.message, '— usando fallback')
+    const { data: base } = await db.from('usuarios')
+      .select('foto_perfil, nombre, total_pedidos, nivel_vip')
+      .eq('user_id', user.id).single()
+    console.log('foto_perfil cargada (fallback):', base?.foto_perfil)
+    _clienteFotoUrl = base?.foto_perfil || null
+    _clienteNombre = base?.nombre || user?.user_metadata?.nombre || ''
+    _clienteTotalPedidos = base?.total_pedidos || 0
+    _clienteNivelVip = base?.nivel_vip || 'normal'
+    return
+  }
+
+  console.log('foto_perfil cargada:', data?.foto_perfil)
   _clienteFotoUrl = data?.foto_perfil || null
   _clienteCodigoReferido = data?.codigo_referido_propio || null
   _clienteNombre = data?.nombre || user?.user_metadata?.nombre || ''
@@ -2947,8 +2964,21 @@ function _maskWa(wa) {
   return '***-***-' + wa.slice(-3)
 }
 
-function _abrirDrawer() {
+async function _abrirDrawer() {
   if (document.getElementById('side-drawer')) return
+
+  // Siempre consulta DB fresca para VIP y foto — nunca usar sólo valores en memoria
+  if (_clienteUserId) {
+    const { data: fresh } = await db.from('usuarios')
+      .select('nivel_vip, total_pedidos, foto_perfil, envios_gratis')
+      .eq('user_id', _clienteUserId).single()
+    if (fresh) {
+      _clienteNivelVip    = fresh.nivel_vip    || 'normal'
+      _clienteTotalPedidos = fresh.total_pedidos || 0
+      _clienteEnviosGratis = fresh.envios_gratis || 0
+      if (fresh.foto_perfil) _clienteFotoUrl = fresh.foto_perfil
+    }
+  }
 
   const nivel = _clienteNivelVip || 'normal'
   const total = _clienteTotalPedidos || 0
