@@ -643,6 +643,30 @@ function initMapsAdmin() {
   <!-- TAB ZONAS -->
   <div id="tab-zonas" class="tab-content">
 
+    <!-- Precios generales -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">💰 Precios generales (usuarios no corporativos)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tarifa base ($)</label>
+          <input type="number" id="pg-tarifa-base" class="form-input" placeholder="115" min="0" step="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">KM mínimos incluidos</label>
+          <input type="number" id="pg-km-minimo" class="form-input" placeholder="5" min="0" step="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Precio por KM extra ($)</label>
+          <input type="number" id="pg-precio-km" class="form-input" placeholder="13" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">IVA (%)</label>
+          <input type="number" id="pg-iva" class="form-input" placeholder="16" min="0" max="100" step="1">
+        </div>
+      </div>
+      <button onclick="guardarPreciosGenerales()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar precios</button>
+    </div>
+
     <!-- Acciones principales (siempre visibles) -->
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
       <button id="btn-abrir-mapa" onclick="_abrirEditorMapa()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:9px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px">🗺️ Abrir editor de mapa</button>
@@ -1322,7 +1346,7 @@ function showTab(tab, btn) {
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') cargarFinanzas()
   if (tab === 'vip') cargarVip()
-  if (tab === 'zonas') cargarZonas()
+  if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
   if (tab === 'repartidores') cargarRepartidores()
   if (tab === 'referidos') cargarReferidos()
@@ -3108,6 +3132,43 @@ async function _cargarZonasEnMapa() {
       zIndex: 0
     })
   })
+}
+
+async function cargarPreciosGenerales() {
+  const { data } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
+  if (!data) return
+  const tb = document.getElementById('pg-tarifa-base')
+  const km = document.getElementById('pg-km-minimo')
+  const pk = document.getElementById('pg-precio-km')
+  const iv = document.getElementById('pg-iva')
+  if (tb) tb.value = data.tarifa_base ?? ''
+  if (km) km.value = data.km_minimo ?? ''
+  if (pk) pk.value = data.precio_km_extra ?? ''
+  if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
+}
+
+async function guardarPreciosGenerales() {
+  const tarifa_base     = parseFloat(document.getElementById('pg-tarifa-base').value)
+  const km_minimo       = parseFloat(document.getElementById('pg-km-minimo').value)
+  const precio_km_extra = parseFloat(document.getElementById('pg-precio-km').value)
+  const ivaPorc         = parseFloat(document.getElementById('pg-iva').value)
+
+  if ([tarifa_base, km_minimo, precio_km_extra, ivaPorc].some(isNaN)) {
+    showToast('⚠️ Llena todos los campos')
+    return
+  }
+
+  const iva = ivaPorc / 100
+  const { data: existing } = await db.from('precios_generales').select('id').limit(1).maybeSingle()
+  const payload = { tarifa_base, km_minimo, precio_km_extra, iva }
+  let error
+  if (existing) {
+    ;({ error } = await db.from('precios_generales').update(payload).eq('id', existing.id))
+  } else {
+    ;({ error } = await db.from('precios_generales').insert(payload))
+  }
+  if (error) { showToast('❌ Error al guardar: ' + error.message); return }
+  showToast('✅ Precios generales guardados')
 }
 
 async function cargarZonas() {

@@ -1285,6 +1285,8 @@ let _entregaPlace = null       // último place seleccionado en dir-entrega
 let _multiParadaPrecio = null  // precio calculado para rutas multi-parada
 let _multiParadaKm = null      // km totales del recorrido completo
 let _multiParadaZonaData = null // zona de la última parada
+let _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
+let _precioGeneralKm = null     // km calculados para no-corporativos
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -1348,23 +1350,7 @@ function updateQuote() {
     _actualizarPrecioMultiParada(1 + _pv.length, _multiParadaKm, _multiParadaZonaData)
     return
   }
-  if (!selSize || !_zonaData) return;
-  const precioBase = selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande;
-  const sizeLabel = { sobre: 'Sobre / Chico', grande: 'Grande' }[selSize];
-  let amountHtml = '$' + precioBase;
-  if (_cuponActivo) {
-    const precioFinal = _cuponActivo.tipo === 'porcentaje'
-      ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
-      : Math.max(0, precioBase - _cuponActivo.descuento)
-    amountHtml = '<span style="text-decoration:line-through;font-size:0.55em;opacity:0.55">$' + precioBase + '</span> $' + precioFinal
-  }
-  document.getElementById('quote-amount').innerHTML = amountHtml;
-  document.getElementById('quote-detail').textContent = sizeLabel + ' · ' + _zonaData.nombre;
-  const box = document.getElementById('quote-display');
-  box.style.display = 'flex';
-  box.style.animation = 'none';
-  box.offsetHeight;
-  box.style.animation = 'fadeIn .3s ease';
+  // Para no-corporativos el precio viene de precios_generales (por KM) — updateQuote no aplica
 }
 
 async function submitRequest() {
@@ -1379,7 +1365,7 @@ async function submitRequest() {
 
   const _pv = _paradasList.filter(p => p.direccion.trim())
   const _esMultiParada = _pv.length > 0
-  const zonaOK = _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _zonaData != null
+  const zonaOK = _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
   if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
@@ -1406,7 +1392,7 @@ const precioBase = _empresaData
   ? _corporativoPrecio
   : _esMultiParada
     ? _multiParadaPrecio
-    : (selSize === 'sobre' ? _zonaData.precio_sobre : _zonaData.precio_grande)
+    : _precioGeneralTotal
 const precio = _cuponActivo && !_empresaData
   ? (_cuponActivo.tipo === 'porcentaje'
       ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
@@ -1438,7 +1424,7 @@ const { data, error } = await db.from('pedidos').insert({
       ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
       : _esMultiParada
         ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
-        : _zonaData.nombre,
+        : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km',
     precio: precio,
     estado: estadoInicial,
     user_id: userId,
@@ -2327,6 +2313,8 @@ function resetForm() {
   _corporativoPrecio = null
   _corporativoKm = null
   _entregaPlace = null
+  _precioGeneralTotal = null
+  _precioGeneralKm = null
   if (_empresaData?.tipo_tarifa === 'diaria') _mostrarCotizacionDiaria()
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
   const _zdr = document.getElementById('zona-detect-result')
@@ -3415,9 +3403,10 @@ window.initMapsGuepack = function() {
     }
   })
 
-  // Recalcular precio corporativo si ya hay lugar de entrega y cambia la recolección
+  // Recalcular precio si ya hay lugar de entrega y cambia la recolección
   inputRec.addEventListener('change', function () {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
+    else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
   })
 
   // Vincular autocomplete a paradas que ya existan en el DOM al cargar Maps
@@ -3486,7 +3475,7 @@ async function _detectarZonaEntrega(place) {
       _calcularCotizacionMultiParada()
     } else {
       _mostrarResultadoZona(result, true, zonaEncontrada)
-      updateQuote()
+      _calcularPrecioGeneral()
     }
   } else {
     _zonaData = null
@@ -3501,7 +3490,7 @@ function _mostrarResultadoZona(el, disponible, zona) {
     el.style.background = '#f0fdf4'
     el.style.border     = '1.5px solid #86efac'
     el.style.color      = '#16a34a'
-    el.innerHTML = `<span style="font-size:18px">✅</span><div><div>${zona.nombre}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Sobre $${zona.precio_sobre} · Grande $${zona.precio_grande}</div></div>`
+    el.innerHTML = `<span style="font-size:18px">✅</span><div><div>${zona.nombre}</div><div style="font-size:10px;opacity:.65;margin-top:2px">Dentro de cobertura · Calculando precio...</div></div>`
   } else {
     el.style.background = '#fef2f2'
     el.style.border     = '1.5px solid #fca5a5'
@@ -3525,12 +3514,84 @@ function _fallbackZonaCiudad(place, result) {
     result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
     result.innerHTML = '<span style="font-size:18px">❌</span><span>Tonalá no está en nuestra zona de cobertura</span>'
   } else if (disponible) {
-    result.style.background = '#fffbeb'; result.style.border = '1.5px solid #fcd34d'; result.style.color = '#d97706'
-    result.innerHTML = '<span style="font-size:18px">⚠️</span><span>Zona sin precio configurado aún — contacta a GUEPACK</span>'
+    result.style.background = '#f0fdf4'; result.style.border = '1.5px solid #86efac'; result.style.color = '#16a34a'
+    result.innerHTML = '<span style="font-size:18px">✅</span><span>Dentro de cobertura · Calculando precio...</span>'
+    _calcularPrecioGeneral()
   } else {
     result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
     result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
   }
+}
+
+async function _calcularPrecioGeneral() {
+  if (_empresaData) return
+  const origen  = document.getElementById('dir-recoleccion').value.trim()
+  const destino = document.getElementById('dir-entrega').value.trim()
+  if (!origen) {
+    const av = document.getElementById('zona-aviso')
+    if (av) { av.style.display = 'block'; av.style.background = '#fffbeb'; av.style.color = '#d97706'; av.textContent = '⚠️ Ingresa la dirección de recolección para calcular el precio' }
+    return
+  }
+  if (!destino) return
+
+  const { data: precios } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
+  if (!precios) { mostrarToast('⚠️ No hay precios configurados', 'var(--orange)'); return }
+
+  let km
+  try {
+    const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': 'AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A',
+        'X-Goog-FieldMask': 'routes.distanceMeters'
+      },
+      body: JSON.stringify({ origin: { address: origen }, destination: { address: destino }, travelMode: 'DRIVE' })
+    })
+    const data = await res.json()
+    if (!data.routes?.[0]?.distanceMeters) { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
+    km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
+  } catch (e) {
+    mostrarToast('❌ Error al calcular distancia', '#ef4444')
+    return
+  }
+
+  _mostrarCotizacionGeneral(km, precios)
+}
+
+function _mostrarCotizacionGeneral(km, precios) {
+  const tarifaBase    = Number(precios.tarifa_base)    || 115
+  const kmMinimo      = Number(precios.km_minimo)      || 5
+  const precioKmExtra = Number(precios.precio_km_extra) || 13
+  const iva           = Number(precios.iva)            || 0.16
+
+  const kmExtra  = Math.max(0, km - kmMinimo)
+  const subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
+  const ivaAmt   = Math.round(subtotal * iva * 100) / 100
+  const total    = Math.round((subtotal + ivaAmt) * 100) / 100
+
+  _precioGeneralTotal = total
+  _precioGeneralKm    = km
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+
+  if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
+  if (quoteDetail) {
+    const lineas = [
+      '📍 Distancia: ' + km + ' km',
+      '💰 Base: $' + tarifaBase.toFixed(2) + ' (hasta ' + kmMinimo + ' km)'
+    ]
+    if (kmExtra > 0) lineas.push('➕ Extra: ' + kmExtra.toFixed(1) + ' km × $' + precioKmExtra + ' = $' + (kmExtra * precioKmExtra).toFixed(2))
+    lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
+    lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
+    quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+  }
+  if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
+
+  const av = document.getElementById('zona-aviso')
+  if (av) av.style.display = 'none'
 }
 
 async function _calcularPrecioCorporativo() {
