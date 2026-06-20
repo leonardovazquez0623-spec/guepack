@@ -686,11 +686,13 @@
 <div id="screen-client" class="screen active">
 
   <div class="app-header">
-    <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+      <img id="header-logo" src="/logo_principal.png" alt="GUEPACK" style="max-width:200px;height:auto;display:block">
+      <div id="header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoCliente()" title="Mi perfil"></div>
+    </div>
     <div class="header-sub">Paquetería Local · Guadalajara</div>
     <div id="header-actions" style="display:flex;align-items:center;gap:8px;margin-top:6px">
       <button onclick="cerrarSesion()" class="btn-logout">Cerrar sesión</button>
-      <div id="header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoCliente()" title="Mi perfil"></div>
     </div>
   </div>
 
