@@ -2967,16 +2967,23 @@ function _maskWa(wa) {
 async function _abrirDrawer() {
   if (document.getElementById('side-drawer')) return
 
-  // Siempre consulta DB fresca para VIP y foto — nunca usar sólo valores en memoria
+  // Query fresca al abrir el drawer — nunca usar sólo valores en memoria
   if (_clienteUserId) {
     const { data: fresh } = await db.from('usuarios')
-      .select('nivel_vip, total_pedidos, foto_perfil, envios_gratis')
+      .select('nivel_vip, total_pedidos, foto_perfil, envios_gratis, codigo_referido_propio')
       .eq('user_id', _clienteUserId).single()
     if (fresh) {
-      _clienteNivelVip    = fresh.nivel_vip    || 'normal'
-      _clienteTotalPedidos = fresh.total_pedidos || 0
-      _clienteEnviosGratis = fresh.envios_gratis || 0
+      _clienteNivelVip     = fresh.nivel_vip     || 'normal'
+      _clienteTotalPedidos = fresh.total_pedidos  || 0
+      _clienteEnviosGratis = fresh.envios_gratis  || 0
       if (fresh.foto_perfil) _clienteFotoUrl = fresh.foto_perfil
+      console.log('codigo referido:', fresh.codigo_referido_propio)
+      if (fresh.codigo_referido_propio) {
+        _clienteCodigoReferido = fresh.codigo_referido_propio
+      } else {
+        // No tiene código aún — generar y guardar antes de mostrar el drawer
+        await _generarYGuardarCodigo()
+      }
     }
   }
 
