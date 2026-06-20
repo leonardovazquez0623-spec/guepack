@@ -2778,9 +2778,29 @@ async function actualizarVipTrasEntrega() {
     localStorage.setItem('guepack_nivel_vip', nuevoNivel)
     _sweepTema(t.sweep, () => _aplicarTemaVip(nuevoNivel))
     setTimeout(() => _celebrarSubidaNivel(nuevoNivel), 700)
+    if (nuevoNivel === 'bronce') _verificarReferidoAlLlegarBronce(userId)
   } else {
     _mostrarVipHeader(nuevoNivel)
   }
+}
+
+async function _verificarReferidoAlLlegarBronce(userId) {
+  const { data: user } = await db.from('usuarios').select('referido_por, email, nombre').eq('user_id', userId).single()
+  if (!user?.referido_por) return
+  const { data: referidor } = await db.from('usuarios').select('user_id, email, nombre').eq('codigo_referido_propio', user.referido_por).maybeSingle()
+  if (!referidor) return
+  const { data: existing } = await db.from('referidos').select('id').eq('referido_user_id', userId).maybeSingle()
+  if (existing) return
+  await db.from('referidos').insert({
+    referidor_user_id: referidor.user_id,
+    referidor_email: referidor.email,
+    referidor_nombre: referidor.nombre || referidor.email,
+    referido_user_id: userId,
+    referido_email: user.email,
+    referido_nombre: user.nombre || user.email,
+    codigo: user.referido_por,
+    estado: 'pendiente'
+  })
 }
 
 // ── Avatar de perfil (cliente) ────────────────────────────────────────────────
@@ -2788,13 +2808,44 @@ async function actualizarVipTrasEntrega() {
 let _clienteUserId = null
 let _clienteEmail = ''
 let _clienteFotoUrl = null
+let _clienteCodigoReferido = null
 
 async function _cargarAvatarCliente(user) {
   _clienteUserId = user.id
   _clienteEmail = user.email || ''
-  const { data } = await db.from('usuarios').select('foto_perfil').eq('user_id', user.id).single()
+  const { data } = await db.from('usuarios').select('foto_perfil, codigo_referido_propio').eq('user_id', user.id).single()
   _clienteFotoUrl = data?.foto_perfil || null
+  _clienteCodigoReferido = data?.codigo_referido_propio || null
   _renderAvatarCliente()
+  if (!_clienteCodigoReferido) _generarYGuardarCodigo()
+}
+
+async function _generarYGuardarCodigo() {
+  if (!_clienteUserId) return
+  const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const nums = '0123456789'
+  let code, intentos = 0
+  do {
+    const p1 = Array.from({length:4}, () => letras[Math.floor(Math.random()*letras.length)]).join('')
+    const p2 = Array.from({length:2}, () => nums[Math.floor(Math.random()*nums.length)]).join('')
+    code = 'GUEP-' + p1 + p2
+    const { data: existe } = await db.from('usuarios').select('id').eq('codigo_referido_propio', code).maybeSingle()
+    if (!existe) break
+    intentos++
+  } while (intentos < 5)
+  await db.from('usuarios').update({ codigo_referido_propio: code }).eq('user_id', _clienteUserId)
+  _clienteCodigoReferido = code
+}
+
+function _copiarCodigoReferido() {
+  if (!_clienteCodigoReferido) return
+  navigator.clipboard.writeText(_clienteCodigoReferido).catch(() => {
+    const ta = document.createElement('textarea')
+    ta.value = _clienteCodigoReferido
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
+  })
+  const btn = document.getElementById('btn-copiar-ref')
+  if (btn) { btn.textContent = '✅ Copiado'; setTimeout(() => { btn.textContent = '📋 Copiar' }, 2000) }
 }
 
 function _renderAvatarCliente() {
@@ -2817,13 +2868,22 @@ function _abrirModalFotoCliente() {
   const fotoHtml = _clienteFotoUrl
     ? '<img id="mfp-img" src="' + _clienteFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
     : '<div style="width:90px;height:90px;border-radius:50%;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' + (_clienteEmail.charAt(0)||'?').toUpperCase() + '</div>'
+  const codRef = _clienteCodigoReferido || '...'
   modal.innerHTML = '<div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:320px;text-align:center">'
-    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi perfil</div>'
     + fotoHtml
     + '<input type="file" id="mfp-input" accept="image/*" style="display:none">'
     + '<label for="mfp-input" style="display:block;padding:11px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
     + '<div id="mfp-status" style="font-family:Montserrat,sans-serif;font-size:12px;color:#888;min-height:18px;margin-bottom:10px"></div>'
-    + '<button onclick="document.getElementById(\'modal-foto-perfil\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cerrar</button>'
+    + '<div style="border-top:1px solid #eef1f6;padding-top:14px;margin-top:4px">'
+    + '<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">🎁 Mi código de referido</div>'
+    + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:4px;line-height:1;margin-bottom:8px">' + codRef + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:center">'
+    + '<button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:8px 14px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>'
+    + '</div>'
+    + '<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aab8cc;margin-top:8px;line-height:1.4">Comparte este código. Cuando tu referido llegue a Bronce VIP ganas envíos gratis.</div>'
+    + '</div>'
+    + '<button onclick="document.getElementById(\'modal-foto-perfil\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666;margin-top:14px">Cerrar</button>'
     + '</div>'
   document.body.appendChild(modal)
   modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove() })

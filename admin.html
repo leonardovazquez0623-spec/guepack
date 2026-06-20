@@ -188,6 +188,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('zonas')">🗺️ Zonas</button>
     <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
     <button class="tab" onclick="showTab('repartidores')">🏍️ Repartidores</button>
+    <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -769,6 +770,30 @@ function initMapsAdmin() {
     </div>
   </div>
 
+  <!-- TAB REFERIDOS -->
+  <div id="tab-referidos" class="tab-content">
+    <div class="card">
+      <div class="card-title">⚙️ Configuración de referidos</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#5a6a8a">Envíos gratis por referido aprobado:</label>
+        <input type="number" id="config-envios-gratis" min="1" max="20" style="width:70px;padding:8px 10px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;color:#1a2740;background:#f4f6fb" value="3">
+        <button onclick="guardarConfigEnviosGratis()" style="padding:9px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">⏳ Pendientes de aprobación</div>
+      <div id="lista-ref-pendientes"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">📋 Historial</div>
+      <div id="lista-ref-historial"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">🎟️ Envíos gratis por cliente</div>
+      <div id="lista-envios-gratis"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -974,6 +999,90 @@ function _resetFormRepartidor() {
   })
 }
 
+// ── Referidos ──────────────────────────────────────────────────────────────────
+
+async function cargarReferidos() {
+  const { data: cfg } = await db.from('config_app').select('value').eq('key', 'envios_gratis_por_referido').maybeSingle()
+  if (cfg) {
+    const el = document.getElementById('config-envios-gratis')
+    if (el) el.value = cfg.value
+  }
+
+  const { data } = await db.from('referidos').select('*').order('created_at', { ascending: false })
+  const pendientes = (data || []).filter(r => r.estado === 'pendiente')
+  const historial  = (data || []).filter(r => r.estado !== 'pendiente')
+
+  const elPend = document.getElementById('lista-ref-pendientes')
+  const elHist = document.getElementById('lista-ref-historial')
+
+  elPend.innerHTML = pendientes.length ? pendientes.map(r => `
+    <div style="background:#f4f6fb;border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">
+        🏅 <strong>${r.referidor_nombre || r.referidor_email}</strong>
+        <span style="color:#8fa3c0;font-weight:600"> ${r.referidor_email}</span>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif;margin-top:4px">
+        👤 <strong>${r.referido_nombre || r.referido_email}</strong>
+        <span style="color:#8fa3c0;font-weight:600"> ${r.referido_email}</span>
+      </div>
+      <div style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-top:4px">
+        Código: <strong>${r.codigo}</strong> · ${new Date(r.created_at).toLocaleDateString('es-MX')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="aprobarReferido('${r.id}','${r.referidor_user_id}')" style="flex:1;padding:9px;background:#22c55e;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✅ Aprobar</button>
+        <button onclick="rechazarReferido('${r.id}')" style="flex:1;padding:9px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">❌ Rechazar</button>
+      </div>
+    </div>`).join('')
+    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin referidos pendientes</div>'
+
+  elHist.innerHTML = historial.length ? historial.map(r => {
+    const col = r.estado === 'aprobado' ? '#22c55e' : '#ef4444'
+    const ico = r.estado === 'aprobado' ? '✅' : '❌'
+    return `<div style="border-left:3px solid ${col};padding:10px 12px;margin-bottom:8px;background:#f4f6fb;border-radius:0 10px 10px 0">
+      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">${ico} ${r.referidor_nombre || r.referidor_email} → ${r.referido_nombre || r.referido_email}</div>
+      <div style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-top:2px">${r.codigo} · ${new Date(r.created_at).toLocaleDateString('es-MX')} · <strong style="color:${col}">${r.estado}</strong></div>
+    </div>`
+  }).join('')
+    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin historial aún</div>'
+
+  // Clientes con envíos gratis
+  const { data: clientes } = await db.from('usuarios')
+    .select('email, nombre, envios_gratis')
+    .gt('envios_gratis', 0)
+    .order('envios_gratis', { ascending: false })
+  const elCli = document.getElementById('lista-envios-gratis')
+  elCli.innerHTML = clientes?.length ? clientes.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f4f6fb;border-radius:10px;margin-bottom:6px">
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">${c.nombre || c.email}</div>
+        <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif">${c.email}</div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#f05a1a;line-height:1">${c.envios_gratis} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#8fa3c0">gratis</span></div>
+    </div>`).join('')
+    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Ningún cliente tiene envíos gratis acumulados</div>'
+}
+
+async function aprobarReferido(id, referidorUserId) {
+  const val = parseInt(document.getElementById('config-envios-gratis')?.value || '3', 10)
+  await db.from('referidos').update({ estado: 'aprobado' }).eq('id', id)
+  const { data: usr } = await db.from('usuarios').select('envios_gratis').eq('user_id', referidorUserId).single()
+  await db.from('usuarios').update({ envios_gratis: (usr?.envios_gratis || 0) + val }).eq('user_id', referidorUserId)
+  showToast('✅ Aprobado — +' + val + ' envíos gratis al referidor')
+  cargarReferidos()
+}
+
+async function rechazarReferido(id) {
+  await db.from('referidos').update({ estado: 'rechazado' }).eq('id', id)
+  showToast('❌ Referido rechazado')
+  cargarReferidos()
+}
+
+async function guardarConfigEnviosGratis() {
+  const val = document.getElementById('config-envios-gratis').value
+  await db.from('config_app').upsert({ key: 'envios_gratis_por_referido', value: String(val) }, { onConflict: 'key' })
+  showToast('✅ Configuración guardada')
+}
+
 async function init() {
   cargarEstadoLluvia()
   const { data: { session } } = await db.auth.getSession()
@@ -1012,6 +1121,7 @@ function showTab(tab, btn) {
   if (tab === 'zonas') cargarZonas()
   if (tab === 'empresas') cargarEmpresas()
   if (tab === 'repartidores') cargarRepartidores()
+  if (tab === 'referidos') cargarReferidos()
 }
 
 function _moverIndicador(tabEl) {

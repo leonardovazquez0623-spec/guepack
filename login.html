@@ -204,8 +204,16 @@
       <input type="password" id="reg-password" class="form-input" placeholder="Mínimo 6 caracteres">
     </div>
     <div class="form-group">
+      <label class="form-label">WhatsApp (10 dígitos)</label>
+      <input type="tel" id="reg-whatsapp" class="form-input" placeholder="ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'')">
+    </div>
+    <div class="form-group">
       <label class="form-label">¿Eres empresa afiliada? <span style="font-weight:600;color:#8fa3c0">(Opcional)</span></label>
       <input type="text" id="reg-empresa-codigo" class="form-input" placeholder="Código de empresa" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">¿Tienes un código de referido? <span style="font-weight:600;color:#8fa3c0">(Opcional)</span></label>
+      <input type="text" id="reg-referido" class="form-input" placeholder="Ej. GUEP-AXB72" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
     </div>
     <button class="btn btn-primary" onclick="registrar()">Crear cuenta</button>
     <div class="divider">O</div>
@@ -291,19 +299,35 @@ async function registrar() {
   const nombre = document.getElementById('reg-nombre').value.trim()
   const email = document.getElementById('reg-email').value.trim()
   const password = document.getElementById('reg-password').value
+  const whatsapp = document.getElementById('reg-whatsapp').value.trim()
   const empresaCodigo = document.getElementById('reg-empresa-codigo').value.trim().toUpperCase()
-  if (!nombre || !email || !password) { showError('Llena todos los campos'); return; }
+  const referidoCodigo = document.getElementById('reg-referido').value.trim().toUpperCase()
+
+  if (!nombre || !email || !password || !whatsapp) { showError('Llena todos los campos'); return; }
   if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
+  if (!/^\d{10}$/.test(whatsapp)) { showError('El WhatsApp debe tener exactamente 10 dígitos'); return; }
+
+  const { data: waDup } = await db.from('usuarios').select('id').eq('whatsapp', whatsapp).maybeSingle()
+  if (waDup) { showError('Este número de WhatsApp ya está registrado'); return; }
 
   if (empresaCodigo) {
-    const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activa', true).single()
+    const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activa', true).maybeSingle()
     if (!empresa) { showError('Código de empresa no válido'); return; }
+  }
+
+  let referidoPor = null
+  if (referidoCodigo) {
+    const { data: refData } = await db.from('usuarios').select('user_id').eq('codigo_referido_propio', referidoCodigo).maybeSingle()
+    if (!refData) { showError('Código de referido no válido'); return; }
+    const { data: pedidoExist } = await db.from('pedidos').select('id').eq('whatsapp', whatsapp).limit(1).maybeSingle()
+    if (pedidoExist) { showError('Este WhatsApp ya tiene pedidos registrados — el código de referido no aplica'); return; }
+    referidoPor = referidoCodigo
   }
 
   const { error } = await db.auth.signUp({
     email,
     password,
-    options: { data: { nombre, empresa_codigo: empresaCodigo || null } }
+    options: { data: { nombre, whatsapp, empresa_codigo: empresaCodigo || null, referido_por: referidoPor } }
   })
   if (error) { showError('Error al crear cuenta: ' + error.message); return; }
   showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
