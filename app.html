@@ -1290,6 +1290,7 @@ let _multiParadaKm = null      // km totales del recorrido completo
 let _multiParadaZonaData = null // zona de la última parada
 let _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
 let _precioGeneralKm = null     // km calculados para no-corporativos
+let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -3464,6 +3465,15 @@ function _pointInPolygon(lat, lng, polygon) {
   return inside
 }
 
+async function _verificarLimiteCiudad(lat, lng) {
+  if (_limiteCiudadCoords === undefined) {
+    const { data } = await db.from('zonas_cobertura').select('coordenadas').eq('nombre', 'LIMITE CIUDAD').maybeSingle()
+    _limiteCiudadCoords = (data?.coordenadas?.length >= 3) ? data.coordenadas : null
+  }
+  if (!_limiteCiudadCoords) return true  // sin polígono definido → no bloquear
+  return _pointInPolygon(lat, lng, _limiteCiudadCoords)
+}
+
 async function _detectarZonaEntrega(place) {
   const aviso = document.getElementById('zona-aviso')
   if (aviso) aviso.style.display = 'none'
@@ -3485,6 +3495,21 @@ async function _detectarZonaEntrega(place) {
   if (!loc) { _mostrarResultadoZona(result, false, null); return }
 
   const lat = loc.lat(), lng = loc.lng()
+
+  // Verificar que la dirección esté dentro del LIMITE CIUDAD
+  const enLimite = await _verificarLimiteCiudad(lat, lng)
+  if (!enLimite) {
+    _zonaData = null; selZone = null; _precioGeneralTotal = null; _precioGeneralKm = null
+    if (result) {
+      result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
+      result.innerHTML = '<span style="font-size:18px">❌</span><span>Dirección fuera de nuestra zona de entrega</span>'
+    }
+    const qb = document.getElementById('quote-display')
+    if (qb) qb.style.display = 'none'
+    mostrarToast('⚠️ El area donde deseas enviar no esta disponible para entrega. Por favor elige otra direccion dentro de nuestra zona', '#ef4444')
+    return
+  }
+
   const zonaEncontrada = zonas.find(z => z.coordenadas?.length >= 3 && _pointInPolygon(lat, lng, z.coordenadas))
 
   if (zonaEncontrada) {
@@ -3632,6 +3657,23 @@ function _mostrarCotizacionGeneral(km, precios) {
 
 async function _calcularPrecioCorporativo() {
   if (_empresaData?.tipo_tarifa === 'diaria') { _mostrarCotizacionDiaria(); return }
+
+  // Verificar que la dirección de entrega esté dentro del LIMITE CIUDAD
+  if (_entregaPlace?.geometry?.location) {
+    const lat = _entregaPlace.geometry.location.lat()
+    const lng = _entregaPlace.geometry.location.lng()
+    const enLimite = await _verificarLimiteCiudad(lat, lng)
+    if (!enLimite) {
+      _corporativoPrecio = null; _corporativoKm = null
+      const qb = document.getElementById('quote-display')
+      if (qb) qb.style.display = 'none'
+      const av = document.getElementById('zona-aviso')
+      if (av) { av.style.display = 'block'; av.style.background = '#fef2f2'; av.style.color = '#dc2626'; av.textContent = '❌ Direccion fuera de nuestra zona de entrega' }
+      mostrarToast('⚠️ El area donde deseas enviar no esta disponible para entrega. Por favor elige otra direccion dentro de nuestra zona', '#ef4444')
+      return
+    }
+  }
+
   const origen = document.getElementById('dir-recoleccion').value.trim()
   if (!origen) {
     const aviso = document.getElementById('zona-aviso')
