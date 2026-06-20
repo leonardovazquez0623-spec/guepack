@@ -3666,16 +3666,23 @@ async function _calcularPrecioCorporativo() {
 
 function _mostrarCotizacionCorporativa(km) {
   const e = _empresaData
-  const tarifaBase   = e.tarifa_minima  || 95
-  const kmMinimo     = e.km_minimo      || 12
+  const tarifaBase   = e.tarifa_minima    || 95
+  const kmMinimo     = e.km_minimo        || 12
   const tarifaExtra  = e.tarifa_base_extra || 115
-  const precioKmExt  = e.precio_km_extra  || 10
-  const iva          = e.iva             || 0.16
+  const precioKmExt  = e.tarifa_km        || 10
+  const iva          = e.iva              || 0.16
 
   const subtotal = km <= kmMinimo
     ? tarifaBase
     : tarifaExtra + precioKmExt * (km - kmMinimo)
   const total = Math.round(subtotal * (1 + iva) * 100) / 100
+
+  console.log('[corporativo] km:', km)
+  console.log('[corporativo] km_minimo:', _empresaUsuario.km_minimo)
+  console.log('[corporativo] tarifa_minima:', _empresaUsuario.tarifa_minima)
+  console.log('[corporativo] tarifa_base_extra:', _empresaUsuario.tarifa_base_extra)
+  console.log('[corporativo] tarifa_km:', _empresaUsuario.tarifa_km)
+  console.log('[corporativo] precio calculado:', total)
 
   _corporativoPrecio = total
   _corporativoKm = km
