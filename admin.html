@@ -1008,6 +1008,8 @@ async function guardarEmpresa() {
   }
 
   if (nuevaEmpresaId && _empTipoTarifa === 'km') {
+    console.log('[empresa] empresa creada con id:', nuevaEmpresaId)
+    console.log('[empresa] insertando rangos default...')
     const rangosDefault = [
       { empresa_id: nuevaEmpresaId, km_desde: 0,  km_hasta: 3,   precio: 115 },
       { empresa_id: nuevaEmpresaId, km_desde: 3,  km_hasta: 10,  precio: 130 },
@@ -1016,7 +1018,8 @@ async function guardarEmpresa() {
       { empresa_id: nuevaEmpresaId, km_desde: 20, km_hasta: 25,  precio: 200 },
       { empresa_id: nuevaEmpresaId, km_desde: 25, km_hasta: null, precio: 200 }
     ]
-    const { error: rangosErr } = await db.from('rangos_precio_empresa').insert(rangosDefault)
+    const { data: rangosData, error: rangosErr } = await db.from('rangos_precio_empresa').insert(rangosDefault).select()
+    console.log('[empresa] rangos insertados:', rangosData, 'error:', rangosErr)
     if (rangosErr) console.error('[guardarEmpresa] Error insertando rangos default:', rangosErr)
     showToast('✅ Empresa creada con rangos de precio default')
   } else {
