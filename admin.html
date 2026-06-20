@@ -728,9 +728,28 @@ function initMapsAdmin() {
           <input type="number" id="emp-precio-km" class="form-input" value="10" placeholder="10">
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Estado:</span>
-        <button id="emp-activo-btn" onclick="empToggleActivo()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">● Activo</button>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Afiliación:</span>
+          <button id="emp-activo-btn" onclick="empToggleActivo()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">● Activo</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Pedidos:</span>
+          <button id="emp-pedidos-btn" onclick="empTogglePedidos()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">✅ Activos</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tipo de crédito</label>
+          <select id="emp-tipo-credito" class="form-input">
+            <option value="Semanal">📅 Semanal</option>
+            <option value="Mensual">🗓️ Mensual</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tarifa diaria ($)</label>
+          <input type="number" id="emp-tarifa-diaria" class="form-input" value="380" placeholder="380" min="0">
+        </div>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
@@ -740,6 +759,10 @@ function initMapsAdmin() {
     <div class="card" style="margin-top:16px">
       <div class="card-title">Empresas registradas</div>
       <div id="lista-empresas"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">💰 Corte de crédito</div>
+      <div id="corte-credito-lista"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
     </div>
   </div>
 
@@ -842,6 +865,7 @@ async function toggleLluvia() {
 
 // ── Empresas afiliadas ──
 let _empActivo = true
+let _empPedidosActivos = true
 
 function empToggleActivo() {
   _empActivo = !_empActivo
@@ -849,6 +873,14 @@ function empToggleActivo() {
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
   btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
   btn.textContent      = _empActivo ? '● Activo' : '● Inactivo'
+}
+
+function empTogglePedidos() {
+  _empPedidosActivos = !_empPedidosActivos
+  const btn = document.getElementById('emp-pedidos-btn')
+  btn.style.background = _empPedidosActivos ? '#dcfce7' : '#fee2e2'
+  btn.style.color      = _empPedidosActivos ? '#16a34a' : '#ef4444'
+  btn.textContent      = _empPedidosActivos ? '✅ Activos' : '❌ Suspendidos'
 }
 
 async function cargarEmpresas() {
@@ -865,6 +897,11 @@ async function cargarEmpresas() {
           0-${e.km_minimo} km: $${e.tarifa_minima} · +${e.km_minimo} km: $${e.tarifa_base_extra || 115} + $${e.tarifa_km}/km · IVA ${Math.round((e.iva || 0.16) * 100)}%
         </div>
         <div style="font-size:10px;font-weight:700;color:${e.activa ? '#16a34a' : '#ef4444'};margin-top:2px">${e.activa ? '● Activo' : '● Inactivo'}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:${e.pedidos_activos !== false ? '#dcfce7' : '#fee2e2'};color:${e.pedidos_activos !== false ? '#16a34a' : '#ef4444'}">${e.pedidos_activos !== false ? '✅ Pedidos activos' : '❌ Suspendida'}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#e0f2fe;color:#0369a1">📅 ${e.tipo_credito || 'Semanal'}</span>
+          ${e.tarifa_diaria ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#f0fdf4;color:#16a34a">$${e.tarifa_diaria}/día</span>` : ''}
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
         <button onclick="editarEmpresa(${e.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
@@ -883,7 +920,9 @@ async function guardarEmpresa() {
   const tarifaExtra = parseFloat(document.getElementById('emp-tarifa-extra').value) || 115
   const precioKm    = parseFloat(document.getElementById('emp-precio-km').value)    || 10
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
-  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo }
+  const tipoCredito  = document.getElementById('emp-tipo-credito')?.value || 'Semanal'
+  const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   const { error } = id
     ? await db.from('empresas_afiliadas').update(payload).eq('id', id)
@@ -908,11 +947,22 @@ async function editarEmpresa(id) {
   document.getElementById('emp-km-min').value       = data.km_minimo
   document.getElementById('emp-tarifa-extra').value = data.tarifa_base_extra || 115
   document.getElementById('emp-precio-km').value    = data.tarifa_km
-  _empActivo = data.activa
+  _empActivo = data.activa !== false
   const btn = document.getElementById('emp-activo-btn')
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
   btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
   btn.textContent      = _empActivo ? '● Activo' : '● Inactivo'
+  _empPedidosActivos = data.pedidos_activos !== false
+  const pBtn = document.getElementById('emp-pedidos-btn')
+  if (pBtn) {
+    pBtn.style.background = _empPedidosActivos ? '#dcfce7' : '#fee2e2'
+    pBtn.style.color      = _empPedidosActivos ? '#16a34a' : '#ef4444'
+    pBtn.textContent      = _empPedidosActivos ? '✅ Activos' : '❌ Suspendidos'
+  }
+  const tcEl = document.getElementById('emp-tipo-credito')
+  if (tcEl) tcEl.value = data.tipo_credito || 'Semanal'
+  const tdEl = document.getElementById('emp-tarifa-diaria')
+  if (tdEl) tdEl.value = data.tarifa_diaria || 380
   document.getElementById('tab-empresas').scrollIntoView({ behavior: 'smooth' })
 }
 
@@ -934,6 +984,13 @@ function _resetFormEmpresa() {
   _empActivo = true
   const btn = document.getElementById('emp-activo-btn')
   if (btn) { btn.style.background = '#dcfce7'; btn.style.color = '#16a34a'; btn.textContent = '● Activo' }
+  _empPedidosActivos = true
+  const pBtn = document.getElementById('emp-pedidos-btn')
+  if (pBtn) { pBtn.style.background = '#dcfce7'; pBtn.style.color = '#16a34a'; pBtn.textContent = '✅ Activos' }
+  const tcEl = document.getElementById('emp-tipo-credito')
+  if (tcEl) tcEl.value = 'Semanal'
+  const tdEl = document.getElementById('emp-tarifa-diaria')
+  if (tdEl) tdEl.value = '380'
 }
 
 // ── Repartidores ─────────────────────────────────────────────────────────────
@@ -997,6 +1054,123 @@ function _resetFormRepartidor() {
     var el = document.getElementById(id)
     if (el) el.value = ''
   })
+}
+
+// ── Corte de crédito corporativo ──────────────────────────────────────────────
+
+async function cargarCorteCreditoEmpresas() {
+  const cont = document.getElementById('corte-credito-lista')
+  if (!cont) return
+  cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div>'
+
+  const { data: empresas } = await db.from('empresas_afiliadas').select('*').eq('activa', true)
+  if (!empresas?.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin empresas registradas</div>'; return }
+
+  const codigosEmpresa = empresas.map(e => e.codigo).filter(Boolean)
+
+  // Intentar con credito_cobrado, fallback si la columna no existe aún
+  let pedidos = []
+  const { data: p1, error: e1 } = await db.from('pedidos')
+    .select('id, empresa_codigo, precio, created_at, estado, credito_cobrado')
+    .in('empresa_codigo', codigosEmpresa)
+    .eq('metodo_pago', 'Crédito')
+  if (e1) {
+    const { data: p2 } = await db.from('pedidos')
+      .select('id, empresa_codigo, precio, created_at, estado')
+      .in('empresa_codigo', codigosEmpresa)
+      .eq('metodo_pago', 'Crédito')
+    pedidos = p2 || []
+  } else {
+    pedidos = (p1 || []).filter(p => !p.credito_cobrado)
+  }
+
+  // Agrupar por empresa
+  const porEmpresa = {}
+  pedidos.forEach(p => {
+    if (!porEmpresa[p.empresa_codigo]) porEmpresa[p.empresa_codigo] = { pedidos: [], total: 0 }
+    porEmpresa[p.empresa_codigo].pedidos.push(p)
+    porEmpresa[p.empresa_codigo].total += (p.precio || 0)
+  })
+
+  const conCredito = empresas.filter(e => porEmpresa[e.codigo]?.pedidos?.length)
+  if (!conCredito.length) {
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin crédito pendiente de cobrar</div>'
+    return
+  }
+
+  cont.innerHTML = conCredito.map(e => {
+    const grupo = porEmpresa[e.codigo]
+    const periodo = e.tipo_credito || 'Semanal'
+    const ids = grupo.pedidos.map(p => p.id).join(',')
+    return `
+    <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid var(--blue)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
+          <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600;margin-top:2px">Crédito ${periodo} · ${grupo.pedidos.length} pedido${grupo.pedidos.length !== 1 ? 's' : ''} pendiente${grupo.pedidos.length !== 1 ? 's' : ''}</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--orange);line-height:1">$${grupo.total}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="marcarCreditoPagado('${e.codigo}','${ids}')" style="flex:1;padding:9px;background:#22c55e;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">✅ Marcar como pagado</button>
+        <button onclick="generarFactura('${e.codigo}','${e.nombre}',${grupo.total},${grupo.pedidos.length})" style="flex:1;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">🧾 Ver factura</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function marcarCreditoPagado(empresaCodigo, pedidoIdsStr) {
+  if (!confirm('¿Marcar el crédito de esta empresa como pagado?')) return
+  const ids = pedidoIdsStr.split(',').map(Number).filter(Boolean)
+  if (!ids.length) { showToast('Sin pedidos a marcar'); return }
+  const { error } = await db.from('pedidos').update({ credito_cobrado: true }).in('id', ids)
+  if (error) {
+    showToast('❌ Columna faltante. Ejecuta: ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS credito_cobrado BOOLEAN DEFAULT FALSE')
+    return
+  }
+  showToast('✅ Crédito marcado como pagado')
+  cargarCorteCreditoEmpresas()
+}
+
+function generarFactura(codigo, nombre, total, numPedidos) {
+  const fecha = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px;max-width:380px;width:100%;font-family:Montserrat,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div style="text-align:center;margin-bottom:20px">
+        <img src="/logo_principal.png" alt="GUEPACK" style="max-width:160px;height:auto">
+        <div style="font-size:10px;color:#8fa3c0;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:6px">Estado de cuenta · Crédito corporativo</div>
+      </div>
+      <div style="border-top:2px dashed #e0e6f0;border-bottom:2px dashed #e0e6f0;padding:16px 0;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;color:#8fa3c0;font-weight:700">EMPRESA</span>
+          <span style="font-size:12px;font-weight:900;color:#1a2740">${nombre}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;color:#8fa3c0;font-weight:700">CÓDIGO</span>
+          <span style="font-size:12px;font-weight:700;color:#1a4fa0;font-family:monospace">${codigo}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:12px;color:#8fa3c0;font-weight:700">PEDIDOS</span>
+          <span style="font-size:12px;font-weight:900;color:#1a2740">${numPedidos}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-size:12px;color:#8fa3c0;font-weight:700">FECHA</span>
+          <span style="font-size:12px;font-weight:700;color:#1a2740">${fecha}</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:12px 16px;background:#f4f6fb;border-radius:12px">
+        <span style="font-size:15px;font-weight:900;color:#1a2740">TOTAL A COBRAR</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:#f05a1a;line-height:1">$${total}</span>
+      </div>
+      <div style="background:#fffbeb;border:2px solid #fcd34d;border-radius:10px;padding:12px;font-size:11px;color:#92400e;font-weight:700;text-align:center;margin-bottom:16px">
+        ⚠️ Vista previa. Integración con Facturama próximamente.
+      </div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+    </div>
+  `
+  document.body.appendChild(modal)
 }
 
 // ── Referidos ──────────────────────────────────────────────────────────────────
@@ -1119,7 +1293,7 @@ function showTab(tab, btn) {
   if (tab === 'finanzas') cargarFinanzas()
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') cargarZonas()
-  if (tab === 'empresas') cargarEmpresas()
+  if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
   if (tab === 'repartidores') cargarRepartidores()
   if (tab === 'referidos') cargarReferidos()
 }

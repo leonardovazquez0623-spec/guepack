@@ -843,7 +843,7 @@
 
         <div class="card">
           <div class="card-title">💳 Método de pago</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
             <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
           </div>
@@ -990,6 +990,33 @@ async function _cargarEmpresaUsuario(user) {
     avisoZona.style.color = '#0369a1'
     avisoZona.textContent = '🏢 Cuenta corporativa: ' + empresa.nombre + ' · El precio se calcula por kilómetro'
   }
+  // Cuenta suspendida — bloquear formulario completo
+  if (empresa.pedidos_activos === false) {
+    _bloquearFormularioEmpresa()
+    return
+  }
+  // Reemplazar opciones de pago con botón único de crédito
+  const mpOpciones = document.getElementById('mp-opciones')
+  if (mpOpciones) {
+    const tipo = empresa.tipo_credito || 'Semanal'
+    mpOpciones.style.gridTemplateColumns = '1fr'
+    mpOpciones.innerHTML = `<div class="mp-option selected" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${tipo}</div>`
+  }
+  selMetodoPago = 'Crédito'
+  // Ocultar cupón (no aplica en cuenta corporativa)
+  const cuponCard = document.getElementById('cupon-card')
+  if (cuponCard) cuponCard.style.display = 'none'
+}
+
+function _bloquearFormularioEmpresa() {
+  const formState = document.getElementById('form-state')
+  if (!formState) return
+  const aviso = document.createElement('div')
+  aviso.style.cssText = 'background:#fee2e2;border:2px solid #fca5a5;border-radius:14px;padding:24px 20px;margin-bottom:14px;text-align:center;font-family:Montserrat,sans-serif'
+  aviso.innerHTML = '<div style="font-size:32px;margin-bottom:10px">⚠️</div><div style="font-weight:900;font-size:15px;color:#dc2626;margin-bottom:8px">Cuenta corporativa suspendida</div><div style="font-size:12px;color:#991b1b;font-weight:600;line-height:1.6">Tu cuenta corporativa está temporalmente suspendida.<br>Contacta a GUEPACK para más información.</div>'
+  formState.insertBefore(aviso, formState.firstChild)
+  const btnSubmit = formState.querySelector('.btn.btn-primary')
+  if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.style.opacity = '0.45'; btnSubmit.style.cursor = 'not-allowed' }
 }
 
 function cargarNombreRemitente(user) {
