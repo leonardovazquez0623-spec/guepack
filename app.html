@@ -1848,7 +1848,7 @@ function abrirModalAgregarParada(pedidoId) {
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">➕ Agregar parada · GK-${pedidoId}</div>
       <div style="margin-bottom:14px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px">📍 Dirección</div>
-        <input id="parada-dir-input" type="text" placeholder="Escribe una dirección..." autocomplete="off" style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
+        <input id="nueva-parada-dir" type="text" placeholder="Escribe una dirección..." autocomplete="off" style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
       </div>
       <div style="margin-bottom:20px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px">📝 Instrucciones (opcional)</div>
@@ -1864,7 +1864,8 @@ function abrirModalAgregarParada(pedidoId) {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
 
   setTimeout(() => {
-    const input = document.getElementById('parada-dir-input')
+    const input = document.getElementById('nueva-parada-dir')
+    console.log('input encontrado:', input)
     if (input && window.google?.maps?.places) {
       const opts = Object.assign({}, _mapsPlacesOpts, { types: ['geocode', 'establishment'] })
       const ac = new google.maps.places.Autocomplete(input, opts)
@@ -1878,8 +1879,9 @@ function abrirModalAgregarParada(pedidoId) {
 
 async function confirmarAgregarParada(pedidoId) {
   const btn = document.getElementById('btn-confirmar-agregar-parada')
-  const dirInput  = document.getElementById('parada-dir-input')
+  const dirInput  = document.getElementById('nueva-parada-dir')
   const instInput = document.getElementById('parada-inst-input')
+  console.log('[confirmarAgregarParada] dirInput:', dirInput, 'valor:', dirInput?.value)
 
   const direccion = dirInput.value.trim()
   if (!direccion) { mostrarToast('⚠️ Selecciona una dirección válida', '#f59e0b'); return }
