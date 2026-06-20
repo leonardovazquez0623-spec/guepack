@@ -1866,13 +1866,11 @@ function abrirModalAgregarParada(pedidoId) {
   window._paradaPlaceSelected = null
   const input = document.getElementById('parada-dir-input')
   if (window.google?.maps?.places) {
-    const ac = new google.maps.places.Autocomplete(input, {
-      componentRestrictions: { country: 'mx' },
-      fields: ['formatted_address']
-    })
+    const opts = Object.assign({}, _mapsPlacesOpts, { types: ['geocode', 'establishment'] })
+    const ac = new google.maps.places.Autocomplete(input, opts)
     ac.addListener('place_changed', () => {
       const p = ac.getPlace()
-      if (p?.formatted_address) window._paradaPlaceSelected = p.formatted_address
+      if (p?.formatted_address || p?.name) window._paradaPlaceSelected = p.formatted_address || p.name
     })
   }
 }
