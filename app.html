@@ -3155,6 +3155,14 @@ async function _abrirDrawer() {
         ${vipBarHtml}
       </div>
 
+      ${_empresaUsuario ? `
+      <div style="margin-top:18px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">💳 Mi crédito<div style="flex:1;height:1px;background:#eef1f6"></div></div>
+        <div id="drawer-credito-content">
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;padding:8px 0">Cargando...</div>
+        </div>
+      </div>` : ''}
+
     </div>
 
     <div style="padding:16px;border-top:1px solid #eef1f6;flex-shrink:0">
@@ -3165,6 +3173,7 @@ async function _abrirDrawer() {
   document.body.appendChild(drawer)
   requestAnimationFrame(() => { overlay.style.opacity = '1'; drawer.style.transform = 'translateX(0)' })
   _cargarReferidosDrawer()
+  if (_empresaUsuario) _cargarCreditoDrawer()
 }
 
 function _cerrarDrawer() {
@@ -3194,6 +3203,74 @@ async function _cargarReferidosDrawer() {
       <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#1a2740;font-weight:600">${r.referido_nombre || r.referido_email}</div>
       <div style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:20px;background:${col[r.estado] || '#888'}20;color:${col[r.estado] || '#888'};font-family:Montserrat,sans-serif">${r.estado}</div>
     </div>`).join('')
+}
+
+async function _cargarCreditoDrawer() {
+  const el = document.getElementById('drawer-credito-content')
+  if (!el || !_empresaUsuario) return
+
+  const empresa   = _empresaUsuario
+  const tipoCred  = empresa.tipo_credito || 'Semanal'
+  const ahora     = new Date()
+  let inicioP, finP, labelPeriodo, proximoCorte
+
+  if (tipoCred === 'Semanal') {
+    const dia = ahora.getDay() // 0=dom, 1=lun…6=sáb
+    const diasDesde = dia === 0 ? 6 : dia - 1
+    inicioP = new Date(ahora); inicioP.setHours(0,0,0,0); inicioP.setDate(inicioP.getDate() - diasDesde)
+    finP = new Date(inicioP); finP.setDate(finP.getDate() + 6); finP.setHours(23,59,59,999)
+    // Próximo viernes
+    const diasParaV = dia === 0 ? 5 : dia <= 5 ? 5 - dia : 5 + 7 - dia
+    proximoCorte = new Date(ahora); proximoCorte.setDate(ahora.getDate() + (dia === 5 ? 0 : diasParaV))
+    labelPeriodo = 'Semana ' + inicioP.toLocaleDateString('es-MX', { day:'numeric', month:'short' }) + ' – ' + finP.toLocaleDateString('es-MX', { day:'numeric', month:'short' })
+  } else {
+    inicioP = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0,0,0,0)
+    finP    = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0, 23,59,59,999)
+    proximoCorte = new Date(finP)
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+    labelPeriodo = meses[ahora.getMonth()].charAt(0).toUpperCase() + meses[ahora.getMonth()].slice(1) + ' ' + ahora.getFullYear()
+  }
+
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { data: pedidos } = await db.from('pedidos')
+    .select('id, precio')
+    .eq('user_id', session.user.id)
+    .eq('metodo_pago', 'Crédito')
+    .eq('credito_cobrado', false)
+    .gte('created_at', inicioP.toISOString())
+    .lte('created_at', finP.toISOString())
+
+  const totalPedidos = pedidos?.length || 0
+  const montoTotal   = (pedidos || []).reduce((s, p) => s + (Number(p.precio) || 0), 0)
+  const corteStr     = proximoCorte.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' })
+
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,#f0f4ff,#e8eeff);border:1.5px solid #c7d5f5;border-radius:12px;padding:14px">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a4fa0;margin-bottom:2px">${empresa.nombre}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:11px;color:#5a78b0;margin-bottom:12px">Crédito ${tipoCred} · ${labelPeriodo}</div>
+
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div style="flex:1;background:white;border-radius:10px;padding:10px 8px;text-align:center;box-shadow:0 1px 6px rgba(26,79,160,0.08)">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#1a4fa0;line-height:1">${totalPedidos}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:9px;color:#8fa3c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">pedidos</div>
+        </div>
+        <div style="flex:1;background:white;border-radius:10px;padding:10px 8px;text-align:center;box-shadow:0 1px 6px rgba(26,79,160,0.08)">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#f05a1a;line-height:1">$${montoTotal.toFixed(0)}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:9px;color:#8fa3c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">acumulado</div>
+        </div>
+      </div>
+
+      <div style="background:rgba(240,90,26,0.07);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">📅</span>
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;color:#f05a1a;text-transform:uppercase;letter-spacing:.5px">Próximo corte</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#1a2740;text-transform:capitalize">${corteStr}</div>
+        </div>
+      </div>
+    </div>
+  `
 }
 
 async function _cambiarContrasena(btn) {
