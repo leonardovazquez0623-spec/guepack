@@ -1017,13 +1017,32 @@ async function _cargarEmpresaUsuario(user) {
 
 function _bloquearFormularioEmpresa() {
   const formState = document.getElementById('form-state')
-  if (!formState) return
+  if (!formState || document.getElementById('aviso-cuenta-suspendida')) return
   const aviso = document.createElement('div')
+  aviso.id = 'aviso-cuenta-suspendida'
   aviso.style.cssText = 'background:#fee2e2;border:2px solid #fca5a5;border-radius:14px;padding:24px 20px;margin-bottom:14px;text-align:center;font-family:Montserrat,sans-serif'
   aviso.innerHTML = '<div style="font-size:32px;margin-bottom:10px">⚠️</div><div style="font-weight:900;font-size:15px;color:#dc2626;margin-bottom:8px">Cuenta corporativa suspendida</div><div style="font-size:12px;color:#991b1b;font-weight:600;line-height:1.6">Tu cuenta corporativa está temporalmente suspendida.<br>Contacta a GUEPACK para más información.</div>'
   formState.insertBefore(aviso, formState.firstChild)
   const btnSubmit = formState.querySelector('.btn.btn-primary')
   if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.style.opacity = '0.45'; btnSubmit.style.cursor = 'not-allowed' }
+}
+
+function _desbloquearFormularioEmpresa() {
+  document.getElementById('aviso-cuenta-suspendida')?.remove()
+  const formState = document.getElementById('form-state')
+  if (!formState) return
+  const btnSubmit = formState.querySelector('.btn.btn-primary')
+  if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = ''; btnSubmit.style.cursor = '' }
+}
+
+function _actualizarEstadoCuentaEmpresa(activo) {
+  if (activo === false) {
+    _bloquearFormularioEmpresa()
+    mostrarToast('⚠️ Tu cuenta corporativa fue suspendida', '#ef4444')
+  } else {
+    _desbloquearFormularioEmpresa()
+    mostrarToast('✅ Tu cuenta corporativa fue reactivada', '#22c55e')
+  }
 }
 
 function _actualizarVisibilidadAgregarParada() {
@@ -1050,9 +1069,19 @@ function _suscribirEmpresaRealtime(empresa) {
       filter: 'id=eq.' + empresa.id
     }, payload => {
       console.log('[empresa-realtime] cambio recibido:', payload.new)
+      const prev = { ..._empresaUsuario }
       Object.assign(_empresaUsuario, payload.new)
       _empresaData = _empresaUsuario
-      _actualizarVisibilidadAgregarParada()
+
+      if (prev.permite_paradas !== _empresaUsuario.permite_paradas) {
+        console.log('[empresa-realtime] permite_paradas:', prev.permite_paradas, '→', _empresaUsuario.permite_paradas)
+        _actualizarVisibilidadAgregarParada()
+      }
+
+      if (prev.pedidos_activos !== _empresaUsuario.pedidos_activos) {
+        console.log('[empresa-realtime] pedidos_activos:', prev.pedidos_activos, '→', _empresaUsuario.pedidos_activos)
+        _actualizarEstadoCuentaEmpresa(_empresaUsuario.pedidos_activos)
+      }
     })
     .subscribe()
 }
