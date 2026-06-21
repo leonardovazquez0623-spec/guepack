@@ -777,7 +777,7 @@
 
 <div id="paradas-container"></div>
 
-<button type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:10px;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
+<button id="btn-agregar-parada-form" type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:10px;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
   ➕ Agregar parada
 </button>
 
@@ -1011,6 +1011,8 @@ async function _cargarEmpresaUsuario(user) {
   }
   selMetodoPago = 'Crédito'
   console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
+  _actualizarVisibilidadAgregarParada()
+  _suscribirEmpresaRealtime(empresa)
 }
 
 function _bloquearFormularioEmpresa() {
@@ -1022,6 +1024,37 @@ function _bloquearFormularioEmpresa() {
   formState.insertBefore(aviso, formState.firstChild)
   const btnSubmit = formState.querySelector('.btn.btn-primary')
   if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.style.opacity = '0.45'; btnSubmit.style.cursor = 'not-allowed' }
+}
+
+function _actualizarVisibilidadAgregarParada() {
+  const permite = !_empresaUsuario || _empresaUsuario.permite_paradas !== false
+
+  // Botón en el formulario de nuevo pedido
+  const btnForm = document.getElementById('btn-agregar-parada-form')
+  if (btnForm) btnForm.style.display = permite ? '' : 'none'
+
+  // Botones en tarjetas de pedido activo
+  if (!permite) {
+    // Ocultar todos inmediatamente — _actualizarCard los mantendrá ocultos mientras permite_paradas=false
+    document.querySelectorAll('[id$="-agregar-parada-wrap"]').forEach(el => { el.style.display = 'none' })
+  }
+  // Si permite=true, la visibilidad individual la maneja _actualizarCard según el estado del pedido
+}
+
+function _suscribirEmpresaRealtime(empresa) {
+  db.channel('empresa-config-' + empresa.id)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'empresas_afiliadas',
+      filter: 'id=eq.' + empresa.id
+    }, payload => {
+      console.log('[empresa-realtime] cambio recibido:', payload.new)
+      Object.assign(_empresaUsuario, payload.new)
+      _empresaData = _empresaUsuario
+      _actualizarVisibilidadAgregarParada()
+    })
+    .subscribe()
 }
 
 function cargarNombreRemitente(user) {
