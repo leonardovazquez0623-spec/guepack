@@ -158,46 +158,23 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 // Mapa de pedidos cargados — usado por abrirModalEntrega y confirmarEntrega
 let _pedidosRep = {}
 
-// ── Sonido GUEPACK (hecho con ❤️ por Claude) ──
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+// ── Sonido GUEPACK ──
+const _notiAudio = new Audio('/noti_repa.mp3')
+_notiAudio.preload = 'auto'
 
-function tocarNota(freq, inicio, dur) {
-  const osc = audioCtx.createOscillator()
-  const gain = audioCtx.createGain()
-  osc.type = 'sine'
-  osc.frequency.value = freq
-  gain.gain.setValueAtTime(0.5, audioCtx.currentTime + inicio)
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + inicio + dur)
-  osc.connect(gain)
-  gain.connect(audioCtx.destination)
-  osc.start(audioCtx.currentTime + inicio)
-  osc.stop(audioCtx.currentTime + inicio + dur + 0.05)
-}
-
-function tocarRugido(inicio) {
-  [80, 60, 40, 35].forEach((freq, i) => {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.type = 'sawtooth'
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + inicio + i * 0.1)
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.4, audioCtx.currentTime + inicio + 1.5)
-    gain.gain.setValueAtTime(0.25, audioCtx.currentTime + inicio)
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + inicio + 1.5)
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.start(audioCtx.currentTime + inicio)
-    osc.stop(audioCtx.currentTime + inicio + 1.6)
-  })
+function _activarSonido() {
+  // Play + pause inmediato desbloquea el audio en el navegador para reproducciones futuras
+  _notiAudio.play().then(() => {
+    _notiAudio.pause()
+    _notiAudio.currentTime = 0
+    document.getElementById('btn-activar-sonido').style.display = 'none'
+  }).catch(e => console.warn('[audio-activar]', e))
 }
 
 function rugidoGuepack() {
-  audioCtx.resume().then(() => {
-    tocarNota(523, 0.0, 0.4)
-    tocarNota(659, 0.5, 0.4)
-    tocarNota(784, 1.0, 0.6)
-    tocarRugido(0.6)
-    if (navigator.vibrate) navigator.vibrate([50, 30, 100, 30, 300])
-  })
+  _notiAudio.currentTime = 0
+  _notiAudio.play().catch(e => console.warn('[audio]', e))
+  if (navigator.vibrate) navigator.vibrate([50, 30, 100, 30, 300])
 }
 
 let _repaUserId = null
@@ -1128,6 +1105,6 @@ async function _subirFotoRepartidor(e) {
 }
 </script>
 
-<button id="btn-activar-sonido" onclick="audioCtx.resume().then(() => document.getElementById('btn-activar-sonido').style.display='none')" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:14px 20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
+<button id="btn-activar-sonido" onclick="_activarSonido()" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:14px 20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
 </body>
 </html>
