@@ -209,6 +209,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')">🏢 Empresas</button>
     <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
+    <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')">👥 Clientes</button>
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
@@ -250,6 +251,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
     <button class="tab" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
+    <button class="tab" onclick="showTab('clientes')">👥 Clientes</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -942,6 +944,15 @@ function initMapsAdmin() {
     </div>
   </div>
 
+  <!-- TAB CLIENTES -->
+  <div id="tab-clientes" class="tab-content">
+    <div class="card">
+      <div class="card-title">👥 Clientes empresariales</div>
+      <div id="clientes-lista"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+    </div>
+    <div id="panel-cliente" style="display:none;margin-top:12px"></div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -1561,6 +1572,7 @@ function showTab(tab, btn) {
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
   if (tab === 'repartidores') cargarRepartidores()
   if (tab === 'referidos') cargarReferidos()
+  if (tab === 'clientes') cargarClientes()
 }
 
 function _moverIndicador(tabEl) {
@@ -3734,6 +3746,133 @@ async function asignarRutas() {
   showToast('✅ Rutas asignadas correctamente')
   document.getElementById('modal-ruta')?.remove()
   _rutaData = null
+}
+
+// ── Clientes empresariales ──────────────────────────────────────────────────
+
+async function cargarClientes() {
+  const el = document.getElementById('clientes-lista')
+  if (!el) return
+  el.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+
+  const { data: usuarios } = await db.from('usuarios')
+    .select('user_id, nombre, email, empresa_codigo, nivel_vip')
+    .not('empresa_codigo', 'is', null)
+    .order('nombre')
+
+  if (!usuarios || !usuarios.length) {
+    el.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes empresariales</div>'
+    return
+  }
+
+  const { data: empresas } = await db.from('empresas_afiliadas').select('codigo, nombre')
+  const empMap = {}
+  empresas?.forEach(e => { empMap[e.codigo] = e.nombre })
+
+  const userIds = usuarios.map(u => u.user_id).filter(Boolean)
+  const { data: pedidosCounts } = await db.from('pedidos').select('user_id').in('user_id', userIds)
+  const countMap = {}
+  pedidosCounts?.forEach(p => { countMap[p.user_id] = (countMap[p.user_id] || 0) + 1 })
+
+  el.innerHTML = usuarios.map(u => `
+    <div onclick="abrirPanelCliente('${u.user_id}','${u.empresa_codigo}')"
+         style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8;cursor:pointer;border-radius:10px;transition:background .15s"
+         onmouseover="this.style.background='#f4f6fb'" onmouseout="this.style.background='transparent'">
+      <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a4fa0,#2563c4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span style="color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px">${(u.nombre||u.email||'?')[0].toUpperCase()}</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.nombre || u.email}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">${empMap[u.empresa_codigo] || u.empresa_codigo}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${u.nivel_vip ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#f59e0b;margin-bottom:2px">👑 VIP ${u.nivel_vip}</div>` : ''}
+        <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600">${countMap[u.user_id] || 0} pedidos</div>
+      </div>
+      <div style="color:#8fa3c0;font-size:14px">›</div>
+    </div>
+  `).join('')
+}
+
+async function abrirPanelCliente(userId, empresaCodigo) {
+  const panel = document.getElementById('panel-cliente')
+  if (!panel) return
+  panel.style.display = 'block'
+  panel.innerHTML = '<div class="card"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>'
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  const [{ data: usuario }, { data: empresa }] = await Promise.all([
+    db.from('usuarios').select('nombre, email, nivel_vip').eq('user_id', userId).single(),
+    db.from('empresas_afiliadas').select('*').eq('codigo', empresaCodigo).single()
+  ])
+
+  if (!empresa) { panel.innerHTML = '<div class="card"><div style="color:#ef4444;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700">Empresa no encontrada</div></div>'; return }
+
+  const tipoTarifa   = empresa.tipo_tarifa   || 'km'
+  const tipoCredito  = empresa.tipo_credito  || 'Semanal'
+  const permiteParadas = empresa.permite_paradas !== false
+  const pedidosActivos = empresa.pedidos_activos !== false
+
+  panel.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:0">🏢 ${empresa.nombre}</div>
+        <button onclick="document.getElementById('panel-cliente').style.display='none'"
+                style="border:none;background:none;font-size:18px;cursor:pointer;color:#8fa3c0;padding:4px">✕</button>
+      </div>
+
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740;margin-bottom:4px">${usuario?.nombre || ''}</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-bottom:16px">${usuario?.email || ''}</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:#f4f6fb;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#8fa3c0;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Tipo tarifa</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:#1a4fa0">${tipoTarifa === 'km' ? '📏 KM' : '📅 Diaria'}</div>
+        </div>
+        <div style="background:#f4f6fb;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#8fa3c0;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Tipo crédito</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:#1a4fa0">💳 ${tipoCredito}</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #f0f3f8;padding-top:14px">
+        <div class="toggle-wrap" style="margin-bottom:14px">
+          <label class="toggle">
+            <input type="checkbox" id="toggle-permite-paradas" ${permiteParadas ? 'checked' : ''}
+                   onchange="_togglePermiteParadas('${empresaCodigo}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">➕ Permitir agregar paradas</div>
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">El cliente puede agregar paradas extra durante el envío</div>
+          </div>
+        </div>
+        <div class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" id="toggle-pedidos-activos" ${pedidosActivos ? 'checked' : ''}
+                   onchange="_togglePedidosActivos('${empresaCodigo}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">✅ Pedidos activos</div>
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">La empresa puede realizar pedidos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+async function _togglePermiteParadas(empresaCodigo, valor) {
+  const { error } = await db.from('empresas_afiliadas').update({ permite_paradas: valor }).eq('codigo', empresaCodigo)
+  if (error) { showToast('❌ Error al guardar'); document.getElementById('toggle-permite-paradas').checked = !valor; return }
+  showToast(valor ? '✅ Paradas habilitadas' : '🚫 Paradas deshabilitadas')
+}
+
+async function _togglePedidosActivos(empresaCodigo, valor) {
+  const { error } = await db.from('empresas_afiliadas').update({ pedidos_activos: valor }).eq('codigo', empresaCodigo)
+  if (error) { showToast('❌ Error al guardar'); document.getElementById('toggle-pedidos-activos').checked = !valor; return }
+  showToast(valor ? '✅ Pedidos activados' : '🚫 Pedidos desactivados')
 }
 </script>
 </div><!-- /#main-wrapper -->

@@ -2128,11 +2128,12 @@ function _actualizarCard(id, estado, repartidor) {
     _mostrarPlacasRepartidor(id, repartidor)
   }
 
-  // Botón agregar parada — solo en estados de tránsito antes de entrega
+  // Botón agregar parada — solo en estados de tránsito y si la empresa lo permite
   const agParadaWrap = document.getElementById('pac-' + id + '-agregar-parada-wrap')
   if (agParadaWrap) {
     const estadosConParada = ['En camino a recoleccion', 'En camino a entrega']
-    agParadaWrap.style.display = estadosConParada.includes(estado) ? 'block' : 'none'
+    const puedeAgregarParada = !_empresaUsuario || _empresaUsuario.permite_paradas !== false
+    agParadaWrap.style.display = (estadosConParada.includes(estado) && puedeAgregarParada) ? 'block' : 'none'
   }
 
   // Timer domicilio
