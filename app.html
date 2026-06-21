@@ -1812,21 +1812,28 @@ function seleccionarFecha(opcion) {
     // Si es después de las 3 PM, "día siguiente" salta un día más
     const diasSumar = hora >= 15 ? 2 : 1
     const fechaBase = new Date(hoy); fechaBase.setDate(hoy.getDate() + diasSumar)
+
+    // Verificar si el recorrido TOCA un fin de semana: puede ser fechaBase misma,
+    // o el día +1 natural (cuando diasSumar=2 salta sábado o domingo)
+    const diaBase   = esFindeSemana(formatearLocal(fechaBase))
+    const diaNatural = esFindeSemana(formatearLocal(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1)))
+    const eraFinDeSemana = diaBase || diaNatural
+
     fechaSeleccionada = formatearLocal(fechaBase)
-    let mostroToastFecha = false
     if (esFindeSemana(fechaSeleccionada)) {
-      const antesLunes = fechaSeleccionada
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
-      mostrarToast('📅 Fin de semana — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
-      mostroToastFecha = true
-      console.log('[fecha] Día siguiente fin de semana — base:', antesLunes, '→ lunes:', fechaSeleccionada)
     }
-    console.log('[fecha] Día siguiente — fecha actual:', formatearLocal(ahora), '| día semana:', ahora.getDay(), '| diasSumar:', diasSumar, '| fecha final:', fechaSeleccionada)
+
+    console.log('[fecha] Día siguiente — fecha actual:', formatearLocal(ahora), '| día semana:', ahora.getDay(), '| diasSumar:', diasSumar, '| fecha final:', fechaSeleccionada, '| eraFinDeSemana:', eraFinDeSemana)
+
+    if (eraFinDeSemana) {
+      mostrarToast('📅 Fin de semana — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
+    }
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-manana-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    if (!mostroToastFecha) verificarDisponibilidad(fechaSeleccionada)
+    if (!eraFinDeSemana) verificarDisponibilidad(fechaSeleccionada)
   } else {
     document.getElementById('input-fecha-custom').style.display = 'block'
     document.getElementById('input-fecha-custom').onchange = (e) => {
