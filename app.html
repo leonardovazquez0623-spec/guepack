@@ -1782,19 +1782,23 @@ function seleccionarFecha(opcion) {
     }
   })
 
+  const labelFecha = (isoStr) => new Date(isoStr + 'T00:00:00')
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
+    .replace(/^\w/, c => c.toUpperCase())
+
   let fechaSeleccionada = null
 
   if (opcion === 'hoy') {
     const hora = ahora.getHours()
     if (hora >= 15) {
       fechaSeleccionada = formatearLocal(manana)
-      mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para mañana', 'var(--orange)')
+      mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
     } else {
       fechaSeleccionada = formatearLocal(hoy)
     }
     if (esFindeSemana(fechaSeleccionada)) {
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
-      mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+      mostrarToast('📅 Fin de semana — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
     }
     console.log('[fecha] Hoy — hora local:', hora, '| día semana:', ahora.getDay(), '| fecha guardada:', fechaSeleccionada)
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
@@ -1813,7 +1817,7 @@ function seleccionarFecha(opcion) {
     if (esFindeSemana(fechaSeleccionada)) {
       const antesLunes = fechaSeleccionada
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
-      mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
+      mostrarToast('📅 Fin de semana — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
       mostroToastFecha = true
       console.log('[fecha] Día siguiente fin de semana — base:', antesLunes, '→ lunes:', fechaSeleccionada)
     }
