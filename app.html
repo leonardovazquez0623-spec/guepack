@@ -1427,6 +1427,7 @@ async function submitRequest() {
   const dir_recoleccion = document.getElementById('dir-recoleccion').value.trim()
   const dir_entrega = document.getElementById('dir-entrega').value.trim()
   const fecha = document.getElementById('fecha-seleccionada').value
+  console.log('[submitRequest] fecha guardada en pedido:', fecha)
   const instrucciones = document.getElementById('instrucciones-recoleccion').value
   const metodoPago = selMetodoPago
 
@@ -1751,13 +1752,25 @@ function proximoLunes(fecha) {
   const dia = d.getDay()
   const diasHastaLunes = dia === 6 ? 2 : 1 // sábado +2, domingo +1
   d.setDate(d.getDate() + diasHastaLunes)
-  return d.toISOString().split('T')[0]
+  // Usar métodos locales para evitar desfase UTC vs GDL (UTC-6)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
 }
 function seleccionarFecha(opcion) {
-  const hoy = new Date()
-  const mañana = new Date()
-  mañana.setDate(mañana.getDate() + 1)
-  const formatear = (d) => d.toISOString().split('T')[0]
+  // Formatear usando métodos locales — toISOString() usa UTC y en GDL (UTC-6)
+  // después de las 6 PM devuelve el día siguiente, causando fechas incorrectas
+  const formatearLocal = (d) => {
+    const y  = d.getFullYear()
+    const m  = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${dd}`
+  }
+
+  const ahora = new Date()
+  const hoy   = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
+  const manana = new Date(hoy); manana.setDate(hoy.getDate() + 1)
 
   const btns = ['btn-hoy-fecha', 'btn-manana-fecha', 'btn-otra-fecha']
   btns.forEach(id => {
@@ -1772,17 +1785,18 @@ function seleccionarFecha(opcion) {
   let fechaSeleccionada = null
 
   if (opcion === 'hoy') {
-    const hora = new Date().getHours()
+    const hora = ahora.getHours()
     if (hora >= 15) {
-      fechaSeleccionada = formatear(mañana)
+      fechaSeleccionada = formatearLocal(manana)
       mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para mañana', 'var(--orange)')
     } else {
-      fechaSeleccionada = formatear(hoy)
+      fechaSeleccionada = formatearLocal(hoy)
     }
     if (esFindeSemana(fechaSeleccionada)) {
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
       mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
     }
+    console.log('[fecha] Hoy — hora local:', hora, '| día semana:', ahora.getDay(), '| fecha guardada:', fechaSeleccionada)
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-hoy-fecha')
@@ -1790,18 +1804,20 @@ function seleccionarFecha(opcion) {
     if (hora < 15) verificarDisponibilidad(fechaSeleccionada, false)
 
   } else if (opcion === 'mañana') {
-    const hora = new Date().getHours()
-    // Si es después de las 3 PM, mañana = pasado mañana
+    const hora = ahora.getHours()
+    // Si es después de las 3 PM, "día siguiente" salta un día más
     const diasSumar = hora >= 15 ? 2 : 1
-    const fechaBase = new Date()
-    fechaBase.setDate(fechaBase.getDate() + diasSumar)
-    fechaSeleccionada = formatear(fechaBase)
+    const fechaBase = new Date(hoy); fechaBase.setDate(hoy.getDate() + diasSumar)
+    fechaSeleccionada = formatearLocal(fechaBase)
     let mostroToastFecha = false
     if (esFindeSemana(fechaSeleccionada)) {
+      const antesLunes = fechaSeleccionada
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
       mostrarToast('📅 Fin de semana — tu pedido se agendó para el lunes ' + fechaSeleccionada, 'var(--orange)')
       mostroToastFecha = true
+      console.log('[fecha] Día siguiente fin de semana — base:', antesLunes, '→ lunes:', fechaSeleccionada)
     }
+    console.log('[fecha] Día siguiente — fecha actual:', formatearLocal(ahora), '| día semana:', ahora.getDay(), '| diasSumar:', diasSumar, '| fecha final:', fechaSeleccionada)
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-manana-fecha')
