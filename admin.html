@@ -3756,9 +3756,9 @@ async function cargarClientes() {
   el.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
 
   const { data: usuarios } = await db.from('usuarios')
-    .select('user_id, nombre, email, empresa_codigo, nivel_vip')
+    .select('user_id, email, empresa_codigo, nivel_vip, total_pedidos')
     .not('empresa_codigo', 'is', null)
-    .order('nombre')
+    .order('email')
 
   if (!usuarios || !usuarios.length) {
     el.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes empresariales</div>'
@@ -3779,10 +3779,10 @@ async function cargarClientes() {
          style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8;cursor:pointer;border-radius:10px;transition:background .15s"
          onmouseover="this.style.background='#f4f6fb'" onmouseout="this.style.background='transparent'">
       <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a4fa0,#2563c4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <span style="color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px">${(u.nombre||u.email||'?')[0].toUpperCase()}</span>
+        <span style="color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px">${(u.email||'?')[0].toUpperCase()}</span>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.nombre || u.email}</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.email}</div>
         <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">${empMap[u.empresa_codigo] || u.empresa_codigo}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -3802,7 +3802,7 @@ async function abrirPanelCliente(userId, empresaCodigo) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const [{ data: usuario }, { data: empresa }] = await Promise.all([
-    db.from('usuarios').select('nombre, email, nivel_vip').eq('user_id', userId).single(),
+    db.from('usuarios').select('email, nivel_vip').eq('user_id', userId).single(),
     db.from('empresas_afiliadas').select('*').eq('codigo', empresaCodigo).single()
   ])
 
@@ -3821,8 +3821,7 @@ async function abrirPanelCliente(userId, empresaCodigo) {
                 style="border:none;background:none;font-size:18px;cursor:pointer;color:#8fa3c0;padding:4px">✕</button>
       </div>
 
-      <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740;margin-bottom:4px">${usuario?.nombre || ''}</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-bottom:16px">${usuario?.email || ''}</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740;margin-bottom:16px">${usuario?.email || ''}</div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
         <div style="background:#f4f6fb;border-radius:10px;padding:12px;text-align:center">
