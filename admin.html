@@ -3838,7 +3838,7 @@ async function abrirPanelCliente(userId, empresaCodigo) {
         <div class="toggle-wrap" style="margin-bottom:14px">
           <label class="toggle">
             <input type="checkbox" id="toggle-permite-paradas" ${permiteParadas ? 'checked' : ''}
-                   onchange="_togglePermiteParadas('${empresaCodigo}', this.checked)">
+                   onchange="_togglePermiteParadas(${empresa.id}, this.checked)">
             <span class="toggle-slider"></span>
           </label>
           <div>
@@ -3849,7 +3849,7 @@ async function abrirPanelCliente(userId, empresaCodigo) {
         <div class="toggle-wrap">
           <label class="toggle">
             <input type="checkbox" id="toggle-pedidos-activos" ${pedidosActivos ? 'checked' : ''}
-                   onchange="_togglePedidosActivos('${empresaCodigo}', this.checked)">
+                   onchange="_togglePedidosActivos(${empresa.id}, this.checked)">
             <span class="toggle-slider"></span>
           </label>
           <div>
@@ -3862,15 +3862,19 @@ async function abrirPanelCliente(userId, empresaCodigo) {
   `
 }
 
-async function _togglePermiteParadas(empresaCodigo, valor) {
-  const { error } = await db.from('empresas_afiliadas').update({ permite_paradas: valor }).eq('codigo', empresaCodigo)
-  if (error) { showToast('❌ Error al guardar'); document.getElementById('toggle-permite-paradas').checked = !valor; return }
+async function _togglePermiteParadas(empresaId, valor) {
+  console.log('[permite_paradas] empresaId:', empresaId, '→ valor:', valor)
+  const { data, error } = await db.from('empresas_afiliadas').update({ permite_paradas: valor }).eq('id', empresaId).select()
+  console.log('[permite_paradas] resultado:', data, 'error:', error)
+  if (error) { showToast('❌ Error: ' + error.message); document.getElementById('toggle-permite-paradas').checked = !valor; return }
   showToast(valor ? '✅ Paradas habilitadas' : '🚫 Paradas deshabilitadas')
 }
 
-async function _togglePedidosActivos(empresaCodigo, valor) {
-  const { error } = await db.from('empresas_afiliadas').update({ pedidos_activos: valor }).eq('codigo', empresaCodigo)
-  if (error) { showToast('❌ Error al guardar'); document.getElementById('toggle-pedidos-activos').checked = !valor; return }
+async function _togglePedidosActivos(empresaId, valor) {
+  console.log('[pedidos_activos] empresaId:', empresaId, '→ valor:', valor)
+  const { data, error } = await db.from('empresas_afiliadas').update({ pedidos_activos: valor }).eq('id', empresaId).select()
+  console.log('[pedidos_activos] resultado:', data, 'error:', error)
+  if (error) { showToast('❌ Error: ' + error.message); document.getElementById('toggle-pedidos-activos').checked = !valor; return }
   showToast(valor ? '✅ Pedidos activados' : '🚫 Pedidos desactivados')
 }
 </script>
