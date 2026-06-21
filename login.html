@@ -258,7 +258,12 @@ async function loginEmail() {
 
   const { error } = await db.auth.signInWithPassword({ email, password })
   if (error) { showError('Correo o contraseña incorrectos'); return; }
-  
+
+  const { data: { session } } = await db.auth.getSession()
+  if (session) {
+    db.from('eventos_trafico').insert({ tipo: 'login', user_id: session.user.id }).then(() => {})
+  }
+
   await redirigirSegunRol(email)
 }
 
@@ -324,12 +329,15 @@ async function registrar() {
     referidoPor = referidoCodigo
   }
 
-  const { error } = await db.auth.signUp({
+  const { data: signUpData, error } = await db.auth.signUp({
     email,
     password,
     options: { data: { nombre, whatsapp, empresa_codigo: empresaCodigo || null, referido_por: referidoPor } }
   })
   if (error) { showError('Error al crear cuenta: ' + error.message); return; }
+  if (signUpData?.user) {
+    db.from('eventos_trafico').insert({ tipo: 'registro', user_id: signUpData.user.id }).then(() => {})
+  }
   showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
 }
 </script>

@@ -972,6 +972,10 @@ async function verificarSesion() {
   await _cargarEmpresaUsuario(session.user)
   await _cargarAvatarCliente(session.user)
   iniciarTour()
+  // Evento retorno: si el usuario ya tiene pedidos previos es visita de retorno
+  db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
+    if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id }).then(() => {})
+  })
 }
 
 async function _cargarEmpresaUsuario(user) {
@@ -1509,6 +1513,7 @@ const { data, error } = await db.from('pedidos').insert({
   if (_cuponActivo) {
     db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
   }
+  if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId }).then(() => {})
 
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo

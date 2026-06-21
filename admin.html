@@ -188,6 +188,7 @@ function initMapsAdmin() {
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -210,6 +211,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')">👥 Clientes</button>
+    <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')">📊 Tráfico</button>
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
@@ -252,6 +254,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="tab" onclick="showTab('clientes')">👥 Clientes</button>
+    <button class="tab" onclick="showTab('trafico')">📊 Tráfico</button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -953,6 +956,44 @@ function initMapsAdmin() {
     <div id="panel-cliente" style="display:none;margin-top:12px"></div>
   </div>
 
+  <!-- TAB TRÁFICO -->
+  <div id="tab-trafico" class="tab-content">
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="setFiltroTrafico('hoy')" id="ftraf-hoy" class="btn btn-secondary" style="font-size:11px;padding:8px 16px">Hoy</button>
+      <button onclick="setFiltroTrafico('semana')" id="ftraf-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Esta semana</button>
+      <button onclick="setFiltroTrafico('mes')" id="ftraf-mes" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este mes</button>
+      <div id="traf-pedidos-activos-badge" style="margin-left:auto;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border-radius:10px;padding:8px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span>
+        <span id="traf-activos-num">–</span> pedidos activos ahora
+      </div>
+    </div>
+    <!-- Stat cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px">
+      <div class="stat-box"><div class="stat-number" id="traf-n-landing">–</div><div class="stat-label">🌐 Landings</div></div>
+      <div class="stat-box"><div class="stat-number" id="traf-n-registro">–</div><div class="stat-label">✍️ Registros</div></div>
+      <div class="stat-box"><div class="stat-number" id="traf-n-login">–</div><div class="stat-label">🔑 Logins</div></div>
+      <div class="stat-box"><div class="stat-number orange" id="traf-n-pedido">–</div><div class="stat-label">📦 Pedidos</div></div>
+      <div class="stat-box"><div class="stat-number" id="traf-n-retorno">–</div><div class="stat-label">🔁 Retornos</div></div>
+    </div>
+    <!-- Gráficas -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div class="card" style="padding:16px">
+        <div class="card-title" style="font-size:10px">📦 Pedidos por hora</div>
+        <canvas id="chart-horas" height="180"></canvas>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="card-title" style="font-size:10px">🍩 Distribución de eventos</div>
+        <canvas id="chart-dona" height="180"></canvas>
+      </div>
+    </div>
+    <!-- Retención -->
+    <div class="card">
+      <div class="card-title">📅 Retención semanal</div>
+      <div id="traf-retencion" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -1573,6 +1614,7 @@ function showTab(tab, btn) {
   if (tab === 'repartidores') cargarRepartidores()
   if (tab === 'referidos') cargarReferidos()
   if (tab === 'clientes') cargarClientes()
+  if (tab === 'trafico') cargarTrafico()
 }
 
 function _moverIndicador(tabEl) {
@@ -3746,6 +3788,190 @@ async function asignarRutas() {
   showToast('✅ Rutas asignadas correctamente')
   document.getElementById('modal-ruta')?.remove()
   _rutaData = null
+}
+
+// ── Analíticas de tráfico ───────────────────────────────────────────────────
+
+let _trafFiltro = 'hoy'
+let _chartHoras = null
+let _chartDona  = null
+
+function setFiltroTrafico(filtro) {
+  _trafFiltro = filtro
+  document.querySelectorAll('[id^="ftraf-"]').forEach(b => {
+    b.className = 'btn'
+    b.style.cssText = 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0'
+  })
+  const activo = document.getElementById('ftraf-' + filtro)
+  if (activo) { activo.className = 'btn btn-secondary'; activo.style.cssText = 'font-size:11px;padding:8px 16px' }
+  cargarTrafico()
+}
+
+function _rangoTrafico(filtro) {
+  const ahora = new Date()
+  if (filtro === 'hoy') {
+    const ini = new Date(ahora); ini.setHours(0,0,0,0)
+    const fin = new Date(ahora); fin.setHours(23,59,59,999)
+    return { ini, fin }
+  }
+  if (filtro === 'semana') {
+    const dia = ahora.getDay(); const diff = dia === 0 ? 6 : dia - 1
+    const ini = new Date(ahora); ini.setDate(ahora.getDate() - diff); ini.setHours(0,0,0,0)
+    const fin = new Date(ini); fin.setDate(ini.getDate() + 6); fin.setHours(23,59,59,999)
+    return { ini, fin }
+  }
+  // mes
+  const ini = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0,0,0,0)
+  const fin = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0, 23,59,59,999)
+  return { ini, fin }
+}
+
+async function cargarTrafico() {
+  const { ini, fin } = _rangoTrafico(_trafFiltro)
+
+  // Pedidos activos en tiempo real
+  db.from('pedidos').select('id', { count: 'exact', head: true })
+    .not('estado', 'in', '("Entregado","Cancelado","Intento de entrega fallido","Pago rechazado")')
+    .then(({ count }) => {
+      const el = document.getElementById('traf-activos-num')
+      if (el) el.textContent = count ?? '–'
+    })
+
+  // Eventos del período
+  const { data: eventos } = await db.from('eventos_trafico')
+    .select('tipo, created_at')
+    .gte('created_at', ini.toISOString())
+    .lte('created_at', fin.toISOString())
+
+  if (!eventos) return
+
+  const conteo = { landing: 0, registro: 0, login: 0, pedido: 0, retorno: 0 }
+  eventos.forEach(e => { if (e.tipo in conteo) conteo[e.tipo]++ })
+
+  document.getElementById('traf-n-landing').textContent  = conteo.landing
+  document.getElementById('traf-n-registro').textContent = conteo.registro
+  document.getElementById('traf-n-login').textContent    = conteo.login
+  document.getElementById('traf-n-pedido').textContent   = conteo.pedido
+  document.getElementById('traf-n-retorno').textContent  = conteo.retorno
+
+  // Gráfica barras: pedidos por hora (solo hoy o período, agrupado por hora)
+  const horasCount = Array(24).fill(0)
+  eventos.filter(e => e.tipo === 'pedido').forEach(e => {
+    const h = new Date(e.created_at).getHours()
+    horasCount[h]++
+  })
+  _renderChartHoras(horasCount)
+
+  // Gráfica dona: distribución de eventos
+  _renderChartDona(conteo)
+
+  // Retención
+  _renderRetencion()
+}
+
+function _renderChartHoras(horasCount) {
+  const ctx = document.getElementById('chart-horas')?.getContext('2d')
+  if (!ctx) return
+  if (_chartHoras) _chartHoras.destroy()
+  _chartHoras = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Array.from({ length: 24 }, (_, i) => i + 'h'),
+      datasets: [{
+        label: 'Pedidos',
+        data: horasCount,
+        backgroundColor: '#1a4fa0',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Montserrat', size: 10 } } },
+        x: { ticks: { font: { family: 'Montserrat', size: 9 } } }
+      }
+    }
+  })
+}
+
+function _renderChartDona(conteo) {
+  const ctx = document.getElementById('chart-dona')?.getContext('2d')
+  if (!ctx) return
+  if (_chartDona) _chartDona.destroy()
+  const labels  = ['Landing', 'Registro', 'Login', 'Pedido', 'Retorno']
+  const valores = [conteo.landing, conteo.registro, conteo.login, conteo.pedido, conteo.retorno]
+  const colores = ['#64748b', '#22c55e', '#3b82f6', '#f05a1a', '#8b5cf6']
+  _chartDona = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: valores, backgroundColor: colores, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Montserrat', size: 10 }, padding: 10 } }
+      }
+    }
+  })
+}
+
+async function _renderRetencion() {
+  const el = document.getElementById('traf-retencion')
+  if (!el) return
+
+  const ahora = new Date()
+  const semActIni = new Date(ahora); const d = ahora.getDay(); semActIni.setDate(ahora.getDate() - (d === 0 ? 6 : d - 1)); semActIni.setHours(0,0,0,0)
+  const semActFin = new Date(semActIni); semActFin.setDate(semActIni.getDate() + 6); semActFin.setHours(23,59,59,999)
+  const semPasIni = new Date(semActIni); semPasIni.setDate(semActIni.getDate() - 7)
+  const semPasFin = new Date(semActFin); semPasFin.setDate(semActFin.getDate() - 7)
+
+  const [{ data: e1 }, { data: e2 }] = await Promise.all([
+    db.from('eventos_trafico').select('user_id').eq('tipo', 'pedido').gte('created_at', semActIni.toISOString()).lte('created_at', semActFin.toISOString()),
+    db.from('eventos_trafico').select('user_id').eq('tipo', 'pedido').gte('created_at', semPasIni.toISOString()).lte('created_at', semPasFin.toISOString())
+  ])
+
+  const usersActual = new Set((e1 || []).map(e => e.user_id).filter(Boolean))
+  const usersPasado = new Set((e2 || []).map(e => e.user_id).filter(Boolean))
+  const retenidos = [...usersActual].filter(u => usersPasado.has(u)).length
+  const nuevos    = [...usersActual].filter(u => !usersPasado.has(u)).length
+  const perdidos  = [...usersPasado].filter(u => !usersActual.has(u)).length
+  const tasaRet   = usersPasado.size > 0 ? Math.round(retenidos / usersPasado.size * 100) : 0
+
+  const fmtSem = d => d.toLocaleDateString('es-MX', { day:'numeric', month:'short' })
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-family:Montserrat,sans-serif;font-size:12px">
+      <thead>
+        <tr style="background:#f4f6fb">
+          <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">PERÍODO</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">CLIENTES ACTIVOS</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#22c55e;font-size:10px">✅ RETENIDOS</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#1a4fa0;font-size:10px">🆕 NUEVOS</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#ef4444;font-size:10px">❌ PERDIDOS</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">TASA RET.</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f0f3f8">
+          <td style="padding:10px 12px;font-weight:700;color:#1a2740">Semana pasada<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semPasIni)} – ${fmtSem(semPasFin)}</span></td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${usersPasado.size}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 12px;font-weight:700;color:#1a2740">Esta semana<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semActIni)} – ${fmtSem(semActFin)}</span></td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${usersActual.size}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#22c55e">${retenidos}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${nuevos}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#ef4444">${perdidos}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:${tasaRet >= 50 ? '#22c55e' : '#f05a1a'}">${tasaRet}%</td>
+        </tr>
+      </tbody>
+    </table>
+  `
 }
 
 // ── Clientes empresariales ──────────────────────────────────────────────────
