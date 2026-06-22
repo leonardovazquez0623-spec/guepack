@@ -403,9 +403,13 @@ function initMapsAdmin() {
 
   <!-- TAB CHATS -->
   <div id="tab-chats" class="tab-content">
-    <div style="margin-bottom:12px">
-      <div class="card-title" style="padding:0;margin-bottom:12px">💬 Soporte</div>
-      <div id="lista-chats-soporte"></div>
+    <div style="margin-bottom:16px">
+      <div class="card-title" style="padding:0;margin-bottom:12px;color:#ef4444">🔴 Requieren atención</div>
+      <div id="lista-chats-escalados"></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div class="card-title" style="padding:0;margin-bottom:12px;color:#22c55e">🤖 Atendidos por IA</div>
+      <div id="lista-chats-soporte-ia"></div>
     </div>
     <div>
       <div class="card-title" style="padding:0;margin-bottom:12px">🏍️ Chats de pedidos</div>
@@ -2589,34 +2593,73 @@ async function updateStatus(id, status, telefono, nombre) {
 }
 
 // ── Chats ──
-let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin'
+let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin', _chatEmail = null
 
 async function cargarChats() {
   const { data } = await db.from('mensajes').select('*').order('created_at', { ascending: false })
   if (!data) return
 
-  // Soporte (pedido_id null)
-  const soporte = data.filter(m => !m.pedido_id && m.tipo === 'soporte')
-  const contSoporte = document.getElementById('lista-chats-soporte')
-  if (soporte.length === 0) {
-    contSoporte.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin tickets de soporte</div>'
-  } else {
-    const ultimo = soporte[0]
-    contSoporte.innerHTML = `
-      <div onclick="abrirChat(null,'admin','Soporte GUEPACK')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid var(--orange);margin-bottom:8px">
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--orange)">🆘 Soporte general</div>
-        <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
-        <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${soporte.length} mensajes</div>
-      </div>`
+  // ── Soporte IA: agrupar por remitente_email ──
+  const soporteData = data.filter(m => m.tipo === 'soporte')
+  const convPorEmail = {}
+  soporteData.forEach(m => {
+    const key = m.remitente_email || 'desconocido'
+    if (!convPorEmail[key]) convPorEmail[key] = []
+    convPorEmail[key].push(m)
+  })
+
+  const convEscaladas = {}, convIA = {}
+  Object.entries(convPorEmail).forEach(([email, msgs]) => {
+    if (msgs.some(m => m.escalado)) convEscaladas[email] = msgs
+    else convIA[email] = msgs
+  })
+
+  const contEsc = document.getElementById('lista-chats-escalados')
+  if (contEsc) {
+    if (Object.keys(convEscaladas).length === 0) {
+      contEsc.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin conversaciones escaladas ✅</div>'
+    } else {
+      contEsc.innerHTML = Object.entries(convEscaladas).map(([email, msgs]) => {
+        const sorted = [...msgs].sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
+        const ultimo = sorted[0]
+        const tieneAdmin = msgs.some(m => m.de === 'admin')
+        const badge = tieneAdmin ? '' : '<span style="background:#ef4444;color:white;border-radius:10px;font-size:9px;font-weight:900;padding:2px 6px;margin-left:6px">SIN RESPUESTA</span>'
+        const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
+        return `<div onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${email}${badge}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
+        </div>`
+      }).join('')
+    }
   }
 
-  // Por pedido
+  const contIA = document.getElementById('lista-chats-soporte-ia')
+  if (contIA) {
+    if (Object.keys(convIA).length === 0) {
+      contIA.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin conversaciones activas</div>'
+    } else {
+      contIA.innerHTML = Object.entries(convIA).map(([email, msgs]) => {
+        const sorted = [...msgs].sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
+        const ultimo = sorted[0]
+        const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
+        return `<div onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #22c55e;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#22c55e">🤖 ${email}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
+        </div>`
+      }).join('')
+    }
+  }
+
+  // ── Chats de pedidos (tipo='chat') ──
   const porPedido = {}
-  data.filter(m => m.pedido_id).forEach(m => {
+  data.filter(m => m.pedido_id && m.tipo !== 'soporte').forEach(m => {
     if (!porPedido[m.pedido_id]) porPedido[m.pedido_id] = []
     porPedido[m.pedido_id].push(m)
   })
   const contPedidos = document.getElementById('lista-chats-pedidos')
+  if (!contPedidos) return
   if (Object.keys(porPedido).length === 0) {
     contPedidos.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin chats de pedidos</div>'
     return
@@ -2633,7 +2676,7 @@ async function cargarChats() {
 }
 
 async function abrirChat(pedidoId, rol, titulo) {
-  _chatPedidoId = pedidoId; _chatRol = rol
+  _chatPedidoId = pedidoId; _chatRol = rol; _chatEmail = null
   _adminUnreadCount = 0
   const _ab = document.getElementById('admin-chat-badge')
   if (_ab) _ab.style.display = 'none'
@@ -2664,7 +2707,13 @@ async function abrirChat(pedidoId, rol, titulo) {
 
 async function _cargarMensajesChat() {
   let q = db.from('mensajes').select('*').order('created_at', { ascending: true })
-  q = _chatPedidoId ? q.eq('pedido_id', _chatPedidoId) : q.is('pedido_id', null).eq('tipo', 'soporte')
+  if (_chatEmail) {
+    q = q.eq('tipo', 'soporte').eq('remitente_email', _chatEmail)
+  } else if (_chatPedidoId) {
+    q = q.eq('pedido_id', _chatPedidoId)
+  } else {
+    q = q.is('pedido_id', null).eq('tipo', 'soporte')
+  }
   const { data } = await q
   const c = document.getElementById('chat-messages')
   if (!c) return
@@ -2672,6 +2721,8 @@ async function _cargarMensajesChat() {
   c.scrollTop = c.scrollHeight
   if (_chatPedidoId) {
     db.from('mensajes').update({ leido: true }).eq('pedido_id', _chatPedidoId).eq('leido', false).then(() => {})
+  } else if (_chatEmail) {
+    db.from('mensajes').update({ leido: true }).eq('tipo', 'soporte').eq('remitente_email', _chatEmail).eq('leido', false).then(() => {})
   } else {
     db.from('mensajes').update({ leido: true }).is('pedido_id', null).eq('tipo', 'soporte').eq('leido', false).then(() => {})
   }
@@ -2681,11 +2732,12 @@ function _agregarBurbuja(msg, scroll = true) {
   const c = document.getElementById('chat-messages')
   if (!c) return
   const esMio = msg.de === 'admin'
+  const esIA = msg.de === 'ia'
   const label = document.createElement('div')
   label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
-  label.textContent = esMio ? '🛡️ Admin' : msg.de === 'cliente' ? '👤 Cliente' : '🏍️ Repartidor'
+  label.textContent = esMio ? '🛡️ Admin' : esIA ? '🤖 IA GUEPACK' : msg.de === 'cliente' ? '👤 Cliente' : '🏍️ Repartidor'
   const burbuja = document.createElement('div')
-  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#f59e0b' : '#f0f0f0'};color:${esMio ? 'white' : '#333'}`
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#f59e0b' : esIA ? '#f0f4fb' : '#f0f0f0'};color:${esMio ? 'white' : '#333'};word-break:break-word`
   burbuja.textContent = msg.texto
   c.appendChild(label); c.appendChild(burbuja)
   if (scroll) c.scrollTop = c.scrollHeight
@@ -2698,12 +2750,46 @@ async function enviarMensajeChat() {
   input.value = ''
   const msg = { texto, de: 'admin', tipo: _chatPedidoId ? 'chat' : 'soporte' }
   if (_chatPedidoId) msg.pedido_id = _chatPedidoId
+  if (_chatEmail) msg.remitente_email = _chatEmail
   await db.from('mensajes').insert(msg)
 }
 
 function cerrarChat() {
   if (_chatChannel) { db.removeChannel(_chatChannel); _chatChannel = null }
   const m = document.getElementById('modal-chat'); if (m) m.remove()
+  _chatEmail = null
+}
+
+async function abrirChatSoporte(email, titulo) {
+  _chatEmail = email; _chatPedidoId = null; _chatRol = 'admin'
+  _adminUnreadCount = 0
+  const _ab = document.getElementById('admin-chat-badge')
+  if (_ab) _ab.style.display = 'none'
+  if (document.getElementById('modal-chat')) cerrarChat()
+  const modal = document.createElement('div')
+  modal.id = 'modal-chat'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
+      <div style="padding:14px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a4fa0">🎧 ${titulo}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:1px">${email}</div>
+        </div>
+        <button onclick="cerrarChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+      </div>
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
+        <input id="chat-input" type="text" placeholder="Responder como soporte humano..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarMensajeChat()">
+        <button onclick="enviarMensajeChat()" style="background:#f59e0b;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  await _cargarMensajesChat()
+  if (_chatChannel) db.removeChannel(_chatChannel)
+  _chatChannel = db.channel('admin-soporte-' + email.replace(/[@.]/g, '_'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes', filter: 'remitente_email=eq.' + email }, payload => _agregarBurbuja(payload.new))
+    .subscribe()
 }
 
 let _adminUnreadCount = 0
@@ -2713,11 +2799,11 @@ if ('Notification' in window && Notification.permission === 'default') Notificat
 db.channel('admin-mensajes-global')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, payload => {
     const msg = payload.new
-    if (msg.de === 'admin') return
-    const esSoporte = !msg.pedido_id && msg.tipo === 'soporte'
+    if (msg.de === 'admin' || msg.de === 'ia') return
+    const esSoporte = msg.tipo === 'soporte'
     const esMismaConv = msg.pedido_id
       ? (_chatPedidoId === msg.pedido_id)
-      : (esSoporte && _chatPedidoId === null)
+      : (esSoporte && (_chatEmail === msg.remitente_email || (!_chatEmail && _chatPedidoId === null)))
     if (esMismaConv && document.getElementById('modal-chat')) return
     _adminUnreadCount++
     const badge = document.getElementById('admin-chat-badge')
@@ -2726,7 +2812,7 @@ db.channel('admin-mensajes-global')
     if (sbadge) { sbadge.textContent = _adminUnreadCount; sbadge.style.display = 'flex' }
     if (Notification.permission === 'granted') {
       const titulo = esSoporte ? '🆘 Nuevo mensaje de soporte' : '💬 Nuevo mensaje'
-      new Notification(titulo, { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'admin-' + (msg.pedido_id || 'soporte') })
+      new Notification(titulo, { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'admin-' + (msg.pedido_id || msg.remitente_email || 'soporte') })
     }
   })
   .subscribe()

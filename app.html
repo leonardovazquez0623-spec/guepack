@@ -958,6 +958,7 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI' // Reemplaza con tu clave de Claude API
 
 // ── Verificar sesión ──
 async function verificarSesion() {
@@ -2410,6 +2411,181 @@ async function enviarMensajeChat() {
 function cerrarChat() {
   if (_chatChannel) { db.removeChannel(_chatChannel); _chatChannel = null }
   const m = document.getElementById('modal-chat'); if (m) m.remove()
+}
+
+// ── Soporte IA ──
+const _SOPORTE_SYSTEM = `Eres el asistente de soporte de GUEPACK Express, una empresa de mensajería local en Guadalajara, México.
+Ayuda a los clientes con:
+- Estado de pedidos (Pendiente, En camino, Entregado)
+- Precios: tarifa base $79, $8 por km adicional
+- Horario: Lunes a Viernes 10:00am - 5:30pm
+- Cancelaciones: gratis en los primeros 5 minutos, $25 después
+- Zonas de cobertura: Guadalajara, Zapopan, Tlaquepaque
+Responde siempre en español, de forma amable y concisa (máximo 3 oraciones). Si no puedes resolver el problema, sugiere que el cliente escriba "agente" para hablar con un humano.`
+
+const _ESCALAR_KW = ['humano', 'agente', 'no me ayudas', 'no me ayuda', 'quiero un agente', 'quiero hablar con alguien']
+
+let _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
+
+function abrirSoporte() {
+  if (document.getElementById('modal-soporte')) return
+  const modal = document.createElement('div')
+  modal.id = 'modal-soporte'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#f05a1a">🎧 Soporte GUEPACK</span>
+        <button onclick="cerrarSoporte()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+      </div>
+      <div id="soporte-step1" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;overflow:auto">
+        <div style="font-size:42px">🎧</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;text-align:center">¿En qué te podemos ayudar?</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#666;text-align:center;max-width:280px">¿Tu consulta está relacionada con un pedido específico?</div>
+        <button onclick="_soporteElegirPedido()" style="width:100%;padding:14px;background:#1a4fa0;color:white;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;margin-top:8px">📦 Sí, es sobre un pedido</button>
+        <button onclick="_soporteIniciarChat(null)" style="width:100%;padding:14px;background:#f0f4fb;color:#1a4fa0;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer">💬 No, es una consulta general</button>
+      </div>
+      <div id="soporte-step2" style="display:none;flex-direction:column;flex:1;min-height:0">
+        <div id="soporte-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
+        <div id="soporte-input-area" style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
+          <input id="soporte-input" type="text" placeholder="Escribe tu mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')_enviarMensajeSoporte()">
+          <button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+        </div>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) cerrarSoporte() })
+  _soporteHistorial = []; _soporteEscalado = false; _soportePedidoId = null; _soporteEmail = null
+}
+
+async function _soporteElegirPedido() {
+  const { data: { session } } = await db.auth.getSession()
+  _soporteEmail = session?.user?.email || 'anonimo@guepack.mx'
+  const { data: pedidos } = await db.from('pedidos').select('id,estado').eq('cliente_email', _soporteEmail).in('estado', ['Pendiente','En camino','Recibido']).order('created_at', { ascending: false }).limit(5)
+  if (!pedidos || pedidos.length === 0) { _soporteIniciarChat(null); return }
+  const step1 = document.getElementById('soporte-step1')
+  if (!step1) return
+  step1.innerHTML = `
+    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2740;margin-bottom:4px;align-self:flex-start">Selecciona tu pedido:</div>
+    ${pedidos.map(p => `<button onclick="_soporteIniciarChat(${p.id})" style="width:100%;padding:12px 16px;background:#f0f4fb;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#1a4fa0;text-align:left;margin-bottom:6px">📦 GK-${p.id} <span style="font-weight:600;color:#888;font-size:12px">· ${p.estado}</span></button>`).join('')}
+    <button onclick="_soporteIniciarChat(null)" style="width:100%;padding:10px;border:none;background:none;font-family:Montserrat,sans-serif;font-size:12px;color:#aaa;cursor:pointer;margin-top:4px">No es sobre ninguno de estos</button>`
+}
+
+async function _soporteIniciarChat(pedidoId) {
+  _soportePedidoId = pedidoId
+  if (!_soporteEmail) {
+    const { data: { session } } = await db.auth.getSession()
+    _soporteEmail = session?.user?.email || 'anonimo@guepack.mx'
+  }
+  const step1 = document.getElementById('soporte-step1')
+  const step2 = document.getElementById('soporte-step2')
+  if (step1) step1.style.display = 'none'
+  if (step2) step2.style.display = 'flex'
+
+  let q = db.from('mensajes').select('*').eq('tipo', 'soporte').eq('remitente_email', _soporteEmail).order('created_at', { ascending: true })
+  if (pedidoId) q = q.eq('pedido_id', pedidoId); else q = q.is('pedido_id', null)
+  const { data: msgs } = await q
+
+  _soporteHistorial = []; _soporteEscalado = false
+  const cont = document.getElementById('soporte-messages')
+  if (!cont) return
+
+  if (!msgs || msgs.length === 0) {
+    _soporteAgBurbuja({ de: 'ia', texto: '¡Hola! Soy el asistente virtual de GUEPACK. ¿En qué te puedo ayudar hoy?' + (pedidoId ? ` Veo que es sobre el pedido GK-${pedidoId}.` : '') }, false)
+  } else {
+    msgs.forEach(m => _soporteAgBurbuja(m, false))
+    _soporteHistorial = msgs.filter(m => m.de === 'cliente' || m.de === 'ia').map(m => ({ role: m.de === 'cliente' ? 'user' : 'assistant', content: m.texto }))
+    _soporteEscalado = msgs.some(m => m.escalado)
+    if (_soporteEscalado) _soporteBloquearInput()
+  }
+  cont.scrollTop = cont.scrollHeight
+  const inp = document.getElementById('soporte-input')
+  if (inp && !_soporteEscalado) inp.focus()
+}
+
+function _soporteAgBurbuja(msg, scroll = true) {
+  const c = document.getElementById('soporte-messages')
+  if (!c) return
+  const esMio = msg.de === 'cliente'
+  const esAdmin = msg.de === 'admin'
+  const label = document.createElement('div')
+  label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
+  label.textContent = esMio ? '👤 Tú' : esAdmin ? '🛡️ Soporte humano' : '🤖 Asistente GUEPACK'
+  const burbuja = document.createElement('div')
+  burbuja.style.cssText = `max-width:78%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#1a4fa0' : esAdmin ? '#f59e0b' : '#f0f4fb'};color:${esMio || esAdmin ? 'white' : '#1a2740'};word-break:break-word`
+  burbuja.textContent = msg.texto
+  c.appendChild(label); c.appendChild(burbuja)
+  if (scroll) c.scrollTop = c.scrollHeight
+}
+
+function _soporteBloquearInput() {
+  const area = document.getElementById('soporte-input-area')
+  if (area) area.innerHTML = '<div style="padding:12px 16px;font-family:Montserrat,sans-serif;font-size:12px;color:#f59e0b;font-weight:700;text-align:center;width:100%">⏳ Un agente humano te responderá pronto</div>'
+}
+
+async function _enviarMensajeSoporte() {
+  const input = document.getElementById('soporte-input')
+  if (!input) return
+  const texto = input.value.trim()
+  if (!texto || _soporteEscalado) return
+  input.value = ''; input.disabled = true
+
+  _soporteAgBurbuja({ de: 'cliente', texto })
+
+  const msgCliente = { texto, de: 'cliente', tipo: 'soporte', remitente_email: _soporteEmail, escalado: false }
+  if (_soportePedidoId) msgCliente.pedido_id = _soportePedidoId
+  await db.from('mensajes').insert(msgCliente)
+
+  if (_ESCALAR_KW.some(k => texto.toLowerCase().includes(k))) {
+    _soporteEscalado = true
+    const respEsc = 'Te estoy conectando con nuestro equipo de soporte 👨‍💼. Un agente te responderá a la brevedad. ¡Gracias por tu paciencia!'
+    _soporteAgBurbuja({ de: 'ia', texto: respEsc })
+    const msgEsc = { texto: respEsc, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: true }
+    if (_soportePedidoId) msgEsc.pedido_id = _soportePedidoId
+    await db.from('mensajes').insert(msgEsc)
+    _soporteBloquearInput()
+    return
+  }
+
+  _soporteHistorial.push({ role: 'user', content: texto })
+
+  const c = document.getElementById('soporte-messages')
+  const tid = 'typing-' + Date.now()
+  if (c) {
+    const t = document.createElement('div')
+    t.id = tid; t.style.cssText = 'align-self:flex-start;background:#f0f4fb;border-radius:18px;padding:10px 18px;font-size:18px;color:#aaa;letter-spacing:4px'
+    t.textContent = '···'; c.appendChild(t); c.scrollTop = c.scrollHeight
+  }
+
+  let respIA = 'Lo siento, hubo un problema al conectar con el asistente. Escribe "agente" para hablar con soporte humano.'
+  try {
+    if (CLAUDE_API_KEY && CLAUDE_API_KEY !== 'TU_CLAVE_CLAUDE_AQUI') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, system: _SOPORTE_SYSTEM, messages: _soporteHistorial })
+      })
+      const j = await r.json()
+      if (j.content?.[0]?.text) respIA = j.content[0].text
+    } else {
+      respIA = 'El asistente virtual no está configurado aún. Escribe "agente" para hablar con soporte humano.'
+    }
+  } catch (e) { console.error('Claude API error:', e) }
+
+  document.getElementById(tid)?.remove()
+  _soporteAgBurbuja({ de: 'ia', texto: respIA })
+  _soporteHistorial.push({ role: 'assistant', content: respIA })
+
+  const msgIA = { texto: respIA, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: false }
+  if (_soportePedidoId) msgIA.pedido_id = _soportePedidoId
+  await db.from('mensajes').insert(msgIA)
+
+  input.disabled = false; input.focus()
+}
+
+function cerrarSoporte() {
+  const m = document.getElementById('modal-soporte'); if (m) m.remove()
+  _soporteHistorial = []; _soporteEscalado = false; _soportePedidoId = null; _soporteEmail = null
 }
 
 const _unreadChat = {}
@@ -4668,7 +4844,7 @@ function _cerrarTour() {
 
 <!-- FAB Soporte -->
 <button
-  onclick="abrirChat(null,'cliente','Soporte GUEPACK')"
+  onclick="abrirSoporte()"
   style="position:fixed;bottom:80px;right:16px;z-index:998;width:56px;height:56px;border-radius:50%;background:#f05a1a;color:white;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(240,90,26,0.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:Montserrat,sans-serif;padding:0;transition:transform .15s,box-shadow .15s"
   onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 28px rgba(240,90,26,0.6)'"
   onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(240,90,26,0.5)'"
