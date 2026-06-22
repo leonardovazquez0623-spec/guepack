@@ -2415,32 +2415,20 @@ function cerrarChat() {
 
 // ── Soporte IA ──
 async function responderConIA(mensajeUsuario, historial) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/chat-soporte-ia', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': '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',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Authorization': 'Bearer ' + SUPABASE_KEY
     },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
-      system: `Eres el asistente de soporte de GUEPACK Express, una paquetería local en Guadalajara, México.
-Ayuda a los clientes con dudas sobre: estados de pedidos, precios (base $115 hasta 5km, $13/km extra),
-horarios (Lunes-Viernes 10am-5:30pm), cancelaciones (gratis en 5 min, $25 después),
-zonas de cobertura GDL/Zapopan/Tlaquepaque.
-Si no puedes resolver el problema o el cliente pide hablar con humano, responde exactamente: [ESCALAR]
-Responde siempre en español, de forma amable y concisa. Máximo 3 oraciones.`,
-      messages: historial
-    })
+    body: JSON.stringify({ messages: historial })
   })
   const data = await response.json()
-  if (!response.ok || !data.content?.[0]?.text) {
-    console.error('Claude API respuesta inesperada:', data)
-    throw new Error(data.error?.message || 'Respuesta inválida de la API')
+  if (!response.ok || !data.respuesta) {
+    console.error('Edge Function error:', data)
+    throw new Error(data.error || 'Error al conectar con el asistente')
   }
-  return data.content[0].text
+  return data.respuesta
 }
 
 let _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
