@@ -10,12 +10,14 @@ Deno.serve(async (req) => {
 
   const { messages } = await req.json()
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
+  console.log('API KEY existe:', !!ANTHROPIC_API_KEY)
+  console.log('API KEY primeros chars:', ANTHROPIC_API_KEY?.substring(0, 10))
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
+      'x-api-key': ANTHROPIC_API_KEY ?? '',
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
@@ -27,6 +29,18 @@ Deno.serve(async (req) => {
   })
 
   const data = await response.json()
+  console.log('Anthropic response status:', response.status)
+  console.log('Anthropic response data:', JSON.stringify(data))
+
+  if (!response.ok) {
+    return new Response(JSON.stringify({
+      respuesta: 'Error: ' + (data.error?.message || 'Error desconocido'),
+      error: data
+    }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    })
+  }
+
   const respuesta = data.content?.[0]?.text || 'Lo siento, no pude procesar tu mensaje.'
 
   return new Response(JSON.stringify({ respuesta }), {
