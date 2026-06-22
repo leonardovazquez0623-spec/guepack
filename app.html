@@ -958,7 +958,7 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI' // Reemplaza con tu clave de Claude API
+const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
 // ── Verificar sesión ──
 async function verificarSesion() {
@@ -2414,16 +2414,30 @@ function cerrarChat() {
 }
 
 // ── Soporte IA ──
-const _SOPORTE_SYSTEM = `Eres el asistente de soporte de GUEPACK Express, una empresa de mensajería local en Guadalajara, México.
-Ayuda a los clientes con:
-- Estado de pedidos (Pendiente, En camino, Entregado)
-- Precios: tarifa base $79, $8 por km adicional
-- Horario: Lunes a Viernes 10:00am - 5:30pm
-- Cancelaciones: gratis en los primeros 5 minutos, $25 después
-- Zonas de cobertura: Guadalajara, Zapopan, Tlaquepaque
-Responde siempre en español, de forma amable y concisa (máximo 3 oraciones). Si no puedes resolver el problema, sugiere que el cliente escriba "agente" para hablar con un humano.`
-
-const _ESCALAR_KW = ['humano', 'agente', 'no me ayudas', 'no me ayuda', 'quiero un agente', 'quiero hablar con alguien']
+async function responderConIA(mensajeUsuario, historial) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1000,
+      system: `Eres el asistente de soporte de GUEPACK Express, una paquetería local en Guadalajara, México.
+Ayuda a los clientes con dudas sobre: estados de pedidos, precios (base $115 hasta 5km, $13/km extra),
+horarios (Lunes-Viernes 10am-5:30pm), cancelaciones (gratis en 5 min, $25 después),
+zonas de cobertura GDL/Zapopan/Tlaquepaque.
+Si no puedes resolver el problema o el cliente pide hablar con humano, responde exactamente: [ESCALAR]
+Responde siempre en español, de forma amable y concisa. Máximo 3 oraciones.`,
+      messages: historial
+    })
+  })
+  const data = await response.json()
+  return data.content[0].text
+}
 
 let _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
 
@@ -2536,17 +2550,6 @@ async function _enviarMensajeSoporte() {
   if (_soportePedidoId) msgCliente.pedido_id = _soportePedidoId
   await db.from('mensajes').insert(msgCliente)
 
-  if (_ESCALAR_KW.some(k => texto.toLowerCase().includes(k))) {
-    _soporteEscalado = true
-    const respEsc = 'Te estoy conectando con nuestro equipo de soporte 👨‍💼. Un agente te responderá a la brevedad. ¡Gracias por tu paciencia!'
-    _soporteAgBurbuja({ de: 'ia', texto: respEsc })
-    const msgEsc = { texto: respEsc, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: true }
-    if (_soportePedidoId) msgEsc.pedido_id = _soportePedidoId
-    await db.from('mensajes').insert(msgEsc)
-    _soporteBloquearInput()
-    return
-  }
-
   _soporteHistorial.push({ role: 'user', content: texto })
 
   const c = document.getElementById('soporte-messages')
@@ -2557,22 +2560,28 @@ async function _enviarMensajeSoporte() {
     t.textContent = '···'; c.appendChild(t); c.scrollTop = c.scrollHeight
   }
 
-  let respIA = 'Lo siento, hubo un problema al conectar con el asistente. Escribe "agente" para hablar con soporte humano.'
+  let respIA = ''
   try {
-    if (CLAUDE_API_KEY && CLAUDE_API_KEY !== 'TU_CLAVE_CLAUDE_AQUI') {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 512, system: _SOPORTE_SYSTEM, messages: _soporteHistorial })
-      })
-      const j = await r.json()
-      if (j.content?.[0]?.text) respIA = j.content[0].text
-    } else {
-      respIA = 'El asistente virtual no está configurado aún. Escribe "agente" para hablar con soporte humano.'
-    }
-  } catch (e) { console.error('Claude API error:', e) }
+    respIA = await responderConIA(texto, _soporteHistorial)
+  } catch (e) {
+    console.error('Claude API error:', e)
+    respIA = 'Hubo un error al conectar con el asistente. Por favor intenta de nuevo.'
+  }
 
   document.getElementById(tid)?.remove()
+
+  if (respIA.includes('[ESCALAR]')) {
+    _soporteEscalado = true
+    const textoEsc = 'Te estoy conectando con nuestro equipo de soporte 👨‍💼. Un agente te responderá a la brevedad. ¡Gracias por tu paciencia!'
+    _soporteAgBurbuja({ de: 'ia', texto: textoEsc })
+    _soporteHistorial.push({ role: 'assistant', content: textoEsc })
+    const msgEsc = { texto: textoEsc, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: true }
+    if (_soportePedidoId) msgEsc.pedido_id = _soportePedidoId
+    await db.from('mensajes').insert(msgEsc)
+    _soporteBloquearInput()
+    return
+  }
+
   _soporteAgBurbuja({ de: 'ia', texto: respIA })
   _soporteHistorial.push({ role: 'assistant', content: respIA })
 
