@@ -193,9 +193,24 @@ let _modalCountdownTimer = null
 
 async function toggleDisponible() {
   if (!_repaData) return
-  const nuevo = !_repaData.disponible
-  const { error } = await db.from('repartidores').update({ disponible: nuevo }).eq('id', _repaData.id)
-  if (error) { _toastRepa('❌ Error al cambiar estado', '#ef4444'); return }
+  const nuevo = !(_repaData.disponible === true)
+
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) { _toastRepa('❌ Sin sesión', '#ef4444'); return }
+  const email = session.user.email
+
+  console.log('[toggleDisponible] Cambiando disponible a:', nuevo, '| email:', email)
+
+  const { data, error } = await db.from('repartidores')
+    .update({ disponible: nuevo })
+    .eq('email', email)
+    .select()
+
+  console.log('[toggleDisponible] Resultado update — data:', data, '| error:', error)
+
+  if (error) { _toastRepa('❌ Error al cambiar estado: ' + error.message, '#ef4444'); return }
+  if (!data?.length) { _toastRepa('❌ No se encontró el repartidor en BD', '#ef4444'); return }
+
   _repaData.disponible = nuevo
   _actualizarBtnDisponible(nuevo)
   _toastRepa(nuevo ? '🟢 Ahora estás disponible' : '🔴 Marcado como no disponible', nuevo ? '#22c55e' : '#ef4444')
