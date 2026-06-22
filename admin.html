@@ -1827,7 +1827,9 @@ async function init() {
   }
   if (!session) { window.location.href = 'login.html'; return; }
   const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
-  if (!data || data.rol !== 'admin') { window.location.href = 'login.html'; return; }
+  if (!data) { window.location.href = 'login.html'; return; }
+  if (data.rol === 'repartidor') { window.location.href = 'repartidor.html'; return; }
+  if (data.rol !== 'admin') { window.location.href = 'app.html'; return; }
   cargarPedidos()
 }
 

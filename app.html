@@ -3110,26 +3110,22 @@ async function _cargarAvatarCliente(user) {
 
   // Query principal — si falla (columna nueva no existe aún), fallback a columnas base
   const { data, error } = await db.from('usuarios')
-    .select('foto_perfil, codigo_referido_propio, nombre, whatsapp, whatsapp_editado, total_pedidos, nivel_vip, envios_gratis')
+    .select('foto_perfil, codigo_referido_propio, whatsapp, whatsapp_editado, total_pedidos, nivel_vip, envios_gratis')
     .eq('user_id', user.id).single()
 
   if (error) {
-    console.warn('[_cargarAvatarCliente] Query principal falló:', error.message, '— usando fallback')
+    console.warn('[_cargarAvatarCliente] Query falló:', error.message)
     const { data: base } = await db.from('usuarios')
-      .select('foto_perfil, nombre, total_pedidos, nivel_vip')
+      .select('foto_perfil, total_pedidos, nivel_vip')
       .eq('user_id', user.id).single()
-    console.log('foto_perfil cargada (fallback):', base?.foto_perfil)
     _clienteFotoUrl = base?.foto_perfil || null
-    _clienteNombre = base?.nombre || user?.user_metadata?.nombre || ''
     _clienteTotalPedidos = base?.total_pedidos || 0
     _clienteNivelVip = base?.nivel_vip || 'normal'
     return
   }
 
-  console.log('foto_perfil cargada:', data?.foto_perfil)
   _clienteFotoUrl = data?.foto_perfil || null
   _clienteCodigoReferido = data?.codigo_referido_propio || null
-  _clienteNombre = data?.nombre || user?.user_metadata?.nombre || ''
   _clienteWhatsapp = data?.whatsapp || ''
   _clienteWhatsappEditado = data?.whatsapp_editado || false
   _clienteTotalPedidos = data?.total_pedidos || 0

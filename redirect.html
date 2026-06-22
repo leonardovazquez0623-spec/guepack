@@ -43,29 +43,24 @@
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+})
 
 async function redirigir() {
   await new Promise(r => setTimeout(r, 1000))
-  
-  const { data: { session } } = await db.auth.getSession()
-  console.log('Session:', session)
-  
+
+  let { data: { session } } = await db.auth.getSession()
   if (!session) {
-    window.location.href = 'login.html'
-    return
+    const { data: refreshData } = await db.auth.refreshSession()
+    session = refreshData?.session
   }
+  if (!session) { window.location.href = 'login.html'; return }
 
   const email = session.user.email
-  console.log('Email:', email)
-  
   const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
-  console.log('Rol data:', data, 'Error:', error)
 
-  if (error || !data) {
-    window.location.href = 'app.html'
-    return
-  }
+  if (error || !data) { window.location.href = 'app.html'; return }
 
   if (data.rol === 'admin') {
     window.location.href = 'admin.html'
