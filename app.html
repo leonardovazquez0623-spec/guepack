@@ -2419,7 +2419,7 @@ async function responderConIA(mensajeUsuario, historial) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': CLAUDE_API_KEY,
+      'x-api-key': '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',
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
@@ -2436,6 +2436,10 @@ Responde siempre en español, de forma amable y concisa. Máximo 3 oraciones.`,
     })
   })
   const data = await response.json()
+  if (!response.ok || !data.content?.[0]?.text) {
+    console.error('Claude API respuesta inesperada:', data)
+    throw new Error(data.error?.message || 'Respuesta inválida de la API')
+  }
   return data.content[0].text
 }
 
