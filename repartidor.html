@@ -376,7 +376,8 @@ async function cargarPedidos(email) {
   const nombreRepa = repaData.nombre
   document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa
   _actualizarBtnDisponible(repaData.disponible !== false)
-  _cargarAvatarRepartidor(repaData)
+  // Prioridad: repartidores.foto_perfil → foto ya cargada en memoria (_repaFotoUrl) → null
+  _cargarAvatarRepartidor({ foto_perfil: repaData.foto_perfil || _repaFotoUrl })
   _suscribirPedidosNuevos()
 
   const { data, error } = await db.from('pedidos')
@@ -1115,7 +1116,8 @@ setInterval(async () => {
 let _repaFotoUrl = null
 
 function _cargarAvatarRepartidor(repaData) {
-  _repaFotoUrl = repaData.foto_perfil || null
+  // Solo sobreescribir si viene un valor — nunca pisar una foto válida con null
+  if (repaData.foto_perfil) _repaFotoUrl = repaData.foto_perfil
   _renderAvatarRepartidor()
 }
 
