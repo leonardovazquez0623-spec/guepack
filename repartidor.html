@@ -315,20 +315,35 @@ async function init() {
 
   _repaUserId = session.user.id
 
-  // Cargar repartidor inmediatamente para disponible y foto_perfil antes de cargarPedidos
-  const { data: repaInit } = await db.from('repartidores')
-    .select('id, nombre, disponible, foto_perfil')
-    .eq('email', session.user.email)
-    .single()
+  // Cargar foto_perfil y disponible en paralelo antes de cargarPedidos
+  const [{ data: usuarioInit }, { data: repaInit }] = await Promise.all([
+    db.from('usuarios').select('foto_perfil').eq('user_id', session.user.id).single(),
+    db.from('repartidores').select('id, nombre, disponible, foto_perfil').eq('email', session.user.email).single()
+  ])
+
+  console.log('[init] usuarios.foto_perfil:', usuarioInit?.foto_perfil)
+  console.log('[init] repartidores.disponible:', repaInit?.disponible, '| repartidores.foto_perfil:', repaInit?.foto_perfil)
 
   if (repaInit) {
     _repaData = repaInit
     document.getElementById('delivery-nombre').textContent = 'Hola, ' + (repaInit.nombre || session.user.email)
-    _actualizarBtnDisponible(repaInit.disponible !== false)
-    _cargarAvatarRepartidor(repaInit)
+
+    const disponible = repaInit.disponible !== false
+    console.log('[init] Aplicando estado disponible:', disponible)
+    _actualizarBtnDisponible(disponible)
+
+    // Preferir foto de usuarios si existe, si no usar la de repartidores
+    const fotoFinal = usuarioInit?.foto_perfil || repaInit.foto_perfil || null
+    console.log('[init] foto_perfil final aplicada:', fotoFinal)
+    _cargarAvatarRepartidor({ ...repaInit, foto_perfil: fotoFinal })
   } else {
     const nombre = session.user.user_metadata?.nombre || session.user.email
     document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre
+    if (usuarioInit?.foto_perfil) {
+      console.log('[init] Solo foto de usuarios:', usuarioInit.foto_perfil)
+      _repaFotoUrl = usuarioInit.foto_perfil
+      _renderAvatarRepartidor()
+    }
   }
 
   cargarPedidos(session.user.email)
