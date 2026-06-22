@@ -387,6 +387,11 @@ async function cargarPedidos(email) {
   }
 
   _repaData = repaData
+  const nombreRepa = repaData.nombre
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa
+  if (!_toggleEnProceso) _actualizarBtnDisponible(repaData.disponible !== false)
+  // Prioridad: repartidores.foto_perfil → foto ya cargada en memoria (_repaFotoUrl) → null
+  _cargarAvatarRepartidor({ foto_perfil: repaData.foto_perfil || _repaFotoUrl })
   _suscribirPedidosNuevos()
 
   const { data, error } = await db.from('pedidos')
