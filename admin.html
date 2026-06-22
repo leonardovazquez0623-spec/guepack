@@ -517,13 +517,16 @@ function initMapsAdmin() {
     <div class="card" style="margin-top:16px">
       <div class="card-title">🏢 Clientes aliados</div>
       <input type="hidden" id="aliado-id">
+      <input type="hidden" id="aliado-logo-url">
       <div class="form-group">
         <label class="form-label">Nombre del negocio</label>
         <input type="text" id="aliado-nombre" class="form-input" placeholder="Ej. Restaurante El Rincón">
       </div>
       <div class="form-group">
-        <label class="form-label">URL del logo</label>
-        <input type="url" id="aliado-logo" class="form-input" placeholder="https://ejemplo.com/logo.png">
+        <label class="form-label">Logo</label>
+        <input type="file" id="aliado-logo-input" accept="image/*" style="display:none" onchange="_previewLogoAliado(this)">
+        <label for="aliado-logo-input" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--blue);color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px">📷 Subir logo</label>
+        <div id="aliado-logo-preview" style="margin-top:10px"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Link del negocio (opcional)</label>
@@ -2965,6 +2968,17 @@ function _resetFormCupon() {
 }
 
 // ── Clientes Aliados ──────────────────────────────────────────────────────
+let _logoAliadoFile = null
+
+function _previewLogoAliado(input) {
+  const file = input.files[0]
+  if (!file) return
+  _logoAliadoFile = file
+  const url = URL.createObjectURL(file)
+  document.getElementById('aliado-logo-preview').innerHTML =
+    `<img src="${url}" style="max-height:80px;max-width:160px;object-fit:contain;border-radius:8px;border:1px solid var(--gray);padding:4px;background:#fafafa">`
+}
+
 async function cargarClientesAliados() {
   const cont = document.getElementById('lista-aliados')
   const { data } = await db.from('clientes_aliados').select('*').order('created_at', { ascending: false })
@@ -2984,10 +2998,21 @@ async function cargarClientesAliados() {
 async function guardarAliado() {
   const id = document.getElementById('aliado-id').value
   const nombre = document.getElementById('aliado-nombre').value.trim()
-  const logo_url = document.getElementById('aliado-logo').value.trim()
   const link_url = document.getElementById('aliado-link').value.trim() || null
   const activo = document.getElementById('aliado-activo').checked
   if (!nombre) { showToast('Ingresa el nombre del negocio', '#ef4444'); return }
+
+  let logo_url = document.getElementById('aliado-logo-url').value || null
+
+  if (_logoAliadoFile) {
+    const ext = _logoAliadoFile.name.split('.').pop() || 'jpg'
+    const ruta = `aliados/${nombre.toLowerCase().replace(/\s+/g, '_')}.${ext}`
+    const { error: upError } = await db.storage.from('anuncios').upload(ruta, _logoAliadoFile, { upsert: true })
+    if (upError) { showToast('❌ Error al subir logo: ' + upError.message, '#ef4444'); return }
+    const { data: urlData } = db.storage.from('anuncios').getPublicUrl(ruta)
+    logo_url = urlData.publicUrl
+  }
+
   if (id) {
     await db.from('clientes_aliados').update({ nombre, logo_url, link_url, activo }).eq('id', id)
     showToast('✅ Cliente actualizado')
@@ -3004,10 +3029,14 @@ async function editarAliado(id) {
   if (!data) return
   document.getElementById('aliado-id').value = data.id
   document.getElementById('aliado-nombre').value = data.nombre
-  document.getElementById('aliado-logo').value = data.logo_url || ''
+  document.getElementById('aliado-logo-url').value = data.logo_url || ''
   document.getElementById('aliado-link').value = data.link_url || ''
   document.getElementById('aliado-activo').checked = data.activo
   document.getElementById('aliado-activo-label').textContent = data.activo ? 'Activo' : 'Inactivo'
+  _logoAliadoFile = null
+  document.getElementById('aliado-logo-preview').innerHTML = data.logo_url
+    ? `<img src="${data.logo_url}" style="max-height:80px;max-width:160px;object-fit:contain;border-radius:8px;border:1px solid var(--gray);padding:4px;background:#fafafa">`
+    : ''
 }
 
 async function eliminarAliado(id) {
@@ -3020,10 +3049,13 @@ async function eliminarAliado(id) {
 function _resetFormAliado() {
   document.getElementById('aliado-id').value = ''
   document.getElementById('aliado-nombre').value = ''
-  document.getElementById('aliado-logo').value = ''
+  document.getElementById('aliado-logo-url').value = ''
+  document.getElementById('aliado-logo-input').value = ''
+  document.getElementById('aliado-logo-preview').innerHTML = ''
   document.getElementById('aliado-link').value = ''
   document.getElementById('aliado-activo').checked = true
   document.getElementById('aliado-activo-label').textContent = 'Activo'
+  _logoAliadoFile = null
 }
 
 // Actualiza labels de toggles en tiempo real
