@@ -303,8 +303,21 @@ async function init() {
 
   _repaUserId = session.user.id
 
-  const nombre = session.user.user_metadata?.nombre || session.user.email
-  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre + 
+  // Cargar repartidor inmediatamente para disponible y foto_perfil antes de cargarPedidos
+  const { data: repaInit } = await db.from('repartidores')
+    .select('id, nombre, disponible, foto_perfil')
+    .eq('email', session.user.email)
+    .single()
+
+  if (repaInit) {
+    _repaData = repaInit
+    document.getElementById('delivery-nombre').textContent = 'Hola, ' + (repaInit.nombre || session.user.email)
+    _actualizarBtnDisponible(repaInit.disponible !== false)
+    _cargarAvatarRepartidor(repaInit)
+  } else {
+    const nombre = session.user.user_metadata?.nombre || session.user.email
+    document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombre
+  }
 
   cargarPedidos(session.user.email)
 }
