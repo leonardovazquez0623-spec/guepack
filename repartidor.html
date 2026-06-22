@@ -134,6 +134,7 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
       <button onclick="cerrarSesion()" class="btn-logout">Salir</button>
+      <button id="btn-disponible" onclick="toggleDisponible()" style="border:2px solid #22c55e;background:rgba(34,197,94,0.2);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .2s">🟢 Disponible</button>
       <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
     </div>
   </div>
@@ -177,7 +178,121 @@ function rugidoGuepack() {
   if (navigator.vibrate) navigator.vibrate([50, 30, 100, 30, 300])
 }
 
-let _repaUserId = null
+let _repaUserId  = null
+let _repaData    = null
+let _pedidosRechazados   = new Set()
+let _modalCountdownTimer = null
+
+// ── Disponibilidad ──────────────────────────────────────────────────────────
+
+async function toggleDisponible() {
+  if (!_repaData) return
+  const nuevo = !_repaData.disponible
+  const { error } = await db.from('repartidores').update({ disponible: nuevo }).eq('id', _repaData.id)
+  if (error) { _toastRepa('❌ Error al cambiar estado', '#ef4444'); return }
+  _repaData.disponible = nuevo
+  _actualizarBtnDisponible(nuevo)
+  _toastRepa(nuevo ? '🟢 Ahora estás disponible' : '🔴 Marcado como no disponible', nuevo ? '#22c55e' : '#ef4444')
+}
+
+function _actualizarBtnDisponible(disponible) {
+  const btn = document.getElementById('btn-disponible')
+  if (!btn) return
+  btn.textContent    = disponible ? '🟢 Disponible' : '🔴 No disponible'
+  btn.style.borderColor  = disponible ? '#22c55e' : '#ef4444'
+  btn.style.background   = disponible ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'
+}
+
+// ── Realtime: nuevos pedidos disponibles ────────────────────────────────────
+
+function _esPedidoFinDeSemanaGDL(isoDate) {
+  const gdl = new Date(new Date(isoDate).getTime() - 6 * 60 * 60 * 1000)
+  const dia  = gdl.getUTCDay() // 0=domingo, 6=sábado
+  return dia === 0 || dia === 6
+}
+
+function _suscribirPedidosNuevos() {
+  db.channel('nuevos-pedidos-repa')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, payload => {
+      const p = payload.new
+      if (p.estado === 'Pendiente' && !p.repartidor && _repaData?.disponible) {
+        // Pedidos creados en fin de semana no se notifican hasta el lunes
+        if (_esPedidoFinDeSemanaGDL(p.created_at)) return
+        if (!_pedidosRechazados.has(p.id)) _mostrarModalNuevoPedido(p)
+      }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, payload => {
+      const p   = payload.new
+      const old = payload.old
+      // Nueva ronda de asignación — mostrar de nuevo aunque se haya rechazado antes
+      if (p.estado === 'Pendiente' && !p.repartidor && _repaData?.disponible &&
+          (p.ronda_asignacion || 0) > (old?.ronda_asignacion || 0)) {
+        _pedidosRechazados.delete(p.id)
+        _mostrarModalNuevoPedido(p)
+      }
+    })
+    .subscribe()
+}
+
+async function _mostrarModalNuevoPedido(pedido) {
+  if (document.getElementById('modal-nuevo-pedido')) return
+  const { data: cfg } = await db.from('config_app').select('value').eq('key', 'tiempo_aceptar').maybeSingle()
+  const segsTotal = parseInt(cfg?.value || '60', 10)
+  rugidoGuepack()
+  const modal = document.createElement('div')
+  modal.id = 'modal-nuevo-pedido'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
+  const esWeekend = _esPedidoFinDeSemanaGDL(pedido.created_at)
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:slideUp .3s ease">
+      <div style="font-size:40px;margin-bottom:8px">📦</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a4fa0;margin-bottom:4px">Nuevo pedido disponible</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#8fa3c0">GK-${pedido.id}</span>
+        ${esWeekend ? '<span style="background:rgba(139,92,246,0.12);color:#7c3aed;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.5px">📅 Pedido del fin de semana</span>' : ''}
+      </div>
+      <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:16px;text-align:left">
+        <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-bottom:3px">RECOLECCIÓN</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_recoleccion || '–'}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-top:10px;margin-bottom:3px">ENTREGA</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_entrega || '–'}</div>
+      </div>
+      <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:#f05a1a;line-height:1;margin-bottom:16px">${segsTotal}</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="_rechazarPedido(${pedido.id})" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#ef4444">❌ RECHAZAR</button>
+        <button onclick="_aceptarPedido(${pedido.id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;cursor:pointer">✅ ACEPTAR</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  let segs = segsTotal
+  _modalCountdownTimer = setInterval(() => {
+    segs--
+    const el = document.getElementById('modal-pedido-countdown')
+    if (el) { el.textContent = segs; el.style.color = segs <= 10 ? '#ef4444' : '#f05a1a' }
+    if (segs <= 0) { clearInterval(_modalCountdownTimer); _rechazarPedido(pedido.id, true) }
+  }, 1000)
+}
+
+async function _aceptarPedido(pedidoId) {
+  clearInterval(_modalCountdownTimer)
+  if (!_repaData) return
+  const { error } = await db.from('pedidos')
+    .update({ repartidor: _repaData.nombre, asignacion_automatica: true })
+    .eq('id', pedidoId)
+    .is('repartidor', null)
+  document.getElementById('modal-nuevo-pedido')?.remove()
+  if (error) { _toastRepa('❌ El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
+  _toastRepa('✅ Pedido GK-' + pedidoId + ' aceptado', '#22c55e')
+  cargarPedidos(_repaData.email)
+}
+
+function _rechazarPedido(pedidoId, silencioso = false) {
+  clearInterval(_modalCountdownTimer)
+  document.getElementById('modal-nuevo-pedido')?.remove()
+  _pedidosRechazados.add(pedidoId)
+  if (!silencioso) _toastRepa('❌ Pedido rechazado', '#ef4444')
+}
 
 async function init() {
   const { data: { session } } = await db.auth.getSession()
@@ -202,9 +317,12 @@ async function cargarPedidos(email) {
     return
   }
 
+  _repaData = repaData
   const nombreRepa = repaData.nombre
-  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa 
+  document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa
+  _actualizarBtnDisponible(repaData.disponible !== false)
   _cargarAvatarRepartidor(repaData)
+  _suscribirPedidosNuevos()
 
   const { data, error } = await db.from('pedidos')
     .select('*')

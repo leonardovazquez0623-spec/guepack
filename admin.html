@@ -921,6 +921,42 @@ function initMapsAdmin() {
       <div class="card-title">Repartidores registrados</div>
       <div id="lista-repartidores"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
     </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">⚙️ Asignación automática</div>
+
+      <div class="toggle-wrap" style="margin-bottom:16px">
+        <label class="toggle">
+          <input type="checkbox" id="cfg-asignacion-activa" onchange="_toggleAsignacionActiva(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Activar asignación automática</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">Notifica a repartidores disponibles cuando llega un pedido</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tiempo para aceptar (seg)</label>
+          <input type="number" id="cfg-tiempo-aceptar" class="form-input" value="60" min="10" max="300">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Pausa entre rondas (seg)</label>
+          <input type="number" id="cfg-pausa-rondas" class="form-input" value="20" min="5" max="120">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Máximo de rondas</label>
+          <input type="number" id="cfg-max-rondas" class="form-input" value="3" min="1" max="10">
+        </div>
+      </div>
+      <button onclick="guardarConfigAsignacion()" style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:16px">💾 Guardar configuración</button>
+
+      <div style="border-top:1px solid #f0f3f8;padding-top:14px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Estado en tiempo real</div>
+        <div id="lista-repa-disponibles"><div style="color:#999;font-size:12px;font-weight:600;font-family:Montserrat,sans-serif">Cargando...</div></div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB REFERIDOS -->
@@ -1304,6 +1340,214 @@ async function guardarRangosEmpresa() {
   empCargarRangos(empId)
 }
 
+// ── Asignación automática ────────────────────────────────────────────────────
+
+let _asignacionActiva = false
+let _tiempoAceptar   = 60
+let _pausaRondas     = 20
+let _maxRondas       = 3
+let _escalacionMap   = {}  // pedidoId -> { lastRoundAt }
+let _escalacionTimer = null
+let _lunesTimer      = null
+let _repaDisponiblesChannel = null
+
+// GDL es UTC-6 permanentemente (sin horario de verano desde 2023)
+function _ahoraGDL() {
+  return new Date(Date.now() - 6 * 60 * 60 * 1000)
+}
+function _esFindeDeSemanaGDL(isoDate) {
+  const gdl = new Date(new Date(isoDate).getTime() - 6 * 60 * 60 * 1000)
+  const dia  = gdl.getUTCDay() // 0=domingo, 6=sábado
+  return dia === 0 || dia === 6
+}
+
+async function cargarConfigAsignacion() {
+  const keys = ['asignacion_activa', 'tiempo_aceptar', 'pausa_rondas', 'max_rondas']
+  const { data } = await db.from('config_app').select('key,value').in('key', keys)
+  const cfg = {}
+  data?.forEach(r => { cfg[r.key] = r.value })
+
+  _asignacionActiva = cfg.asignacion_activa === 'true'
+  _tiempoAceptar    = parseInt(cfg.tiempo_aceptar || '60', 10)
+  _pausaRondas      = parseInt(cfg.pausa_rondas   || '20', 10)
+  _maxRondas        = parseInt(cfg.max_rondas     || '3',  10)
+
+  const tog = document.getElementById('cfg-asignacion-activa')
+  if (tog) tog.checked = _asignacionActiva
+  const ta = document.getElementById('cfg-tiempo-aceptar')
+  if (ta) ta.value = _tiempoAceptar
+  const pr = document.getElementById('cfg-pausa-rondas')
+  if (pr) pr.value = _pausaRondas
+  const mr = document.getElementById('cfg-max-rondas')
+  if (mr) mr.value = _maxRondas
+
+  _iniciarEscalacion()
+  _suscribirRepaDisponibles()
+}
+
+async function guardarConfigAsignacion() {
+  const activa = document.getElementById('cfg-asignacion-activa').checked
+  const ta     = document.getElementById('cfg-tiempo-aceptar').value
+  const pr     = document.getElementById('cfg-pausa-rondas').value
+  const mr     = document.getElementById('cfg-max-rondas').value
+
+  const rows = [
+    { key: 'asignacion_activa', value: String(activa) },
+    { key: 'tiempo_aceptar',    value: ta },
+    { key: 'pausa_rondas',      value: pr },
+    { key: 'max_rondas',        value: mr }
+  ]
+  const { error } = await db.from('config_app').upsert(rows, { onConflict: 'key' })
+  if (error) { showToast('❌ Error al guardar'); return }
+
+  _asignacionActiva = activa
+  _tiempoAceptar    = parseInt(ta, 10)
+  _pausaRondas      = parseInt(pr, 10)
+  _maxRondas        = parseInt(mr, 10)
+  showToast('✅ Configuración de asignación guardada')
+  _iniciarEscalacion()
+}
+
+async function _toggleAsignacionActiva(valor) {
+  await db.from('config_app').upsert({ key: 'asignacion_activa', value: String(valor) }, { onConflict: 'key' })
+  _asignacionActiva = valor
+  _iniciarEscalacion()
+}
+
+function _iniciarEscalacion() {
+  if (_escalacionTimer) clearInterval(_escalacionTimer)
+  if (_lunesTimer)      clearInterval(_lunesTimer)
+  if (!_asignacionActiva) return
+  _escalacionTimer = setInterval(_verificarEscalacion, 15000)
+  // Verificador del lunes: corre cada minuto
+  _lunesTimer = setInterval(_verificarActivacionLunes, 60000)
+}
+
+async function _verificarEscalacion() {
+  if (!_asignacionActiva) return
+  const { data: pendientes } = await db.from('pedidos')
+    .select('id, direccion_recoleccion, direccion_entrega, ronda_asignacion, created_at')
+    .eq('estado', 'Pendiente')
+    .is('repartidor', null)
+
+  const ahora = Date.now()
+  for (const p of (pendientes || [])) {
+    // Pedidos creados en fin de semana se procesan solo el lunes — no escalar durante el weekend
+    if (_esFindeDeSemanaGDL(p.created_at)) continue
+
+    if (!_escalacionMap[p.id]) {
+      _escalacionMap[p.id] = { lastRoundAt: new Date(p.created_at).getTime() }
+    }
+    const secsTranscurridos = (ahora - _escalacionMap[p.id].lastRoundAt) / 1000
+    const umbral = _tiempoAceptar + _pausaRondas
+    if (secsTranscurridos < umbral) continue
+
+    const rondaActual = p.ronda_asignacion || 0
+    if (rondaActual >= _maxRondas - 1) {
+      await _pushAdmin_sinAsignar(p)
+      _escalacionMap[p.id].lastRoundAt = ahora + 300000 // no volver a notificar por 5 min
+    } else {
+      const nuevaRonda = rondaActual + 1
+      await db.from('pedidos').update({ ronda_asignacion: nuevaRonda }).eq('id', p.id)
+      _escalacionMap[p.id].lastRoundAt = ahora
+      await _pushTodosRepartidores(p)
+    }
+  }
+  // Limpiar pedidos ya asignados/no pendientes
+  for (const pid of Object.keys(_escalacionMap)) {
+    if (!pendientes?.find(p => p.id == pid)) delete _escalacionMap[pid]
+  }
+}
+
+async function _verificarActivacionLunes() {
+  if (!_asignacionActiva) return
+  const gdl = _ahoraGDL()
+  // Solo lunes (1) a las 10:00 AM hora GDL
+  if (gdl.getUTCDay() !== 1 || gdl.getUTCHours() !== 10) return
+
+  // Evitar ejecutar más de una vez el mismo lunes
+  const yyyy = gdl.getUTCFullYear()
+  const mm   = String(gdl.getUTCMonth() + 1).padStart(2, '0')
+  const dd   = String(gdl.getUTCDate()).padStart(2, '0')
+  const claveHoy = `guepack_lunes_activado_${yyyy}-${mm}-${dd}`
+  if (localStorage.getItem(claveHoy)) return
+  localStorage.setItem(claveHoy, '1')
+
+  // Buscar pedidos del fin de semana sin asignar
+  const { data: pendientes } = await db.from('pedidos')
+    .select('id, direccion_recoleccion, direccion_entrega, ronda_asignacion, created_at')
+    .eq('estado', 'Pendiente')
+    .is('repartidor', null)
+
+  const pendientesWeekend = (pendientes || []).filter(p => _esFindeDeSemanaGDL(p.created_at))
+  if (!pendientesWeekend.length) return
+
+  console.log('[lunes-activacion] Procesando', pendientesWeekend.length, 'pedidos del fin de semana')
+
+  // Verificar que haya repartidores disponibles
+  const { data: repas } = await db.from('repartidores').select('id').eq('disponible', true)
+  if (!repas?.length) {
+    console.warn('[lunes-activacion] Sin repartidores disponibles')
+    return
+  }
+
+  // Iniciar el proceso de asignación para cada pedido del fin de semana
+  for (const p of pendientesWeekend) {
+    _escalacionMap[p.id] = { lastRoundAt: Date.now() - (_tiempoAceptar + _pausaRondas) * 1000 - 1000 }
+    await _pushTodosRepartidores(p)
+  }
+}
+
+async function _pushTodosRepartidores(pedido) {
+  const { data: repas } = await db.from('repartidores').select('email').eq('disponible', true)
+  if (!repas?.length) return
+  const emails = repas.map(r => r.email).filter(Boolean)
+  const { data: users } = await db.from('usuarios').select('fcm_token').in('email', emails)
+  for (const u of (users || [])) {
+    if (!u.fcm_token) continue
+    fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb' },
+      body: JSON.stringify({ token: u.fcm_token, title: '📦 Nuevo pedido disponible', body: 'GK-' + pedido.id + ' · ' + (pedido.direccion_recoleccion || '') })
+    }).catch(() => {})
+  }
+}
+
+async function _pushAdmin_sinAsignar(pedido) {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+  const { data: u } = await db.from('usuarios').select('fcm_token').eq('email', session.user.email).maybeSingle()
+  if (!u?.fcm_token) return
+  fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb' },
+    body: JSON.stringify({ token: u.fcm_token, title: '⚠️ Pedido GK-' + pedido.id + ' sin asignar', body: 'Revisión manual requerida — sin repartidores disponibles' })
+  }).catch(() => {})
+}
+
+function _suscribirRepaDisponibles() {
+  if (_repaDisponiblesChannel) db.removeChannel(_repaDisponiblesChannel)
+  _renderRepaDisponibles()
+  _repaDisponiblesChannel = db.channel('admin-repa-disponibles')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'repartidores' }, () => {
+      _renderRepaDisponibles()
+    })
+    .subscribe()
+}
+
+async function _renderRepaDisponibles() {
+  const el = document.getElementById('lista-repa-disponibles')
+  if (!el) return
+  const { data } = await db.from('repartidores').select('nombre, disponible').order('nombre')
+  if (!data?.length) { el.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;font-family:Montserrat,sans-serif">Sin repartidores</div>'; return }
+  el.innerHTML = data.map(r => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f3f8">
+      <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">${r.nombre}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:3px 10px;border-radius:20px;${r.disponible !== false ? 'background:rgba(34,197,94,0.12);color:#22c55e' : 'background:rgba(239,68,68,0.1);color:#ef4444'}">${r.disponible !== false ? '🟢 Disponible' : '🔴 No disponible'}</div>
+    </div>
+  `).join('')
+}
+
 // ── Repartidores ─────────────────────────────────────────────────────────────
 
 async function cargarRepartidores() {
@@ -1611,7 +1855,7 @@ function showTab(tab, btn) {
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
-  if (tab === 'repartidores') cargarRepartidores()
+  if (tab === 'repartidores') { cargarRepartidores(); cargarConfigAsignacion() }
   if (tab === 'referidos') cargarReferidos()
   if (tab === 'clientes') cargarClientes()
   if (tab === 'trafico') cargarTrafico()
