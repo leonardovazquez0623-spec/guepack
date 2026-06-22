@@ -188,15 +188,26 @@ let _repaUserId  = null
 let _repaData    = null
 let _pedidosRechazados   = new Set()
 let _modalCountdownTimer = null
+let _toggleEnProceso     = false  // evita que cargarPedidos sobreescriba el botón durante el toggle
 
 // ── Disponibilidad ──────────────────────────────────────────────────────────
 
 async function toggleDisponible() {
-  if (!_repaData) return
+  if (!_repaData || _toggleEnProceso) return
+  _toggleEnProceso = true
+
+  const btn = document.getElementById('btn-disponible')
+  if (btn) btn.disabled = true
+
   const nuevo = !(_repaData.disponible === true)
 
   const { data: { session } } = await db.auth.getSession()
-  if (!session) { _toastRepa('❌ Sin sesión', '#ef4444'); return }
+  if (!session) {
+    _toastRepa('❌ Sin sesión', '#ef4444')
+    _toggleEnProceso = false
+    if (btn) btn.disabled = false
+    return
+  }
   const email = session.user.email
 
   console.log('[toggleDisponible] Cambiando disponible a:', nuevo, '| email:', email)
@@ -207,6 +218,9 @@ async function toggleDisponible() {
     .select()
 
   console.log('[toggleDisponible] Resultado update — data:', data, '| error:', error)
+
+  _toggleEnProceso = false
+  if (btn) btn.disabled = false
 
   if (error) { _toastRepa('❌ Error al cambiar estado: ' + error.message, '#ef4444'); return }
   if (!data?.length) { _toastRepa('❌ No se encontró el repartidor en BD', '#ef4444'); return }
@@ -375,7 +389,7 @@ async function cargarPedidos(email) {
   _repaData = repaData
   const nombreRepa = repaData.nombre
   document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa
-  _actualizarBtnDisponible(repaData.disponible !== false)
+  if (!_toggleEnProceso) _actualizarBtnDisponible(repaData.disponible !== false)
   // Prioridad: repartidores.foto_perfil → foto ya cargada en memoria (_repaFotoUrl) → null
   _cargarAvatarRepartidor({ foto_perfil: repaData.foto_perfil || _repaFotoUrl })
   _suscribirPedidosNuevos()
