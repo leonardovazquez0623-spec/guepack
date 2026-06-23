@@ -2576,7 +2576,7 @@ async function _soporteIniciarChat(pedidoId) {
     const { data: { session } } = await db.auth.getSession()
     _soporteEmail = session?.user?.email || 'anonimo@guepack.mx'
   }
-  const _lsKey = 'guepack_chat_finalizado_' + _soporteEmail + '_' + (pedidoId || 'general')
+  const _lsKey = 'guepack_chat_finalizado_' + (pedidoId || 'general')
   const step1 = document.getElementById('soporte-step1')
   const step2 = document.getElementById('soporte-step2')
   if (step1) step1.style.display = 'none'
@@ -2722,21 +2722,28 @@ async function _finalizarConversacionSoporte() {
       .update({ leido: true })
       .eq('tipo', 'soporte')
       .eq('remitente_email', _soporteEmail)
-    localStorage.setItem('guepack_chat_finalizado_' + _soporteEmail + '_' + (_soportePedidoId || 'general'), 'true')
+    localStorage.setItem('guepack_chat_finalizado_' + (_soportePedidoId || 'general'), 'true')
   }
   cerrarSoporte()
   mostrarToast('✅ Conversación finalizada', '#22c55e')
 }
 
 function _iniciarNuevaConversacion(pedidoId) {
-  if (_soporteEmail) {
-    localStorage.removeItem('guepack_chat_finalizado_' + _soporteEmail + '_' + (pedidoId || 'general'))
-  }
+  localStorage.removeItem('guepack_chat_finalizado_' + (pedidoId || 'general'))
+  _soporteHistorial = []
+  _soporteEscalado = false
+  _soportePedidoId = pedidoId
   const cont = document.getElementById('soporte-messages')
-  if (cont) cont.innerHTML = ''
+  if (cont) {
+    cont.innerHTML = ''
+    _soporteAgBurbuja({ de: 'ia', texto: '¡Hola! Soy el asistente virtual de GUEPACK. ¿En qué te puedo ayudar hoy?' + (pedidoId ? ` Veo que es sobre el pedido GK-${pedidoId}.` : '') }, false)
+  }
   const inputArea = document.getElementById('soporte-input-area')
   if (inputArea) inputArea.innerHTML = '<input id="soporte-input" type="text" placeholder="Escribe tu mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key===\'Enter\')_enviarMensajeSoporte()"><button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>'
-  _soporteIniciarChat(pedidoId)
+  const btnFin = document.getElementById('btn-finalizar-soporte')
+  if (btnFin) btnFin.style.display = 'inline-block'
+  const inp = document.getElementById('soporte-input')
+  if (inp) inp.focus()
 }
 
 const _unreadChat = {}
