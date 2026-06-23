@@ -287,6 +287,22 @@ function _suscribirPedidosNuevos() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, payload => {
       const p   = payload.new
       const old = payload.old
+
+      // Pedido cancelado por el cliente — retirar card si está asignado a este repartidor
+      if ((p.estado === 'Cancelado' || p.estado === 'Pago rechazado') &&
+          p.repartidor === _repaData?.nombre) {
+        const card = document.getElementById('pedido-card-' + p.id)
+        if (card) {
+          card.style.transition = 'opacity .4s'
+          card.style.opacity = '0'
+          setTimeout(() => card.remove(), 420)
+        }
+        delete _pedidosRep[p.id]
+        const etiqueta = p.estado === 'Cancelado' ? 'cancelado' : 'marcado como pago rechazado'
+        _toastRepa('❌ El pedido GK-' + p.id + ' fue ' + etiqueta + ' por el cliente', '#ef4444')
+        return
+      }
+
       // Nueva ronda de asignación — mostrar de nuevo aunque se haya rechazado antes
       if (p.estado === 'Pendiente' && !p.repartidor && _repaData?.disponible &&
           (p.ronda_asignacion || 0) > (old?.ronda_asignacion || 0)) {
@@ -425,7 +441,7 @@ async function cargarPedidos(email) {
   const { data, error } = await db.from('pedidos')
     .select('*')
     .eq('repartidor', nombreRepa)
-    .neq('estado', 'Entregado')
+    .not('estado', 'in', '(Cancelado,Pago rechazado,Entregado)')
     .order('created_at', { ascending: false })
 
   if (error) { console.error(error); return; }
@@ -452,7 +468,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
   data.forEach(pedido => {
     _pedidosRep[pedido.id] = pedido
     contenedor.innerHTML += `
-      <div class="route-card">
+      <div class="route-card" id="pedido-card-${pedido.id}">
         <div class="route-top">
           <div>
             <div class="route-number">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
