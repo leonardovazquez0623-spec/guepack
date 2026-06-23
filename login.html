@@ -180,12 +180,31 @@
       <input type="password" id="login-password" class="form-input" placeholder="••••••••">
     </div>
     <button class="btn btn-primary" onclick="loginEmail()">Iniciar Sesión</button>
+    <div style="text-align:center;margin-bottom:10px">
+      <a onclick="showForgot()" style="font-size:12px;color:#8fa3c0;font-weight:700;cursor:pointer;text-decoration:none">¿Olvidaste tu contraseña?</a>
+    </div>
     <div class="divider">O</div>
     <button class="btn btn-google" onclick="loginGoogle()">
       <img src="https://www.google.com/favicon.ico" width="18"> Entrar con Google
     </button>
     <div class="toggle-text">
       ¿No tienes cuenta? <a onclick="showRegister()">Regístrate aquí</a>
+    </div>
+  </div>
+
+  <!-- RECUPERAR CONTRASEÑA -->
+  <div id="forgot-form" style="display:none">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:2px">Recuperar contraseña</div>
+      <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-top:4px">Te enviaremos un link a tu correo</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Correo electrónico</label>
+      <input type="email" id="forgot-email" class="form-input" placeholder="tucorreo@gmail.com">
+    </div>
+    <button class="btn btn-primary" onclick="enviarRecuperacion()">Enviar link de recuperación</button>
+    <div class="toggle-text">
+      <a onclick="showLogin()" style="color:#1a4fa0;font-weight:700;cursor:pointer">← Volver al inicio de sesión</a>
     </div>
   </div>
 
@@ -297,7 +316,45 @@ async function loginGoogle() {
 }
 function showLogin() {
   document.getElementById('register-form').style.display = 'none'
+  document.getElementById('forgot-form').style.display = 'none'
   document.getElementById('login-form').style.display = 'block'
+}
+
+function showForgot() {
+  document.getElementById('login-form').style.display = 'none'
+  document.getElementById('register-form').style.display = 'none'
+  document.getElementById('forgot-form').style.display = 'block'
+  document.getElementById('error-msg').style.display = 'none'
+  document.getElementById('success-msg').style.display = 'none'
+}
+
+function mostrarToastLogin(msg) {
+  const t = document.createElement('div')
+  t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#22c55e;color:white;padding:16px 28px;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center'
+  t.textContent = msg
+  document.body.appendChild(t)
+  setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400) }, 3000)
+}
+
+async function enviarRecuperacion() {
+  const email = document.getElementById('forgot-email').value.trim()
+  if (!email) { showError('Ingresa tu correo electrónico'); return }
+
+  const btn = document.querySelector('#forgot-form .btn-primary')
+  btn.textContent = 'Enviando...'
+  btn.disabled = true
+
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://guepack.com/cambiar-password.html'
+  })
+
+  btn.textContent = 'Enviar link de recuperación'
+  btn.disabled = false
+
+  if (error) { showError('Error al enviar: ' + error.message); return }
+
+  mostrarToastLogin('✅ Te enviamos un link a tu correo')
+  setTimeout(() => showLogin(), 3200)
 }
 
 async function registrar() {
