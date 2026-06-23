@@ -2629,21 +2629,26 @@ async function cargarChats() {
 
   // ── Soporte IA: agrupar por remitente_email ──
   const soporteData = data.filter(m => m.tipo === 'soporte')
+  console.log('[cargarChats] total:', data.length, '| soporte:', soporteData.length)
   const convPorEmail = {}
   soporteData.forEach(m => {
     const key = m.remitente_email || 'desconocido'
     if (!convPorEmail[key]) convPorEmail[key] = []
     convPorEmail[key].push(m)
   })
+  console.log('[cargarChats] emails:', Object.keys(convPorEmail))
+  soporteData.filter(m => m.escalado).forEach(m => console.log('[escalado]', m.remitente_email, '| leido:', m.leido, '|', m.texto?.substring(0, 40)))
 
   const convActivas = Object.fromEntries(
     Object.entries(convPorEmail).filter(([, msgs]) => msgs.some(m => !m.leido))
   )
+  console.log('[cargarChats] activas:', Object.keys(convActivas))
   const convEscaladas = {}, convIA = {}
   Object.entries(convActivas).forEach(([email, msgs]) => {
     if (msgs.some(m => m.escalado)) convEscaladas[email] = msgs
     else convIA[email] = msgs
   })
+  console.log('[cargarChats] escaladas:', Object.keys(convEscaladas), '| IA:', Object.keys(convIA))
 
   const contEsc = document.getElementById('lista-chats-escalados')
   if (contEsc) {
@@ -2828,13 +2833,21 @@ async function abrirChatSoporte(email, titulo) {
 
 async function _cerrarTicketAdmin() {
   if (!_chatEmail) return
+  const emailCerrado = _chatEmail
   await db.from('mensajes')
     .update({ leido: true })
     .eq('tipo', 'soporte')
-    .eq('remitente_email', _chatEmail)
+    .eq('remitente_email', emailCerrado)
   cerrarChat()
   showToast('✅ Ticket cerrado')
-  cargarChats()
+  ;['lista-chats-escalados', 'lista-chats-soporte-ia'].forEach(id => {
+    const cont = document.getElementById(id)
+    if (!cont) return
+    Array.from(cont.children).forEach(el => {
+      if (el.getAttribute('onclick')?.includes(emailCerrado)) el.remove()
+    })
+  })
+  await cargarChats()
 }
 
 let _adminUnreadCount = 0
