@@ -358,10 +358,14 @@ async function _mostrarModalNuevoPedido(pedido) {
 async function _aceptarPedido(pedidoId) {
   clearInterval(_modalCountdownTimer)
   if (!_repaData) return
-  const { error } = await db.from('pedidos')
+  console.log('[aceptar] pedidoId:', pedidoId)
+  console.log('[aceptar] nombre repartidor (_repaData.nombre):', _repaData.nombre)
+  console.log('[aceptar] _repaData completo:', _repaData)
+  const { data, error } = await db.from('pedidos')
     .update({ repartidor: _repaData.nombre, asignacion_automatica: true })
     .eq('id', pedidoId)
-    .is('repartidor', null)
+    .select()
+  console.log('[aceptar] resultado update — data:', data, '| error:', error)
   document.getElementById('modal-nuevo-pedido')?.remove()
   if (error) { _toastRepa('❌ El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
   _toastRepa('✅ Pedido GK-' + pedidoId + ' aceptado', '#22c55e')
