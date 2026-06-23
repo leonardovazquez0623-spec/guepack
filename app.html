@@ -1136,7 +1136,7 @@ async function cargarPedidoActivoGuardado() {
       if (err2 || !pd || estadosFinales.includes(pd.estado)) continue
       if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
       const minutos = (new Date() - new Date(pd.created_at)) / 60000
-      mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente)
+      mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente, pd.created_at)
     }
     return
   }
@@ -1157,7 +1157,7 @@ async function cargarPedidoActivoGuardado() {
     idsValidos.push(pd.id)
     if (pd.token_rastreo) _pedidoTokens[pd.id] = pd.token_rastreo
     const minutos = (ahora - new Date(pd.created_at)) / 60000
-    mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente)
+    mostrarPedidoActivo(pd.id, pd.estado, pd.repartidor, minutos > 5, pd.nombre_remitente, pd.created_at)
   }
 
   // Sincronizar localStorage con los IDs reales de Supabase
@@ -1552,7 +1552,7 @@ const { data, error } = await db.from('pedidos').insert({
   }
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
-  mostrarPedidoActivo(folioReal, 'Pendiente', null, false, nombreRemitente)
+  mostrarPedidoActivo(folioReal, 'Pendiente', null, false, nombreRemitente, new Date().toISOString())
 resetForm()
 
 const toast = document.createElement('div')
@@ -2154,13 +2154,16 @@ function togglePedidoCard(id) {
   arrow.textContent = visible ? '▶' : '▼'
 }
 
-function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, nombreRemitente = null) {
+function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, nombreRemitente = null, createdAt = null) {
   const container = document.getElementById('pedido-activo-container')
 
   if (!document.getElementById('pac-' + id)) {
     container.insertAdjacentHTML('beforeend', _crearCardHTML(id, nombreRemitente))
   }
   container.style.display = 'block'
+
+  if (!_pedidos[id]) _pedidos[id] = {}
+  if (createdAt) _pedidos[id].createdAt = createdAt
 
   _actualizarCard(id, estado, repartidor)
   _cargarParadasPedido(id)
@@ -2224,6 +2227,51 @@ function _vencerTimerCancelar(id) {
   btn.style.color = '#ef4444'
 }
 
+function _iniciarTimerAgregarParada(id) {
+  if (_pedidos[id]?.intervalAgParada) {
+    clearInterval(_pedidos[id].intervalAgParada)
+    _pedidos[id].intervalAgParada = null
+  }
+
+  const wrap = document.getElementById('pac-' + id + '-agregar-parada-wrap')
+  if (!wrap) return
+
+  const createdAt = _pedidos[id]?.createdAt
+  const LIMITE_SEGS = 600
+  const elapsed = createdAt ? (Date.now() - new Date(createdAt).getTime()) / 1000 : LIMITE_SEGS
+  let segsRestantes = Math.floor(LIMITE_SEGS - elapsed)
+
+  if (segsRestantes <= 0) {
+    wrap.style.display = 'none'
+    return
+  }
+
+  wrap.style.display = 'block'
+  wrap.style.opacity = '1'
+  const btn = wrap.querySelector('button')
+
+  function _fmtContador(segs) {
+    const m = Math.floor(segs / 60), s = segs % 60
+    return `➕ Agregar parada (${m}:${s < 10 ? '0' : ''}${s})`
+  }
+
+  if (btn) btn.textContent = _fmtContador(segsRestantes)
+
+  if (!_pedidos[id]) _pedidos[id] = {}
+  _pedidos[id].intervalAgParada = setInterval(() => {
+    segsRestantes--
+    if (segsRestantes <= 0) {
+      clearInterval(_pedidos[id].intervalAgParada)
+      _pedidos[id].intervalAgParada = null
+      wrap.style.transition = 'opacity .6s'
+      wrap.style.opacity = '0'
+      setTimeout(() => { wrap.style.display = 'none'; wrap.style.opacity = ''; wrap.style.transition = '' }, 650)
+      return
+    }
+    if (btn) btn.textContent = _fmtContador(segsRestantes)
+  }, 1000)
+}
+
 function _actualizarCard(id, estado, repartidor) {
   const c = ESTADO_CONFIG[estado] || ESTADO_CONFIG['Pendiente']
   const card = document.getElementById('pac-' + id)
@@ -2243,12 +2291,17 @@ function _actualizarCard(id, estado, repartidor) {
     _mostrarPlacasRepartidor(id, repartidor)
   }
 
-  // Botón agregar parada — solo en estados de tránsito y si la empresa lo permite
+  // Botón agregar parada — solo en estados de tránsito, si la empresa lo permite, y dentro de 10 min
   const agParadaWrap = document.getElementById('pac-' + id + '-agregar-parada-wrap')
   if (agParadaWrap) {
     const estadosConParada = ['En camino a recoleccion', 'En camino a entrega']
     const puedeAgregarParada = !_empresaUsuario || _empresaUsuario.permite_paradas !== false
-    agParadaWrap.style.display = (estadosConParada.includes(estado) && puedeAgregarParada) ? 'block' : 'none'
+    if (estadosConParada.includes(estado) && puedeAgregarParada) {
+      _iniciarTimerAgregarParada(id)
+    } else {
+      if (_pedidos[id]?.intervalAgParada) { clearInterval(_pedidos[id].intervalAgParada); _pedidos[id].intervalAgParada = null }
+      agParadaWrap.style.display = 'none'
+    }
   }
 
   // Timer domicilio
@@ -2303,6 +2356,7 @@ function cerrarCardPedido(id) {
   if (_pedidos[id]) {
     if (_pedidos[id].intervalCancelar) clearInterval(_pedidos[id].intervalCancelar)
     if (_pedidos[id].intervalDomicilio) clearInterval(_pedidos[id].intervalDomicilio)
+    if (_pedidos[id].intervalAgParada) clearInterval(_pedidos[id].intervalAgParada)
     if (_pedidos[id].realtimeChannel) db.removeChannel(_pedidos[id].realtimeChannel)
     delete _pedidos[id]
   }
