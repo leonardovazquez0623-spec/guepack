@@ -2308,7 +2308,10 @@ function _actualizarCard(id, estado, repartidor) {
   const badge = document.getElementById('pac-' + id + '-badge')
   badge.className = 'status-badge ' + c.badge
   badge.textContent = estado
-  document.getElementById('pac-' + id + '-estado').textContent = c.texto
+  const textoEstado = (estado === 'Pendiente' && repartidor)
+    ? '🏍️ Mensajero asignado - preparándose para salir'
+    : c.texto
+  document.getElementById('pac-' + id + '-estado').textContent = textoEstado
 
   const repaEl = document.getElementById('pac-' + id + '-repartidor')
   const chatWrap = document.getElementById('pac-' + id + '-chat-wrap')
