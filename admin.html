@@ -2665,7 +2665,8 @@ async function cargarChats() {
   console.log('[convEscaladas]', Object.keys(convEscaladas).map(k => k + ':' + convEscaladas[k].msgs.length + 'msgs'))
 
   // ── IA: soporte activos que NO sean de ningún grupo escalado ──
-  const emailsEsc = new Set(Object.values(gruposEsc).map(g => g.email).filter(Boolean))
+  // SIN filter(Boolean): null también se incluye para excluir mensajes de remitente_email=null de convIA
+  const emailsEsc = new Set(Object.values(gruposEsc).map(g => g.email))
   const pidEsc    = new Set(Object.values(gruposEsc).map(g => g.pedidoId).filter(Boolean))
   const convIA = {}
   ;(todosSoporte || []).filter(m => m.leido !== true).forEach(m => {
@@ -2688,7 +2689,16 @@ async function cargarChats() {
         const tieneAdmin = msgs.some(m => m.de === 'admin')
         const badge = tieneAdmin ? '' : '<span style="background:#ef4444;color:white;border-radius:10px;font-size:9px;font-weight:900;padding:2px 6px;margin-left:6px">SIN RESPUESTA</span>'
         const pedidoLabel = pedidoId ? ` · GK-${pedidoId}` : ''
-        const displayEmail = email || 'desconocido'
+        // Recuperar email real: primero desde msgs, luego por proximidad temporal en todosSoporte
+        let emailReal = email || msgs.find(m => m.remitente_email?.includes('@'))?.remitente_email
+        if (!emailReal && ultimo) {
+          const escTime = new Date(ultimo.created_at)
+          emailReal = (todosSoporte || [])
+            .filter(m => m.remitente_email?.includes('@') && new Date(m.created_at) <= escTime)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]?.remitente_email
+        }
+        const displayEmail = emailReal || 'desconocido'
+        console.log('[card escalado] displayEmail:', displayEmail, '| pedidoId:', pedidoId)
         return `<div data-email="${displayEmail}" onclick="abrirChatSoporte('${displayEmail}','${displayEmail.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${displayEmail}${badge}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo?.de}: ${ultimo?.texto}</div>
@@ -2869,18 +2879,24 @@ async function abrirChatSoporte(email, titulo) {
 async function _cerrarTicketAdmin() {
   if (!_chatEmail) return
   const emailCerrado = _chatEmail
-  const { error } = await db.from('mensajes')
-    .update({ leido: true })
-    .eq('tipo', 'soporte')
-    .eq('remitente_email', emailCerrado)
-  console.log('[cerrarTicket] update leido=true para', emailCerrado, '| error:', error)
+  const tieneEmailReal = emailCerrado.includes('@')
+  // Marcar escalado=false y leido=true
+  // Si es email real: filtrar por remitente_email
+  // Si es fallback (sin_email/desconocido): filtrar por remitente_email IS NULL + escalado=true
+  let q = db.from('mensajes').update({ leido: true, escalado: false }).eq('tipo', 'soporte')
+  if (tieneEmailReal) {
+    q = q.eq('remitente_email', emailCerrado)
+  } else {
+    q = q.is('remitente_email', null).eq('escalado', true)
+  }
+  const { error } = await q
+  console.log('[cerrarTicket] email:', emailCerrado, '| tieneEmailReal:', tieneEmailReal, '| error:', error)
   cerrarChat()
   showToast('✅ Ticket cerrado')
-  // Eliminar del DOM usando data-email (más confiable que onclick.includes)
+  // Eliminar del DOM por data-email — sin recargar toda la lista
   ;['lista-chats-escalados', 'lista-chats-soporte-ia'].forEach(id => {
     document.querySelectorAll(`#${id} [data-email="${emailCerrado}"]`).forEach(el => el.remove())
   })
-  await cargarChats()
 }
 
 let _adminUnreadCount = 0
