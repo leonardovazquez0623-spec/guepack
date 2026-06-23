@@ -217,6 +217,7 @@ let _repaData    = null
 let _pedidosRechazados   = new Set()
 let _modalCountdownTimer = null
 let _toggleEnProceso     = false  // evita que cargarPedidos sobreescriba el botón durante el toggle
+let _realtimeSuscrito    = false
 
 // ── Disponibilidad ──────────────────────────────────────────────────────────
 
@@ -275,6 +276,7 @@ function _esPedidoFinDeSemanaGDL(isoDate) {
 }
 
 function _suscribirPedidosNuevos() {
+  if (_realtimeSuscrito) return
   db.channel('nuevos-pedidos-repa')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, payload => {
       const p = payload.new
@@ -310,12 +312,13 @@ function _suscribirPedidosNuevos() {
       }
     })
     .subscribe()
+  _realtimeSuscrito = true
 }
 
 async function _mostrarModalNuevoPedido(pedido) {
   if (document.getElementById('modal-nuevo-pedido')) return
-  const { data: cfg } = await db.from('config_app').select('value').eq('key', 'tiempo_aceptar').maybeSingle()
-  const segsTotal = parseInt(cfg?.value || '60', 10)
+  const { data: cfg } = await db.from('configuracion').select('tiempo_aceptar').eq('id', 1).maybeSingle()
+  const segsTotal = parseInt(cfg?.tiempo_aceptar || '60', 10)
   rugidoGuepack()
   const modal = document.createElement('div')
   modal.id = 'modal-nuevo-pedido'
@@ -418,6 +421,7 @@ async function init() {
     }
   }
 
+  _suscribirPedidosNuevos()
   cargarPedidos(session.user.email)
 }
 
@@ -435,7 +439,6 @@ async function cargarPedidos(email) {
   if (!_toggleEnProceso) _actualizarBtnDisponible(repaData.disponible !== false)
   // Prioridad: repartidores.foto_perfil → foto ya cargada en memoria (_repaFotoUrl) → null
   _cargarAvatarRepartidor({ foto_perfil: repaData.foto_perfil || _repaFotoUrl })
-  _suscribirPedidosNuevos()
 
   const { data, error } = await db.from('pedidos')
     .select('*')
