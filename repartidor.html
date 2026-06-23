@@ -298,8 +298,7 @@ function _suscribirPedidosNuevos() {
           setTimeout(() => card.remove(), 420)
         }
         delete _pedidosRep[p.id]
-        const etiqueta = p.estado === 'Cancelado' ? 'cancelado' : 'marcado como pago rechazado'
-        _toastRepa('❌ El pedido GK-' + p.id + ' fue ' + etiqueta + ' por el cliente', '#ef4444')
+        _mostrarModalCancelacion(p.id, p.estado, old?.estado || '')
         return
       }
 
@@ -534,6 +533,37 @@ localStorage.setItem('guepack_pedidos_count', data.length)
 
 const _timerParadaIntervals = {}
 const _paradasChannels = {}
+
+function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
+  document.getElementById('modal-cancelacion-repa')?.remove()
+  _notiAudio.currentTime = 0
+  _notiAudio.play().catch(e => console.warn('[audio]', e))
+  if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500])
+
+  const esPagoRechazado = estadoNuevo === 'Pago rechazado'
+  const estabaEnCamino  = estadoAnterior === 'En camino a recoleccion'
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-cancelacion-repa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div style="width:72px;height:72px;background:rgba(239,68,68,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:38px">❌</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#ef4444;letter-spacing:1.5px;line-height:1.15;margin-bottom:10px">
+        Pedido GK-${pedidoId}<br>${esPagoRechazado ? 'Pago Rechazado' : 'Cancelado'}
+      </div>
+      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:600;color:#4b5563;margin-bottom:${estabaEnCamino ? '14px' : '24px'}">
+        ${esPagoRechazado ? 'El pago del cliente fue rechazado' : 'El cliente canceló este envío'}
+      </div>
+      ${estabaEnCamino ? `
+      <div style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);border-radius:10px;padding:11px 14px;margin-bottom:22px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#92400e;text-align:left">
+        ⚠️ Ya no es necesario que te dirijas al domicilio de recolección
+      </div>` : ''}
+      <button onclick="document.getElementById('modal-cancelacion-repa').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:pointer">Entendido</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
 
 function _toastRepa(msg, color = '#1a4fa0') {
   const t = document.createElement('div')
