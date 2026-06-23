@@ -672,6 +672,35 @@
     border-radius: 14px !important;
   }
   .pac-container { z-index: 99999 !important; }
+  .loader--4 {
+    --anim-duration: 0.5s;
+    aspect-ratio: 1 / 1;
+    perspective: 50vmin;
+    transform-style: preserve-3d;
+    transform: rotateX(55deg);
+    width: 40px;
+    color: var(--blue);
+    position: relative;
+  }
+  .loader--4::before,
+  .loader--4::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    aspect-ratio: 1 / 1;
+    border: 2px solid currentColor;
+    top: 25%;
+    left: 25%;
+    border-radius: 50%;
+    animation: loader-4 var(--anim-duration) cubic-bezier(0.07, 0.59, 0.56, 0.88) infinite;
+  }
+  .loader--4::after { animation-delay: calc(var(--anim-duration) / 2 * -1); }
+  @keyframes loader-4 {
+    0% { transform: scale(0.2) translateZ(-8vmin); }
+    0%, 100% { opacity: 0; }
+    66% { opacity: 0.8; transform: scale(1.2) translateZ(6vmin); }
+    100% { transform: scale(1.8) translateZ(2vmin); }
+  }
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
@@ -940,8 +969,7 @@
         <div class="card-title">📋 Mis envíos</div>
         <div id="lista-historial">
           <div class="empty-state">
-            <span class="empty-icon">📋</span>
-            <div class="empty-text">Cargando pedidos...</div>
+            <div class="loader--4" style="margin:0 auto"></div>
           </div>
         </div>
       </div>
@@ -2607,8 +2635,8 @@ async function _enviarMensajeSoporte() {
   const tid = 'typing-' + Date.now()
   if (c) {
     const t = document.createElement('div')
-    t.id = tid; t.style.cssText = 'align-self:flex-start;background:#f0f4fb;border-radius:18px;padding:10px 18px;font-size:18px;color:#aaa;letter-spacing:4px'
-    t.textContent = '···'; c.appendChild(t); c.scrollTop = c.scrollHeight
+    t.id = tid; t.style.cssText = 'align-self:flex-start;background:#f0f4fb;border-radius:18px;padding:10px 16px;display:flex;align-items:center;justify-content:center;min-width:56px'
+    t.innerHTML = '<div class="loader--4" style="width:28px"></div>'; c.appendChild(t); c.scrollTop = c.scrollHeight
   }
 
   let respIA = ''
@@ -3585,7 +3613,7 @@ async function _abrirDrawer() {
           <button onclick="_compartirCodigoReferido()" style="padding:6px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">🔗 Compartir</button>
         </div>
         ${_clienteEnviosGratis > 0 ? `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;color:#16a34a;margin-bottom:10px">🎟️ ${_clienteEnviosGratis} envíos gratis disponibles</div>` : ''}
-        <div id="drawer-referidos-lista" style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600">Cargando...</div>
+        <div id="drawer-referidos-lista"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
       </div>
 
       <div style="margin-bottom:8px">
@@ -3604,7 +3632,7 @@ async function _abrirDrawer() {
       <div style="margin-top:18px;margin-bottom:8px">
         <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">💳 Mi crédito<div style="flex:1;height:1px;background:#eef1f6"></div></div>
         <div id="drawer-credito-content">
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;padding:8px 0">Cargando...</div>
+          <div class="loader--4" style="margin:8px 0;width:24px"></div>
         </div>
       </div>` : ''}
 
@@ -4069,7 +4097,7 @@ async function _detectarZonaEntrega(place) {
   const result = document.getElementById('zona-detect-result')
   if (result) {
     result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
-    result.innerHTML = '<span style="font-size:16px">⏳</span><span>Verificando zona...</span>'
+    result.innerHTML = '<div class="loader--4" style="width:28px;flex-shrink:0"></div><span>Verificando zona...</span>'
   }
 
   const loc = place.geometry?.location
@@ -4491,7 +4519,7 @@ async function _calcularCotizacionMultiParada() {
   const result = document.getElementById('zona-detect-result')
   if (result) {
     result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
-    result.innerHTML = '<span style="font-size:16px">⏳</span><span>Calculando ruta completa (' + totalParadas + ' paradas)...</span>'
+    result.innerHTML = '<div class="loader--4" style="width:28px;flex-shrink:0"></div><span>Calculando ruta completa (' + totalParadas + ' paradas)...</span>'
   }
   const quoteBox = document.getElementById('quote-display')
   if (quoteBox) quoteBox.style.display = 'none'

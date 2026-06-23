@@ -151,6 +151,35 @@
     #btn-lluvia-container { display: none !important; }
     .container { max-width: 900px; margin: 0 auto; padding: 24px; }
   }
+  .loader--4 {
+    --anim-duration: 0.5s;
+    aspect-ratio: 1 / 1;
+    perspective: 50vmin;
+    transform-style: preserve-3d;
+    transform: rotateX(55deg);
+    width: 40px;
+    color: var(--blue);
+    position: relative;
+  }
+  .loader--4::before,
+  .loader--4::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    aspect-ratio: 1 / 1;
+    border: 2px solid currentColor;
+    top: 25%;
+    left: 25%;
+    border-radius: 50%;
+    animation: loader-4 var(--anim-duration) cubic-bezier(0.07, 0.59, 0.56, 0.88) infinite;
+  }
+  .loader--4::after { animation-delay: calc(var(--anim-duration) / 2 * -1); }
+  @keyframes loader-4 {
+    0% { transform: scale(0.2) translateZ(-8vmin); }
+    0%, 100% { opacity: 0; }
+    66% { opacity: 0.8; transform: scale(1.2) translateZ(6vmin); }
+    100% { transform: scale(1.8) translateZ(2vmin); }
+  }
 </style>
 <script>
 // Callback real — Google Maps lo llama cuando termina de cargar
@@ -289,8 +318,7 @@ function initMapsAdmin() {
 </div>
     <div id="lista-pedidos">
       <div class="empty-state">
-        <span class="empty-icon">📦</span>
-        <div class="empty-text">Cargando pedidos...</div>
+        <div class="loader--4" style="margin:0 auto"></div>
       </div>
     </div>
   </div>
@@ -462,7 +490,7 @@ function initMapsAdmin() {
 
     <div class="card-title" style="padding:0;margin-bottom:12px">📋 Anuncios guardados</div>
     <div id="lista-anuncios">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
     <!-- NOTIFICACIÓN PUSH A TODOS -->
@@ -513,7 +541,7 @@ function initMapsAdmin() {
       <button class="btn btn-primary" onclick="guardarCupon()" style="width:100%;margin-bottom:16px">💾 Guardar cupón</button>
       <div class="card-title" style="padding:0;margin-bottom:12px;font-size:12px">📋 Cupones guardados</div>
       <div id="lista-cupones">
-        <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+        <div class="loader--4" style="margin:12px auto"></div>
       </div>
     </div>
 
@@ -547,7 +575,7 @@ function initMapsAdmin() {
       <button class="btn btn-primary" onclick="guardarAliado()" style="width:100%;margin-bottom:16px">💾 Guardar cliente</button>
       <div class="card-title" style="padding:0;margin-bottom:12px;font-size:12px">📋 Clientes guardados</div>
       <div id="lista-aliados">
-        <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+        <div class="loader--4" style="margin:12px auto"></div>
       </div>
     </div>
   </div>
@@ -582,7 +610,7 @@ function initMapsAdmin() {
 
     <div class="card-title" style="padding:0;margin-bottom:12px">🏪 Clientes registrados</div>
     <div id="lista-clientes-widget">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
   </div>
 
@@ -594,19 +622,19 @@ function initMapsAdmin() {
       <div class="card-title">⭐ Promedio general</div>
       <div id="cal-promedio-estrellas" style="font-size:36px;letter-spacing:4px;margin-bottom:4px">★★★★★</div>
       <div id="cal-promedio-num" style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--orange);line-height:1">—</div>
-      <div id="cal-total" style="font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:4px">Cargando...</div>
+      <div id="cal-total" style="font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:4px"><div class="loader--4" style="width:20px;margin:4px auto"></div></div>
     </div>
 
     <!-- Por repartidor -->
     <div class="card-title" style="padding:0;margin-bottom:12px">🏍️ Por repartidor</div>
     <div id="cal-por-repartidor" style="margin-bottom:16px">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
     <!-- Últimas calificaciones -->
     <div class="card-title" style="padding:0;margin-bottom:12px">💬 Últimas calificaciones</div>
     <div id="cal-lista">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
   </div>
@@ -670,7 +698,7 @@ function initMapsAdmin() {
             </tr>
           </thead>
           <tbody id="fin-tabla-body">
-            <tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-weight:600">Cargando...</td></tr>
+            <tr><td colspan="5" style="padding:20px;text-align:center"><div class="loader--4" style="margin:0 auto"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -679,7 +707,7 @@ function initMapsAdmin() {
     <!-- Clientes VIP -->
     <div class="card-title" style="padding:0;margin:20px 0 12px">🥇 Clientes VIP</div>
     <div id="fin-vip-lista">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
   </div>
@@ -708,7 +736,7 @@ function initMapsAdmin() {
 
     <div class="card-title" style="padding:0;margin-bottom:12px">👥 Todos los clientes</div>
     <div id="vip-lista-completa">
-      <div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>
+      <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
   </div>
@@ -761,7 +789,7 @@ function initMapsAdmin() {
 
     <!-- Lista de zonas -->
     <div id="zonas-lista">
-      <div class="empty-state"><span class="empty-icon">🗺️</span><div class="empty-text">Cargando zonas...</div></div>
+      <div class="empty-state"><div class="loader--4" style="margin:0 auto"></div></div>
     </div>
 
     <!-- Formulario nueva/editar zona -->
@@ -895,11 +923,11 @@ function initMapsAdmin() {
 
     <div class="card">
       <div class="card-title">Empresas registradas</div>
-      <div id="lista-empresas"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="lista-empresas"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div class="card" style="margin-top:16px">
       <div class="card-title">💰 Corte de crédito</div>
-      <div id="corte-credito-lista"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="corte-credito-lista"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
   </div>
 
@@ -926,7 +954,7 @@ function initMapsAdmin() {
     </div>
     <div class="card" style="margin-top:16px">
       <div class="card-title">Repartidores registrados</div>
-      <div id="lista-repartidores"><div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="lista-repartidores"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -961,7 +989,7 @@ function initMapsAdmin() {
 
       <div style="border-top:1px solid #f0f3f8;padding-top:14px">
         <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Estado en tiempo real</div>
-        <div id="lista-repa-disponibles"><div style="color:#999;font-size:12px;font-weight:600;font-family:Montserrat,sans-serif">Cargando...</div></div>
+        <div id="lista-repa-disponibles"><div class="loader--4" style="margin:12px auto"></div></div>
       </div>
     </div>
   </div>
@@ -978,15 +1006,15 @@ function initMapsAdmin() {
     </div>
     <div class="card" style="margin-top:12px">
       <div class="card-title">⏳ Pendientes de aprobación</div>
-      <div id="lista-ref-pendientes"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="lista-ref-pendientes"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div class="card" style="margin-top:12px">
       <div class="card-title">📋 Historial</div>
-      <div id="lista-ref-historial"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="lista-ref-historial"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div class="card" style="margin-top:12px">
       <div class="card-title">🎟️ Envíos gratis por cliente</div>
-      <div id="lista-envios-gratis"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="lista-envios-gratis"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
   </div>
 
@@ -994,7 +1022,7 @@ function initMapsAdmin() {
   <div id="tab-clientes" class="tab-content">
     <div class="card">
       <div class="card-title">👥 Clientes empresariales</div>
-      <div id="clientes-lista"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>
+      <div id="clientes-lista"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div id="panel-cliente" style="display:none;margin-top:12px"></div>
   </div>
@@ -1629,7 +1657,7 @@ function _resetFormRepartidor() {
 async function cargarCorteCreditoEmpresas() {
   const cont = document.getElementById('corte-credito-lista')
   if (!cont) return
-  cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Cargando...</div>'
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
 
   const { data: empresas } = await db.from('empresas_afiliadas').select('*').eq('activa', true)
   if (!empresas?.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin empresas registradas</div>'; return }
@@ -2117,7 +2145,7 @@ async function _aDetectarZonaEntrega(place) {
   const result = document.getElementById('a-zona-detect-result')
   result.style.display = 'flex'
   result.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'
-  result.innerHTML = '<span style="font-size:16px">⏳</span><span>Verificando zona...</span>'
+  result.innerHTML = '<div class="loader--4" style="width:28px;flex-shrink:0"></div><span>Verificando zona...</span>'
 
   const { data: zonas } = await db.from('zonas_cobertura').select('*').eq('activa', true)
 
@@ -2838,7 +2866,7 @@ let _pubSubiendo = false
 async function cargarAnuncios() {
   const cont = document.getElementById('lista-anuncios')
   if (!cont) return
-  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
   const { data } = await db.from('anuncios').select('*').order('created_at', { ascending: false })
   if (!data || data.length === 0) {
     cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin anuncios guardados</div>'
@@ -3173,7 +3201,7 @@ function wcSugerirCodigo(nombre) {
 async function cargarClientesWidget() {
   const cont = document.getElementById('lista-clientes-widget')
   if (!cont) return
-  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
   const { data } = await db.from('clientes_widget').select('*').order('created_at', { ascending: false })
   if (!data || data.length === 0) {
     cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes registrados</div>'
@@ -3331,7 +3359,7 @@ function wcEliminar(id, nombre, btn) {
 async function cargarVip() {
   const cont = document.getElementById('vip-lista-completa')
   if (!cont) return
-  cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
 
   const { data, error } = await db.from('usuarios')
     .select('*')
@@ -4353,7 +4381,7 @@ async function _renderRetencion() {
 async function cargarClientes() {
   const el = document.getElementById('clientes-lista')
   if (!el) return
-  el.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div>'
+  el.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
 
   const { data: usuarios } = await db.from('usuarios')
     .select('user_id, email, empresa_codigo, nivel_vip, total_pedidos')
@@ -4398,7 +4426,7 @@ async function abrirPanelCliente(userId, empresaCodigo) {
   const panel = document.getElementById('panel-cliente')
   if (!panel) return
   panel.style.display = 'block'
-  panel.innerHTML = '<div class="card"><div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Cargando...</div></div>'
+  panel.innerHTML = '<div class="card"><div class="loader--4" style="margin:12px auto"></div></div>'
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const [{ data: usuario }, { data: empresa }] = await Promise.all([

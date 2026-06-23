@@ -122,6 +122,35 @@
   .empty-text { font-size: 13px; font-weight: 700; }
   .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 900; cursor: pointer; }
   .btn-outline { background: transparent; border: 2px solid var(--blue); color: var(--blue); }
+  .loader--4 {
+    --anim-duration: 0.5s;
+    aspect-ratio: 1 / 1;
+    perspective: 50vmin;
+    transform-style: preserve-3d;
+    transform: rotateX(55deg);
+    width: 40px;
+    color: var(--blue);
+    position: relative;
+  }
+  .loader--4::before,
+  .loader--4::after {
+    content: '';
+    position: absolute;
+    width: 50%;
+    aspect-ratio: 1 / 1;
+    border: 2px solid currentColor;
+    top: 25%;
+    left: 25%;
+    border-radius: 50%;
+    animation: loader-4 var(--anim-duration) cubic-bezier(0.07, 0.59, 0.56, 0.88) infinite;
+  }
+  .loader--4::after { animation-delay: calc(var(--anim-duration) / 2 * -1); }
+  @keyframes loader-4 {
+    0% { transform: scale(0.2) translateZ(-8vmin); }
+    0%, 100% { opacity: 0; }
+    66% { opacity: 0.8; transform: scale(1.2) translateZ(6vmin); }
+    100% { transform: scale(1.8) translateZ(2vmin); }
+  }
 </style>
 </head>
 <body>
@@ -144,8 +173,7 @@
   <div class="card-title">🏍️ Mis entregas de hoy</div>
   <div id="lista-repartidor">
     <div class="empty-state">
-      <span class="empty-icon">🏍️</span>
-      <div class="empty-text">Cargando entregas...</div>
+      <div class="loader--4" style="margin:0 auto"></div>
     </div>
   </div>
 </div>
