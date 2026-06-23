@@ -2643,7 +2643,7 @@ async function cargarChats() {
   // ── Identificar grupos escalados: pedido_id primero, email como fallback ──
   // SIN filtrar por campo 'de' — el mensaje escalado puede ser de: 'ia', 'cliente', etc.
   const gruposEsc = {}
-  ;(escalados || []).filter(m => m.leido !== true).forEach(m => {
+  ;(escalados || []).forEach(m => {
     const key = m.pedido_id ? 'p_' + m.pedido_id : (m.remitente_email || 'sin_email')
     if (!gruposEsc[key]) {
       gruposEsc[key] = { email: m.remitente_email || null, pedidoId: m.pedido_id || null }
