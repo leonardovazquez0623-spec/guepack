@@ -2624,44 +2624,58 @@ async function updateStatus(id, status, telefono, nombre) {
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin', _chatEmail = null
 
 async function cargarChats() {
-  const { data } = await db.from('mensajes').select('*').order('created_at', { ascending: false })
-  if (!data) return
+  // ── Query 1: escalados directamente (query exacta que funciona) ──
+  const { data: escalados, error: errEsc } = await db.from('mensajes')
+    .select('*')
+    .eq('tipo', 'soporte')
+    .eq('escalado', true)
+    .order('created_at', { ascending: false })
+  console.log('[cargarChats] Q1 escalados → count:', escalados?.length, '| error:', errEsc)
+  escalados?.forEach(m => console.log('  [esc]', m.remitente_email, '| leido:', m.leido, '| pedido_id:', m.pedido_id, '|', m.texto?.substring(0, 35)))
 
-  // ── Soporte IA: agrupar por remitente_email ──
-  const soporteData = data.filter(m => m.tipo === 'soporte')
-  console.log('[cargarChats] total:', data.length, '| soporte:', soporteData.length)
-  const convPorEmail = {}
-  soporteData.forEach(m => {
-    const key = m.remitente_email || 'desconocido'
-    if (!convPorEmail[key]) convPorEmail[key] = []
-    convPorEmail[key].push(m)
-  })
-  console.log('[cargarChats] emails:', Object.keys(convPorEmail))
-  soporteData.filter(m => m.escalado).forEach(m => console.log('[escalado]', m.remitente_email, '| leido:', m.leido, '|', m.texto?.substring(0, 40)))
+  // ── Query 2: todos los soporte activos ──
+  const { data: todosSoporte, error: errSop } = await db.from('mensajes')
+    .select('*')
+    .eq('tipo', 'soporte')
+    .order('created_at', { ascending: false })
+  console.log('[cargarChats] Q2 soporte total → count:', todosSoporte?.length, '| error:', errSop)
 
-  const convActivas = Object.fromEntries(
-    Object.entries(convPorEmail).filter(([, msgs]) => msgs.some(m => !m.leido))
+  // Emails que tienen al menos un mensaje escalado activo (leido !== true)
+  const emailsEscalados = new Set(
+    (escalados || []).filter(m => m.leido !== true).map(m => m.remitente_email || 'desconocido')
   )
-  console.log('[cargarChats] activas:', Object.keys(convActivas))
-  const convEscaladas = {}, convIA = {}
-  Object.entries(convActivas).forEach(([email, msgs]) => {
-    if (msgs.some(m => m.escalado)) convEscaladas[email] = msgs
-    else convIA[email] = msgs
-  })
-  console.log('[cargarChats] escaladas:', Object.keys(convEscaladas), '| IA:', Object.keys(convIA))
+  console.log('[cargarChats] emails escalados activos:', [...emailsEscalados])
 
+  // Agrupar todos los soporte activos por email
+  const soportePorEmail = {}
+  ;(todosSoporte || []).filter(m => m.leido !== true).forEach(m => {
+    const key = m.remitente_email || 'desconocido'
+    if (!soportePorEmail[key]) soportePorEmail[key] = []
+    soportePorEmail[key].push(m)
+  })
+
+  // Separar: escalados = email está en emailsEscalados, IA = el resto
+  const convEscaladas = Object.fromEntries(
+    Object.entries(soportePorEmail).filter(([email]) => emailsEscalados.has(email))
+  )
+  const convIA = Object.fromEntries(
+    Object.entries(soportePorEmail).filter(([email]) => !emailsEscalados.has(email))
+  )
+  console.log('[cargarChats] convEscaladas:', Object.keys(convEscaladas), '| convIA:', Object.keys(convIA))
+
+  // ── Render escalados ──
   const contEsc = document.getElementById('lista-chats-escalados')
   if (contEsc) {
     if (Object.keys(convEscaladas).length === 0) {
       contEsc.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin conversaciones escaladas ✅</div>'
     } else {
       contEsc.innerHTML = Object.entries(convEscaladas).map(([email, msgs]) => {
-        const sorted = [...msgs].sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
+        const sorted = [...msgs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         const ultimo = sorted[0]
         const tieneAdmin = msgs.some(m => m.de === 'admin')
         const badge = tieneAdmin ? '' : '<span style="background:#ef4444;color:white;border-radius:10px;font-size:9px;font-weight:900;padding:2px 6px;margin-left:6px">SIN RESPUESTA</span>'
         const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
-        return `<div onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
+        return `<div data-email="${email}" onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${email}${badge}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
@@ -2670,16 +2684,17 @@ async function cargarChats() {
     }
   }
 
+  // ── Render IA ──
   const contIA = document.getElementById('lista-chats-soporte-ia')
   if (contIA) {
     if (Object.keys(convIA).length === 0) {
       contIA.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin conversaciones activas</div>'
     } else {
       contIA.innerHTML = Object.entries(convIA).map(([email, msgs]) => {
-        const sorted = [...msgs].sort((a,b) => new Date(b.created_at)-new Date(a.created_at))
+        const sorted = [...msgs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         const ultimo = sorted[0]
         const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
-        return `<div onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #22c55e;margin-bottom:8px">
+        return `<div data-email="${email}" onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #22c55e;margin-bottom:8px">
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#22c55e">🤖 ${email}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
@@ -2689,8 +2704,14 @@ async function cargarChats() {
   }
 
   // ── Chats de pedidos (tipo='chat') ──
+  const { data: chatData } = await db.from('mensajes')
+    .select('*')
+    .neq('tipo', 'soporte')
+    .not('pedido_id', 'is', null)
+    .order('created_at', { ascending: false })
+  console.log('[cargarChats] Q3 chats pedidos → count:', chatData?.length)
   const porPedido = {}
-  data.filter(m => m.pedido_id && m.tipo !== 'soporte').forEach(m => {
+  ;(chatData || []).forEach(m => {
     if (!porPedido[m.pedido_id]) porPedido[m.pedido_id] = []
     porPedido[m.pedido_id].push(m)
   })
@@ -2834,18 +2855,16 @@ async function abrirChatSoporte(email, titulo) {
 async function _cerrarTicketAdmin() {
   if (!_chatEmail) return
   const emailCerrado = _chatEmail
-  await db.from('mensajes')
+  const { error } = await db.from('mensajes')
     .update({ leido: true })
     .eq('tipo', 'soporte')
     .eq('remitente_email', emailCerrado)
+  console.log('[cerrarTicket] update leido=true para', emailCerrado, '| error:', error)
   cerrarChat()
   showToast('✅ Ticket cerrado')
+  // Eliminar del DOM usando data-email (más confiable que onclick.includes)
   ;['lista-chats-escalados', 'lista-chats-soporte-ia'].forEach(id => {
-    const cont = document.getElementById(id)
-    if (!cont) return
-    Array.from(cont.children).forEach(el => {
-      if (el.getAttribute('onclick')?.includes(emailCerrado)) el.remove()
-    })
+    document.querySelectorAll(`#${id} [data-email="${emailCerrado}"]`).forEach(el => el.remove())
   })
   await cargarChats()
 }
