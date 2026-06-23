@@ -2532,7 +2532,10 @@ function abrirSoporte() {
     <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column;overflow:hidden">
       <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#f05a1a">🎧 Soporte GUEPACK</span>
-        <button onclick="cerrarSoporte()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="btn-finalizar-soporte" onclick="_confirmarFinalizarSoporte()" style="display:none;background:#f0fdf4;border:1.5px solid #22c55e;border-radius:20px;padding:6px 12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#22c55e;cursor:pointer">✅ Finalizar</button>
+          <button onclick="cerrarSoporte()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+        </div>
       </div>
       <div id="soporte-step1" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;overflow:auto">
         <div style="font-size:42px">🎧</div>
@@ -2577,6 +2580,8 @@ async function _soporteIniciarChat(pedidoId) {
   const step2 = document.getElementById('soporte-step2')
   if (step1) step1.style.display = 'none'
   if (step2) step2.style.display = 'flex'
+  const _btnFin = document.getElementById('btn-finalizar-soporte')
+  if (_btnFin) _btnFin.style.display = 'inline-block'
 
   let q = db.from('mensajes').select('*').eq('tipo', 'soporte').eq('remitente_email', _soporteEmail).order('created_at', { ascending: true })
   if (pedidoId) q = q.eq('pedido_id', pedidoId); else q = q.is('pedido_id', null)
@@ -2677,6 +2682,37 @@ async function _enviarMensajeSoporte() {
 function cerrarSoporte() {
   const m = document.getElementById('modal-soporte'); if (m) m.remove()
   _soporteHistorial = []; _soporteEscalado = false; _soportePedidoId = null; _soporteEmail = null
+}
+
+function _confirmarFinalizarSoporte() {
+  document.getElementById('modal-confirmar-finalizar')?.remove()
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-confirmar-finalizar'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:24px 20px;max-width:300px;width:100%;text-align:center">
+      <div style="font-size:28px;margin-bottom:10px">✅</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2740;margin-bottom:8px">¿Cerrar conversación?</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;color:#666;margin-bottom:20px">¿Deseas cerrar esta conversación? Se marcará como resuelta.</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('modal-confirmar-finalizar').remove()" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
+        <button onclick="_finalizarConversacionSoporte()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Sí, cerrar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+}
+
+async function _finalizarConversacionSoporte() {
+  document.getElementById('modal-confirmar-finalizar')?.remove()
+  if (_soporteEmail) {
+    await db.from('mensajes')
+      .update({ leido: true })
+      .eq('tipo', 'soporte')
+      .eq('remitente_email', _soporteEmail)
+  }
+  cerrarSoporte()
+  mostrarToast('✅ Conversación finalizada', '#22c55e')
 }
 
 const _unreadChat = {}
