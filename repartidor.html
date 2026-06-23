@@ -362,7 +362,7 @@ async function _aceptarPedido(pedidoId) {
   console.log('[aceptar] nombre repartidor (_repaData.nombre):', _repaData.nombre)
   console.log('[aceptar] _repaData completo:', _repaData)
   const { data, error } = await db.from('pedidos')
-    .update({ repartidor: _repaData.nombre, asignacion_automatica: true })
+    .update({ repartidor: _repaData.nombre, asignacion_automatica: true, estado: 'En camino a recoleccion' })
     .eq('id', pedidoId)
     .select()
   console.log('[aceptar] resultado update — data:', data, '| error:', error)
