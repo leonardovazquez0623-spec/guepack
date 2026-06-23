@@ -82,7 +82,7 @@ async function init() {
     const { data: refreshData } = await db.auth.refreshSession()
     session = refreshData?.session
   }
-  if (!session) { window.location.href = 'login.html'; return }
+  if (!session) { window.location.href = 'landing.html'; return }
 
   const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
   if (!data) { window.location.href = 'app.html'; return }
