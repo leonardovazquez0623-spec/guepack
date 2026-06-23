@@ -2624,44 +2624,57 @@ async function updateStatus(id, status, telefono, nombre) {
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin', _chatEmail = null
 
 async function cargarChats() {
-  // ── Query 1: escalados directamente (query exacta que funciona) ──
+  // ── Q1: escalados directo — exactamente .eq('escalado',true).eq('tipo','soporte') ──
   const { data: escalados, error: errEsc } = await db.from('mensajes')
     .select('*')
     .eq('tipo', 'soporte')
     .eq('escalado', true)
     .order('created_at', { ascending: false })
-  console.log('[cargarChats] Q1 escalados → count:', escalados?.length, '| error:', errEsc)
-  escalados?.forEach(m => console.log('  [esc]', m.remitente_email, '| leido:', m.leido, '| pedido_id:', m.pedido_id, '|', m.texto?.substring(0, 35)))
+  console.log('[Q1 escalados] count:', escalados?.length, '| error:', errEsc)
+  escalados?.forEach(m => console.log('  ↳ de:', m.de, '| email:', m.remitente_email, '| pedido_id:', m.pedido_id, '| leido:', m.leido))
 
-  // ── Query 2: todos los soporte activos ──
+  // ── Q2: TODA la conversación de soporte (sin filtro de leido — para contexto completo) ──
   const { data: todosSoporte, error: errSop } = await db.from('mensajes')
     .select('*')
     .eq('tipo', 'soporte')
     .order('created_at', { ascending: false })
-  console.log('[cargarChats] Q2 soporte total → count:', todosSoporte?.length, '| error:', errSop)
+  console.log('[Q2 soporte total] count:', todosSoporte?.length, '| error:', errSop)
 
-  // Emails que tienen al menos un mensaje escalado activo (leido !== true)
-  const emailsEscalados = new Set(
-    (escalados || []).filter(m => m.leido !== true).map(m => m.remitente_email || 'desconocido')
-  )
-  console.log('[cargarChats] emails escalados activos:', [...emailsEscalados])
-
-  // Agrupar todos los soporte activos por email
-  const soportePorEmail = {}
-  ;(todosSoporte || []).filter(m => m.leido !== true).forEach(m => {
-    const key = m.remitente_email || 'desconocido'
-    if (!soportePorEmail[key]) soportePorEmail[key] = []
-    soportePorEmail[key].push(m)
+  // ── Identificar grupos escalados: pedido_id primero, email como fallback ──
+  // SIN filtrar por campo 'de' — el mensaje escalado puede ser de: 'ia', 'cliente', etc.
+  const gruposEsc = {}
+  ;(escalados || []).filter(m => m.leido !== true).forEach(m => {
+    const key = m.pedido_id ? 'p_' + m.pedido_id : (m.remitente_email || 'sin_email')
+    if (!gruposEsc[key]) {
+      gruposEsc[key] = { email: m.remitente_email || null, pedidoId: m.pedido_id || null }
+    }
   })
+  console.log('[grupos escalados]', Object.keys(gruposEsc))
 
-  // Separar: escalados = email está en emailsEscalados, IA = el resto
-  const convEscaladas = Object.fromEntries(
-    Object.entries(soportePorEmail).filter(([email]) => emailsEscalados.has(email))
-  )
-  const convIA = Object.fromEntries(
-    Object.entries(soportePorEmail).filter(([email]) => !emailsEscalados.has(email))
-  )
-  console.log('[cargarChats] convEscaladas:', Object.keys(convEscaladas), '| convIA:', Object.keys(convIA))
+  // Para cada grupo escalado, obtener TODA la conversación desde Q2
+  const convEscaladas = {}
+  Object.entries(gruposEsc).forEach(([key, { email, pedidoId }]) => {
+    const msgs = (todosSoporte || []).filter(m =>
+      pedidoId ? m.pedido_id == pedidoId : m.remitente_email === email
+    )
+    // Fallback: si Q2 no encontró nada, usa los mensajes de Q1 directamente
+    convEscaladas[key] = { email, pedidoId, msgs: msgs.length ? msgs : (escalados || []).filter(m =>
+      pedidoId ? m.pedido_id == pedidoId : m.remitente_email === email
+    )}
+  })
+  console.log('[convEscaladas]', Object.keys(convEscaladas).map(k => k + ':' + convEscaladas[k].msgs.length + 'msgs'))
+
+  // ── IA: soporte activos que NO sean de ningún grupo escalado ──
+  const emailsEsc = new Set(Object.values(gruposEsc).map(g => g.email).filter(Boolean))
+  const pidEsc    = new Set(Object.values(gruposEsc).map(g => g.pedidoId).filter(Boolean))
+  const convIA = {}
+  ;(todosSoporte || []).filter(m => m.leido !== true).forEach(m => {
+    if (pidEsc.has(m.pedido_id) || emailsEsc.has(m.remitente_email)) return
+    const key = m.remitente_email || 'sin_email'
+    if (!convIA[key]) convIA[key] = []
+    convIA[key].push(m)
+  })
+  console.log('[convIA]', Object.keys(convIA))
 
   // ── Render escalados ──
   const contEsc = document.getElementById('lista-chats-escalados')
@@ -2669,15 +2682,16 @@ async function cargarChats() {
     if (Object.keys(convEscaladas).length === 0) {
       contEsc.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin conversaciones escaladas ✅</div>'
     } else {
-      contEsc.innerHTML = Object.entries(convEscaladas).map(([email, msgs]) => {
+      contEsc.innerHTML = Object.entries(convEscaladas).map(([, { email, pedidoId, msgs }]) => {
         const sorted = [...msgs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         const ultimo = sorted[0]
         const tieneAdmin = msgs.some(m => m.de === 'admin')
         const badge = tieneAdmin ? '' : '<span style="background:#ef4444;color:white;border-radius:10px;font-size:9px;font-weight:900;padding:2px 6px;margin-left:6px">SIN RESPUESTA</span>'
-        const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
-        return `<div data-email="${email}" onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
-          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${email}${badge}</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
+        const pedidoLabel = pedidoId ? ` · GK-${pedidoId}` : ''
+        const displayEmail = email || 'desconocido'
+        return `<div data-email="${displayEmail}" onclick="abrirChatSoporte('${displayEmail}','${displayEmail.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${displayEmail}${badge}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo?.de}: ${ultimo?.texto}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
         </div>`
       }).join('')
