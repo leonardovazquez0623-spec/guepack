@@ -1725,6 +1725,10 @@ const { data, error } = await db.from('pedidos').insert({
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo
 
+  // Asignación automática — fire-and-forget, no bloquea el flujo del cliente
+  console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
+  _iniciarAsignacionAutomatica(data[0])
+
   if (_cargoCancelacionPendiente > 0 && !_empresaData) {
     db.from('pedidos').update({ cargo_cancelacion: _cargoCancelacionPendiente }).eq('id', folioReal).then(() => {})
     db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('email', session.user.email).then(() => {})
@@ -2972,6 +2976,65 @@ async function enviarPushNotificacion(token, titulo, cuerpo) {
       body: JSON.stringify({ token, title: titulo, body: cuerpo })
     })
   } catch (e) { console.log('Error push:', e) }
+}
+
+// ── Asignación automática ─────────────────────────────────────────────────────
+
+async function _iniciarAsignacionAutomatica(pedido) {
+  console.log('[asignacion] iniciando asignacion automatica para pedido:', pedido.id)
+
+  // 1. Consultar repartidores disponibles
+  const { data: repas, error: repErr } = await db.from('repartidores').select('email, nombre').eq('disponible', true)
+  console.log('[asignacion] repartidores disponibles:', repas?.length ?? 0, '| error:', repErr)
+
+  if (!repas?.length) {
+    console.log('[asignacion] sin repartidores disponibles → notificando al admin')
+    await _notificarAdminSinRepartidores(pedido)
+    return
+  }
+
+  // 2. Obtener FCM tokens de los repartidores disponibles
+  const emails = repas.map(r => r.email).filter(Boolean)
+  const { data: users, error: usrErr } = await db.from('usuarios').select('fcm_token, email').in('email', emails)
+  const conToken = (users || []).filter(u => u.fcm_token)
+  console.log('[asignacion] tokens encontrados:', conToken.length, '/ total repartidores:', emails.length, '| error:', usrErr)
+
+  // 3. Enviar push a todos simultáneamente
+  const notifBody = 'GK-' + pedido.id + ' · ' + (pedido.direccion_recoleccion || '')
+  const pushPromises = conToken.map(u => {
+    console.log('[asignacion] enviando push a repartidor:', u.email)
+    return fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ token: u.fcm_token, title: '📦 Nuevo pedido disponible', body: notifBody })
+    }).catch(e => console.warn('[asignacion] error push a ' + u.email + ':', e))
+  })
+  await Promise.all(pushPromises)
+  console.log('[asignacion] push enviados a', pushPromises.length, 'repartidores')
+
+  // 4. Iniciar contador de rondas — marca ronda 1 para que admin.html continúe la escalación
+  const { error: roundErr } = await db.from('pedidos').update({ ronda_asignacion: 1 }).eq('id', pedido.id)
+  console.log('[asignacion] ronda_asignacion = 1 | error:', roundErr)
+}
+
+async function _notificarAdminSinRepartidores(pedido) {
+  const { data: admins, error: admErr } = await db.from('usuarios').select('fcm_token, email').eq('rol', 'admin')
+  console.log('[asignacion] admins encontrados:', admins?.length ?? 0, '| error:', admErr)
+  const conToken = (admins || []).filter(u => u.fcm_token)
+  const pushPromises = conToken.map(u => {
+    console.log('[asignacion] notificando admin:', u.email)
+    return fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({
+        token: u.fcm_token,
+        title: '⚠️ Pedido GK-' + pedido.id + ' sin asignar',
+        body: 'Sin repartidores disponibles — revisión manual requerida'
+      })
+    }).catch(e => console.warn('[asignacion] error push admin:', e))
+  })
+  await Promise.all(pushPromises)
+  console.log('[asignacion] notificacion(es) admin enviadas:', conToken.length)
 }
 
 async function _cargarBadgesNoLeidos(pedidoIds) {
