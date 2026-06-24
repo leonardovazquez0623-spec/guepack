@@ -151,18 +151,18 @@
   .container { padding: 16px; max-width: 480px; margin: 0 auto; }
   .card {
     background: var(--white);
-    border-radius: 16px;
+    border-radius: 8px;
     padding: 20px;
     margin-bottom: 14px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
   .card-title {
     font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 2px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
-    color: var(--blue);
-    margin-bottom: 16px;
+    color: #6b7280;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -170,9 +170,8 @@
   .card-title::after {
     content: '';
     flex: 1;
-    height: 2px;
-    background: linear-gradient(90deg, var(--orange), transparent);
-    border-radius: 2px;
+    height: 1px;
+    background: #e5e7eb;
   }
 
   /* ── FORM ELEMENTS ── */
@@ -189,56 +188,55 @@
   .form-input, .form-select {
     width: 100%;
     padding: 12px 14px;
-    border: 2px solid var(--gray);
-    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
     font-family: 'Montserrat', sans-serif;
     font-size: 13px;
     font-weight: 600;
     color: var(--text);
-    background: var(--gray-light);
-    transition: border-color .2s, box-shadow .2s;
+    background: var(--white);
+    transition: border-color .2s;
     appearance: none;
   }
   .form-input:focus, .form-select:focus {
     outline: none;
     border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(26,79,160,0.12);
-    background: var(--white);
   }
 
   /* ── SIZE SELECTOR ── */
   .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .size-option {
-    border: 2px solid var(--gray);
-    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     padding: 14px 10px;
     text-align: center;
     cursor: pointer;
     transition: all .2s;
-    background: var(--gray-light);
+    background: white;
   }
-  .size-option:hover { border-color: var(--blue-light); }
+  .size-option:hover { border-color: #9ca3af; }
   .size-option.selected {
     border-color: var(--blue);
-    background: rgba(26,79,160,0.06);
+    background: rgba(30,86,199,0.05);
   }
   .mp-option {
-    border: 2px solid var(--gray);
-    border-radius: 12px;
-    padding: 14px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px 10px;
     text-align: center;
     cursor: pointer;
     transition: all .2s;
-    background: var(--gray-light);
+    background: white;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 900;
-    font-size: 13px;
+    font-weight: 700;
+    font-size: 12px;
     color: var(--text);
   }
-  .mp-option:hover { border-color: var(--blue-light); }
+  .mp-option:hover { border-color: #9ca3af; }
   .mp-option.selected {
     border-color: var(--blue);
-    background: rgba(26,79,160,0.06);
+    background: var(--blue);
+    color: white;
   }
   .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
   .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
@@ -247,34 +245,35 @@
   /* ── ZONE SELECTOR ── */
   .zone-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .zone-option {
-    border: 2px solid var(--gray);
-    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     padding: 10px 6px;
     text-align: center;
     cursor: pointer;
     transition: all .2s;
-    background: var(--gray-light);
+    background: white;
   }
   .zone-option.selected {
     border-color: var(--orange);
-    background: rgba(240,90,26,0.07);
+    background: rgba(240,90,26,0.06);
   }
   .zone-name { font-size: 11px; font-weight: 900; color: var(--text); display: block; }
   .zone-icon { font-size: 18px; display: block; margin-bottom: 3px; }
 
   /* ── QUOTE BOX ── */
   .quote-box {
-    background: linear-gradient(135deg, var(--blue-dark), var(--blue));
-    border-radius: 14px;
-    padding: 18px 20px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--orange);
+    padding: 16px 20px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     margin-bottom: 14px;
   }
-  .quote-label { color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
-  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--orange); line-height: 1; }
-  .quote-detail { color: rgba(255,255,255,0.55); font-size: 10px; font-weight: 600; margin-top: 2px; }
+  .quote-label { color: #6b7280; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: #1E56C7; line-height: 1; }
+  .quote-detail { color: #6b7280; font-size: 10px; font-weight: 600; margin-top: 8px; line-height: 1.7; }
 
   /* ── BUTTONS ── */
   .btn {
@@ -774,7 +773,7 @@
       <!-- FORMULARIO -->
       <div id="form-state">
         <div class="card">
-          <div class="card-title">📬 Datos del envío</div>
+          <div class="card-title">Datos del envío</div>
 
           <div class="form-group">
             <label class="form-label">Nombre del destinatario</label>
@@ -817,9 +816,9 @@
           <div class="form-group">
   <label class="form-label">Fecha de recolección</label>
   <div style="display:flex;gap:8px;margin-bottom:8px">
-    <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)"> Hoy 😉</button>
-    <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Día siguiente 🤙</button>
-    <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Otra fecha 💁‍♂️</button>
+    <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Hoy</button>
+    <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Día siguiente</button>
+    <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Otra fecha</button>
   </div>
   <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
   <input type="hidden" id="fecha-seleccionada">
@@ -828,7 +827,7 @@
         </div>
 
         <div class="card">
-          <div class="card-title">📐 Tamaño del paquete</div>
+          <div class="card-title">Tamaño del paquete</div>
           <div class="size-grid">
             <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
               <span class="size-icon">✉️</span>
@@ -844,7 +843,7 @@
         </div>
 
         <div class="card">
-          <div class="card-title">🗺️ Zona de entrega</div>
+          <div class="card-title">Zona de entrega</div>
           <div id="zona-detect-result" style="padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px">
             <span style="font-size:16px">📍</span>
             <span>Se detectará al ingresar tu dirección de entrega</span>
@@ -853,17 +852,14 @@
 
         <!-- COTIZACIÓN -->
         <div id="quote-display" class="quote-box" style="display:none">
-          <div>
-            <div class="quote-label">COSTO DE ENVÍO</div>
-            <div class="quote-price" id="quote-amount">$0</div>
-            <div class="quote-detail" id="quote-detail">—</div>
-          </div>
-          <div style="font-size:36px">🚀</div>
+          <div class="quote-label">Costo de envío</div>
+          <div class="quote-price" id="quote-amount">$0</div>
+          <div class="quote-detail" id="quote-detail">—</div>
         </div>
 
         <!-- CUPÓN -->
         <div class="card" id="cupon-card">
-          <div class="card-title">🏷️ ¿Tienes un cupón?</div>
+          <div class="card-title">¿Tienes un cupón?</div>
           <div style="display:flex;gap:8px">
             <input type="text" id="cupon-input" class="form-input" placeholder="Código de descuento" style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
             <button onclick="aplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;white-space:nowrap">Aplicar</button>
@@ -872,7 +868,7 @@
         </div>
 
         <div class="card">
-          <div class="card-title">💳 Método de pago</div>
+          <div class="card-title">Método de pago</div>
           <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
             <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
@@ -1851,9 +1847,9 @@ function seleccionarFecha(opcion) {
   btns.forEach(id => {
     const btn = document.getElementById(id)
     if (btn) {
-      btn.style.background = 'var(--gray-light)'
+      btn.style.background = 'white'
       btn.style.color = 'var(--text)'
-      btn.style.borderColor = 'var(--gray)'
+      btn.style.borderColor = '#e5e7eb'
     }
   })
 
@@ -4414,7 +4410,7 @@ function _mostrarCotizacionGeneral(km, precios) {
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
     if (cargoCancelacion > 0) lineas.push('⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion)
-    quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+    quoteDetail.innerHTML = lineas.join('<br>')
   }
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
 
@@ -4600,7 +4596,7 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
     }
     lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
     lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
-    quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+    quoteDetail.innerHTML = lineas.join('<br>')
   }
 
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
@@ -4849,7 +4845,7 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
       if (total > tarifa) lineas.push('💰 Precio estimado: <s>$' + total.toFixed(2) + '</s>')
       lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
       lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
-      quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
+      quoteDetail.innerHTML = lineas.join('<br>')
     }
     if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
     const aviso = document.getElementById('zona-aviso')
