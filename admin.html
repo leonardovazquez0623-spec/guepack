@@ -1667,12 +1667,12 @@ async function cargarCorteCreditoEmpresas() {
   // Intentar con credito_cobrado, fallback si la columna no existe aún
   let pedidos = []
   const { data: p1, error: e1 } = await db.from('pedidos')
-    .select('id, empresa_codigo, precio, created_at, estado, credito_cobrado')
+    .select('id, empresa_codigo, precio, created_at, estado, credito_cobrado, nombre')
     .in('empresa_codigo', codigosEmpresa)
     .eq('metodo_pago', 'Crédito')
   if (e1) {
     const { data: p2 } = await db.from('pedidos')
-      .select('id, empresa_codigo, precio, created_at, estado')
+      .select('id, empresa_codigo, precio, created_at, estado, nombre')
       .in('empresa_codigo', codigosEmpresa)
       .eq('metodo_pago', 'Crédito')
     pedidos = p2 || []
@@ -1698,15 +1698,20 @@ async function cargarCorteCreditoEmpresas() {
     const grupo = porEmpresa[e.codigo]
     const periodo = e.tipo_credito || 'Semanal'
     const ids = grupo.pedidos.map(p => p.id).join(',')
+    const pedidosNormales    = grupo.pedidos.filter(p => p.nombre !== 'Cargo cancelación')
+    const pedidosCancelacion = grupo.pedidos.filter(p => p.nombre === 'Cargo cancelación')
+    const totalNormal        = pedidosNormales.reduce((s, p) => s + (p.precio || 0), 0)
+    const totalCancelacion   = pedidosCancelacion.reduce((s, p) => s + (p.precio || 0), 0)
     return `
     <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid var(--blue)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
-          <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600;margin-top:2px">Crédito ${periodo} · ${grupo.pedidos.length} pedido${grupo.pedidos.length !== 1 ? 's' : ''} pendiente${grupo.pedidos.length !== 1 ? 's' : ''}</div>
+          <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600;margin-top:2px">Crédito ${periodo} · ${pedidosNormales.length} envío${pedidosNormales.length !== 1 ? 's' : ''} pendiente${pedidosNormales.length !== 1 ? 's' : ''}</div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--orange);line-height:1">$${grupo.total}</div>
       </div>
+      ${pedidosCancelacion.length > 0 ? `<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#dc2626">⚠️ Cargos por cancelación: ${pedidosCancelacion.length} × $25 = $${totalCancelacion} · Subtotal envíos: $${totalNormal}</div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button onclick="marcarCreditoPagado('${e.codigo}','${ids}')" style="flex:1;padding:9px;background:#22c55e;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">✅ Marcar como pagado</button>
         <button onclick="generarFactura('${e.codigo}','${e.nombre}',${grupo.total},${grupo.pedidos.length})" style="flex:1;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">🧾 Ver factura</button>

@@ -1014,6 +1014,7 @@ async function verificarSesion() {
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
   await _cargarEmpresaUsuario(session.user)
+  await _cargarCargoCancelacion(session.user)
   await _cargarAvatarCliente(session.user)
   iniciarTour()
   // Evento retorno: si el usuario ya tiene pedidos previos es visita de retorno
@@ -1400,6 +1401,7 @@ let _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
 let _precioGeneralKm = null     // km calculados para no-corporativos
 let _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
 let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
+let _cargoCancelacionPendiente = 0   // cargo pendiente por cancelación tardía (usuarios.cargo_cancelacion)
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -1583,6 +1585,12 @@ const { data, error } = await db.from('pedidos').insert({
 
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo
+
+  if (_cargoCancelacionPendiente > 0 && !_empresaData) {
+    db.from('pedidos').update({ cargo_cancelacion: _cargoCancelacionPendiente }).eq('id', folioReal).then(() => {})
+    db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('email', session.user.email).then(() => {})
+    _cargoCancelacionPendiente = 0
+  }
 
   // Guardar paradas adicionales
   if (_paradasList.length) {
@@ -2441,7 +2449,7 @@ async function cancelarPedido(id) {
         </div>
       </div>`
     document.body.appendChild(overlay)
-    overlay.querySelector('#toast-cancel-si').onclick = () => { overlay.remove(); ejecutarCancelacion() }
+    overlay.querySelector('#toast-cancel-si').onclick = async () => { overlay.remove(); await _aplicarCargoCancelacion(id); ejecutarCancelacion() }
     overlay.querySelector('#toast-cancel-no').onclick = () => overlay.remove()
     return
   }
@@ -3474,6 +3482,36 @@ let _clienteTotalPedidos = 0
 let _clienteNivelVip = 'normal'
 let _clienteEnviosGratis = 0
 
+async function _cargarCargoCancelacion(user) {
+  if (_empresaData) return  // corporativos: el cargo se registra en pedidos, no en usuarios
+  const { data } = await db.from('usuarios').select('cargo_cancelacion').eq('email', user.email).maybeSingle()
+  _cargoCancelacionPendiente = Number(data?.cargo_cancelacion) || 0
+}
+
+async function _aplicarCargoCancelacion(pedidoId) {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session?.user) return
+  if (_empresaData) {
+    // Corporativo: registrar cargo como pedido de crédito
+    await db.from('pedidos').insert({
+      nombre: 'Cargo cancelación',
+      precio: 25,
+      metodo_pago: 'Crédito',
+      empresa_codigo: _empresaData.codigo,
+      estado: 'Cancelado',
+      user_id: session.user.id,
+      fecha: new Date().toISOString().split('T')[0],
+      token_rastreo: crypto.randomUUID()
+    })
+  } else {
+    // Normal: acumular en usuarios.cargo_cancelacion
+    const nuevo = _cargoCancelacionPendiente + 25
+    await db.from('usuarios').update({ cargo_cancelacion: nuevo }).eq('email', session.user.email)
+    _cargoCancelacionPendiente = nuevo
+    updateQuote()
+  }
+}
+
 async function _cargarAvatarCliente(user) {
   _clienteUserId = user.id
   _clienteEmail = user.email || ''
@@ -4354,8 +4392,9 @@ function _mostrarCotizacionGeneral(km, precios) {
   let subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
   const cargoGrande = selSize === 'grande' ? 30 : 0
   subtotal += cargoGrande
-  const ivaAmt   = Math.round(subtotal * iva * 100) / 100
-  const total    = Math.round((subtotal + ivaAmt) * 100) / 100
+  const ivaAmt         = Math.round(subtotal * iva * 100) / 100
+  const cargoCancelacion = _cargoCancelacionPendiente || 0
+  const total          = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
 
   _precioGeneralTotal = total
   _precioGeneralKm    = km
@@ -4374,6 +4413,7 @@ function _mostrarCotizacionGeneral(km, precios) {
     if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$30')
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
+    if (cargoCancelacion > 0) lineas.push('⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion)
     quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
   }
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
@@ -4485,7 +4525,9 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
     precio_base += cargoGrande
     desglose += ' · 📦 Cargo paquete grande: +$30'
   }
-  const total = Math.round(precio_base * (1 + iva) * 100) / 100
+  const subtotalConIva   = Math.round(precio_base * (1 + iva) * 100) / 100
+  const cargoCancelacion = _cargoCancelacionPendiente || 0
+  const total            = subtotalConIva + cargoCancelacion
 
   console.log('[corporativo] km:', km)
   console.log('[corporativo] km_minimo:', _empresaUsuario.km_minimo)
@@ -4502,7 +4544,11 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
   const quoteDetail = document.getElementById('quote-detail')
   const quoteBox    = document.getElementById('quote-display')
   if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
-  if (quoteDetail) quoteDetail.textContent = desglose + ' + IVA ' + Math.round(iva * 100) + '% = $' + total.toFixed(2) + ' · ' + e.nombre
+  if (quoteDetail) {
+    let detalle = desglose + ' + IVA ' + Math.round(iva * 100) + '% = $' + subtotalConIva.toFixed(2) + ' · ' + e.nombre
+    if (cargoCancelacion > 0) detalle += ' · ⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion
+    quoteDetail.textContent = detalle
+  }
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
 
   const aviso = document.getElementById('zona-aviso')
@@ -4768,6 +4814,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   if (cargoGrandeMP > 0) {
     total += cargoGrandeMP
     desglose += ' | 📦 Cargo paquete grande: +$30'
+  }
+  const cargoCancelacionMP = _cargoCancelacionPendiente || 0
+  if (cargoCancelacionMP > 0) {
+    total += cargoCancelacionMP
+    desglose += ' | ⚠️ Cargo cancelación pendiente: +$' + cargoCancelacionMP
   }
 
   _multiParadaPrecio = total
