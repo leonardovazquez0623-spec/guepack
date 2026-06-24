@@ -1391,12 +1391,14 @@ let _empresaData = null     // datos de empresa afiliada del usuario logueado
 let _empresaUsuario = null  // alias público de _empresaData (accesible desde consola)
 let _corporativoPrecio = null  // precio calculado por km para corporativos
 let _corporativoKm = null      // distancia calculada
+let _corporativoRangos = null  // rangos cacheados para recalcular sin fetch
 let _entregaPlace = null       // último place seleccionado en dir-entrega
 let _multiParadaPrecio = null  // precio calculado para rutas multi-parada
 let _multiParadaKm = null      // km totales del recorrido completo
 let _multiParadaZonaData = null // zona de la última parada
 let _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
 let _precioGeneralKm = null     // km calculados para no-corporativos
+let _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
 let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
@@ -1442,6 +1444,7 @@ function copiarDato(btn, texto) {
 
 function selectSize(sz) {
   selSize = sz;
+  console.log('[tamaño] seleccionado:', selSize)
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
   document.getElementById('sz-' + sz).classList.add('selected');
   updateQuote();
@@ -1461,7 +1464,25 @@ function updateQuote() {
     _actualizarPrecioMultiParada(1 + _pv.length, _multiParadaKm, _multiParadaZonaData)
     return
   }
-  // Para no-corporativos el precio viene de precios_generales (por KM) — updateQuote no aplica
+  // Corporativo: recalcular con datos cacheados; si no hay caché, recalcular completo
+  if (_empresaData && _corporativoKm != null) {
+    if (_empresaData.tipo_tarifa === 'diaria') {
+      _mostrarCotizacionDiaria(_corporativoKm, _preciosGeneralesData)
+    } else if (_corporativoRangos !== null) {
+      _mostrarCotizacionCorporativa(_corporativoKm, _corporativoRangos)
+    } else {
+      _calcularPrecioCorporativo()
+    }
+    return
+  }
+  if (_empresaData) return  // corporativo sin km aún — esperar dirección
+  // General: recalcular con caché; si no hay caché pero hay km, recalcular completo
+  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
+  if (_precioGeneralKm != null && _preciosGeneralesData) {
+    _mostrarCotizacionGeneral(_precioGeneralKm, _preciosGeneralesData)
+  } else if (_precioGeneralKm != null) {
+    _calcularPrecioGeneral()
+  }
 }
 
 async function submitRequest() {
@@ -4322,6 +4343,8 @@ async function _calcularPrecioGeneral() {
 }
 
 function _mostrarCotizacionGeneral(km, precios) {
+  _preciosGeneralesData = precios
+  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
   const tarifaBase    = Number(precios.tarifa_base)    || 115
   const kmMinimo      = Number(precios.km_minimo)      || 5
   const precioKmExtra = Number(precios.precio_km_extra) || 13
@@ -4424,6 +4447,8 @@ async function _calcularPrecioCorporativo() {
 }
 
 function _mostrarCotizacionCorporativa(km, rangos = []) {
+  _corporativoRangos = rangos
+  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
   const e   = _empresaData
   const iva = e.iva || 0.16
 
@@ -4739,6 +4764,7 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   }
 
   const cargoGrandeMP = selSize === 'grande' ? 30 : 0
+  console.log('[precio] cargo grande aplicado:', cargoGrandeMP > 0 ? '$30' : 'no aplica')
   if (cargoGrandeMP > 0) {
     total += cargoGrandeMP
     desglose += ' | 📦 Cargo paquete grande: +$30'
