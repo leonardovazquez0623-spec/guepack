@@ -13,12 +13,52 @@ firebase.initializeApp({
 const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage(payload => {
-  const { title, body } = payload.notification
+  const title = payload.notification?.title || payload.data?.title || 'GUEPACK Express'
+  const body  = payload.notification?.body  || payload.data?.body  || 'Tienes una nueva notificación'
   self.registration.showNotification(title, {
     body,
-    icon: '/Icono_gp.png',
-    badge: '/Icono_gp.png'
+    icon:    '/logo_icono.png',
+    badge:   '/logo_icono.png',
+    vibrate: [200, 100, 200],
+    data:    payload.data || {},
+    actions: [
+      { action: 'open',  title: '👁️ Ver'    },
+      { action: 'close', title: '✕ Cerrar' }
+    ]
   })
+})
+
+// Push nativo — cubre casos donde el mensaje no llega por el canal FCM del SDK
+self.addEventListener('push', function(event) {
+  if (!event.data) return
+  let data = {}
+  try { data = event.data.json() } catch(e) { data = { title: 'GUEPACK', body: event.data.text() } }
+  const title = data.notification?.title || data.title || 'GUEPACK Express'
+  const options = {
+    body:    data.notification?.body || data.body || 'Tienes una nueva notificación',
+    icon:    '/logo_icono.png',
+    badge:   '/logo_icono.png',
+    vibrate: [200, 100, 200],
+    data:    data.data || {},
+    actions: [
+      { action: 'open',  title: '👁️ Ver'    },
+      { action: 'close', title: '✕ Cerrar' }
+    ]
+  }
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close()
+  if (event.action === 'close') return
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      for (const client of clientList) {
+        if (client.url.includes('guepack') && 'focus' in client) return client.focus()
+      }
+      if (clients.openWindow) return clients.openWindow('https://guepack.com/repartidor.html')
+    })
+  )
 })
 const CACHE_NAME = 'guepack-v7'
 
