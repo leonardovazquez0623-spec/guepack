@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const { token, title, body } = await req.json()
+  const { token, title, body, tipo } = await req.json()
   const accessToken = await getAccessToken()
 
   const response = await fetch(
@@ -86,13 +86,15 @@ Deno.serve(async (req) => {
           token,
           notification: {
             title,
-            body,
-            sound: 'default'
+            body
+          },
+          data: {
+            titulo: title,
+            cuerpo: body,
+            tipo: tipo || 'general'
           },
           android: {
             notification: {
-              title,
-              body,
               sound: 'default',
               channel_id: 'guepack_pedidos'
             }
@@ -100,8 +102,8 @@ Deno.serve(async (req) => {
           apns: {
             payload: {
               aps: {
-                alert: { title, body },
-                sound: 'default'
+                sound: 'default',
+                'content-available': 1
               }
             }
           },
@@ -109,7 +111,11 @@ Deno.serve(async (req) => {
             notification: {
               title,
               body,
-              icon: 'https://guepack.vercel.app/Icono_gp.png'
+              icon: '/logo_icono.png',
+              badge: '/logo_icono.png'
+            },
+            fcm_options: {
+              link: 'https://guepack.com'
             }
           }
         }
