@@ -13,39 +13,31 @@ firebase.initializeApp({
 const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage(payload => {
-  const title = payload.notification?.title || payload.data?.title || 'GUEPACK Express'
-  const body  = payload.notification?.body  || payload.data?.body  || 'Tienes una nueva notificación'
+  const title = payload.notification?.title || payload.data?.titulo || 'GUEPACK Express'
+  const body  = payload.notification?.body  || payload.data?.cuerpo || 'Nueva notificación'
   self.registration.showNotification(title, {
     body,
     icon:    '/logo_icono.png',
     badge:   '/logo_icono.png',
-    vibrate: [200, 100, 200],
-    data:    payload.data || {},
-    actions: [
-      { action: 'open',  title: '👁️ Ver'    },
-      { action: 'close', title: '✕ Cerrar' }
-    ]
+    vibrate: [200, 100, 200]
   })
 })
 
-// Push nativo — cubre casos donde el mensaje no llega por el canal FCM del SDK
+// Push nativo — independiente de sesión, solo usa el payload
 self.addEventListener('push', function(event) {
   if (!event.data) return
   let data = {}
-  try { data = event.data.json() } catch(e) { data = { title: 'GUEPACK', body: event.data.text() } }
-  const title = data.notification?.title || data.title || 'GUEPACK Express'
-  const options = {
-    body:    data.notification?.body || data.body || 'Tienes una nueva notificación',
-    icon:    '/logo_icono.png',
-    badge:   '/logo_icono.png',
-    vibrate: [200, 100, 200],
-    data:    data.data || {},
-    actions: [
-      { action: 'open',  title: '👁️ Ver'    },
-      { action: 'close', title: '✕ Cerrar' }
-    ]
-  }
-  event.waitUntil(self.registration.showNotification(title, options))
+  try { data = event.data.json() } catch(e) {}
+  const title = data.notification?.title || data.data?.titulo || 'GUEPACK Express'
+  const body  = data.notification?.body  || data.data?.cuerpo || 'Nueva notificación'
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon:    '/logo_icono.png',
+      badge:   '/logo_icono.png',
+      vibrate: [200, 100, 200]
+    })
+  )
 })
 
 self.addEventListener('notificationclick', function(event) {
