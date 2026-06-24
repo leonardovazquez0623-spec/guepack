@@ -2880,23 +2880,17 @@ async function _cerrarTicketAdmin() {
   if (!_chatEmail) return
   const emailCerrado = _chatEmail
   const tieneEmailReal = emailCerrado.includes('@')
-  // Marcar escalado=false y leido=true
-  // Si es email real: filtrar por remitente_email
-  // Si es fallback (sin_email/desconocido): filtrar por remitente_email IS NULL + escalado=true
   let q = db.from('mensajes').update({ leido: true, escalado: false }).eq('tipo', 'soporte')
   if (tieneEmailReal) {
     q = q.eq('remitente_email', emailCerrado)
   } else {
-    q = q.is('remitente_email', null).eq('escalado', true)
+    q = q.eq('de', 'cliente').is('remitente_email', null)
   }
   const { error } = await q
   console.log('[cerrarTicket] email:', emailCerrado, '| tieneEmailReal:', tieneEmailReal, '| error:', error)
   cerrarChat()
   showToast('✅ Ticket cerrado')
-  // Eliminar del DOM por data-email — sin recargar toda la lista
-  ;['lista-chats-escalados', 'lista-chats-soporte-ia'].forEach(id => {
-    document.querySelectorAll(`#${id} [data-email="${emailCerrado}"]`).forEach(el => el.remove())
-  })
+  setTimeout(() => cargarChats(), 500)
 }
 
 let _adminUnreadCount = 0
