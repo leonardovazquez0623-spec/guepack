@@ -919,6 +919,46 @@ function initMapsAdmin() {
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">💳 Métodos de pago:</span>
         <button id="emp-metodos-pago-btn" onclick="empToggleMetodosPago()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#fee2e2;color:#ef4444">Solo crédito</button>
       </div>
+      <!-- Toggle Paqueterías -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">📦 Paqueterías:</span>
+        <button id="emp-paqueterias-btn" onclick="empTogglePaqueterias()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#fee2e2;color:#ef4444">Desactivado</button>
+      </div>
+      <div id="emp-paqueterias-rangos-section" style="display:none;margin-bottom:12px;padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label class="form-label" style="margin-bottom:0">Rangos DHL/FedEx/Estafeta</label>
+          <button onclick="empAgregarRangoPaqueteria('paqueteria')" style="padding:4px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">+ Agregar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 32px;gap:5px;margin-bottom:4px">
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Tipo</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Desde</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Hasta</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Precio ($)</span>
+          <span></span>
+        </div>
+        <div id="emp-paqueterias-tabla"></div>
+      </div>
+
+      <!-- Toggle Mercado Libre -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">🟡 Mercado Libre:</span>
+        <button id="emp-mercadolibre-btn" onclick="empToggleMercadoLibre()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#fee2e2;color:#ef4444">Desactivado</button>
+      </div>
+      <div id="emp-mercadolibre-rangos-section" style="display:none;margin-bottom:14px;padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label class="form-label" style="margin-bottom:0">Rangos Mercado Libre</label>
+          <button onclick="empAgregarRangoPaqueteria('mercado_libre')" style="padding:4px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">+ Agregar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 32px;gap:5px;margin-bottom:4px">
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Tipo</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Desde</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Hasta</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Precio ($)</span>
+          <span></span>
+        </div>
+        <div id="emp-mercadolibre-tabla"></div>
+      </div>
+
       <div style="display:flex;gap:8px">
         <button id="btn-guardar-empresa" onclick="guardarEmpresa()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar empresa</button>
         <button onclick="_cerrarFormEmpresa()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
@@ -1128,6 +1168,10 @@ let _empActivo = true
 let _empPedidosActivos = true
 let _empTipoTarifa = 'km'
 let _empMetodosPagoExtra = false
+let _empPermitePaqueterias = false
+let _empPermiteMercadoLibre = false
+let _empRangosPaqueteria = []
+let _empRangosMercadoLibre = []
 
 function empSeleccionarTipoTarifa(tipo) {
   _empTipoTarifa = tipo
@@ -1149,6 +1193,89 @@ function empToggleActivo() {
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
   btn.style.color      = _empActivo ? '#16a34a' : '#ef4444'
   btn.textContent      = _empActivo ? '● Activo' : '● Inactivo'
+}
+
+// ── Paqueterías / Mercado Libre ──────────────────────────────────────────────
+
+function _defaultRangosPaqueteria() {
+  return [
+    { tipo: 'Bolsa', cantidad_desde: 1, cantidad_hasta: 5,  precio: 60 },
+    { tipo: 'Bolsa', cantidad_desde: 5, cantidad_hasta: 10, precio: 95 },
+    { tipo: 'Caja',  cantidad_desde: 1, cantidad_hasta: 2,  precio: 60 },
+    { tipo: 'Caja',  cantidad_desde: 3, cantidad_hasta: 4,  precio: 95 },
+  ]
+}
+
+function _empSetTogglePaqueterias(val) {
+  _empPermitePaqueterias = val
+  const btn  = document.getElementById('emp-paqueterias-btn')
+  const secc = document.getElementById('emp-paqueterias-rangos-section')
+  if (btn) { btn.style.background = val ? '#dcfce7' : '#fee2e2'; btn.style.color = val ? '#16a34a' : '#ef4444'; btn.textContent = val ? '✅ Activado' : 'Desactivado' }
+  if (secc) secc.style.display = val ? 'block' : 'none'
+}
+
+function _empSetToggleMercadoLibre(val) {
+  _empPermiteMercadoLibre = val
+  const btn  = document.getElementById('emp-mercadolibre-btn')
+  const secc = document.getElementById('emp-mercadolibre-rangos-section')
+  if (btn) { btn.style.background = val ? '#dcfce7' : '#fee2e2'; btn.style.color = val ? '#16a34a' : '#ef4444'; btn.textContent = val ? '✅ Activado' : 'Desactivado' }
+  if (secc) secc.style.display = val ? 'block' : 'none'
+}
+
+function empTogglePaqueterias() {
+  _empSetTogglePaqueterias(!_empPermitePaqueterias)
+  if (_empPermitePaqueterias && !_empRangosPaqueteria.length) {
+    _empRangosPaqueteria = _defaultRangosPaqueteria()
+    _empRenderRangosServicio('paqueteria')
+  }
+}
+
+function empToggleMercadoLibre() {
+  _empSetToggleMercadoLibre(!_empPermiteMercadoLibre)
+  if (_empPermiteMercadoLibre && !_empRangosMercadoLibre.length) {
+    _empRangosMercadoLibre = _defaultRangosPaqueteria()
+    _empRenderRangosServicio('mercado_libre')
+  }
+}
+
+function _empRenderRangosServicio(servicio) {
+  const lista   = servicio === 'paqueteria' ? _empRangosPaqueteria : _empRangosMercadoLibre
+  const tablaId = servicio === 'paqueteria' ? 'emp-paqueterias-tabla' : 'emp-mercadolibre-tabla'
+  const tabla   = document.getElementById(tablaId)
+  if (!tabla) return
+  if (!lista.length) {
+    tabla.innerHTML = '<div style="color:#999;font-size:11px;font-family:Montserrat,sans-serif;font-weight:600;padding:6px 0">Sin rangos. Pulsa "+ Agregar" para crear el primero.</div>'
+    return
+  }
+  tabla.innerHTML = lista.map((r, i) => `
+    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 32px;gap:5px;margin-bottom:5px">
+      <select class="form-input" style="padding:6px 8px;font-size:12px" onchange="_empRangoPaqueteriaChange('${servicio}',${i},'tipo',this.value)">
+        <option value="Bolsa" ${r.tipo==='Bolsa'?'selected':''}>Bolsa</option>
+        <option value="Caja"  ${r.tipo==='Caja'?'selected':''}>Caja</option>
+      </select>
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="1" value="${r.cantidad_desde??''}" oninput="_empRangoPaqueteriaChange('${servicio}',${i},'cantidad_desde',+this.value)">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="∞" value="${r.cantidad_hasta??''}" oninput="_empRangoPaqueteriaChange('${servicio}',${i},'cantidad_hasta',this.value===''?null:+this.value)">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.precio??''}" oninput="_empRangoPaqueteriaChange('${servicio}',${i},'precio',+this.value)">
+      <button onclick="empEliminarRangoPaqueteria('${servicio}',${i})" style="padding:0;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;cursor:pointer;width:32px;height:36px;display:flex;align-items:center;justify-content:center">🗑️</button>
+    </div>
+  `).join('')
+}
+
+function _empRangoPaqueteriaChange(servicio, idx, campo, val) {
+  const lista = servicio === 'paqueteria' ? _empRangosPaqueteria : _empRangosMercadoLibre
+  lista[idx][campo] = val
+}
+
+function empAgregarRangoPaqueteria(servicio) {
+  const lista = servicio === 'paqueteria' ? _empRangosPaqueteria : _empRangosMercadoLibre
+  lista.push({ tipo: 'Bolsa', cantidad_desde: 1, cantidad_hasta: null, precio: 0 })
+  _empRenderRangosServicio(servicio)
+}
+
+function empEliminarRangoPaqueteria(servicio, idx) {
+  const lista = servicio === 'paqueteria' ? _empRangosPaqueteria : _empRangosMercadoLibre
+  lista.splice(idx, 1)
+  _empRenderRangosServicio(servicio)
 }
 
 function empToggleMetodosPago() {
@@ -1207,7 +1334,7 @@ async function guardarEmpresa() {
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
   const tipoCredito  = document.getElementById('emp-tipo-credito')?.value || 'Semanal'
   const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
-  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra }
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra, permite_paqueterias: _empPermitePaqueterias, permite_mercado_libre: _empPermiteMercadoLibre }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   let error, nuevaEmpresaId = null
   if (id) {
@@ -1240,6 +1367,17 @@ async function guardarEmpresa() {
     showToast('✅ Empresa creada con rangos de precio default')
   } else {
     showToast(id ? '✅ Empresa actualizada' : '✅ Empresa creada')
+  }
+
+  // Guardar rangos_paqueteria (siempre reemplazar)
+  const empIdFinal = nuevaEmpresaId || id
+  if (empIdFinal) {
+    await db.from('rangos_paqueteria').delete().eq('empresa_id', empIdFinal)
+    const allRangosPk = [
+      ...(_empPermitePaqueterias   ? _empRangosPaqueteria.map(r   => ({ empresa_id: empIdFinal, tipo: r.tipo, cantidad_desde: r.cantidad_desde, cantidad_hasta: r.cantidad_hasta ?? null, precio: r.precio, servicio: 'paqueteria' }))   : []),
+      ...(_empPermiteMercadoLibre  ? _empRangosMercadoLibre.map(r  => ({ empresa_id: empIdFinal, tipo: r.tipo, cantidad_desde: r.cantidad_desde, cantidad_hasta: r.cantidad_hasta ?? null, precio: r.precio, servicio: 'mercado_libre' })) : [])
+    ]
+    if (allRangosPk.length) await db.from('rangos_paqueteria').insert(allRangosPk)
   }
 
   _resetFormEmpresa()
@@ -1278,6 +1416,15 @@ async function editarEmpresa(id) {
     mpBtn.style.background = _empMetodosPagoExtra ? '#dcfce7' : '#fee2e2'
     mpBtn.style.color      = _empMetodosPagoExtra ? '#16a34a' : '#ef4444'
     mpBtn.textContent      = _empMetodosPagoExtra ? 'Crédito + Efectivo + Transferencia' : 'Solo crédito'
+  }
+  _empSetTogglePaqueterias(data.permite_paqueterias === true)
+  _empSetToggleMercadoLibre(data.permite_mercado_libre === true)
+  if (_empPermitePaqueterias || _empPermiteMercadoLibre) {
+    const { data: rpData } = await db.from('rangos_paqueteria').select('*').eq('empresa_id', data.id)
+    _empRangosPaqueteria   = (rpData || []).filter(r => r.servicio === 'paqueteria').map(r => ({ tipo: r.tipo, cantidad_desde: r.cantidad_desde, cantidad_hasta: r.cantidad_hasta, precio: r.precio }))
+    _empRangosMercadoLibre = (rpData || []).filter(r => r.servicio === 'mercado_libre').map(r => ({ tipo: r.tipo, cantidad_desde: r.cantidad_desde, cantidad_hasta: r.cantidad_hasta, precio: r.precio }))
+    if (_empPermitePaqueterias)  _empRenderRangosServicio('paqueteria')
+    if (_empPermiteMercadoLibre) _empRenderRangosServicio('mercado_libre')
   }
   empSeleccionarTipoTarifa(data.tipo_tarifa || 'km')
   if ((data.tipo_tarifa || 'km') === 'km') empCargarRangos(data.id)
@@ -1326,6 +1473,10 @@ function _abrirFormEmpresa() {
   _empMetodosPagoExtra = false
   const mpBtn = document.getElementById('emp-metodos-pago-btn')
   if (mpBtn) { mpBtn.style.background = '#fee2e2'; mpBtn.style.color = '#ef4444'; mpBtn.textContent = 'Solo crédito' }
+  _empRangosPaqueteria = []; _empRangosMercadoLibre = []
+  _empSetTogglePaqueterias(false); _empSetToggleMercadoLibre(false)
+  const pkT = document.getElementById('emp-paqueterias-tabla'); if (pkT) pkT.innerHTML = ''
+  const mlT = document.getElementById('emp-mercadolibre-tabla'); if (mlT) mlT.innerHTML = ''
   empSeleccionarTipoTarifa('km')
   const titulo = document.getElementById('emp-form-titulo')
   if (titulo) titulo.textContent = '🏢 Nueva empresa'

@@ -794,13 +794,34 @@
     <button type="button" onclick="mostrarDirecciones('dir-recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
   </div>
 </div>
-<div class="form-group">
+<!-- Toggles paquetería/ML (solo visible si empresa lo permite) -->
+<div id="paqueteria-section" style="display:none;margin-bottom:10px">
+  <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Tipo de envío</div>
+  <div id="paqueteria-toggles" style="display:flex;flex-direction:column;gap:8px"></div>
+</div>
+
+<div id="dir-entrega-group" class="form-group">
   <label class="form-label">Dirección de entrega</label>
   <div style="display:flex;gap:8px;margin-bottom:6px">
     <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
     <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
   </div>
   <div id="zona-aviso" style="display:none;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;margin-top:4px"></div>
+</div>
+
+<!-- Cantidades paquetería (oculto por default) -->
+<div id="paqueteria-cantidades" style="display:none;margin-bottom:10px">
+  <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Cantidad de paquetes</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">Bolsas</label>
+      <input type="number" id="paqueteria-bolsas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">Cajas</label>
+      <input type="number" id="paqueteria-cajas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
+    </div>
+  </div>
 </div>
 
 <div id="paradas-container"></div>
@@ -1065,6 +1086,7 @@ async function _cargarEmpresaUsuario(user) {
     }
   }
   console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
+  if (empresa.permite_paqueterias || empresa.permite_mercado_libre) _mostrarTogglesPaqueteria(empresa)
   _actualizarVisibilidadAgregarParada()
   _suscribirEmpresaRealtime(empresa)
 }
@@ -1087,6 +1109,104 @@ function _desbloquearFormularioEmpresa() {
   if (!formState) return
   const btnSubmit = formState.querySelector('.btn.btn-primary')
   if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = ''; btnSubmit.style.cursor = '' }
+}
+
+// ── Paqueterías / Mercado Libre ───────────────────────────────────────────────
+
+function _mostrarTogglesPaqueteria(empresa) {
+  const section = document.getElementById('paqueteria-section')
+  const toggles = document.getElementById('paqueteria-toggles')
+  if (!section || !toggles) return
+  const btnBaseActivo   = 'padding:10px 14px;border:2px solid var(--blue);border-radius:8px;background:rgba(26,79,160,0.06);color:var(--blue);font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;text-align:left;width:100%'
+  const btnBaseInactivo = 'padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;background:white;color:#374151;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;text-align:left;width:100%'
+  let html = `<button id="toggle-normal-btn" onclick="_toggleModoPaqueteria(null)" style="${btnBaseActivo}">🏍️ Envío a domicilio</button>`
+  if (empresa.permite_paqueterias) {
+    html += `<button id="toggle-paqueteria-btn" onclick="_toggleModoPaqueteria('paqueteria')" style="${btnBaseInactivo}">📦 Enviar a Paquetería (DHL/FedEx/Estafeta)</button>`
+  }
+  if (empresa.permite_mercado_libre) {
+    html += `<button id="toggle-mercadolibre-btn" onclick="_toggleModoPaqueteria('mercado_libre')" style="${btnBaseInactivo}">🟡 Enviar a Mercado Libre</button>`
+  }
+  toggles.innerHTML = html
+  section.style.display = 'block'
+}
+
+async function _toggleModoPaqueteria(servicio) {
+  _modoPaqueteria   = servicio
+  _paqueteriaPrecio = null
+
+  const btnBaseActivo   = 'padding:10px 14px;border:2px solid var(--blue);border-radius:8px;background:rgba(26,79,160,0.06);color:var(--blue);font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;text-align:left;width:100%'
+  const btnBaseInactivo = 'padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;background:white;color:#374151;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;text-align:left;width:100%'
+  const nb = document.getElementById('toggle-normal-btn')
+  const pb = document.getElementById('toggle-paqueteria-btn')
+  const mb = document.getElementById('toggle-mercadolibre-btn')
+  if (nb) nb.style.cssText = servicio === null          ? btnBaseActivo : btnBaseInactivo
+  if (pb) pb.style.cssText = servicio === 'paqueteria'  ? btnBaseActivo : btnBaseInactivo
+  if (mb) mb.style.cssText = servicio === 'mercado_libre' ? btnBaseActivo : btnBaseInactivo
+
+  const entregaGroup = document.getElementById('dir-entrega-group')
+  const cantidades   = document.getElementById('paqueteria-cantidades')
+  const szCard       = document.querySelector('#sz-sobre')?.closest('.card')
+  const qd           = document.getElementById('quote-display')
+
+  if (servicio) {
+    if (entregaGroup) entregaGroup.style.display = 'none'
+    if (cantidades)   cantidades.style.display   = 'block'
+    if (szCard)       szCard.style.display       = 'none'
+    selSize = 'sobre'
+    const bolsasEl = document.getElementById('paqueteria-bolsas')
+    const cajasEl  = document.getElementById('paqueteria-cajas')
+    if (bolsasEl) bolsasEl.value = '0'
+    if (cajasEl)  cajasEl.value  = '0'
+    if (qd) qd.style.display = 'none'
+    if (!_rangosPaqueteria && _empresaData) {
+      const { data } = await db.from('rangos_paqueteria').select('*').eq('empresa_id', _empresaData.id)
+      _rangosPaqueteria = data || []
+    }
+  } else {
+    if (entregaGroup) entregaGroup.style.display = ''
+    if (cantidades)   cantidades.style.display   = 'none'
+    if (szCard)       szCard.style.display       = ''
+    selSize = null
+    if (qd) qd.style.display = 'none'
+  }
+}
+
+function _calcularPrecioPaqueteria() {
+  if (!_modoPaqueteria || !_rangosPaqueteria) return
+  const bolsas = parseInt(document.getElementById('paqueteria-bolsas')?.value) || 0
+  const cajas  = parseInt(document.getElementById('paqueteria-cajas')?.value)  || 0
+  const qd     = document.getElementById('quote-display')
+
+  if (bolsas === 0 && cajas === 0) {
+    _paqueteriaPrecio = null
+    if (qd) qd.style.display = 'none'
+    return
+  }
+
+  const rangos = _rangosPaqueteria.filter(r => r.servicio === _modoPaqueteria)
+  const _precio = (tipo, qty) => {
+    if (qty <= 0) return 0
+    const r = rangos.find(r => r.tipo === tipo && r.cantidad_desde <= qty && (r.cantidad_hasta === null || qty <= r.cantidad_hasta))
+    return r ? (r.precio || 0) : 0
+  }
+
+  const precioBolsas = _precio('Bolsa', bolsas)
+  const precioCajas  = _precio('Caja',  cajas)
+  const subtotal     = precioBolsas + precioCajas
+  const iva          = _empresaData?.iva ?? 0.16
+  const ivaAmt       = Math.round(subtotal * iva * 100) / 100
+  _paqueteriaPrecio  = Math.round((subtotal + ivaAmt) * 100) / 100
+
+  const lineas = []
+  if (bolsas > 0) lineas.push(bolsas + ' bolsa' + (bolsas > 1 ? 's' : '') + ': $' + precioBolsas.toFixed(2))
+  if (cajas  > 0) lineas.push(cajas  + ' caja'  + (cajas  > 1 ? 's' : '') + ': $' + precioCajas.toFixed(2))
+  lineas.push('IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
+
+  if (qd) {
+    document.getElementById('quote-amount').textContent = '$' + _paqueteriaPrecio.toFixed(2)
+    document.getElementById('quote-detail').innerHTML   = lineas.join('<br>')
+    qd.style.display = 'flex'
+  }
 }
 
 function _actualizarEstadoCuentaEmpresa(activo) {
@@ -1407,6 +1527,9 @@ let _precioGeneralKm = null     // km calculados para no-corporativos
 let _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
 let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
 let _cargoCancelacionPendiente = 0   // cargo pendiente por cancelación tardía (usuarios.cargo_cancelacion)
+let _modoPaqueteria   = null   // null | 'paqueteria' | 'mercado_libre'
+let _rangosPaqueteria = null   // rangos cargados de rangos_paqueteria para la empresa actual
+let _paqueteriaPrecio = null   // precio calculado en modo paquetería
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -1508,12 +1631,14 @@ async function submitRequest() {
 
   const _pv = _paradasList.filter(p => p.direccion.trim())
   const _esMultiParada = _pv.length > 0
-  const zonaOK = _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
-  if (!nombre || !whatsapp || !dir_recoleccion || !dir_entrega || !fecha || !selSize || !zonaOK || !metodoPago) {
+  const zonaOK = _modoPaqueteria
+    ? _paqueteriaPrecio != null
+    : _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
+  if (!nombre || !whatsapp || !dir_recoleccion || (!_modoPaqueteria && !dir_entrega) || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
     t.textContent = !zonaOK
-      ? (_empresaData ? '⚠️ Ingresa ambas direcciones para calcular el precio corporativo' : '⚠️ La dirección de entrega debe estar en nuestra zona de cobertura')
+      ? (_modoPaqueteria ? '⚠️ Ingresa la cantidad de bolsas o cajas para calcular el precio' : _empresaData ? '⚠️ Ingresa ambas direcciones para calcular el precio corporativo' : '⚠️ La dirección de entrega debe estar en nuestra zona de cobertura')
       : '⚠️ Llena todos los campos y selecciona fecha, tamaño y método de pago'
     document.body.appendChild(t)
     setTimeout(() => t.remove(), 3000)
@@ -1531,11 +1656,13 @@ if (aviso && aviso.style.display !== 'none' && aviso.innerHTML.includes('🟠'))
 }
 const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
-const precioBase = _empresaData
-  ? _corporativoPrecio
-  : _esMultiParada
-    ? _multiParadaPrecio
-    : _precioGeneralTotal
+const precioBase = _modoPaqueteria
+  ? _paqueteriaPrecio
+  : _empresaData
+    ? _corporativoPrecio
+    : _esMultiParada
+      ? _multiParadaPrecio
+      : _precioGeneralTotal
 const precio = _cuponActivo && !_empresaData
   ? (_cuponActivo.tipo === 'porcentaje'
       ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
@@ -1560,14 +1687,18 @@ const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
     direccion_recoleccion: dir_recoleccion,
-    direccion_entrega: dir_entrega,
+    direccion_entrega: _modoPaqueteria
+      ? (_modoPaqueteria === 'paqueteria' ? 'Paquetería DHL/FedEx/Estafeta' : 'Mercado Libre')
+      : dir_entrega,
     fecha: fecha,
     tamanio: selSize,
-    zona: _empresaData
-      ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
-      : _esMultiParada
-        ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
-        : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km',
+    zona: _modoPaqueteria
+      ? (_modoPaqueteria === 'paqueteria' ? 'Recolección paquetería' : 'Recolección Mercado Libre')
+      : _empresaData
+        ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
+        : _esMultiParada
+          ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
+          : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km',
     precio: Math.round(Number(precio) || 0),
     estado: estadoInicial,
     user_id: userId,
