@@ -1047,14 +1047,23 @@ async function _cargarEmpresaUsuario(user) {
     _bloquearFormularioEmpresa()
     return
   }
-  // Reemplazar opciones de pago con botón único de crédito
+  // Reemplazar opciones de pago según metodos_pago_extra
   const mpOpciones = document.getElementById('mp-opciones')
   if (mpOpciones) {
     const tipo = empresa.tipo_credito || 'Semanal'
-    mpOpciones.style.gridTemplateColumns = '1fr'
-    mpOpciones.innerHTML = `<div class="mp-option selected" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${tipo}</div>`
+    if (empresa.metodos_pago_extra) {
+      mpOpciones.style.gridTemplateColumns = '1fr 1fr 1fr'
+      mpOpciones.innerHTML = `
+        <div class="mp-option" id="mp-credito" onclick="selectMetodoPago('Crédito')">🏢 Crédito</div>
+        <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
+        <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>`
+      selMetodoPago = null
+    } else {
+      mpOpciones.style.gridTemplateColumns = '1fr'
+      mpOpciones.innerHTML = `<div class="mp-option selected" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${tipo}</div>`
+      selMetodoPago = 'Crédito'
+    }
   }
-  selMetodoPago = 'Crédito'
   console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
   _actualizarVisibilidadAgregarParada()
   _suscribirEmpresaRealtime(empresa)
@@ -1408,9 +1417,12 @@ const prices = {
 
 function selectMetodoPago(mp) {
   selMetodoPago = mp;
-  document.querySelectorAll('#mp-efectivo,#mp-transferencia').forEach(o => o.classList.remove('selected'));
-  document.getElementById('mp-' + mp).classList.add('selected');
-  document.getElementById('datos-transferencia').style.display = mp === 'transferencia' ? 'block' : 'none';
+  document.querySelectorAll('.mp-option').forEach(o => o.classList.remove('selected'));
+  const idSuffix = mp === 'Crédito' ? 'credito' : mp
+  const el = document.getElementById('mp-' + idSuffix)
+  if (el) el.classList.add('selected');
+  const dtEl = document.getElementById('datos-transferencia')
+  if (dtEl) dtEl.style.display = mp === 'transferencia' ? 'block' : 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
