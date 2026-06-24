@@ -4328,7 +4328,9 @@ function _mostrarCotizacionGeneral(km, precios) {
   const iva           = Number(precios.iva)            || 0.16
 
   const kmExtra  = Math.max(0, km - kmMinimo)
-  const subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
+  let subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
+  const cargoGrande = selSize === 'grande' ? 30 : 0
+  subtotal += cargoGrande
   const ivaAmt   = Math.round(subtotal * iva * 100) / 100
   const total    = Math.round((subtotal + ivaAmt) * 100) / 100
 
@@ -4346,6 +4348,7 @@ function _mostrarCotizacionGeneral(km, precios) {
       '💰 Base: $' + tarifaBase.toFixed(2) + ' (hasta ' + kmMinimo + ' km)'
     ]
     if (kmExtra > 0) lineas.push('➕ Extra: ' + kmExtra.toFixed(1) + ' km × $' + precioKmExtra + ' = $' + (kmExtra * precioKmExtra).toFixed(2))
+    if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$30')
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
     quoteDetail.innerHTML = lineas.join(' &nbsp;·&nbsp; ')
@@ -4452,6 +4455,11 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
     desglose    = '📍 ' + km + ' km · Subtotal $' + precio_base.toFixed(2)
   }
 
+  const cargoGrande = selSize === 'grande' ? 30 : 0
+  if (cargoGrande > 0) {
+    precio_base += cargoGrande
+    desglose += ' · 📦 Cargo paquete grande: +$30'
+  }
   const total = Math.round(precio_base * (1 + iva) * 100) / 100
 
   console.log('[corporativo] km:', km)
@@ -4728,6 +4736,12 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
     console.log('  cargoParadas:', totalParadas - 1, '×', CARGO_POR_PARADA, '=', cargoParadas)
     console.log('  total (base+paradas):', precioBase, '+', cargoParadas, '=', total)
     desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
+  }
+
+  const cargoGrandeMP = selSize === 'grande' ? 30 : 0
+  if (cargoGrandeMP > 0) {
+    total += cargoGrandeMP
+    desglose += ' | 📦 Cargo paquete grande: +$30'
   }
 
   _multiParadaPrecio = total
