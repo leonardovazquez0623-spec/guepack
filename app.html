@@ -2619,6 +2619,7 @@ async function cancelarPedido(id) {
     await db.from('pedidos').update({ estado: 'Cancelado' }).eq('id', id)
     cerrarCardPedido(id)
     mostrarToast('❌ Pedido cancelado', 'var(--orange)')
+    _cargarCreditoDrawer()
     // Si es empresa de tarifa diaria, reconsultar Supabase para actualizar el estado
     if (_empresaData?.tipo_tarifa === 'diaria') {
       await _chequearTarifaDiaria()
@@ -4124,14 +4125,15 @@ async function _cargarCreditoDrawer() {
   if (!session) return
 
   const { data: pedidos } = await db.from('pedidos')
-    .select('id, precio')
+    .select('id, precio, es_tarifa_adicional')
     .eq('user_id', session.user.id)
     .eq('metodo_pago', 'Crédito')
     .eq('credito_cobrado', false)
+    .not('estado', 'eq', 'Cancelado')
     .gte('created_at', inicioP.toISOString())
     .lte('created_at', finP.toISOString())
 
-  const totalPedidos = pedidos?.length || 0
+  const totalPedidos = (pedidos || []).filter(p => !p.es_tarifa_adicional).length
   const montoTotal   = (pedidos || []).reduce((s, p) => s + (Number(p.precio) || 0), 0)
   const corteStr     = proximoCorte.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' })
 
