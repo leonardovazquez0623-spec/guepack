@@ -1649,6 +1649,15 @@ async function submitRequest() {
   const instrucciones = document.getElementById('instrucciones-recoleccion').value
   const metodoPago = selMetodoPago
 
+  const precioFinal = _modoPaqueteria ? _paqueteriaPrecio : _empresaData ? _corporativoPrecio : _esMultiParada ? _multiParadaPrecio : _precioGeneralTotal
+  console.log('[validacion] precio:', precioFinal)
+  console.log('[validacion] tamanio:', selSize)
+  console.log('[validacion] fecha:', fecha)
+  console.log('[validacion] metodo_pago:', metodoPago)
+  console.log('[validacion] dir_recoleccion:', document.getElementById('dir-recoleccion')?.value)
+  console.log('[validacion] dir_entrega:', document.getElementById('dir-entrega')?.value)
+  console.log('[validacion] _tarifaDiariaYaCubierta:', _tarifaDiariaYaCubierta, '| _corporativoPrecio:', _corporativoPrecio, '| _empresaData:', !!_empresaData)
+
   const _pv = _paradasList.filter(p => p.direccion.trim())
   const _esMultiParada = _pv.length > 0
   const zonaOK = _modoPaqueteria
