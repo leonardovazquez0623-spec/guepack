@@ -2622,9 +2622,28 @@ async function cancelarPedido(id) {
     // Si es empresa de tarifa diaria, reconsultar Supabase para actualizar el estado
     if (_empresaData?.tipo_tarifa === 'diaria') {
       await _chequearTarifaDiaria()
+      console.log('[tarifa-diaria] tras cancelación → _tarifaDiariaYaCubierta:', _tarifaDiariaYaCubierta)
+      // Si no quedan pedidos activos del día, cancelar también el pedido original ($380)
+      if (!_tarifaDiariaYaCubierta) {
+        const hoy = new Date().toISOString().split('T')[0]
+        const { data: original } = await db.from('pedidos')
+          .select('id')
+          .eq('empresa_codigo', _empresaData.codigo)
+          .eq('metodo_pago', 'Crédito')
+          .eq('es_tarifa_adicional', false)
+          .gt('precio', 0)
+          .gte('created_at', hoy + 'T00:00:00')
+          .lt('created_at', hoy + 'T23:59:59.999')
+          .not('estado', 'eq', 'Cancelado')
+        console.log('[tarifa-diaria] pedidos originales activos encontrados:', original?.length)
+        if (original?.length) {
+          const idsOriginales = original.map(p => p.id)
+          await db.from('pedidos').update({ estado: 'Cancelado' }).in('id', idsOriginales)
+          console.log('[tarifa-diaria] pedido(s) original(es) cancelado(s):', idsOriginales)
+        }
+      }
       const cardMP = document.getElementById('card-metodo-pago')
       if (cardMP) cardMP.style.display = _tarifaDiariaYaCubierta ? 'none' : ''
-      console.log('[tarifa-diaria] tras cancelación → _tarifaDiariaYaCubierta:', _tarifaDiariaYaCubierta)
     }
   }
 

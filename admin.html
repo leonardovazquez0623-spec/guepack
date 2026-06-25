@@ -1845,11 +1845,13 @@ async function cargarCorteCreditoEmpresas() {
     .select('id, empresa_codigo, precio, created_at, estado, credito_cobrado, nombre')
     .in('empresa_codigo', codigosEmpresa)
     .eq('metodo_pago', 'Crédito')
+    .not('estado', 'eq', 'Cancelado')
   if (e1) {
     const { data: p2 } = await db.from('pedidos')
       .select('id, empresa_codigo, precio, created_at, estado, nombre')
       .in('empresa_codigo', codigosEmpresa)
       .eq('metodo_pago', 'Crédito')
+      .not('estado', 'eq', 'Cancelado')
     pedidos = p2 || []
   } else {
     pedidos = (p1 || []).filter(p => !p.credito_cobrado)
