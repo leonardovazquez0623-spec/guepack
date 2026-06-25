@@ -1118,13 +1118,13 @@ async function _chequearTarifaDiaria() {
   if (!_empresaData?.codigo) return
   const hoy = new Date().toISOString().split('T')[0]
   const { data } = await db.from('pedidos')
-    .select('id')
+    .select('id, estado')
     .eq('empresa_codigo', _empresaData.codigo)
     .eq('metodo_pago', 'Crédito')
     .gte('created_at', hoy + 'T00:00:00')
     .lt('created_at', hoy + 'T23:59:59.999')
     .neq('estado', 'Cancelado')
-    .limit(1)
+  console.log('[tarifa diaria] pedidos hoy:', data?.length, data?.map(p => p.estado))
   _tarifaDiariaYaCubierta = (data?.length || 0) > 0
   console.log('[tarifa-diaria] ya cubierta hoy:', _tarifaDiariaYaCubierta)
 }
