@@ -2204,9 +2204,8 @@ async function confirmarAgregarParada(pedidoId) {
 
   btn.textContent = 'Agregando...'; btn.disabled = true
 
-  // Orden = paradas existentes + 1
-  const { data: existentes } = await db.from('paradas').select('id').eq('pedido_id', pedidoId)
-  const orden = (existentes?.length || 0) + 1
+  const { data: paradasOrd } = await db.from('paradas').select('orden').eq('pedido_id', pedidoId).order('orden', { ascending: false }).limit(1)
+  const orden = (paradasOrd?.[0]?.orden || 0) + 1
 
   const { error } = await db.from('paradas').insert({
     pedido_id: pedidoId,
