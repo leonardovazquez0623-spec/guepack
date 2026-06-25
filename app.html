@@ -1745,6 +1745,7 @@ const { data, error } = await db.from('pedidos').insert({
     cupon_codigo: _cuponActivo?.codigo || null,
     token_rastreo: tokenRastreo,
     empresa_codigo: _empresaData?.codigo || null,
+    es_tarifa_adicional: (_empresaData?.tipo_tarifa === 'diaria' && _tarifaDiariaYaCubierta) ? true : false,
   }).select()
 
   if (error) {
@@ -2618,6 +2619,13 @@ async function cancelarPedido(id) {
     await db.from('pedidos').update({ estado: 'Cancelado' }).eq('id', id)
     cerrarCardPedido(id)
     mostrarToast('❌ Pedido cancelado', 'var(--orange)')
+    // Si es empresa de tarifa diaria, reconsultar Supabase para actualizar el estado
+    if (_empresaData?.tipo_tarifa === 'diaria') {
+      await _chequearTarifaDiaria()
+      const cardMP = document.getElementById('card-metodo-pago')
+      if (cardMP) cardMP.style.display = _tarifaDiariaYaCubierta ? 'none' : ''
+      console.log('[tarifa-diaria] tras cancelación → _tarifaDiariaYaCubierta:', _tarifaDiariaYaCubierta)
+    }
   }
 
   if (minutos > 5) {
