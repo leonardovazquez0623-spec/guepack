@@ -1123,7 +1123,8 @@ async function _chequearTarifaDiaria() {
     .eq('metodo_pago', 'Crédito')
     .gte('created_at', hoy + 'T00:00:00')
     .lt('created_at', hoy + 'T23:59:59.999')
-    .neq('estado', 'Cancelado')
+    .not('estado', 'eq', 'Cancelado')
+    .eq('credito_cobrado', false)
   console.log('[tarifa diaria] pedidos hoy:', data?.length, data?.map(p => p.estado))
   _tarifaDiariaYaCubierta = (data?.length || 0) > 0
   console.log('[tarifa-diaria] ya cubierta hoy:', _tarifaDiariaYaCubierta)
@@ -1652,7 +1653,9 @@ async function submitRequest() {
   const _esMultiParada = _pv.length > 0
   const zonaOK = _modoPaqueteria
     ? _paqueteriaPrecio != null
-    : _empresaData ? _corporativoPrecio != null : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
+    : _empresaData
+      ? (_tarifaDiariaYaCubierta || _corporativoPrecio != null)
+      : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
   if (!nombre || !whatsapp || !dir_recoleccion || (!_modoPaqueteria && !dir_entrega) || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
