@@ -888,7 +888,7 @@
           <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="card-metodo-pago">
           <div class="card-title">Método de pago</div>
           <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
@@ -1128,6 +1128,11 @@ async function _chequearTarifaDiaria() {
   console.log('[tarifa diaria] pedidos hoy:', data?.length, data?.map(p => p.estado))
   _tarifaDiariaYaCubierta = (data?.length || 0) > 0
   console.log('[tarifa-diaria] ya cubierta hoy:', _tarifaDiariaYaCubierta)
+  if (_tarifaDiariaYaCubierta) {
+    selMetodoPago = 'Crédito'
+    const cardMP = document.getElementById('card-metodo-pago')
+    if (cardMP) cardMP.style.display = 'none'
+  }
 }
 
 // ── Paqueterías / Mercado Libre ───────────────────────────────────────────────
@@ -4811,8 +4816,11 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
   // Tarifa ya cubierta hoy — este envío no tiene costo adicional
   if (_tarifaDiariaYaCubierta) {
     _corporativoPrecio = 0
+    selMetodoPago = 'Crédito'
+    const cardMP = document.getElementById('card-metodo-pago')
+    if (cardMP) cardMP.style.display = 'none'
     if (quoteAmount) quoteAmount.innerHTML = '$0.00'
-    if (quoteDetail) quoteDetail.innerHTML = (km !== null ? '📍 Distancia: ' + km + ' km<br>' : '') + '📅 Tarifa diaria ya cubierta hoy ✅<br>Este envío no tiene costo adicional'
+    if (quoteDetail) quoteDetail.innerHTML = (km !== null ? '📍 Distancia: ' + km + ' km<br>' : '') + '📅 Tarifa diaria cubierta — sin costo adicional ✅'
     if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
     if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#dcfce7'; aviso.style.color = '#16a34a'; aviso.textContent = '✅ Tarifa diaria cubierta · ' + e.nombre }
     return
@@ -5074,8 +5082,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
     if (_tarifaDiariaYaCubierta) {
       _multiParadaPrecio = 0
       _corporativoPrecio = 0
+      selMetodoPago = 'Crédito'
+      const cardMPd = document.getElementById('card-metodo-pago')
+      if (cardMPd) cardMPd.style.display = 'none'
       if (quoteAmount) quoteAmount.innerHTML = '$0.00'
-      if (quoteDetail) quoteDetail.innerHTML = '📍 ' + kmTotal + ' km · ' + totalParadas + ' paradas<br>📅 Tarifa diaria ya cubierta hoy ✅<br>Este envío no tiene costo adicional'
+      if (quoteDetail) quoteDetail.innerHTML = '📍 ' + kmTotal + ' km · ' + totalParadas + ' paradas<br>📅 Tarifa diaria cubierta — sin costo adicional ✅'
       if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
       const avisoD = document.getElementById('zona-aviso')
       if (avisoD) { avisoD.style.display = 'block'; avisoD.style.background = '#dcfce7'; avisoD.style.color = '#16a34a'; avisoD.textContent = '✅ Tarifa diaria cubierta · ' + _empresaData.nombre }
