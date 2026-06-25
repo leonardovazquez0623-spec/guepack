@@ -1766,6 +1766,9 @@ const { data, error } = await db.from('pedidos').insert({
   console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
   _iniciarAsignacionAutomatica(data[0])
 
+  // Actualizar contador VIP — fire-and-forget (solo clientes no-corporativos)
+  if (!_empresaData) actualizarVipTrasEntrega()
+
   // Tarifa diaria: el primer pedido del día cubre todos los siguientes
   if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
     _tarifaDiariaYaCubierta = true
@@ -2445,7 +2448,6 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, n
 
       if (nuevoEstado === 'Entregado') {
         console.log('[GUEPACK] Pedido', id, 'ENTREGADO — lanzando modal de calificación en 3s')
-        actualizarVipTrasEntrega()
         setTimeout(() => mostrarModalCalificacion(id, nuevoRepartidor), 3000)
       }
 
