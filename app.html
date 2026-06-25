@@ -1086,6 +1086,7 @@ async function _cargarEmpresaUsuario(user) {
     }
   }
   console.log('[empresa] _empresaUsuario cargado:', _empresaUsuario)
+  if (empresa.tipo_tarifa === 'diaria') await _chequearTarifaDiaria()
   if (empresa.permite_paqueterias || empresa.permite_mercado_libre) _mostrarTogglesPaqueteria(empresa)
   _actualizarVisibilidadAgregarParada()
   _suscribirEmpresaRealtime(empresa)
@@ -1109,6 +1110,23 @@ function _desbloquearFormularioEmpresa() {
   if (!formState) return
   const btnSubmit = formState.querySelector('.btn.btn-primary')
   if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.style.opacity = ''; btnSubmit.style.cursor = '' }
+}
+
+// ── Tarifa diaria ─────────────────────────────────────────────────────────────
+
+async function _chequearTarifaDiaria() {
+  if (!_empresaData?.codigo) return
+  const hoy = new Date().toISOString().split('T')[0]
+  const { data } = await db.from('pedidos')
+    .select('id')
+    .eq('empresa_codigo', _empresaData.codigo)
+    .eq('metodo_pago', 'Crédito')
+    .gte('created_at', hoy + 'T00:00:00')
+    .lt('created_at', hoy + 'T23:59:59.999')
+    .neq('estado', 'Cancelado')
+    .limit(1)
+  _tarifaDiariaYaCubierta = (data?.length || 0) > 0
+  console.log('[tarifa-diaria] ya cubierta hoy:', _tarifaDiariaYaCubierta)
 }
 
 // ── Paqueterías / Mercado Libre ───────────────────────────────────────────────
@@ -1527,9 +1545,10 @@ let _precioGeneralKm = null     // km calculados para no-corporativos
 let _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
 let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
 let _cargoCancelacionPendiente = 0   // cargo pendiente por cancelación tardía (usuarios.cargo_cancelacion)
-let _modoPaqueteria   = null   // null | 'paqueteria' | 'mercado_libre'
-let _rangosPaqueteria = null   // rangos cargados de rangos_paqueteria para la empresa actual
-let _paqueteriaPrecio = null   // precio calculado en modo paquetería
+let _modoPaqueteria          = null   // null | 'paqueteria' | 'mercado_libre'
+let _rangosPaqueteria        = null   // rangos cargados de rangos_paqueteria para la empresa actual
+let _paqueteriaPrecio        = null   // precio calculado en modo paquetería
+let _tarifaDiariaYaCubierta  = false  // true si ya hay pedidos hoy para esta empresa diaria
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -1728,6 +1747,12 @@ const { data, error } = await db.from('pedidos').insert({
   // Asignación automática — fire-and-forget, no bloquea el flujo del cliente
   console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
   _iniciarAsignacionAutomatica(data[0])
+
+  // Tarifa diaria: el primer pedido del día cubre todos los siguientes
+  if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
+    _tarifaDiariaYaCubierta = true
+    console.log('[tarifa-diaria] primer pedido del día creado → tarifa cubierta para pedidos posteriores')
+  }
 
   if (_cargoCancelacionPendiente > 0 && !_empresaData) {
     db.from('pedidos').update({ cargo_cancelacion: _cargoCancelacionPendiente }).eq('id', folioReal).then(() => {})
@@ -4764,9 +4789,24 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
 function _mostrarCotizacionDiaria(km = null, precios = null) {
   const e      = _empresaData
   const tarifa = Number(e.tarifa_diaria) || 380
+  _corporativoKm = km
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+  const aviso       = document.getElementById('zona-aviso')
+
+  // Tarifa ya cubierta hoy — este envío no tiene costo adicional
+  if (_tarifaDiariaYaCubierta) {
+    _corporativoPrecio = 0
+    if (quoteAmount) quoteAmount.innerHTML = '$0.00'
+    if (quoteDetail) quoteDetail.innerHTML = (km !== null ? '📍 Distancia: ' + km + ' km<br>' : '') + '📅 Tarifa diaria ya cubierta hoy ✅<br>Este envío no tiene costo adicional'
+    if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
+    if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#dcfce7'; aviso.style.color = '#16a34a'; aviso.textContent = '✅ Tarifa diaria cubierta · ' + e.nombre }
+    return
+  }
 
   _corporativoPrecio = tarifa
-  _corporativoKm     = km
 
   // Calcular precio por KM con precios_generales para comparar
   let precioKm = null
@@ -4781,10 +4821,6 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
     precioKm = Math.round((subtotal + ivaAmt) * 100) / 100
   }
 
-  const quoteAmount = document.getElementById('quote-amount')
-  const quoteDetail = document.getElementById('quote-detail')
-  const quoteBox    = document.getElementById('quote-display')
-
   if (quoteAmount) {
     if (precioKm !== null && precioKm > tarifa) {
       quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + precioKm.toFixed(2) + '</span>$' + tarifa.toFixed(2) + '</span>'
@@ -4796,23 +4832,14 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
   if (quoteDetail) {
     const lineas = []
     if (km !== null) lineas.push('📍 Distancia: ' + km + ' km')
-    if (precioKm !== null && precioKm > tarifa) {
-      lineas.push('💰 Precio estimado: <s>$' + precioKm.toFixed(2) + '</s>')
-    }
+    if (precioKm !== null && precioKm > tarifa) lineas.push('💰 Precio estimado: <s>$' + precioKm.toFixed(2) + '</s>')
     lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
     lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
     quoteDetail.innerHTML = lineas.join('<br>')
   }
 
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
-
-  const aviso = document.getElementById('zona-aviso')
-  if (aviso) {
-    aviso.style.display = 'block'
-    aviso.style.background = '#e0f2fe'
-    aviso.style.color = '#0369a1'
-    aviso.textContent = '📅 Tarifa diaria · ' + e.nombre
-  }
+  if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#e0f2fe'; aviso.style.color = '#0369a1'; aviso.textContent = '📅 Tarifa diaria · ' + e.nombre }
 }
 
 function _mostrarErrorRuta22(resultEl) {
@@ -5031,6 +5058,18 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
   // Tarifa diaria corporativa: comparar precio calculado vs tarifa fija
   if (_empresaData?.tipo_tarifa === 'diaria') {
     const tarifa = Number(_empresaData.tarifa_diaria) || 380
+
+    if (_tarifaDiariaYaCubierta) {
+      _multiParadaPrecio = 0
+      _corporativoPrecio = 0
+      if (quoteAmount) quoteAmount.innerHTML = '$0.00'
+      if (quoteDetail) quoteDetail.innerHTML = '📍 ' + kmTotal + ' km · ' + totalParadas + ' paradas<br>📅 Tarifa diaria ya cubierta hoy ✅<br>Este envío no tiene costo adicional'
+      if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
+      const avisoD = document.getElementById('zona-aviso')
+      if (avisoD) { avisoD.style.display = 'block'; avisoD.style.background = '#dcfce7'; avisoD.style.color = '#16a34a'; avisoD.textContent = '✅ Tarifa diaria cubierta · ' + _empresaData.nombre }
+      return
+    }
+
     _multiParadaPrecio = tarifa
     _corporativoPrecio = tarifa
 

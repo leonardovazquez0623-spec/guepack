@@ -1877,12 +1877,19 @@ async function cargarCorteCreditoEmpresas() {
     const pedidosCancelacion = grupo.pedidos.filter(p => p.nombre === 'Cargo cancelación')
     const totalNormal        = pedidosNormales.reduce((s, p) => s + (p.precio || 0), 0)
     const totalCancelacion   = pedidosCancelacion.reduce((s, p) => s + (p.precio || 0), 0)
+    const esDiaria = e.tipo_tarifa === 'diaria'
+    const diasUnicos = esDiaria
+      ? [...new Set(pedidosNormales.map(p => (p.created_at || '').split('T')[0]).filter(Boolean))].length
+      : 0
+    const subtituloEnvios = esDiaria
+      ? `Crédito ${periodo} · 📅 Tarifa diaria · ${diasUnicos} día${diasUnicos !== 1 ? 's' : ''} cobrado${diasUnicos !== 1 ? 's' : ''} · ${pedidosNormales.length} pedido${pedidosNormales.length !== 1 ? 's' : ''}`
+      : `Crédito ${periodo} · ${pedidosNormales.length} envío${pedidosNormales.length !== 1 ? 's' : ''} pendiente${pedidosNormales.length !== 1 ? 's' : ''}`
     return `
     <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid var(--blue)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${e.nombre}</div>
-          <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600;margin-top:2px">Crédito ${periodo} · ${pedidosNormales.length} envío${pedidosNormales.length !== 1 ? 's' : ''} pendiente${pedidosNormales.length !== 1 ? 's' : ''}</div>
+          <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:600;margin-top:2px">${subtituloEnvios}</div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--orange);line-height:1">$${grupo.total}</div>
       </div>
