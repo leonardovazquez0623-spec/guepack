@@ -1721,11 +1721,7 @@ const precioBase = _modoPaqueteria
     : _esMultiParada
       ? _multiParadaPrecio
       : _precioGeneralTotal
-const precio = _cuponActivo && !_empresaData
-  ? (_cuponActivo.tipo === 'porcentaje'
-      ? Math.round(precioBase * (1 - _cuponActivo.descuento / 100))
-      : Math.max(0, precioBase - _cuponActivo.descuento))
-  : precioBase
+const precio = precioBase  // descuento de cupón ya está incluido en _precioGeneralTotal
 
 // Subir comprobante si existe
 let comprobanteUrl = null
@@ -3013,7 +3009,8 @@ function _iniciarNuevaConversacion(pedidoId) {
 
 const _unreadChat = {}
 let _fcmToken = null
-let _cuponActivo = null
+let _cuponActivo    = null
+let _cuponDescuento = 0
 
 async function aplicarCupon() {
   const codigo = document.getElementById('cupon-input').value.trim().toUpperCase()
@@ -3029,19 +3026,19 @@ async function aplicarCupon() {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
     resultado.textContent = '❌ Cupón no encontrado'
-    _cuponActivo = null; updateQuote(); return
+    _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   if (data.fecha_expiracion && data.fecha_expiracion < hoy) {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
     resultado.textContent = '❌ Este cupón ha expirado'
-    _cuponActivo = null; updateQuote(); return
+    _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   if (data.usos_maximos && (data.usos_actuales || 0) >= data.usos_maximos) {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
     resultado.textContent = '❌ Este cupón ya no tiene usos disponibles'
-    _cuponActivo = null; updateQuote(); return
+    _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   _cuponActivo = data
   updateQuote()
@@ -4688,9 +4685,20 @@ function _mostrarCotizacionGeneral(km, precios) {
   let subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
   const cargoGrande = selSize === 'grande' ? 30 : 0
   subtotal += cargoGrande
-  const ivaAmt         = Math.round(subtotal * iva * 100) / 100
+  const ivaAmt           = Math.round(subtotal * iva * 100) / 100
   const cargoCancelacion = _cargoCancelacionPendiente || 0
-  const total          = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
+  let   total            = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
+
+  // Aplicar cupón si está activo
+  if (_cuponActivo) {
+    _cuponDescuento = _cuponActivo.tipo === 'porcentaje'
+      ? Math.round(total * _cuponActivo.descuento / 100 * 100) / 100
+      : Number(_cuponActivo.descuento) || 0
+    total = Math.max(0, Math.round((total - _cuponDescuento) * 100) / 100)
+    console.log('[cupon] descuento aplicado:', _cuponDescuento)
+  } else {
+    _cuponDescuento = 0
+  }
 
   _precioGeneralTotal = total
   _precioGeneralKm    = km
@@ -4710,6 +4718,8 @@ function _mostrarCotizacionGeneral(km, precios) {
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
     if (cargoCancelacion > 0) lineas.push('⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion)
+    if (_cuponDescuento > 0) lineas.push('🎟️ Cupón aplicado: -$' + _cuponDescuento.toFixed(2))
+    lineas.push('✅ Total: $' + total.toFixed(2))
     quoteDetail.innerHTML = lineas.join('<br>')
   }
   if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
