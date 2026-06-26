@@ -753,17 +753,23 @@ function initMapsAdmin() {
     <!-- Precios generales -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">💰 Precios generales (usuarios no corporativos)</div>
+      <!-- Rangos escalonados -->
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label class="form-label" style="margin-bottom:0">Rangos de precio por distancia</label>
+          <button onclick="_pgAgregarRango()" style="padding:4px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">+ Agregar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:4px">
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Desde (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Hasta (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Precio ($)</span>
+          <span></span>
+        </div>
+        <div id="pg-rangos-tabla"></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Tarifa base ($)</label>
-          <input type="number" id="pg-tarifa-base" class="form-input" placeholder="115" min="0" step="1">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">KM mínimos incluidos</label>
-          <input type="number" id="pg-km-minimo" class="form-input" placeholder="5" min="0" step="1">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Precio por KM extra ($)</label>
+          <label class="form-label">$ por KM extra <small style="color:#8fa3c0;font-weight:600">(último rango)</small></label>
           <input type="number" id="pg-precio-km" class="form-input" placeholder="13" min="0" step="0.5">
         </div>
         <div class="form-group" style="margin-bottom:0">
@@ -771,7 +777,7 @@ function initMapsAdmin() {
           <input type="number" id="pg-iva" class="form-input" placeholder="16" min="0" max="100" step="1">
         </div>
       </div>
-      <button onclick="guardarPreciosGenerales()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar precios</button>
+      <button onclick="guardarPreciosGenerales()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar rangos</button>
     </div>
 
     <!-- Acciones principales (siempre visibles) -->
@@ -1497,6 +1503,7 @@ function _resetFormEmpresa() {
 // ── Rangos de precio empresa ─────────────────────────────────────────────────
 
 let _empRangos = []  // [{id?, km_desde, km_hasta, precio}]
+let _pgRangos  = []  // rangos_precio_general
 
 async function empCargarRangos(empresaId) {
   const { data } = await db.from('rangos_precio_empresa').select('*').eq('empresa_id', empresaId).order('km_desde')
@@ -1555,6 +1562,37 @@ async function guardarRangosEmpresa() {
 
   showToast('✅ Rangos guardados')
   empCargarRangos(empId)
+}
+
+// ── Rangos precio general (usuarios no corporativos) ─────────────────────────
+
+function _pgRenderRangos() {
+  const tabla = document.getElementById('pg-rangos-tabla')
+  if (!tabla) return
+  if (!_pgRangos.length) {
+    tabla.innerHTML = '<div style="color:#999;font-size:11px;font-family:Montserrat,sans-serif;font-weight:600;padding:6px 0">Sin rangos. Pulsa "+ Agregar" para crear el primero.</div>'
+    return
+  }
+  tabla.innerHTML = _pgRangos.map((r, i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:5px">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.km_desde ?? ''}" oninput="_pgRangos[${i}].km_desde=parseFloat(this.value)||0">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="∞ (abierto)" value="${r.km_hasta ?? ''}" oninput="_pgRangos[${i}].km_hasta=this.value===''?null:parseFloat(this.value)">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.precio ?? ''}" oninput="_pgRangos[${i}].precio=parseFloat(this.value)||0">
+      <button onclick="_pgEliminarRango(${i})" style="padding:0;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;cursor:pointer;width:32px;height:36px;display:flex;align-items:center;justify-content:center">🗑️</button>
+    </div>
+  `).join('')
+}
+
+function _pgAgregarRango() {
+  const ultimo = _pgRangos[_pgRangos.length - 1]
+  const desde  = ultimo ? (ultimo.km_hasta != null ? ultimo.km_hasta : (ultimo.km_desde + 5)) : 0
+  _pgRangos.push({ km_desde: desde, km_hasta: null, precio: 0 })
+  _pgRenderRangos()
+}
+
+function _pgEliminarRango(idx) {
+  _pgRangos.splice(idx, 1)
+  _pgRenderRangos()
 }
 
 // ── Asignación automática ────────────────────────────────────────────────────
@@ -4138,32 +4176,41 @@ async function _cargarZonasEnMapa() {
 }
 
 async function cargarPreciosGenerales() {
-  const { data } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
-  if (!data) return
-  const tb = document.getElementById('pg-tarifa-base')
-  const km = document.getElementById('pg-km-minimo')
-  const pk = document.getElementById('pg-precio-km')
-  const iv = document.getElementById('pg-iva')
-  if (tb) tb.value = data.tarifa_base ?? ''
-  if (km) km.value = data.km_minimo ?? ''
-  if (pk) pk.value = data.precio_km_extra ?? ''
-  if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
+  const [{ data }, { data: rangos }] = await Promise.all([
+    db.from('precios_generales').select('*').limit(1).maybeSingle(),
+    db.from('rangos_precio_general').select('*').order('km_desde')
+  ])
+  if (data) {
+    const pk = document.getElementById('pg-precio-km')
+    const iv = document.getElementById('pg-iva')
+    if (pk) pk.value = data.precio_km_extra ?? ''
+    if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
+  }
+  _pgRangos = (rangos || []).map(r => ({ id: r.id, km_desde: r.km_desde, km_hasta: r.km_hasta, precio: r.precio }))
+  _pgRenderRangos()
 }
 
 async function guardarPreciosGenerales() {
-  const tarifa_base     = parseFloat(document.getElementById('pg-tarifa-base').value)
-  const km_minimo       = parseFloat(document.getElementById('pg-km-minimo').value)
   const precio_km_extra = parseFloat(document.getElementById('pg-precio-km').value)
   const ivaPorc         = parseFloat(document.getElementById('pg-iva').value)
 
-  if ([tarifa_base, km_minimo, precio_km_extra, ivaPorc].some(isNaN)) {
-    showToast('⚠️ Llena todos los campos')
+  if (isNaN(precio_km_extra) || isNaN(ivaPorc)) {
+    showToast('⚠️ Completa el precio KM extra e IVA')
     return
+  }
+  if (!_pgRangos.length) {
+    showToast('⚠️ Agrega al menos un rango de precio')
+    return
+  }
+  for (const r of _pgRangos) {
+    if (r.km_desde == null || r.precio == null || r.precio <= 0) {
+      showToast('⚠️ Verifica que todos los rangos tengan Desde y Precio'); return
+    }
   }
 
   const iva = ivaPorc / 100
   const { data: existing } = await db.from('precios_generales').select('id').limit(1).maybeSingle()
-  const payload = { tarifa_base, km_minimo, precio_km_extra, iva }
+  const payload = { precio_km_extra, iva }
   let error
   if (existing) {
     ;({ error } = await db.from('precios_generales').update(payload).eq('id', existing.id))
@@ -4171,7 +4218,17 @@ async function guardarPreciosGenerales() {
     ;({ error } = await db.from('precios_generales').insert(payload))
   }
   if (error) { showToast('❌ Error al guardar: ' + error.message); return }
-  showToast('✅ Precios generales guardados')
+
+  // Borrar rangos anteriores e insertar los nuevos
+  const { error: delErr } = await db.from('rangos_precio_general').delete().not('id', 'is', null)
+  if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
+
+  const rows = _pgRangos.map(r => ({ km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
+  const { error: insErr } = await db.from('rangos_precio_general').insert(rows)
+  if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
+
+  showToast('✅ Rangos guardados')
+  cargarPreciosGenerales()
 }
 
 async function cargarZonas() {

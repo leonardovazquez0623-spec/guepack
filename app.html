@@ -1571,6 +1571,7 @@ let _multiParadaZonaData = null // zona de la última parada
 let _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
 let _precioGeneralKm = null     // km calculados para no-corporativos
 let _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
+let _rangosGeneralesData  = null // rangos_precio_general cacheados
 let _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
 let _cargoCancelacionPendiente = 0   // cargo pendiente por cancelación tardía (usuarios.cargo_cancelacion)
 let _modoPaqueteria          = null   // null | 'paqueteria' | 'mercado_libre'
@@ -1677,8 +1678,8 @@ function updateQuote() {
   if (_empresaData) return  // corporativo sin km aún — esperar dirección
   // General: recalcular con caché; si no hay caché pero hay km, recalcular completo
   console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
-  if (_precioGeneralKm != null && _preciosGeneralesData) {
-    _mostrarCotizacionGeneral(_precioGeneralKm, _preciosGeneralesData)
+  if (_precioGeneralKm != null && _preciosGeneralesData && _rangosGeneralesData) {
+    _mostrarCotizacionGeneral(_precioGeneralKm, _preciosGeneralesData, _rangosGeneralesData)
   } else if (_precioGeneralKm != null) {
     _calcularPrecioGeneral()
   }
@@ -4681,7 +4682,10 @@ async function _calcularPrecioGeneral() {
   }
   if (!destino) return
 
-  const { data: precios } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
+  const [{ data: precios }, { data: rangos }] = await Promise.all([
+    db.from('precios_generales').select('*').limit(1).maybeSingle(),
+    db.from('rangos_precio_general').select('*').order('km_desde')
+  ])
   if (!precios) { mostrarToast('⚠️ No hay precios configurados', 'var(--orange)'); return }
 
   let km
@@ -4703,21 +4707,37 @@ async function _calcularPrecioGeneral() {
     return
   }
 
-  _mostrarCotizacionGeneral(km, precios)
+  _mostrarCotizacionGeneral(km, precios, rangos || [])
 }
 
-function _mostrarCotizacionGeneral(km, precios) {
+function _mostrarCotizacionGeneral(km, precios, rangos) {
   _preciosGeneralesData = precios
+  _rangosGeneralesData  = rangos || []
   console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
-  const tarifaBase    = Number(precios.tarifa_base)    || 115
-  const kmMinimo      = Number(precios.km_minimo)      || 5
+
   const precioKmExtra = Number(precios.precio_km_extra) || 13
   const iva           = Number(precios.iva)            || 0.16
 
-  const kmExtra  = Math.max(0, km - kmMinimo)
-  let subtotal = km <= kmMinimo ? tarifaBase : tarifaBase + kmExtra * precioKmExtra
+  // Encontrar rango correspondiente al km actual
+  const sorted = [..._rangosGeneralesData].sort((a, b) => (a.km_desde || 0) - (b.km_desde || 0))
+  let rangoActual = sorted.find(r => (r.km_desde || 0) <= km && (r.km_hasta == null || km <= r.km_hasta))
+  if (!rangoActual && sorted.length) rangoActual = sorted[sorted.length - 1]
+
+  let precioBase = 0, kmExtra = 0, desgloseRango = '❓ Sin rangos configurados'
+  if (rangoActual) {
+    const esUltimo = rangoActual.km_hasta == null
+    if (esUltimo && km > (rangoActual.km_desde || 0)) {
+      kmExtra    = Math.round((km - (rangoActual.km_desde || 0)) * 10) / 10
+      precioBase = Number(rangoActual.precio) + kmExtra * precioKmExtra
+      desgloseRango = '💰 Rango ' + rangoActual.km_desde + '+ km: $' + Number(rangoActual.precio).toFixed(2)
+    } else {
+      precioBase    = Number(rangoActual.precio)
+      desgloseRango = '💰 Rango ' + rangoActual.km_desde + '–' + rangoActual.km_hasta + ' km: $' + precioBase.toFixed(2)
+    }
+  }
+
   const cargoGrande = selSize === 'grande' ? 30 : 0
-  subtotal += cargoGrande
+  let subtotal = precioBase + cargoGrande
   const ivaAmt           = Math.round(subtotal * iva * 100) / 100
   const cargoCancelacion = _cargoCancelacionPendiente || 0
   let   total            = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
@@ -4742,10 +4762,7 @@ function _mostrarCotizacionGeneral(km, precios) {
 
   if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
   if (quoteDetail) {
-    const lineas = [
-      '📍 Distancia: ' + km + ' km',
-      '💰 Base: $' + tarifaBase.toFixed(2) + ' (hasta ' + kmMinimo + ' km)'
-    ]
+    const lineas = ['📍 Distancia: ' + km + ' km', desgloseRango]
     if (kmExtra > 0) lineas.push('➕ Extra: ' + kmExtra.toFixed(1) + ' km × $' + precioKmExtra + ' = $' + (kmExtra * precioKmExtra).toFixed(2))
     if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$30')
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
