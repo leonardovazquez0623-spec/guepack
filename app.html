@@ -874,8 +874,11 @@
         <!-- COTIZACIÓN -->
         <div id="quote-display" class="quote-box" style="display:none">
           <div class="quote-label">Costo de envío</div>
-          <div class="quote-price" id="quote-amount">$0</div>
-          <div class="quote-detail" id="quote-detail">—</div>
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <div class="quote-price" id="quote-amount">$0</div>
+            <button onclick="_mostrarDesglose()" title="Ver desglose" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--blue);padding:0;line-height:1;opacity:0.75;flex-shrink:0" id="quote-info-btn">ⓘ</button>
+          </div>
+          <div class="quote-detail" id="quote-detail" style="display:none">—</div>
         </div>
 
         <!-- CUPÓN -->
@@ -1561,6 +1564,25 @@ const prices = {
   centro: { sobre: 110, grande: 150 },
   norte:  { sobre: 150, grande: 200 },
   sur:    { sobre: 150, grande: 200 },
+}
+
+function _mostrarDesglose() {
+  const detail = document.getElementById('quote-detail')
+  if (!detail || !detail.innerHTML || detail.innerHTML === '—') return
+  if (document.getElementById('desglose-modal')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'desglose-modal'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .2s ease'
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px 22px;max-width:320px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.22);position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:var(--blue)">Desglose del costo</div>
+        <button onclick="document.getElementById('desglose-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0;line-height:1;padding:0">✕</button>
+      </div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#4a5568;line-height:2">${detail.innerHTML}</div>
+    </div>`
+  document.body.appendChild(overlay)
 }
 
 function selectMetodoPago(mp) {
