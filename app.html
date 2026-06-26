@@ -1079,10 +1079,17 @@ async function _cargarEmpresaUsuario(user) {
   const mpOpciones = document.getElementById('mp-opciones')
   if (mpOpciones) {
     const tipo = empresa.tipo_credito || 'Semanal'
-    if (empresa.metodos_pago_extra) {
+    const mpe  = empresa.metodos_pago_extra || 'credito'
+    if (mpe === 'todos') {
       mpOpciones.style.gridTemplateColumns = '1fr 1fr 1fr'
       mpOpciones.innerHTML = `
         <div class="mp-option" id="mp-credito" onclick="selectMetodoPago('Crédito')">🏢 Crédito</div>
+        <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
+        <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>`
+      selMetodoPago = null
+    } else if (mpe === 'efectivo') {
+      mpOpciones.style.gridTemplateColumns = '1fr 1fr'
+      mpOpciones.innerHTML = `
         <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
         <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>`
       selMetodoPago = null

@@ -923,7 +923,11 @@ function initMapsAdmin() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">💳 Métodos de pago:</span>
-        <button id="emp-metodos-pago-btn" onclick="empToggleMetodosPago()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#fee2e2;color:#ef4444">Solo crédito</button>
+        <select id="emp-metodos-pago-sel" onchange="empCambiarMetodosPago(this.value)" style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;background:white;color:#1a4fa0">
+          <option value="credito">💳 Solo Crédito</option>
+          <option value="todos">💳 Crédito + Efectivo + Transferencia</option>
+          <option value="efectivo">💵 Solo Efectivo + Transferencia</option>
+        </select>
       </div>
       <!-- Toggle Paqueterías -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -1173,7 +1177,7 @@ async function toggleLluvia() {
 let _empActivo = true
 let _empPedidosActivos = true
 let _empTipoTarifa = 'km'
-let _empMetodosPagoExtra = false
+let _empMetodosPagoExtra = 'credito'
 let _empPermitePaqueterias = false
 let _empPermiteMercadoLibre = false
 let _empRangosPaqueteria = []
@@ -1284,13 +1288,8 @@ function empEliminarRangoPaqueteria(servicio, idx) {
   _empRenderRangosServicio(servicio)
 }
 
-function empToggleMetodosPago() {
-  _empMetodosPagoExtra = !_empMetodosPagoExtra
-  const btn = document.getElementById('emp-metodos-pago-btn')
-  if (!btn) return
-  btn.style.background = _empMetodosPagoExtra ? '#dcfce7' : '#fee2e2'
-  btn.style.color      = _empMetodosPagoExtra ? '#16a34a' : '#ef4444'
-  btn.textContent      = _empMetodosPagoExtra ? 'Crédito + Efectivo + Transferencia' : 'Solo crédito'
+function empCambiarMetodosPago(val) {
+  _empMetodosPagoExtra = val || 'credito'
 }
 
 function empTogglePedidos() {
@@ -1416,13 +1415,9 @@ async function editarEmpresa(id) {
   if (tcEl) tcEl.value = data.tipo_credito || 'Semanal'
   const tdEl = document.getElementById('emp-tarifa-diaria')
   if (tdEl) tdEl.value = data.tarifa_diaria || 380
-  _empMetodosPagoExtra = data.metodos_pago_extra === true
-  const mpBtn = document.getElementById('emp-metodos-pago-btn')
-  if (mpBtn) {
-    mpBtn.style.background = _empMetodosPagoExtra ? '#dcfce7' : '#fee2e2'
-    mpBtn.style.color      = _empMetodosPagoExtra ? '#16a34a' : '#ef4444'
-    mpBtn.textContent      = _empMetodosPagoExtra ? 'Crédito + Efectivo + Transferencia' : 'Solo crédito'
-  }
+  _empMetodosPagoExtra = data.metodos_pago_extra || 'credito'
+  const mpSel = document.getElementById('emp-metodos-pago-sel')
+  if (mpSel) mpSel.value = _empMetodosPagoExtra
   _empSetTogglePaqueterias(data.permite_paqueterias === true)
   _empSetToggleMercadoLibre(data.permite_mercado_libre === true)
   if (_empPermitePaqueterias || _empPermiteMercadoLibre) {
@@ -1476,9 +1471,9 @@ function _abrirFormEmpresa() {
   _empRangos = []
   const tablaR = document.getElementById('emp-rangos-tabla')
   if (tablaR) tablaR.innerHTML = ''
-  _empMetodosPagoExtra = false
-  const mpBtn = document.getElementById('emp-metodos-pago-btn')
-  if (mpBtn) { mpBtn.style.background = '#fee2e2'; mpBtn.style.color = '#ef4444'; mpBtn.textContent = 'Solo crédito' }
+  _empMetodosPagoExtra = 'credito'
+  const mpSel = document.getElementById('emp-metodos-pago-sel')
+  if (mpSel) mpSel.value = 'credito'
   _empRangosPaqueteria = []; _empRangosMercadoLibre = []
   _empSetTogglePaqueterias(false); _empSetToggleMercadoLibre(false)
   const pkT = document.getElementById('emp-paqueterias-tabla'); if (pkT) pkT.innerHTML = ''
