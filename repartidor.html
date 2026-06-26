@@ -420,18 +420,10 @@ async function _cancelarAsignacion(pedidoId) {
   if (error) { _toastRepa('❌ Error al cancelar: ' + error.message, '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
 
   if (pedidoActual?.user_id) {
-    const { data: usuario } = await db.from('usuarios').select('fcm_token').eq('user_id', pedidoActual.user_id).single()
-    if (usuario?.fcm_token) {
-      await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-        body: JSON.stringify({
-          token: usuario.fcm_token,
-          title: '🔄 Buscando nuevo mensajero',
-          body: 'Estamos buscando un nuevo mensajero para tu pedido GK-' + pedidoId
-        })
-      })
-    }
+    await _enviarPushAUsuarioRepa(pedidoActual.user_id,
+      '🔄 Buscando nuevo mensajero',
+      'Estamos buscando un nuevo mensajero para tu pedido GK-' + pedidoId
+    )
   }
 
   const card = document.getElementById('pedido-card-' + pedidoId)
@@ -458,6 +450,7 @@ async function init() {
   if (data.rol !== 'repartidor') { window.location.href = 'app.html'; return; }
 
   _repaUserId = session.user.id
+  _registrarTokenFCM(session.user.id)  // fire-and-forget
 
   // Cargar foto_perfil y disponible en paralelo antes de cargarPedidos
   const [{ data: usuarioInit }, { data: repaInit }] = await Promise.all([
@@ -886,38 +879,8 @@ async function cambiarEstado(id, status, telefono, nombre) {
     const { data: pedido } = await db.from('pedidos').select('user_id').eq('id', id).single()
     
     if (pedido?.user_id) {
-      const { data: pedidoCompleto } = await db.from('pedidos').select('user_id').eq('id', id).single()
-const { data: authUser } = await db.from('usuarios').select('fcm_token, email').eq('user_id', pedidoCompleto?.user_id).single()
-const usuario = authUser
-console.log('Buscando user_id:', pedidoCompleto?.user_id, 'Usuario:', usuario)
-      console.log('Usuario con token:', usuario)
-      if (usuario?.fcm_token) {
-        const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + SUPABASE_KEY
-          },
-          body: JSON.stringify({ 
-            token: usuario.fcm_token, 
-            title: msg.title, 
-            body: msg.body 
-          })
-        })
-        const respData = await resp.json()
-        console.log('Respuesta push:', respData)
-      }
-      
-      if (usuario?.fcm_token) {
-        await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + SUPABASE_KEY
-          },
-          body: JSON.stringify({ token: usuario.fcm_token, title: msg.title, body: msg.body })
-        })
-      }
+      console.log('[push] enviando notificación de estado a user_id:', pedido.user_id, '| status:', status)
+      await _enviarPushAUsuarioRepa(pedido.user_id, msg.title, msg.body)
     }
   }
 
@@ -1271,6 +1234,51 @@ db.channel('repa-mensajes-global')
   .subscribe()
 
 if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
+
+async function _registrarTokenFCM(userId) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const swReg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js')
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-messaging.js')
+    const firebaseApp = initializeApp({
+      apiKey: 'AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo',
+      authDomain: 'guepack-app.firebaseapp.com',
+      projectId: 'guepack-app',
+      storageBucket: 'guepack-app.firebasestorage.app',
+      messagingSenderId: '912683525841',
+      appId: '1:912683525841:web:a67f014362160ea29b87f0'
+    })
+    const messaging = getMessaging(firebaseApp)
+    const token = await getToken(messaging, {
+      vapidKey: 'BHhCITe5ZaJQpJS5aNtEAArVO15zwMR1e6baQxQG34pvjXV8Jk3r2P5QLfcX6bPSe4itfY5wFBai7nHX3MnyKDU',
+      serviceWorkerRegistration: swReg
+    })
+    if (token) {
+      await db.from('usuarios_tokens').upsert({
+        user_id:    userId,
+        fcm_token:  token,
+        dispositivo: /Mobi|Android/i.test(navigator.userAgent) ? 'android' : 'web',
+        ultimo_uso:  new Date().toISOString()
+      }, { onConflict: 'fcm_token' })
+      console.log('[FCM] Token repartidor registrado en usuarios_tokens ✅')
+    }
+  } catch (err) {
+    console.warn('[FCM] Error registrando token repartidor:', err.message)
+  }
+}
+
+async function _enviarPushAUsuarioRepa(userId, titulo, cuerpo) {
+  if (!userId) return
+  try {
+    await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ user_id: userId, title: titulo, body: cuerpo })
+    })
+  } catch (e) { console.warn('[push] error a userId:', userId, e.message) }
+}
 
 init()
 // ── Auto-refresh cada 30 segundos ──

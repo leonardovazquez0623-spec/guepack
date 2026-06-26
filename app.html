@@ -1547,8 +1547,13 @@ async function activarNotificaciones() {
       _fcmToken = token
       const { data: { session } } = await db.auth.getSession()
       if (session) {
-        await db.from('usuarios').update({ fcm_token: token }).eq('email', session.user.email)
-        console.log('Token guardado en Supabase ✅')
+        await db.from('usuarios_tokens').upsert({
+          user_id:    session.user.id,
+          fcm_token:  token,
+          dispositivo: /Mobi|Android/i.test(navigator.userAgent) ? 'android' : 'web',
+          ultimo_uso:  new Date().toISOString()
+        }, { onConflict: 'fcm_token' })
+        console.log('Token FCM guardado en usuarios_tokens ✅')
       }
     }
   } catch (err) {
@@ -2305,21 +2310,12 @@ async function confirmarAgregarParada(pedidoId) {
     return
   }
 
-  // Push al repartidor
+  // Push al repartidor — todos sus dispositivos
   try {
-    const { data: ped }  = await db.from('pedidos').select('repartidor').eq('id', pedidoId).single()
+    const { data: ped } = await db.from('pedidos').select('repartidor').eq('id', pedidoId).single()
     if (ped?.repartidor) {
       const { data: repa } = await db.from('repartidores').select('email').eq('nombre', ped.repartidor).single()
-      if (repa?.email) {
-        const { data: usr } = await db.from('usuarios').select('fcm_token').eq('email', repa.email).single()
-        if (usr?.fcm_token) {
-          await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-            body: JSON.stringify({ token: usr.fcm_token, title: '📍 Nueva parada agregada a tu ruta', body: direccion })
-          })
-        }
-      }
+      if (repa?.email) await _enviarPushAEmail(repa.email, '📍 Nueva parada agregada a tu ruta', direccion)
     }
   } catch (e) { console.warn('[push-repartidor]', e) }
 
@@ -3096,12 +3092,29 @@ async function _obtenerFcmToken() {
 async function enviarPushNotificacion(token, titulo, cuerpo) {
   if (!token) return
   try {
-    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
+    await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
       body: JSON.stringify({ token, title: titulo, body: cuerpo })
     })
-  } catch (e) { console.log('Error push:', e) }
+  } catch (e) { console.warn('[push] error token único:', e) }
+}
+
+async function _enviarPushAUsuario(userId, titulo, cuerpo) {
+  if (!userId) return
+  try {
+    await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ user_id: userId, title: titulo, body: cuerpo })
+    })
+  } catch (e) { console.warn('[push] error a userId:', userId, e.message) }
+}
+
+async function _enviarPushAEmail(email, titulo, cuerpo) {
+  if (!email) return
+  const { data: usr } = await db.from('usuarios').select('user_id').eq('email', email).single()
+  if (usr?.user_id) await _enviarPushAUsuario(usr.user_id, titulo, cuerpo)
 }
 
 // ── Asignación automática ─────────────────────────────────────────────────────
@@ -3119,21 +3132,18 @@ async function _iniciarAsignacionAutomatica(pedido) {
     return
   }
 
-  // 2. Obtener FCM tokens de los repartidores disponibles
+  // 2. Obtener user_ids de los repartidores disponibles
   const emails = repas.map(r => r.email).filter(Boolean)
-  const { data: users, error: usrErr } = await db.from('usuarios').select('fcm_token, email').in('email', emails)
-  const conToken = (users || []).filter(u => u.fcm_token)
-  console.log('[asignacion] tokens encontrados:', conToken.length, '/ total repartidores:', emails.length, '| error:', usrErr)
+  const { data: users, error: usrErr } = await db.from('usuarios').select('user_id, email').in('email', emails)
+  const conUserId = (users || []).filter(u => u.user_id)
+  console.log('[asignacion] repartidores con user_id:', conUserId.length, '/ total:', emails.length, '| error:', usrErr)
 
-  // 3. Enviar push a todos simultáneamente
+  // 3. Enviar push a todos sus dispositivos simultáneamente
   const notifBody = 'GK-' + pedido.id + ' · ' + (pedido.direccion_recoleccion || '')
-  const pushPromises = conToken.map(u => {
+  const pushPromises = conUserId.map(u => {
     console.log('[asignacion] enviando push a repartidor:', u.email)
-    return fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ token: u.fcm_token, title: '📦 Nuevo pedido disponible', body: notifBody })
-    }).catch(e => console.warn('[asignacion] error push a ' + u.email + ':', e))
+    return _enviarPushAUsuario(u.user_id, '📦 Nuevo pedido disponible', notifBody)
+      .catch(e => console.warn('[asignacion] error push a ' + u.email + ':', e))
   })
   await Promise.all(pushPromises)
   console.log('[asignacion] push enviados a', pushPromises.length, 'repartidores')
@@ -3144,23 +3154,18 @@ async function _iniciarAsignacionAutomatica(pedido) {
 }
 
 async function _notificarAdminSinRepartidores(pedido) {
-  const { data: admins, error: admErr } = await db.from('usuarios').select('fcm_token, email').eq('rol', 'admin')
+  const { data: admins, error: admErr } = await db.from('usuarios').select('user_id, email').eq('rol', 'admin')
   console.log('[asignacion] admins encontrados:', admins?.length ?? 0, '| error:', admErr)
-  const conToken = (admins || []).filter(u => u.fcm_token)
-  const pushPromises = conToken.map(u => {
+  const conUserId = (admins || []).filter(u => u.user_id)
+  const pushPromises = conUserId.map(u => {
     console.log('[asignacion] notificando admin:', u.email)
-    return fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({
-        token: u.fcm_token,
-        title: '⚠️ Pedido GK-' + pedido.id + ' sin asignar',
-        body: 'Sin repartidores disponibles — revisión manual requerida'
-      })
-    }).catch(e => console.warn('[asignacion] error push admin:', e))
+    return _enviarPushAUsuario(u.user_id,
+      '⚠️ Pedido GK-' + pedido.id + ' sin asignar',
+      'Sin repartidores disponibles — revisión manual requerida'
+    ).catch(e => console.warn('[asignacion] error push admin:', e))
   })
   await Promise.all(pushPromises)
-  console.log('[asignacion] notificacion(es) admin enviadas:', conToken.length)
+  console.log('[asignacion] notificacion(es) admin enviadas:', conUserId.length)
 }
 
 async function _cargarBadgesNoLeidos(pedidoIds) {
