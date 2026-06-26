@@ -1823,20 +1823,27 @@ const { data, error } = await db.from('pedidos').insert({
     _cargoCancelacionPendiente = 0
   }
 
-  // Guardar paradas adicionales
-  if (_paradasList.length) {
-    const paradasValidas = _paradasList.filter(p => p.direccion.trim())
-    if (paradasValidas.length) {
-      await db.from('paradas').insert(
-        paradasValidas.map((p, i) => ({
-          pedido_id: folioReal,
-          orden: i + 2, // la parada principal es orden 1
-          direccion: p.direccion.trim(),
-          instrucciones: p.instrucciones?.trim() || null,
-          estado: 'pendiente'
-        }))
-      )
-    }
+  // Guardar paradas (multi-parada): dir-entrega primero, luego las adicionales
+  if (_esMultiParada) {
+    const paradasAdicionales = _paradasList.filter(p => p.direccion.trim())
+    const paradasAInsertar = [
+      {
+        pedido_id: folioReal,
+        orden: 1,
+        direccion: dir_entrega,
+        instrucciones: null,
+        estado: 'pendiente'
+      },
+      ...paradasAdicionales.map((p, i) => ({
+        pedido_id: folioReal,
+        orden: i + 2,
+        direccion: p.direccion.trim(),
+        instrucciones: p.instrucciones?.trim() || null,
+        estado: 'pendiente'
+      }))
+    ]
+    console.log('[paradas] a insertar:', paradasAInsertar)
+    await db.from('paradas').insert(paradasAInsertar)
   }
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
