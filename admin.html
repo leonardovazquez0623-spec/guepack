@@ -3818,8 +3818,35 @@ async function cargarCargosConcelacion() {
     </div>`
 }
 
-async function quitarCargoCancelacion(pedidoId, userId, esCorporativo) {
-  if (!confirm('¿Quitar el cargo de cancelación de GK-' + pedidoId + '? Esto lo eliminará sin marcarlo como cobrado.')) return
+function quitarCargoCancelacion(pedidoId, userId, esCorporativo) {
+  if (document.getElementById('modal-quitar-cargo')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-quitar-cargo'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .2s ease'
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px 22px;max-width:320px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.22)">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2341;margin-bottom:10px">🗑️ Quitar cargo de cancelación</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#4a5568;line-height:1.6;margin-bottom:20px">
+        ¿Quitar el cargo de cancelación de <b>GK-${pedidoId}</b>?<br>
+        Esto lo eliminará sin marcarlo como cobrado.
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-quitar-cargo').remove()"
+          style="flex:1;padding:10px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
+          ❌ Cancelar
+        </button>
+        <button onclick="_ejecutarQuitarCargo(${pedidoId},'${userId}',${esCorporativo})"
+          style="flex:1;padding:10px;background:#ef4444;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
+          🗑️ Quitar cargo
+        </button>
+      </div>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
+async function _ejecutarQuitarCargo(pedidoId, userId, esCorporativo) {
+  document.getElementById('modal-quitar-cargo')?.remove()
   await db.from('pedidos').update({ cargo_cancelacion: 0 }).eq('id', pedidoId)
   if (!esCorporativo && userId) {
     await db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('user_id', userId)
