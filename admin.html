@@ -918,15 +918,6 @@ function initMapsAdmin() {
           <button id="emp-pedidos-btn" onclick="empTogglePedidos()" style="padding:5px 14px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#dcfce7;color:#16a34a">✅ Activos</button>
         </div>
       </div>
-      <div style="margin-bottom:14px">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Tipo de crédito</label>
-          <select id="emp-tipo-credito" class="form-input">
-            <option value="Semanal">📅 Semanal</option>
-            <option value="Mensual">🗓️ Mensual</option>
-          </select>
-        </div>
-      </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">💳 Métodos de pago:</span>
         <select id="emp-metodos-pago-sel" onchange="empCambiarMetodosPago(this.value)" style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;background:white;color:#1a4fa0">
@@ -934,6 +925,15 @@ function initMapsAdmin() {
           <option value="todos">💳 Crédito + Efectivo + Transferencia</option>
           <option value="efectivo">💵 Solo Efectivo + Transferencia</option>
         </select>
+      </div>
+      <div id="emp-tipo-credito-wrap" style="margin-bottom:14px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tipo de crédito</label>
+          <select id="emp-tipo-credito" class="form-input">
+            <option value="Semanal">📅 Semanal</option>
+            <option value="Mensual">🗓️ Mensual</option>
+          </select>
+        </div>
       </div>
       <!-- Toggle Paqueterías -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -1296,6 +1296,12 @@ function empEliminarRangoPaqueteria(servicio, idx) {
 
 function empCambiarMetodosPago(val) {
   _empMetodosPagoExtra = val || 'credito'
+  _empActualizarTipoCredito()
+}
+
+function _empActualizarTipoCredito() {
+  const wrap = document.getElementById('emp-tipo-credito-wrap')
+  if (wrap) wrap.style.display = _empMetodosPagoExtra === 'efectivo' ? 'none' : ''
 }
 
 function empTogglePedidos() {
@@ -1424,6 +1430,7 @@ async function editarEmpresa(id) {
   _empMetodosPagoExtra = data.metodos_pago_extra || 'credito'
   const mpSel = document.getElementById('emp-metodos-pago-sel')
   if (mpSel) mpSel.value = _empMetodosPagoExtra
+  _empActualizarTipoCredito()
   _empSetTogglePaqueterias(data.permite_paqueterias === true)
   _empSetToggleMercadoLibre(data.permite_mercado_libre === true)
   if (_empPermitePaqueterias || _empPermiteMercadoLibre) {
@@ -1480,6 +1487,7 @@ function _abrirFormEmpresa() {
   _empMetodosPagoExtra = 'credito'
   const mpSel = document.getElementById('emp-metodos-pago-sel')
   if (mpSel) mpSel.value = 'credito'
+  _empActualizarTipoCredito()
   _empRangosPaqueteria = []; _empRangosMercadoLibre = []
   _empSetTogglePaqueterias(false); _empSetToggleMercadoLibre(false)
   const pkT = document.getElementById('emp-paqueterias-tabla'); if (pkT) pkT.innerHTML = ''
