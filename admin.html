@@ -710,6 +710,12 @@ function initMapsAdmin() {
       <div class="loader--4" style="margin:12px auto"></div>
     </div>
 
+    <!-- Cargos por cancelación -->
+    <div class="card-title" style="padding:0;margin:20px 0 12px">❌ Cargos por Cancelación</div>
+    <div id="fin-cargos-cancelacion">
+      <div class="loader--4" style="margin:12px auto"></div>
+    </div>
+
   </div>
 
   <!-- TAB VIP -->
@@ -2087,7 +2093,7 @@ function showTab(tab, btn) {
   }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
-  if (tab === 'finanzas') cargarFinanzas()
+  if (tab === 'finanzas') { cargarFinanzas(); cargarCargosConcelacion() }
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
@@ -3726,6 +3732,77 @@ async function cargarClientesVip() {
     </div>`
   }).join('')
 }
+
+// ── Cargos por cancelación ────────────────────────────────────────────────────
+
+async function cargarCargosConcelacion() {
+  const cont = document.getElementById('fin-cargos-cancelacion')
+  if (!cont) return
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
+
+  const { data, error } = await db.from('pedidos')
+    .select('id, nombre, empresa_codigo, cargo_cancelacion, created_at, user_id')
+    .eq('estado', 'Cancelado')
+    .gt('cargo_cancelacion', 0)
+    .order('created_at', { ascending: false })
+
+  if (error || !data?.length) {
+    cont.innerHTML = '<div style="color:#8fa3c0;font-size:12px;font-weight:600;padding:12px 0;text-align:center">✅ Sin cargos por cancelación pendientes</div>'
+    return
+  }
+
+  const totalCargos = data.reduce((s, p) => s + (p.cargo_cancelacion || 0), 0)
+
+  cont.innerHTML = `
+    <div style="margin-bottom:10px">
+      ${data.map(p => {
+        const fecha = new Date(p.created_at).toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        const esCorp = !!p.empresa_codigo
+        const cliente = p.nombre || '—'
+        return `
+        <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#dc2626">GK-${p.id}</div>
+              <div style="font-size:11px;font-weight:600;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cliente}</div>
+              <div style="font-size:10px;color:#8fa3c0;margin-top:2px">${fecha} · ${esCorp ? '🏢 Corporativo' : '👤 Normal'}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#ef4444;line-height:1">$${p.cargo_cancelacion}</div>
+              <div style="font-size:9px;color:#8fa3c0;font-weight:700;text-transform:uppercase">cargo</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="quitarCargoCancelacion(${p.id}, '${p.user_id}', ${esCorp})" style="flex:1;padding:7px;background:rgba(239,68,68,0.08);color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️ Quitar cargo</button>
+            <button onclick="marcarCargoCobrado(${p.id})" style="flex:1;padding:7px;background:rgba(34,197,94,0.08);color:#16a34a;border:1.5px solid #86efac;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✅ Marcar cobrado</button>
+          </div>
+        </div>`
+      }).join('')}
+    </div>
+    <div style="background:#1a4fa0;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,0.8)">Total cargos pendientes</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#f05a1a;line-height:1">$${totalCargos}</div>
+    </div>`
+}
+
+async function quitarCargoCancelacion(pedidoId, userId, esCorporativo) {
+  if (!confirm('¿Quitar el cargo de cancelación de GK-' + pedidoId + '? Esto lo eliminará sin marcarlo como cobrado.')) return
+  await db.from('pedidos').update({ cargo_cancelacion: 0 }).eq('id', pedidoId)
+  if (!esCorporativo && userId) {
+    await db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('user_id', userId)
+  }
+  showToast('🗑️ Cargo eliminado de GK-' + pedidoId)
+  cargarCargosConcelacion()
+}
+
+async function marcarCargoCobrado(pedidoId) {
+  if (!confirm('¿Marcar el cargo de GK-' + pedidoId + ' como cobrado? El registro se mantendrá en el historial con cargo_cancelacion = 0.')) return
+  await db.from('pedidos').update({ cargo_cancelacion: 0 }).eq('id', pedidoId)
+  showToast('✅ Cargo de GK-' + pedidoId + ' marcado como cobrado')
+  cargarCargosConcelacion()
+}
+
+// ── Finanzas ──────────────────────────────────────────────────────────────────
 
 async function cargarFinanzas() {
   const { data, error } = await db
