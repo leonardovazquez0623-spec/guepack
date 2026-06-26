@@ -1048,12 +1048,20 @@ async function verificarSesion() {
 }
 
 async function _cargarEmpresaUsuario(user) {
-  const codigo = user?.user_metadata?.empresa_codigo
-  if (!codigo) return
-  const { data: empresa } = await db.from('empresas_afiliadas').select('*').eq('codigo', codigo).eq('activa', true).single()
+  let empresaCodigo = user?.user_metadata?.empresa_codigo
+  // Si no está en metadata, consultar tabla usuarios por user_id
+  if (!empresaCodigo && user?.id) {
+    const { data: usuarioDB } = await db.from('usuarios').select('empresa_codigo').eq('user_id', user.id).single()
+    empresaCodigo = usuarioDB?.empresa_codigo || null
+  }
+  console.log('[empresa] empresa_codigo del usuario:', empresaCodigo)
+  if (!empresaCodigo) return
+  const { data: empresa, error } = await db.from('empresas_afiliadas').select('*').eq('codigo', empresaCodigo).eq('activa', true).single()
+  console.log('[empresa] resultado consulta:', empresa, error)
   if (!empresa) return
   _empresaData    = empresa
   _empresaUsuario = empresa
+  console.log('[empresa] _empresaUsuario asignado:', _empresaUsuario)
   // Ocultar cupón — nunca aplica a cuentas corporativas
   const cuponCard = document.getElementById('cupon-card')
   if (cuponCard) cuponCard.style.display = 'none'
