@@ -884,9 +884,13 @@
         <!-- CUPÓN -->
         <div class="card" id="cupon-card">
           <div class="card-title">¿Tienes un cupón?</div>
-          <div style="display:flex;gap:8px">
+          <div id="cupon-input-row" style="display:flex;gap:8px">
             <input type="text" id="cupon-input" class="form-input" placeholder="Código de descuento" style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
             <button onclick="aplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;white-space:nowrap">Aplicar</button>
+          </div>
+          <div id="cupon-aplicado-row" style="display:none;background:rgba(34,197,94,0.08);border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:8px">
+            <span id="cupon-aplicado-label" style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a"></span>
+            <button onclick="quitarCupon()" style="background:none;border:none;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#8fa3c0;padding:2px 6px;border-radius:6px;white-space:nowrap">✕ Quitar</button>
           </div>
           <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
         </div>
@@ -3043,9 +3047,26 @@ async function aplicarCupon() {
   _cuponActivo = data
   updateQuote()
   const descLabel = data.tipo === 'porcentaje' ? data.descuento + '%' : '$' + data.descuento
-  resultado.style.background = 'rgba(34,197,94,0.1)'
-  resultado.style.color = '#22c55e'
-  resultado.textContent = '✅ Cupón aplicado · ' + descLabel + ' de descuento'
+  resultado.style.display = 'none'
+  document.getElementById('cupon-input-row').style.display = 'none'
+  const aplicadoRow = document.getElementById('cupon-aplicado-row')
+  const aplicadoLabel = document.getElementById('cupon-aplicado-label')
+  if (aplicadoLabel) aplicadoLabel.textContent = '🎟️ Cupón ' + data.codigo + ' aplicado ✅ · ' + descLabel
+  if (aplicadoRow) aplicadoRow.style.display = 'flex'
+}
+
+function quitarCupon() {
+  _cuponActivo    = null
+  _cuponDescuento = 0
+  document.getElementById('cupon-aplicado-row').style.display = 'none'
+  const inputRow = document.getElementById('cupon-input-row')
+  if (inputRow) inputRow.style.display = 'flex'
+  const input = document.getElementById('cupon-input')
+  if (input) input.value = ''
+  const resultado = document.getElementById('cupon-resultado')
+  if (resultado) { resultado.style.display = 'none'; resultado.textContent = '' }
+  updateQuote()
+  mostrarToast('Cupón eliminado', '#8fa3c0')
 }
 
 async function _obtenerFcmToken() {
@@ -3209,11 +3230,8 @@ function resetForm() {
   if (_pc) _pc.innerHTML = ''
 
   // Cupón
-  _cuponActivo = null
-  const _ci = document.getElementById('cupon-input')
-  if (_ci) _ci.value = ''
-  const _cr = document.getElementById('cupon-resultado')
-  if (_cr) { _cr.style.display = 'none'; _cr.textContent = '' }
+  if (_cuponActivo) quitarCupon()
+  else { const _ci = document.getElementById('cupon-input'); if (_ci) _ci.value = '' }
 
   // Método de pago
   selMetodoPago = null
