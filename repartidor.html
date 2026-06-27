@@ -232,7 +232,8 @@ function rugidoGuepack() {
 
 let _repaUserId  = null
 let _repaData    = null
-let _pedidosRechazados   = new Set()
+let _pedidosRechazados            = new Set()
+let _pedidosCancelacionNotificados = new Set()
 let _modalCountdownTimer = null
 let _toggleEnProceso     = false  // evita que cargarPedidos sobreescriba el botón durante el toggle
 let _realtimeSuscrito    = false
@@ -311,13 +312,14 @@ function _suscribirPedidosNuevos() {
       // Pedido cancelado por el cliente — retirar card si está asignado a este repartidor
       if ((p.estado === 'Cancelado' || p.estado === 'Pago rechazado') &&
           p.repartidor === _repaData?.nombre) {
-        const card = document.getElementById('pedido-card-' + p.id)
-        if (card) {
-          card.style.transition = 'opacity .4s'
-          card.style.opacity = '0'
-          setTimeout(() => card.remove(), 420)
-        }
+        // Evitar que el mismo evento dispare la notificación más de una vez
+        if (_pedidosCancelacionNotificados.has(p.id)) return
+        _pedidosCancelacionNotificados.add(p.id)
+
+        // Eliminar card del DOM inmediatamente
+        document.getElementById('pedido-card-' + p.id)?.remove()
         delete _pedidosRep[p.id]
+
         // Anular ganancia: el pedido no se entregó
         db.from('pedidos').update({ ganancia_repartidor: 0 }).eq('id', p.id).then(() => {})
         _mostrarModalCancelacion(p.id, p.estado, old?.estado || '')
@@ -760,6 +762,9 @@ function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
   const modal = document.createElement('div')
   modal.id = 'modal-cancelacion-repa'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
+
+  const _cerrarCancelacion = () => document.getElementById('modal-cancelacion-repa')?.remove()
+
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
       <div style="width:72px;height:72px;background:rgba(239,68,68,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:38px">❌</div>
@@ -773,10 +778,16 @@ function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
       <div style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);border-radius:10px;padding:11px 14px;margin-bottom:22px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#92400e;text-align:left">
         ⚠️ Ya no es necesario que te dirijas al domicilio de recolección
       </div>` : ''}
-      <button onclick="document.getElementById('modal-cancelacion-repa').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:pointer">Entendido</button>
+      <button id="btn-cerrar-cancelacion" style="width:100%;padding:14px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:pointer">✕ Entendido</button>
     </div>
   `
   document.body.appendChild(modal)
+  document.getElementById('btn-cerrar-cancelacion').addEventListener('click', _cerrarCancelacion)
+
+  // Auto-cerrar después de 5 segundos
+  const autoClose = setTimeout(_cerrarCancelacion, 5000)
+  // Si el usuario lo cierra manualmente, cancelar el auto-close
+  document.getElementById('btn-cerrar-cancelacion').addEventListener('click', () => clearTimeout(autoClose), { once: true })
 }
 
 function _toastRepa(msg, color = '#1a4fa0') {
