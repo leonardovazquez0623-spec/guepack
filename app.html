@@ -3666,15 +3666,14 @@ function stepClick(btn, idx) {
 
 // ── POPUP ANUNCIO ──
 async function verificarAnuncio() {
-  if (sessionStorage.getItem('guepack_anuncio_visto')) return
   const { data } = await db.from('anuncios').select('*').eq('activo', true).limit(1).maybeSingle()
   if (!data) return
-  sessionStorage.setItem('guepack_anuncio_visto', '1')
   _mostrarPopupAnuncio(data)
 }
 
 function _mostrarPopupAnuncio(anuncio) {
-  let seg = Math.max(1, parseInt(anuncio.segundos) || 5)
+  document.getElementById('popup-anuncio')?.remove()
+  const seg = Math.max(3, parseInt(anuncio.segundos) || 5)
   const overlay = document.createElement('div')
   overlay.id = 'popup-anuncio'
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .3s ease'
@@ -3685,23 +3684,14 @@ function _mostrarPopupAnuncio(anuncio) {
       ${anuncio.link_url ? `<div style="padding:12px 16px"><a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="display:block;background:linear-gradient(135deg,#f05a1a,#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a></div>` : ''}
     </div>`
   document.body.appendChild(overlay)
-
-  const iv = setInterval(() => {
-    seg--
-    const el = document.getElementById('popup-countdown')
-    if (el) el.textContent = `(${seg})`
-    if (seg <= 0) { clearInterval(iv); cerrarPopupAnuncio() }
-  }, 1000)
-  overlay._interval = iv
+  overlay._tid = setTimeout(() => cerrarPopupAnuncio(), seg * 1000)
 }
 
 function cerrarPopupAnuncio() {
   const el = document.getElementById('popup-anuncio')
   if (!el) return
-  if (el._interval) clearInterval(el._interval)
-  el.style.opacity = '0'
-  el.style.transition = 'opacity .25s'
-  setTimeout(() => el.remove(), 260)
+  clearTimeout(el._tid)
+  el.remove()
 }
 
 // ── VIP ──
