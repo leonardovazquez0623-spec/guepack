@@ -336,6 +336,17 @@ async function _mostrarModalNuevoPedido(pedido) {
   modal.id = 'modal-nuevo-pedido'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
   const esWeekend = _esPedidoFinDeSemanaGDL(pedido.created_at)
+
+  // Ganancia estimada usando config del repartidor
+  const _kmModal      = Number(pedido.km_recorridos) || 0
+  const _esDiaria     = (pedido.zona || '').includes('Tarifa diaria')
+  const _ganBase      = Number(_repaData?.ganancia_base)          || 20
+  const _ganKm        = Number(_repaData?.ganancia_por_km)        || 5
+  const _ganDiariaPct = Number(_repaData?.ganancia_tarifa_diaria) || 40
+  const _ganEst       = _esDiaria
+    ? Math.round(Number(pedido.precio || 0) * _ganDiariaPct / 100)
+    : Math.round(_ganBase + (_kmModal * _ganKm))
+
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:slideUp .3s ease">
       <div style="font-size:40px;margin-bottom:8px">📦</div>
@@ -344,11 +355,15 @@ async function _mostrarModalNuevoPedido(pedido) {
         <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#8fa3c0">GK-${pedido.id}</span>
         ${esWeekend ? '<span style="background:rgba(139,92,246,0.12);color:#7c3aed;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.5px">📅 Pedido del fin de semana</span>' : ''}
       </div>
-      <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:16px;text-align:left">
+      <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">
         <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-bottom:3px">RECOLECCIÓN</div>
         <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_recoleccion || '–'}</div>
         <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-top:10px;margin-bottom:3px">ENTREGA</div>
         <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_entrega || '–'}</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:16px;background:#f0fdf4;border-radius:12px;padding:10px 14px;margin-bottom:14px">
+        ${_kmModal ? `<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#64748b">📍 ${_kmModal} km</span>` : ''}
+        <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:#16a34a">💰 Tu ganancia estimada: <span style="font-family:'Bebas Neue',sans-serif;font-size:20px">$${_ganEst}</span></span>
       </div>
       <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:#f05a1a;line-height:1;margin-bottom:16px">${segsTotal}</div>
       <div style="display:flex;gap:10px">
@@ -580,10 +595,9 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           </div>
           <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
-          ${pedido.metodo_pago === 'efectivo' ? `
-          <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
-            <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:#92400e">💵 COBRAR AL CLIENTE</span>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#d97706;line-height:1">$${pedido.precio}</span>
+          ${(pedido.metodo_pago === 'efectivo' || pedido.ganancia_repartidor) ? `<div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
+            ${pedido.metodo_pago === 'efectivo' ? `<span>💵 Cobrar al cliente: $${pedido.precio}</span>` : ''}
+            ${pedido.ganancia_repartidor ? `<span>💰 Tu ganancia: $${pedido.ganancia_repartidor}</span>` : ''}
           </div>` : ''}
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
           <div id="paradas-rep-${pedido.id}" style="margin-bottom:4px"></div>
@@ -648,54 +662,31 @@ async function _cargarGanancias(nombreRepa) {
   const body = document.getElementById('ganancias-body')
   if (!body) return
 
-  // Calcular lunes de la semana actual (en Guadalajara, GMT-6)
+  body.innerHTML = '<div class="loader--4" style="margin:10px auto"></div>'
+
   const ahora = new Date()
-  const diaSemana = ahora.getDay() // 0=Dom, 1=Lun, ..., 6=Sáb
+  const diaSemana = ahora.getDay()
   const diffLunes = diaSemana === 0 ? -6 : 1 - diaSemana
   const lunes = new Date(ahora)
   lunes.setDate(ahora.getDate() + diffLunes)
   lunes.setHours(0, 0, 0, 0)
 
-  // Próximo viernes
   const diffViernes = (5 - ahora.getDay() + 7) % 7 || 7
   const proxViernes = new Date(ahora)
   proxViernes.setDate(ahora.getDate() + diffViernes)
   const viernesStr = proxViernes.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 
-  // Historial: últimas 4 semanas
-  const semanas = []
-  for (let i = 1; i <= 4; i++) {
-    const ini = new Date(lunes); ini.setDate(lunes.getDate() - i * 7)
-    const fin = new Date(ini);  fin.setDate(ini.getDate() + 7)
-    semanas.push({ ini, fin, label: ini.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) + ' – ' + new Date(fin.getTime() - 1).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) })
-  }
-
-  // Consultar pedidos entregados esta semana
-  const [{ data: semanaData }, { data: historialData }] = await Promise.all([
-    db.from('pedidos')
-      .select('ganancia_repartidor, precio')
-      .eq('repartidor', nombreRepa)
-      .eq('estado', 'Entregado')
-      .gte('created_at', lunes.toISOString()),
-    db.from('pedidos')
-      .select('ganancia_repartidor, precio, created_at')
-      .eq('repartidor', nombreRepa)
-      .eq('estado', 'Entregado')
-      .gte('created_at', semanas[semanas.length - 1].ini.toISOString())
-      .lt('created_at', lunes.toISOString())
-  ])
+  // Query semana actual — mínimo de campos necesarios
+  const { data: semanaData } = await db.from('pedidos')
+    .select('ganancia_repartidor')
+    .eq('repartidor', nombreRepa)
+    .eq('estado', 'Entregado')
+    .gte('created_at', lunes.toISOString())
 
   const totalPedidos = (semanaData || []).length
   const totalGanancia = (semanaData || []).reduce((s, p) => s + (Number(p.ganancia_repartidor) || 0), 0)
 
-  const hist = semanas.map(s => {
-    const rows = (historialData || []).filter(p => {
-      const t = new Date(p.created_at)
-      return t >= s.ini && t < s.fin
-    })
-    return { label: s.label, pedidos: rows.length, ganancia: rows.reduce((acc, p) => acc + (Number(p.ganancia_repartidor) || 0), 0) }
-  })
-
+  // Render semana inmediatamente, historial con placeholder
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div style="background:#f0fdf4;border-radius:12px;padding:12px 10px;text-align:center">
@@ -711,17 +702,41 @@ async function _cargarGanancias(nombreRepa) {
         <div style="font-size:10px;font-weight:700;color:#9a3412;margin-top:2px">Próximo corte</div>
       </div>
     </div>
-    ${hist.some(h => h.pedidos > 0) ? `
-    <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:.5px;margin-bottom:6px">HISTORIAL ÚLTIMAS 4 SEMANAS</div>
-    ${hist.map(h => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9">
-        <span style="font-size:11px;font-weight:700;color:#64748b">${h.label}</span>
-        <div style="text-align:right">
-          <span style="font-size:11px;font-weight:700;color:var(--blue)">$${h.ganancia.toFixed(0)}</span>
-          <span style="font-size:10px;color:#94a3b8;margin-left:6px">${h.pedidos} pedido${h.pedidos !== 1 ? 's' : ''}</span>
-        </div>
-      </div>`).join('')}` : ''}
+    <div id="ganancias-historial"><div class="loader--4" style="margin:8px auto;transform:scale(.7)"></div></div>
   `
+
+  // Historial en background — no bloquea el render de semana
+  const hace4Semanas = new Date(lunes); hace4Semanas.setDate(lunes.getDate() - 28)
+  db.from('pedidos')
+    .select('ganancia_repartidor, created_at')
+    .eq('repartidor', nombreRepa)
+    .eq('estado', 'Entregado')
+    .gte('created_at', hace4Semanas.toISOString())
+    .lt('created_at', lunes.toISOString())
+    .then(({ data: histData }) => {
+      const histDiv = document.getElementById('ganancias-historial')
+      if (!histDiv) return
+      const semanas = []
+      for (let i = 1; i <= 4; i++) {
+        const ini = new Date(lunes); ini.setDate(lunes.getDate() - i * 7)
+        const fin = new Date(lunes); fin.setDate(lunes.getDate() - (i - 1) * 7)
+        const label = ini.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) + ' – ' + new Date(fin.getTime() - 1).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+        const rows = (histData || []).filter(p => { const t = new Date(p.created_at); return t >= ini && t < fin })
+        semanas.push({ label, pedidos: rows.length, ganancia: rows.reduce((acc, p) => acc + (Number(p.ganancia_repartidor) || 0), 0) })
+      }
+      if (!semanas.some(s => s.pedidos > 0)) { histDiv.innerHTML = ''; return }
+      histDiv.innerHTML = `
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:.5px;margin-bottom:6px">HISTORIAL ÚLTIMAS 4 SEMANAS</div>
+        ${semanas.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:11px;font-weight:700;color:#64748b">${s.label}</span>
+            <div style="text-align:right">
+              <span style="font-size:11px;font-weight:700;color:var(--blue)">$${s.ganancia.toFixed(0)}</span>
+              <span style="font-size:10px;color:#94a3b8;margin-left:6px">${s.pedidos} pedido${s.pedidos !== 1 ? 's' : ''}</span>
+            </div>
+          </div>`).join('')}
+      `
+    })
 }
 
 const _timerParadaIntervals = {}
