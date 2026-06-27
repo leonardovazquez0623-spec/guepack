@@ -1761,6 +1761,11 @@ if (comprobanteFile) {
 const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : 'Pendiente'
 const tokenRastreo = crypto.randomUUID()
 
+const _kmRecorridos = _modoPaqueteria ? 0
+  : _empresaData ? (_corporativoKm || 0)
+  : _esMultiParada ? (_multiParadaKm || 0)
+  : (_precioGeneralKm || 0)
+
 const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
@@ -1788,6 +1793,7 @@ const { data, error } = await db.from('pedidos').insert({
     token_rastreo: tokenRastreo,
     empresa_codigo: _empresaData?.codigo || null,
     es_tarifa_adicional: (_empresaData?.tipo_tarifa === 'diaria' && _tarifaDiariaYaCubierta) ? true : false,
+    km_recorridos: _kmRecorridos,
   }).select()
 
   if (error) {

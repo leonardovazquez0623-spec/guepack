@@ -1007,6 +1007,23 @@ function initMapsAdmin() {
         <label class="form-label">Placas del vehículo</label>
         <input type="text" id="rep-placas" class="form-input" placeholder="Ej. ABC-123-D" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div style="background:#f8faff;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:900;color:var(--blue);margin-bottom:10px;letter-spacing:.5px">💰 CONFIGURACIÓN DE GANANCIAS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Base por pedido ($)</label>
+            <input type="number" id="rep-ganancia-base" class="form-input" placeholder="20" min="0" step="1" value="20">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Por KM ($)</label>
+            <input type="number" id="rep-ganancia-km" class="form-input" placeholder="5" min="0" step="0.5" value="5">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Tarifa diaria (%)</label>
+            <input type="number" id="rep-ganancia-diaria" class="form-input" placeholder="40" min="0" max="100" step="1" value="40">
+          </div>
+        </div>
+      </div>
       <div style="display:flex;gap:8px">
         <button onclick="guardarRepartidor()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💾 Guardar repartidor</button>
         <button onclick="_resetFormRepartidor()" style="padding:12px 16px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">✕</button>
@@ -1839,7 +1856,10 @@ async function guardarRepartidor() {
   const email  = document.getElementById('rep-email').value.trim()
   const placas = document.getElementById('rep-placas').value.trim()
   if (!nombre) { showToast('⚠️ El nombre es obligatorio'); return }
-  const payload = { nombre, email, placas }
+  const ganancia_base           = parseFloat(document.getElementById('rep-ganancia-base').value)    || 20
+  const ganancia_por_km         = parseFloat(document.getElementById('rep-ganancia-km').value)      || 5
+  const ganancia_tarifa_diaria  = parseFloat(document.getElementById('rep-ganancia-diaria').value)  || 40
+  const payload = { nombre, email, placas, ganancia_base, ganancia_por_km, ganancia_tarifa_diaria }
   const { error } = id
     ? await db.from('repartidores').update(payload).eq('id', id)
     : await db.from('repartidores').insert(payload)
@@ -1852,10 +1872,13 @@ async function guardarRepartidor() {
 async function editarRepartidor(id) {
   const { data } = await db.from('repartidores').select('*').eq('id', id).single()
   if (!data) return
-  document.getElementById('rep-id').value     = data.id
-  document.getElementById('rep-nombre').value = data.nombre || ''
-  document.getElementById('rep-email').value  = data.email  || ''
-  document.getElementById('rep-placas').value = data.placas || ''
+  document.getElementById('rep-id').value              = data.id
+  document.getElementById('rep-nombre').value          = data.nombre || ''
+  document.getElementById('rep-email').value           = data.email  || ''
+  document.getElementById('rep-placas').value          = data.placas || ''
+  document.getElementById('rep-ganancia-base').value   = data.ganancia_base          ?? 20
+  document.getElementById('rep-ganancia-km').value     = data.ganancia_por_km        ?? 5
+  document.getElementById('rep-ganancia-diaria').value = data.ganancia_tarifa_diaria ?? 40
   document.getElementById('tab-repartidores').scrollIntoView({ behavior: 'smooth' })
 }
 
@@ -1872,6 +1895,9 @@ function _resetFormRepartidor() {
     var el = document.getElementById(id)
     if (el) el.value = ''
   })
+  const gb = document.getElementById('rep-ganancia-base');   if (gb) gb.value = '20'
+  const gk = document.getElementById('rep-ganancia-km');     if (gk) gk.value = '5'
+  const gd = document.getElementById('rep-ganancia-diaria'); if (gd) gd.value = '40'
 }
 
 // ── Corte de crédito corporativo ──────────────────────────────────────────────
