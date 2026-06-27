@@ -100,6 +100,16 @@
     gap: 10px;
   }
   .btn-google:hover { border-color: #1a4fa0; }
+  .btn-passkey {
+    background: white;
+    color: #1a4fa0;
+    border: 2px solid #1a4fa0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-passkey:hover { background: #f0f5ff; }
   .divider {
     text-align: center;
     color: #8fa3c0;
@@ -187,6 +197,10 @@
     <button class="btn btn-google" onclick="loginGoogle()">
       <img src="https://www.google.com/favicon.ico" width="18"> Entrar con Google
     </button>
+    <button class="btn btn-passkey" onclick="loginPasskey()">
+      🔑 Iniciar con huella / Face ID
+    </button>
+    <div style="text-align:center;font-size:11px;color:#9ca3af;margin-top:-8px;margin-bottom:4px;font-weight:600">Disponible en dispositivos compatibles</div>
     <div class="toggle-text">
       ¿No tienes cuenta? <a onclick="showRegister()">Regístrate aquí</a>
     </div>
@@ -355,6 +369,31 @@ async function redirigirSegunRol(email) {
     window.location.href = 'repartidor.html'
   } else {
     window.location.href = 'app.html'
+  }
+}
+
+async function loginPasskey() {
+  if (!window.PublicKeyCredential) {
+    showError('Tu dispositivo no soporta este método de acceso')
+    return
+  }
+  const btn = document.querySelector('.btn-passkey')
+  if (btn) { btn.textContent = '⏳ Verificando...'; btn.disabled = true }
+
+  const { data, error } = await db.auth.signInWithPasskey()
+
+  if (btn) { btn.textContent = '🔑 Iniciar con huella / Face ID'; btn.disabled = false }
+
+  if (error) {
+    showError('No se pudo autenticar con huella: ' + (error.message || 'intenta de nuevo'))
+    return
+  }
+
+  const session = data?.session
+  if (session) {
+    db.from('eventos_trafico').insert({ tipo: 'login', user_id: session.user.id }).then(() => {})
+    const email = session.user.email || ''
+    await redirigirSegunRol(email)
   }
 }
 
