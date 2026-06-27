@@ -220,7 +220,15 @@
     </div>
     <div class="form-group">
       <label class="form-label">Contraseña</label>
-      <input type="password" id="reg-password" class="form-input" placeholder="Mínimo 6 caracteres">
+      <div style="position:relative">
+        <input type="password" id="reg-password" class="form-input" placeholder="Mínimo 8 caracteres" style="padding-right:42px" oninput="_checkPassword()">
+        <button type="button" onclick="_togglePasswordVis()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;line-height:1;padding:0" tabindex="-1">👁️</button>
+      </div>
+      <div id="pwd-requisitos" style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+        <div id="req-longitud" style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:6px"><span id="ico-longitud">❌</span> Mínimo 8 caracteres</div>
+        <div id="req-mayus"    style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:6px"><span id="ico-mayus">❌</span> Mayúsculas y minúsculas</div>
+        <div id="req-especial" style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:6px"><span id="ico-especial">❌</span> Al menos 1 carácter especial (!@#$%^&*)</div>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">WhatsApp (10 dígitos)</label>
@@ -235,7 +243,7 @@
       <input type="text" id="reg-referido" class="form-input" placeholder="Ej. GUEP-AXB72" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
     </div>
     <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#374151;margin-bottom:16px">
-      <input type="checkbox" id="acepto-terminos" style="margin-top:3px;accent-color:#1E56C7;flex-shrink:0" onchange="var b=document.getElementById('btn-crear-cuenta');b.disabled=!this.checked;b.style.opacity=this.checked?'1':'0.5';b.style.cursor=this.checked?'pointer':'not-allowed'">
+      <input type="checkbox" id="acepto-terminos" style="margin-top:3px;accent-color:#1E56C7;flex-shrink:0" onchange="_actualizarBtnRegistro()">
       <span>He leído y acepto la <a href="/privacidad.html" target="_blank" style="color:#1E56C7;">Política de Privacidad</a> y los <a href="/condiciones.html" target="_blank" style="color:#1E56C7;">Términos y Condiciones</a> de GUEPACK Express.</span>
     </label>
     <button id="btn-crear-cuenta" class="btn btn-primary" onclick="registrar()" disabled style="opacity:0.5;cursor:not-allowed">Crear cuenta</button>
@@ -254,6 +262,48 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+function _togglePasswordVis() {
+  const inp = document.getElementById('reg-password')
+  inp.type = inp.type === 'password' ? 'text' : 'password'
+}
+
+function _checkPassword() {
+  const val = document.getElementById('reg-password').value
+  const okLong     = val.length >= 8
+  const okMayus    = /[A-Z]/.test(val) && /[a-z]/.test(val)
+  const okEspecial = /[!@#$%^&*]/.test(val)
+
+  const _set = (id, icoId, ok) => {
+    document.getElementById(icoId).textContent = ok ? '✅' : '❌'
+    document.getElementById(id).style.color = ok ? '#16a34a' : '#9ca3af'
+  }
+  _set('req-longitud', 'ico-longitud', okLong)
+  _set('req-mayus',    'ico-mayus',    okMayus)
+  _set('req-especial', 'ico-especial', okEspecial)
+
+  const todoOk = okLong && okMayus && okEspecial
+  const inp = document.getElementById('reg-password')
+  inp.style.borderColor = todoOk ? '#16a34a' : (val.length ? '#f59e0b' : '')
+  inp.style.outline     = todoOk ? '2px solid rgba(22,163,74,.25)' : ''
+
+  const reqBox = document.getElementById('pwd-requisitos')
+  if (reqBox) reqBox.style.display = todoOk ? 'none' : 'flex'
+
+  _actualizarBtnRegistro()
+}
+
+function _actualizarBtnRegistro() {
+  const val        = document.getElementById('reg-password').value
+  const passwordOk = val.length >= 8 && /[A-Z]/.test(val) && /[a-z]/.test(val) && /[!@#$%^&*]/.test(val)
+  const terminosOk = document.getElementById('acepto-terminos')?.checked
+  const btn        = document.getElementById('btn-crear-cuenta')
+  if (!btn) return
+  const habilitado = passwordOk && terminosOk
+  btn.disabled          = !habilitado
+  btn.style.opacity     = habilitado ? '1'           : '0.5'
+  btn.style.cursor      = habilitado ? 'pointer'     : 'not-allowed'
+}
 
 function showError(msg) {
   const el = document.getElementById('error-msg')
@@ -371,7 +421,7 @@ async function registrar() {
 
   if (!document.getElementById('acepto-terminos')?.checked) { showError('⚠️ Debes aceptar los términos y condiciones para continuar'); return; }
   if (!nombre || !email || !password || !whatsapp) { showError('Llena todos los campos'); return; }
-  if (password.length < 6) { showError('La contraseña debe tener mínimo 6 caracteres'); return; }
+  if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[!@#$%^&*]/.test(password)) { showError('La contraseña no cumple los requisitos de seguridad'); return; }
   if (!/^\d{10}$/.test(whatsapp)) { showError('El WhatsApp debe tener exactamente 10 dígitos'); return; }
 
   const { data: waDup } = await db.from('usuarios').select('id').eq('whatsapp', whatsapp).maybeSingle()
