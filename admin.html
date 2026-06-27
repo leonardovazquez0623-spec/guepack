@@ -1835,19 +1835,40 @@ async function cargarRepartidores() {
   if (!cont) return
   const { data } = await db.from('repartidores').select('*').order('nombre', { ascending: true })
   if (!data?.length) { cont.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;padding:8px 0">Sin repartidores registrados</div>'; return }
-  cont.innerHTML = data.map(r => `
-    <div style="background:#f9fafb;border:1.5px solid #e0e6f0;border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-      <div style="flex:1;min-width:0">
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${r.nombre}</div>
-        <div style="font-family:monospace;font-size:11px;color:#888;margin-top:2px">${r.email || ''}</div>
-        ${r.placas ? `<div style="font-size:11px;font-weight:700;color:var(--blue);margin-top:4px">🔖 ${r.placas}</div>` : '<div style="font-size:10px;color:#bbb;margin-top:4px">Sin placas registradas</div>'}
+  cont.innerHTML = data.map(r => {
+    const nivel = r.nivel || 'nuevo'
+    const nivelBadge = nivel === 'premium'
+      ? '<span style="background:rgba(245,158,11,0.15);color:#d97706;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">⭐ Premium</span>'
+      : '<span style="background:#f0f4ff;color:#1a4fa0;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">🆕 Nuevo</span>'
+    const efectivoAcum = Number(r.efectivo_acumulado) || 0
+    const bloqueado = r.bloqueado_efectivo === true
+    const nombreEscaped = (r.nombre || '').replace(/'/g, "\\'")
+    return `
+    <div style="background:#f9fafb;border:1.5px solid ${bloqueado ? '#fca5a5' : '#e0e6f0'};border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--text)">${r.nombre}</span>
+            ${nivelBadge}
+          </div>
+          <div style="font-family:monospace;font-size:11px;color:#888;margin-top:2px">${r.email || ''}</div>
+          ${r.placas ? `<div style="font-size:11px;font-weight:700;color:var(--blue);margin-top:4px">🔖 ${r.placas}</div>` : '<div style="font-size:10px;color:#bbb;margin-top:4px">Sin placas registradas</div>'}
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:700;color:#64748b">📦 ${Number(r.total_envios) || 0} envíos</span>
+            <span style="font-size:11px;font-weight:700;color:${bloqueado ? '#ef4444' : efectivoAcum > 0 ? '#f59e0b' : '#22c55e'}">💵 $${efectivoAcum} efectivo${bloqueado ? ' ⛔' : ''}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <button onclick="editarRepartidor(${r.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
+          <button onclick="eliminarRepartidor(${r.id},'${nombreEscaped}')" style="padding:6px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-        <button onclick="editarRepartidor(${r.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
-        <button onclick="eliminarRepartidor(${r.id},'${(r.nombre||'').replace(/'/g,"\\'")}')" style="padding:6px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        ${efectivoAcum > 0 || bloqueado ? `<button onclick="confirmarDeposito(${r.id})" style="padding:6px 14px;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✅ Confirmar depósito</button>` : ''}
+        <button onclick="cambiarNivelRepartidor(${r.id},'${nivel}')" style="padding:6px 14px;background:#f0f4ff;color:#1a4fa0;border:1.5px solid #c7d7f5;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">${nivel === 'premium' ? '↩️ Bajar a Nuevo' : '⭐ Subir a Premium'}</button>
       </div>
     </div>
-  `).join('')
+  `}).join('')
 }
 
 async function guardarRepartidor() {
@@ -1887,6 +1908,22 @@ async function eliminarRepartidor(id, nombre) {
   const { error } = await db.from('repartidores').delete().eq('id', id)
   if (error) { showToast('❌ Error al eliminar'); return }
   showToast('🗑️ Repartidor eliminado')
+  cargarRepartidores()
+}
+
+async function confirmarDeposito(id) {
+  if (!confirm('¿Confirmar que el repartidor realizó el depósito?')) return
+  const { error } = await db.from('repartidores').update({ efectivo_acumulado: 0, bloqueado_efectivo: false }).eq('id', id)
+  if (error) { showToast('❌ Error al confirmar depósito'); return }
+  showToast('✅ Depósito confirmado — efectivo reseteado')
+  cargarRepartidores()
+}
+
+async function cambiarNivelRepartidor(id, nivelActual) {
+  const nuevoNivel = nivelActual === 'premium' ? 'nuevo' : 'premium'
+  const { error } = await db.from('repartidores').update({ nivel: nuevoNivel }).eq('id', id)
+  if (error) { showToast('❌ Error al cambiar nivel'); return }
+  showToast('✅ Nivel cambiado a ' + nuevoNivel)
   cargarRepartidores()
 }
 

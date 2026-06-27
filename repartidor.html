@@ -160,6 +160,7 @@
     <div>
       <div class="delivery-name" id="delivery-nombre">Hola </div>
       <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-top:4px">
+      <span id="repa-nivel-badge" style="display:inline-block;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);letter-spacing:.5px;margin-top:4px"></span>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
       <div style="display:flex;gap:8px;align-items:center">
@@ -357,6 +358,28 @@ async function _mostrarModalNuevoPedido(pedido) {
     ? Math.round(Number(pedido.precio || 0) * _ganDiariaPct / 100)
     : Math.round(_ganBase + (_kmModal * _ganKm))
 
+  // Validación efectivo/nivel
+  const _esEfectivo = pedido.metodo_pago === 'efectivo'
+  let _bloqueoHtml = ''
+  let _aceptarBloqueado = false
+  if (_esEfectivo && _repaData?.bloqueado_efectivo) {
+    _bloqueoHtml = `<div style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.4);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#92400e;text-align:left">⚠️ Debes depositar tu efectivo acumulado antes de aceptar pedidos en efectivo</div>`
+    _aceptarBloqueado = true
+  } else if (_esEfectivo && (_repaData?.nivel || 'nuevo') === 'nuevo') {
+    const _hoyInicio = new Date(); _hoyInicio.setHours(0, 0, 0, 0)
+    const { data: _hoyData } = await db.from('pedidos')
+      .select('ganancia_repartidor')
+      .eq('repartidor', _repaData.nombre)
+      .eq('estado', 'Entregado')
+      .gte('created_at', _hoyInicio.toISOString())
+    const _gananciasHoy = (_hoyData || []).reduce((s, p) => s + (Number(p.ganancia_repartidor) || 0), 0)
+    const _montoPedido = Number(pedido.precio) || 0
+    if (_gananciasHoy < _montoPedido) {
+      _bloqueoHtml = `<div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#991b1b;text-align:left">❌ No puedes aceptar este pedido en efectivo — tus ganancias del día ($${_gananciasHoy}) son menores al monto a cobrar ($${_montoPedido})</div>`
+      _aceptarBloqueado = true
+    }
+  }
+
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:slideUp .3s ease">
       <div style="font-size:40px;margin-bottom:8px">📦</div>
@@ -375,10 +398,11 @@ async function _mostrarModalNuevoPedido(pedido) {
         ${_kmModal ? `<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#64748b">📍 ${_kmModal} km</span>` : ''}
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:#16a34a">💰 Tu ganancia estimada: <span style="font-family:'Bebas Neue',sans-serif;font-size:20px">$${_ganEst}</span></span>
       </div>
+      ${_bloqueoHtml}
       <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:#f05a1a;line-height:1;margin-bottom:16px">${segsTotal}</div>
       <div style="display:flex;gap:10px">
         <button onclick="_rechazarPedido(${pedido.id})" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#ef4444">❌ RECHAZAR</button>
-        <button onclick="_aceptarPedido(${pedido.id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;cursor:pointer">✅ ACEPTAR</button>
+        ${_aceptarBloqueado ? '' : `<button onclick="_aceptarPedido(${pedido.id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;cursor:pointer">✅ ACEPTAR</button>`}
       </div>
     </div>
   `
@@ -550,6 +574,7 @@ async function cargarPedidos(email) {
   _repaData = repaData
   const nombreRepa = repaData.nombre
   document.getElementById('delivery-nombre').textContent = 'Hola, ' + nombreRepa
+  _actualizarBadgeNivel()
   if (!_toggleEnProceso) _actualizarBtnDisponible(repaData.disponible !== false)
   // Prioridad: repartidores.foto_perfil → foto ya cargada en memoria (_repaFotoUrl) → null
   _cargarAvatarRepartidor({ foto_perfil: repaData.foto_perfil || _repaFotoUrl })
@@ -654,6 +679,15 @@ localStorage.setItem('guepack_pedidos_count', data.length)
 }
 
 // ── Panel lateral de ganancias ───────────────────────────────────────────────
+
+function _actualizarBadgeNivel() {
+  const el = document.getElementById('repa-nivel-badge')
+  if (!el || !_repaData) return
+  const nivel = _repaData.nivel || 'nuevo'
+  el.textContent = nivel === 'premium' ? '⭐ Premium' : '🆕 Nuevo'
+  el.style.background = nivel === 'premium' ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.15)'
+  el.style.color = nivel === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.85)'
+}
 
 function _abrirPanelGanancias() {
   document.getElementById('ganancias-overlay').style.display = 'block'
@@ -803,7 +837,7 @@ function _renderBotonesNormales(pedido) {
   stepsEl.innerHTML = `
     <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
     <div class="step-btn ${_sb2}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
-    <div class="step-btn ${_sb3}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">📍 Ya llegué</div>
+    <div class="step-btn ${_sb3}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})">📍 Ya llegué</div>
     <div class="step-btn ${_sb4}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
   `
   // Inyectar entrega única en paradas-rep
@@ -1016,9 +1050,68 @@ async function paradaEnDomicilio(pedidoId, paradaId) {
   if (!session) { window.location.href = 'login.html'; return }
   cargarPedidos(session.user.email)
 }
+async function _yaLlegueEnDomicilio(id, telefono, nombre, metodoPago, precio) {
+  await cambiarEstado(id, 'Repartidor en domicilio', telefono, nombre)
+  if (metodoPago === 'efectivo') _mostrarToastCobrar(id, precio)
+}
+
+function _mostrarToastCobrar(pedidoId, monto) {
+  document.getElementById('toast-cobrar-efectivo')?.remove()
+  const el = document.createElement('div')
+  el.id = 'toast-cobrar-efectivo'
+  el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:20000;padding:20px 20px 36px;background:white;box-shadow:0 -6px 32px rgba(0,0,0,0.2);border-radius:20px 20px 0 0;font-family:Montserrat,sans-serif'
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:900;color:#64748b;letter-spacing:1px;margin-bottom:6px">RECUERDA COBRAR AL CLIENTE</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:#16a34a;line-height:1;margin-bottom:18px">💵 $${monto}</div>
+    <button onclick="_confirmarCobrado(${pedidoId}, ${monto})" style="width:100%;padding:16px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,0.35)">✅ Cobrado</button>
+  `
+  document.body.appendChild(el)
+}
+
+async function _confirmarCobrado(pedidoId, monto) {
+  document.getElementById('toast-cobrar-efectivo')?.remove()
+  const nuevoAcumulado = (Number(_repaData?.efectivo_acumulado) || 0) + Number(monto)
+  const upd = { efectivo_acumulado: nuevoAcumulado }
+  if (nuevoAcumulado >= 300) upd.bloqueado_efectivo = true
+  await db.from('repartidores').update(upd).eq('nombre', _repaData.nombre)
+  _repaData.efectivo_acumulado = nuevoAcumulado
+  if (nuevoAcumulado >= 300) _repaData.bloqueado_efectivo = true
+  _toastRepa('✅ Cobro registrado')
+  if (nuevoAcumulado >= 300) setTimeout(() => _mostrarAvisoBloqueadoEfectivo(nuevoAcumulado), 600)
+}
+
+function _mostrarAvisoBloqueadoEfectivo(acumulado) {
+  document.getElementById('modal-bloqueado-efectivo')?.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-bloqueado-efectivo'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f59e0b;letter-spacing:1px;margin-bottom:10px">Depósito requerido</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2740;margin-bottom:8px">Has acumulado <span style="color:#ef4444;font-family:'Bebas Neue',sans-serif;font-size:22px">$${acumulado}</span> en efectivo</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:24px">Debes depositar antes de aceptar nuevos pedidos con efectivo. Avisa a tu coordinador.</div>
+      <button onclick="document.getElementById('modal-bloqueado-efectivo').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer">Entendido</button>
+    </div>
+  `
+  document.body.appendChild(modal)
+}
+
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
+
+  if (status === 'Entregado' && _repaData?.nombre) {
+    const nuevoTotal = (Number(_repaData.total_envios) || 0) + 1
+    const updRepa = { total_envios: nuevoTotal }
+    if (nuevoTotal >= 25 && (_repaData.nivel || 'nuevo') !== 'premium') updRepa.nivel = 'premium'
+    db.from('repartidores').update(updRepa).eq('nombre', _repaData.nombre).then(({ error: e }) => {
+      if (!e) {
+        _repaData.total_envios = nuevoTotal
+        if (updRepa.nivel) { _repaData.nivel = 'premium'; _actualizarBadgeNivel() }
+      }
+    })
+  }
 
   const mensajes = {
     'En camino a entrega': { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino.' },
