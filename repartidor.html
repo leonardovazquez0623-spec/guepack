@@ -162,26 +162,32 @@
       <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-top:4px">
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-      <button onclick="cerrarSesion()" class="btn-logout">Salir</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="_abrirPanelGanancias()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;padding:6px 10px;border-radius:8px;cursor:pointer;line-height:1" title="Mis ganancias">💰</button>
+        <button onclick="cerrarSesion()" class="btn-logout">Salir</button>
+      </div>
       <button id="btn-disponible" onclick="toggleDisponible()" style="border:2px solid #22c55e;background:rgba(34,197,94,0.2);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .2s">🟢 Disponible</button>
       <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
     </div>
   </div>
 </div>
 
-<div class="container" style="padding-top:16px">
-
-  <!-- Panel de ganancias — colapsable en móvil, siempre visible en desktop -->
-  <div id="ganancias-panel" class="card" style="margin-bottom:16px;overflow:hidden">
-    <div onclick="_toggleGanancias()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:var(--blue)">💰 Mis ganancias esta semana</div>
-      <span id="ganancias-toggle-icon" style="font-size:18px;color:var(--gray-mid);transition:transform .2s">▼</span>
+<!-- Panel lateral de ganancias -->
+<div id="ganancias-overlay" onclick="_cerrarPanelGanancias()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8000"></div>
+<div id="ganancias-drawer" style="position:fixed;top:0;right:-340px;width:320px;max-width:92vw;height:100%;background:white;z-index:8001;box-shadow:-4px 0 32px rgba(0,0,0,0.18);transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column">
+  <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:20px 18px 16px;color:white;flex-shrink:0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px">💰 Mis Ganancias</div>
+      <button onclick="_cerrarPanelGanancias()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">✕</button>
     </div>
-    <div id="ganancias-body" style="margin-top:14px">
-      <div style="color:#bbb;font-size:12px;text-align:center;padding:12px 0">Cargando...</div>
-    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.6);font-weight:700;letter-spacing:1px;margin-top:4px">SEMANA ACTUAL</div>
   </div>
+  <div id="ganancias-body" style="padding:18px 16px;flex:1">
+    <div style="color:#bbb;font-size:12px;text-align:center;padding:24px 0">Toca 💰 para ver tus ganancias</div>
+  </div>
+</div>
 
+<div class="container" style="padding-top:16px">
   <div class="card-title">🏍️ Mis entregas de hoy</div>
   <div id="lista-repartidor">
     <div class="empty-state">
@@ -312,6 +318,8 @@ function _suscribirPedidosNuevos() {
           setTimeout(() => card.remove(), 420)
         }
         delete _pedidosRep[p.id]
+        // Anular ganancia: el pedido no se entregó
+        db.from('pedidos').update({ ganancia_repartidor: 0 }).eq('id', p.id).then(() => {})
         _mostrarModalCancelacion(p.id, p.estado, old?.estado || '')
         return
       }
@@ -454,7 +462,8 @@ async function _cancelarAsignacion(pedidoId) {
       repartidor: null,
       estado: 'Pendiente',
       asignacion_automatica: false,
-      ronda_asignacion: (pedidoActual?.ronda_asignacion || 0) + 1
+      ronda_asignacion: (pedidoActual?.ronda_asignacion || 0) + 1,
+      ganancia_repartidor: 0
     })
     .eq('id', pedidoId)
 
@@ -640,22 +649,19 @@ localStorage.setItem('guepack_pedidos_count', data.length)
 
   // Suscribir realtime paradas INSERT para cada pedido activo
   data.forEach(pedido => _subscribirParadasRealtime(pedido))
-
-  // Actualizar panel de ganancias
-  _cargarGanancias(nombreRepa)
 }
 
-// ── Panel de ganancias ──────────────────────────────────────────────────────
+// ── Panel lateral de ganancias ───────────────────────────────────────────────
 
-let _gananciasVisible = true
+function _abrirPanelGanancias() {
+  document.getElementById('ganancias-overlay').style.display = 'block'
+  document.getElementById('ganancias-drawer').style.right = '0'
+  if (_repaData?.nombre) _cargarGanancias(_repaData.nombre)
+}
 
-function _toggleGanancias() {
-  const body = document.getElementById('ganancias-body')
-  const icon = document.getElementById('ganancias-toggle-icon')
-  if (!body) return
-  _gananciasVisible = !_gananciasVisible
-  body.style.display = _gananciasVisible ? '' : 'none'
-  if (icon) icon.style.transform = _gananciasVisible ? '' : 'rotate(-90deg)'
+function _cerrarPanelGanancias() {
+  document.getElementById('ganancias-overlay').style.display = 'none'
+  document.getElementById('ganancias-drawer').style.right = '-340px'
 }
 
 async function _cargarGanancias(nombreRepa) {
