@@ -1009,9 +1009,7 @@
 // ── Conexión Supabase ──
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { experimental: { passkey: true } }
-})
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
 // ── Verificar sesión ──
@@ -4221,8 +4219,6 @@ async function _abrirDrawer() {
     </div>
 
     <div style="padding:16px;border-top:1px solid #eef1f6;flex-shrink:0">
-      <button id="drawer-btn-passkey" onclick="_configurarPasskey(this)" style="width:100%;padding:11px;background:white;border:1.5px solid #1a4fa0;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#1a4fa0;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">🔑 Configurar huella / Face ID</button>
-      <div style="text-align:center;font-size:10px;color:#9ca3af;font-family:Montserrat,sans-serif;font-weight:600;margin-bottom:10px;margin-top:-6px">Disponible en dispositivos compatibles</div>
       <button onclick="cerrarSesion()" style="width:100%;padding:12px;background:rgba(240,90,26,0.08);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#f05a1a;letter-spacing:.5px">🚪 Cerrar sesión</button>
     </div>`
 
@@ -4231,37 +4227,6 @@ async function _abrirDrawer() {
   requestAnimationFrame(() => { overlay.style.opacity = '1'; drawer.style.transform = 'translateX(0)' })
   _cargarReferidosDrawer()
   if (_empresaUsuario) _cargarCreditoDrawer()
-}
-
-async function _configurarPasskey(btn) {
-  if (!window.PublicKeyCredential) {
-    showToast('Tu dispositivo no soporta huella / Face ID')
-    return
-  }
-
-  const orig = btn ? btn.innerHTML : ''
-  if (btn) { btn.textContent = '⏳ Configurando...'; btn.disabled = true }
-
-  const { error } = await db.auth.registerPasskey()
-
-  if (btn) { btn.innerHTML = orig; btn.disabled = false }
-
-  if (error) {
-    if (error.message && error.message.toLowerCase().includes('already')) {
-      showToast('✅ Huella activa en este dispositivo')
-    } else {
-      showToast('❌ Error al registrar: ' + (error.message || 'intenta de nuevo'))
-    }
-    return
-  }
-
-  showToast('✅ Huella registrada correctamente')
-  if (btn) {
-    btn.innerHTML = '✅ Huella activa en este dispositivo'
-    btn.style.borderColor = '#22c55e'
-    btn.style.color = '#16a34a'
-    btn.style.background = '#f0fdf4'
-  }
 }
 
 function _cerrarDrawer() {

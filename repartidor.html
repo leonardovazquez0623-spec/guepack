@@ -236,7 +236,7 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false, experimental: { passkey: true } }
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 })
 
 db.auth.onAuthStateChange((event) => {
