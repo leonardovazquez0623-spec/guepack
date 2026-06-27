@@ -156,35 +156,69 @@
 <body>
 
 <div class="delivery-header">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+  <div style="display:flex;justify-content:space-between;align-items:center">
     <div>
       <div class="delivery-name" id="delivery-nombre">Hola </div>
-      <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-top:4px">
-      <span id="repa-nivel-badge" style="display:inline-block;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);letter-spacing:.5px;margin-top:4px"></span>
+      <img src="/logo_principal.png" alt="GUEPACK" style="max-width:220px;height:auto;display:block;margin-top:4px">
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <button onclick="_abrirPanelGanancias()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;padding:6px 10px;border-radius:8px;cursor:pointer;line-height:1" title="Mis ganancias">💰</button>
-        <button onclick="cerrarSesion()" class="btn-logout">Salir</button>
-      </div>
+      <button onclick="_abrirMenuLateral()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:22px;width:40px;height:40px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="Menú">☰</button>
       <button id="btn-disponible" onclick="toggleDisponible()" style="border:2px solid #22c55e;background:rgba(34,197,94,0.2);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .2s">🟢 Disponible</button>
       <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
     </div>
   </div>
 </div>
 
-<!-- Panel lateral de ganancias -->
-<div id="ganancias-overlay" onclick="_cerrarPanelGanancias()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:8000"></div>
-<div id="ganancias-drawer" style="position:fixed;top:0;right:-340px;width:320px;max-width:92vw;height:100%;background:white;z-index:8001;box-shadow:-4px 0 32px rgba(0,0,0,0.18);transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column">
-  <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:20px 18px 16px;color:white;flex-shrink:0">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px">💰 Mis Ganancias</div>
-      <button onclick="_cerrarPanelGanancias()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">✕</button>
+<!-- Menú lateral repartidor -->
+<div id="menu-lateral-overlay" onclick="_cerrarMenuLateral()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:8000"></div>
+<div id="menu-lateral-drawer" style="position:fixed;top:0;right:-380px;width:350px;max-width:95vw;height:100%;background:white;z-index:8001;box-shadow:-4px 0 40px rgba(0,0,0,0.22);transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column">
+
+  <!-- Header del drawer: foto + nombre + nivel -->
+  <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:24px 18px 20px;color:white;flex-shrink:0;position:relative">
+    <button onclick="_cerrarMenuLateral()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;width:34px;height:34px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div id="drawer-avatar" onclick="_abrirModalFotoRepartidor()" style="width:64px;height:64px;border-radius:50%;border:2.5px solid rgba(255,255,255,0.7);overflow:hidden;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:26px;color:white;cursor:pointer;flex-shrink:0"></div>
+      <div>
+        <div id="drawer-nombre" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;line-height:1.1"></div>
+        <span id="drawer-nivel-badge" style="display:inline-block;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);letter-spacing:.5px;margin-top:6px"></span>
+      </div>
     </div>
-    <div style="font-size:10px;color:rgba(255,255,255,0.6);font-weight:700;letter-spacing:1px;margin-top:4px">SEMANA ACTUAL</div>
   </div>
-  <div id="ganancias-body" style="padding:18px 16px;flex:1">
-    <div style="color:#bbb;font-size:12px;text-align:center;padding:24px 0">Toca 💰 para ver tus ganancias</div>
+
+  <!-- Cuerpo del drawer -->
+  <div style="flex:1;overflow-y:auto;padding-bottom:20px">
+
+    <!-- Sección: Mis ganancias -->
+    <div style="padding:18px 16px 0">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💰 MIS GANANCIAS</div>
+      <div id="ganancias-body" style="min-height:60px">
+        <div style="color:#bbb;font-size:12px;text-align:center;padding:16px 0">Cargando...</div>
+      </div>
+    </div>
+
+    <div style="height:1px;background:#f1f5f9;margin:16px 0"></div>
+
+    <!-- Sección: Efectivo acumulado -->
+    <div style="padding:0 16px">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💵 EFECTIVO ACUMULADO</div>
+      <div id="drawer-efectivo-body"></div>
+    </div>
+
+    <div style="height:1px;background:#f1f5f9;margin:16px 0"></div>
+
+    <!-- Sección: Mi progreso -->
+    <div style="padding:0 16px">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">📊 MI PROGRESO</div>
+      <div id="drawer-progreso-body"></div>
+    </div>
+
+    <div style="height:1px;background:#f1f5f9;margin:16px 0"></div>
+
+    <!-- Cerrar sesión -->
+    <div style="padding:0 16px">
+      <button onclick="cerrarSesion()" style="width:100%;padding:13px;background:#fee2e2;color:#dc2626;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;letter-spacing:.5px">🚪 Cerrar sesión</button>
+    </div>
+
   </div>
 </div>
 
@@ -681,23 +715,136 @@ localStorage.setItem('guepack_pedidos_count', data.length)
 // ── Panel lateral de ganancias ───────────────────────────────────────────────
 
 function _actualizarBadgeNivel() {
-  const el = document.getElementById('repa-nivel-badge')
-  if (!el || !_repaData) return
+  const badge = document.getElementById('drawer-nivel-badge')
+  if (!badge || !_repaData) return
   const nivel = _repaData.nivel || 'nuevo'
-  el.textContent = nivel === 'premium' ? '⭐ Premium' : '🆕 Nuevo'
-  el.style.background = nivel === 'premium' ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.15)'
-  el.style.color = nivel === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.85)'
+  badge.textContent = nivel === 'premium' ? '⭐ Premium' : '🆕 Nuevo'
+  badge.style.background = nivel === 'premium' ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.15)'
+  badge.style.color = nivel === 'premium' ? '#fbbf24' : 'rgba(255,255,255,0.85)'
 }
 
-function _abrirPanelGanancias() {
-  document.getElementById('ganancias-overlay').style.display = 'block'
-  document.getElementById('ganancias-drawer').style.right = '0'
-  if (_repaData?.nombre) _cargarGanancias(_repaData.nombre)
+function _abrirMenuLateral() {
+  document.getElementById('menu-lateral-overlay').style.display = 'block'
+  document.getElementById('menu-lateral-drawer').style.right = '0'
+  _cargarMenuLateral()
 }
 
-function _cerrarPanelGanancias() {
-  document.getElementById('ganancias-overlay').style.display = 'none'
-  document.getElementById('ganancias-drawer').style.right = '-340px'
+function _cerrarMenuLateral() {
+  document.getElementById('menu-lateral-overlay').style.display = 'none'
+  document.getElementById('menu-lateral-drawer').style.right = '-380px'
+}
+
+function _cargarMenuLateral() {
+  if (!_repaData) return
+  const dnEl = document.getElementById('drawer-nombre')
+  if (dnEl) dnEl.textContent = _repaData.nombre || ''
+  _actualizarBadgeNivel()
+  const dAvEl = document.getElementById('drawer-avatar')
+  if (dAvEl) {
+    if (_repaFotoUrl) {
+      dAvEl.innerHTML = `<img src="${_repaFotoUrl}" style="width:100%;height:100%;object-fit:cover">`
+    } else {
+      dAvEl.textContent = (_repaData.nombre || 'R')[0].toUpperCase()
+    }
+  }
+  _cargarGanancias(_repaData.nombre)
+  _renderEfectivoDrawer()
+  _renderProgresoDrawer()
+}
+
+function _renderEfectivoDrawer() {
+  const cont = document.getElementById('drawer-efectivo-body')
+  if (!cont || !_repaData) return
+  const acum = Number(_repaData.efectivo_acumulado) || 0
+  const bloqueado = _repaData.bloqueado_efectivo === true || acum >= 300
+  const pct = Math.min((acum / 300) * 100, 100)
+  const barColor = pct >= 100 ? '#ef4444' : pct >= 50 ? '#f59e0b' : '#22c55e'
+  cont.innerHTML = `
+    <div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${barColor};line-height:1">$${acum}</span>
+      <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#94a3b8">de $300 límite</span>
+    </div>
+    <div style="background:#f1f5f9;border-radius:99px;height:10px;margin-bottom:12px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;transition:width .4s ease"></div>
+    </div>
+    ${bloqueado ? `
+    <div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:#dc2626;margin-bottom:4px">⚠️ Has llegado al límite de efectivo</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#991b1b">Debes depositar antes de aceptar nuevos pedidos en efectivo</div>
+    </div>
+    <div style="background:#f0f4ff;border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;margin-bottom:10px">Datos para depósito</div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">BANCO</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">BBVA</div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">CLABE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">012320029474665791</span>
+          <button onclick="navigator.clipboard.writeText('012320029474665791').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">NOMBRE</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Leonardo Vazquez Fajardo</span>
+          <button onclick="navigator.clipboard.writeText('Leonardo Vazquez Fajardo').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="comprobante-deposito-input" accept="image/*" style="display:none" onchange="_subirComprobanteDeposito(this)">
+    <label for="comprobante-deposito-input" id="btn-comprobante-deposito" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:linear-gradient(135deg,#1a4fa0,#0e3070);color:white;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de depósito</label>
+    <div id="comprobante-deposito-preview" style="margin-top:10px"></div>
+    ` : ''}
+  `
+}
+
+function _renderProgresoDrawer() {
+  const cont = document.getElementById('drawer-progreso-body')
+  if (!cont || !_repaData) return
+  const total = Number(_repaData.total_envios) || 0
+  const nivel = _repaData.nivel || 'nuevo'
+  const esPremium = nivel === 'premium'
+  const META = 25
+  const pct = esPremium ? 100 : Math.min((total / META) * 100, 100)
+  cont.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+      <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#475569">${total} envíos realizados</span>
+      ${esPremium ? '' : `<span style="font-size:11px;font-weight:700;color:#94a3b8">${total}/${META}</span>`}
+    </div>
+    <div style="background:#f1f5f9;border-radius:99px;height:10px;margin-bottom:10px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${esPremium ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#1a4fa0,#2563c4)'};border-radius:99px;transition:width .4s ease"></div>
+    </div>
+    ${esPremium
+      ? '<div style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);border-radius:10px;padding:10px 14px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:#92400e;text-align:center">⭐ ¡Eres repartidor Premium!</div>'
+      : `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#94a3b8;text-align:center">${META - total} envíos más para ser Premium</div>`
+    }
+  `
+}
+
+async function _subirComprobanteDeposito(input) {
+  if (!input.files[0] || !_repaData) return
+  const btn = document.getElementById('btn-comprobante-deposito')
+  if (btn) { btn.textContent = 'Subiendo...'; btn.style.opacity = '.6'; btn.style.pointerEvents = 'none' }
+  const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const ruta = `depositos/${_repaData.id}_${fecha}.jpg`
+  const { error } = await db.storage.from('evidencias').upload(ruta, input.files[0], { contentType: 'image/jpeg', upsert: true })
+  if (error) {
+    _toastRepa('❌ Error al subir comprobante', '#ef4444')
+    if (btn) { btn.textContent = '📎 Subir comprobante de depósito'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
+    return
+  }
+  const previewEl = document.getElementById('comprobante-deposito-preview')
+  if (previewEl) {
+    previewEl.innerHTML = `<img src="${URL.createObjectURL(input.files[0])}" style="width:100%;border-radius:10px;max-height:160px;object-fit:cover">`
+  }
+  if (btn) { btn.textContent = '✅ Comprobante enviado'; btn.style.background = '#22c55e'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
+  const { data: admins } = await db.from('usuarios').select('user_id').eq('rol', 'admin')
+  await Promise.all((admins || []).filter(u => u.user_id).map(u =>
+    _enviarPushAUsuarioRepa(u.user_id, '💵 Comprobante de depósito', (_repaData.nombre || 'Repartidor') + ' subió comprobante de depósito — confirmar en admin').catch(() => {})
+  ))
+  _toastRepa('✅ Comprobante enviado — esperando confirmación del admin', '#22c55e')
 }
 
 async function _cargarGanancias(nombreRepa) {
