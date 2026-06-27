@@ -2848,13 +2848,36 @@ async function confirmarAsignacion(id) {
   const repa = document.getElementById('sel-repa').value
   if (!repa) { alert('Selecciona un repartidor'); return }
 
-  const { error } = await db.from('pedidos').update({
+  // Obtener config del repartidor y datos del pedido en paralelo
+  const [{ data: repaData }, { data: pedidoData }] = await Promise.all([
+    db.from('repartidores').select('ganancia_base, ganancia_por_km, ganancia_tarifa_diaria').eq('nombre', repa).single(),
+    db.from('pedidos').select('km_recorridos, zona, precio').eq('id', id).single()
+  ])
+
+  const nombreRepartidor  = repa
+  const kmPedido          = Number(pedidoData?.km_recorridos) || 0
+  const esTarifaDiaria    = (pedidoData?.zona || '').includes('Tarifa diaria')
+  const gananciaBase      = Number(repaData?.ganancia_base)          || 20
+  const gananciaPorKm     = Number(repaData?.ganancia_por_km)        || 5
+  const gananciaDiariaPct = Number(repaData?.ganancia_tarifa_diaria) || 40
+  const gananciaCalculada = esTarifaDiaria
+    ? Math.round(Number(pedidoData?.precio || 0) * gananciaDiariaPct / 100)
+    : Math.round(gananciaBase + (kmPedido * gananciaPorKm))
+
+  console.log('[asignar] repartidor:', nombreRepartidor)
+  console.log('[asignar] km del pedido:', kmPedido)
+  console.log('[asignar] ganancia calculada:', gananciaCalculada)
+
+  const { data, error } = await db.from('pedidos').update({
     estado: 'En camino a recoleccion',
-    repartidor: repa
-  }).eq('id', id)
+    repartidor: repa,
+    ganancia_repartidor: gananciaCalculada
+  }).eq('id', id).select()
+
+  console.log('[asignar] resultado update ganancia:', data, error)
 
   if (error) { alert('Error al asignar'); return }
-  
+
   const modal = document.getElementById('modal-asignar')
   if (modal) modal.remove()
   cargarPedidos()
