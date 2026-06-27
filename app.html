@@ -1009,7 +1009,9 @@
 // ── Conexión Supabase ──
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { experimental: { passkey: true } }
+})
 const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
 // ── Verificar sesión ──
