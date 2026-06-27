@@ -1034,8 +1034,9 @@ async function verificarSesion() {
     return
   }
 
-  if (!usuario?.whatsapp) {
-    _mostrarModalBienvenida(session.user.id)
+  const nombreMeta = session.user.user_metadata?.nombre || ''
+  if (!usuario?.whatsapp || !nombreMeta) {
+    _mostrarModalBienvenida(session.user.id, nombreMeta)
     return
   }
 
@@ -3672,23 +3673,35 @@ function stepClick(btn, idx) {
 // ── MODAL BIENVENIDA ──
 let _bvUserId = null
 
-function _mostrarModalBienvenida(userId) {
+function _mostrarModalBienvenida(userId, nombrePrevio) {
   _bvUserId = userId
   const modal = document.getElementById('modal-bienvenida')
   if (!modal) return
+  if (nombrePrevio) {
+    const inp = document.getElementById('bv-nombre')
+    if (inp) inp.value = nombrePrevio
+  }
   modal.style.display = 'flex'
   modal.style.alignItems = 'center'
   modal.style.justifyContent = 'center'
 }
 
 function _bvValidar() {
+  const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
   const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
-  const ok = wsp.length === 10
-  const inp = document.getElementById('bv-whatsapp')
-  const btn = document.getElementById('bv-btn-continuar')
+  const okNombre = nombre.length >= 2
+  const okWsp = wsp.length === 10
+
+  const inpN = document.getElementById('bv-nombre')
+  const inpW = document.getElementById('bv-whatsapp')
   const hint = document.getElementById('bv-wsp-hint')
-  if (inp) inp.style.borderColor = wsp.length === 0 ? '#d1d5db' : (ok ? '#22c55e' : '#f59e0b')
-  if (hint) hint.style.color = ok ? '#22c55e' : '#9ca3af'
+  const btn = document.getElementById('bv-btn-continuar')
+
+  if (inpN) inpN.style.borderColor = nombre.length === 0 ? '#d1d5db' : (okNombre ? '#22c55e' : '#f59e0b')
+  if (inpW) inpW.style.borderColor = wsp.length === 0 ? '#d1d5db' : (okWsp ? '#22c55e' : '#f59e0b')
+  if (hint) hint.style.color = okWsp ? '#22c55e' : '#9ca3af'
+
+  const ok = okNombre && okWsp
   if (btn) {
     btn.disabled = !ok
     btn.style.opacity = ok ? '1' : '0.5'
@@ -3697,13 +3710,21 @@ function _bvValidar() {
 }
 
 async function _bvGuardar() {
+  const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
   const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
-  if (wsp.length !== 10) return
+  if (!nombre || wsp.length !== 10) return
   const empresa = (document.getElementById('bv-empresa')?.value || '').trim()
   const referido = (document.getElementById('bv-referido')?.value || '').trim()
 
   const btn = document.getElementById('bv-btn-continuar')
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; btn.style.opacity = '0.7' }
+
+  const { error: errMeta } = await db.auth.updateUser({ data: { nombre } })
+  if (errMeta) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
+    showToast('❌ Error al guardar. Intenta de nuevo.')
+    return
+  }
 
   const upd = { whatsapp: wsp }
   if (empresa) upd.empresa_codigo = empresa
@@ -5615,6 +5636,14 @@ function _cerrarTour() {
       <div style="font-size:36px;margin-bottom:8px">🐆</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#0e3070;letter-spacing:1px">¡Bienvenido a GUEPACK!</div>
       <div style="font-size:13px;color:#6b7280;margin-top:6px">Necesitamos un dato más para completar tu perfil</div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
+        👤 Nombre completo <span style="color:#ef4444">*</span>
+      </label>
+      <input id="bv-nombre" type="text" placeholder="Ej. María García López" oninput="_bvValidar()"
+        style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:12px 14px;font-size:15px;font-family:inherit;outline:none;transition:border .2s">
     </div>
 
     <div style="margin-bottom:16px">
