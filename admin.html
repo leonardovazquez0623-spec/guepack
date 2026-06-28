@@ -1467,12 +1467,36 @@ async function editarEmpresa(id) {
   if (card) { card.style.display = 'block'; card.scrollIntoView({ behavior: 'smooth' }) }
 }
 
-async function eliminarEmpresa(id, nombre) {
-  if (!confirm('¿Eliminar empresa "' + nombre.trim() + '"?')) return
-  const { error } = await db.from('empresas_afiliadas').delete().eq('id', id)
-  if (error) { showToast('❌ Error al eliminar'); return }
-  showToast('🗑️ Empresa eliminada')
-  cargarEmpresas()
+function eliminarEmpresa(id, nombre) {
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
+      <div style="font-size:40px;margin-bottom:12px">🗑️</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;margin-bottom:8px">¿Eliminar empresa?</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:13px;color:#8fa3c0;margin-bottom:24px;line-height:1.5">
+        <span style="color:#1a4fa0;font-weight:900">${nombre.trim()}</span><br>Esta acción no se puede deshacer.
+      </div>
+      <div style="display:flex;gap:10px">
+        <button id="emp-cancel-btn" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:#8fa3c0;letter-spacing:.5px">❌ Cancelar</button>
+        <button id="emp-confirm-btn" style="flex:1;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(239,68,68,0.35)">🗑️ Eliminar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+
+  overlay.querySelector('#emp-cancel-btn').onclick = () => overlay.remove()
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove() }
+
+  overlay.querySelector('#emp-confirm-btn').onclick = async () => {
+    overlay.remove()
+    await db.from('rangos_precio_empresa').delete().eq('empresa_id', id)
+    await db.from('rangos_paqueteria').delete().eq('empresa_id', id)
+    const { error } = await db.from('empresas_afiliadas').delete().eq('id', id)
+    if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
+    showToast('🗑️ Empresa eliminada')
+    cargarEmpresas()
+  }
 }
 
 function _cerrarFormEmpresa() {
