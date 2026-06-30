@@ -1041,6 +1041,7 @@ async function verificarSesion() {
   }
 
   verificarAnuncio()
+  _solicitarPermisoNotificaciones()
   cargarVipUsuario(session.user.id)
   cargarNombreRemitente(session.user)
   await _cargarEmpresaUsuario(session.user)
@@ -1520,6 +1521,63 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+// ── Permiso de notificaciones (modal amigable) ────────────────────────────────
+
+function _solicitarPermisoNotificaciones() {
+  if (!('Notification' in window)) return
+  if (sessionStorage.getItem('notif_modal_mostrado')) return
+
+  const perm = Notification.permission
+  if (perm === 'granted') {
+    activarNotificaciones()
+    return
+  }
+  if (perm === 'denied') {
+    mostrarToast('🔔 Para activar notificaciones ve a Configuración → Chrome → Notificaciones → guepack.com')
+    return
+  }
+  // default → mostrar modal amigable una sola vez por sesión
+  sessionStorage.setItem('notif_modal_mostrado', '1')
+  _mostrarModalNotificaciones()
+}
+
+function _mostrarModalNotificaciones() {
+  if (document.getElementById('modal-notif-permiso')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-notif-permiso'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">🔔</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a2740;margin-bottom:10px">¡Activa las notificaciones!</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.7;margin-bottom:24px">Para que puedas saber en tiempo real cuándo tu mensajero va en camino, llegó a recolectar o entregó tu paquete, necesitamos tu permiso.</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="btn-notif-activar" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#1a4fa0,#2563c4);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35)">🔔 Activar notificaciones</button>
+        <button id="btn-notif-omitir" style="padding:12px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#8fa3c0">Ahora no</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  overlay.querySelector('#btn-notif-activar').onclick = async () => {
+    overlay.remove()
+    await activarNotificaciones()
+  }
+  overlay.querySelector('#btn-notif-omitir').onclick = () => {
+    overlay.remove()
+    _mostrarRecordatorioNotif()
+  }
+}
+
+function _mostrarRecordatorioNotif() {
+  if (document.getElementById('notif-recordatorio')) return
+  const reminder = document.createElement('div')
+  reminder.id = 'notif-recordatorio'
+  reminder.style.cssText = 'background:rgba(26,79,160,0.08);border-bottom:1.5px solid rgba(26,79,160,0.15);padding:8px 16px;text-align:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a4fa0;cursor:pointer'
+  reminder.textContent = '🔔 Activa notificaciones para rastrear tu pedido'
+  reminder.onclick = () => { reminder.remove(); _mostrarModalNotificaciones() }
+  document.body.insertBefore(reminder, document.body.firstChild)
+}
+
 // ── Firebase Push Notifications ──
 async function activarNotificaciones() {
   try {
@@ -1567,7 +1625,8 @@ async function activarNotificaciones() {
   }
 }
 
-activarNotificaciones()
+// Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
+if (Notification.permission === 'granted') activarNotificaciones()
 let selSize = null, selZone = null, selMetodoPago = null
 let _zonaData = null        // zona detectada desde Supabase zonas_cobertura
 let _empresaData = null     // datos de empresa afiliada del usuario logueado
