@@ -2257,7 +2257,10 @@ async function _cargarParadasPedido(pedidoId) {
       const evidencia = p.foto_url
         ? ` · <a href="${p.foto_url}" target="_blank" rel="noopener" style="font-size:10px;color:var(--blue);font-weight:700;text-decoration:none">📸 ver evidencia</a>`
         : ''
-      return `<div style="font-size:11px;font-weight:700;color:${color};padding:2px 0">${icon} Parada ${p.orden}${evidencia}</div>`
+      const dir = p.direccion
+        ? `<div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${p.direccion}</div>`
+        : ''
+      return `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.05)"><div style="font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}${evidencia}</div>${dir}</div>`
     }).join('')
 }
 
