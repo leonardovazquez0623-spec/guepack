@@ -88,26 +88,41 @@ Deno.serve(async (req) => {
 
   // ── 4. Enviar push a repartidores ────────────────────────────────────────────
   const emails = repas.map((r: any) => r.email).filter(Boolean)
-  const { data: users } = await supabase
+  console.log('[procesar-asignacion] buscando user_ids para emails:', emails)
+
+  const { data: users, error: usersErr } = await supabase
     .from('usuarios')
     .select('user_id, email')
     .in('email', emails)
+
+  if (usersErr) console.error('[procesar-asignacion] error query usuarios:', usersErr.message)
+  const usersConId = (users || []).filter((u: any) => u.user_id)
+  console.log(`[procesar-asignacion] user_ids encontrados: ${usersConId.length} de ${emails.length} emails`)
+  if (usersConId.length === 0) console.warn('[procesar-asignacion] ⚠️ ningún repartidor tiene user_id en usuarios — push no se enviará')
 
   const notifBody = `GK-${pedido_id} · ${pedido.direccion_recoleccion || ''}`
   const pushHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` }
 
   await Promise.all(
-    (users || [])
-      .filter((u: any) => u.user_id)
-      .map((u: any) =>
-        fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
+    usersConId.map(async (u: any) => {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
           method: 'POST',
           headers: pushHeaders,
           body: JSON.stringify({ user_id: u.user_id, title: '📦 Nuevo pedido disponible', body: notifBody, tipo: 'pedido' })
-        }).catch((e: Error) => console.warn('[procesar-asignacion] push error a', u.email, ':', e.message))
-      )
+        })
+        const json = await res.json()
+        if (!res.ok) {
+          console.error(`[procesar-asignacion] enviar-push HTTP ${res.status} para ${u.email}:`, JSON.stringify(json))
+        } else {
+          console.log(`[procesar-asignacion] push OK para ${u.email} — enviados: ${json.sent ?? 1}`)
+        }
+      } catch (e: any) {
+        console.error('[procesar-asignacion] fetch error a enviar-push para', u.email, ':', e.message)
+      }
+    })
   )
-  console.log(`[procesar-asignacion] push enviados a ${users?.length ?? 0} repartidores`)
+  console.log(`[procesar-asignacion] push procesados para ${usersConId.length} repartidores`)
 
   // ── 5. Actualizar ronda_asignacion en el pedido ──────────────────────────────
   await supabase.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido_id)
@@ -135,15 +150,18 @@ Deno.serve(async (req) => {
 })
 
 async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: string, pedidoId: number) {
-  const { data: admins } = await supabase
+  const { data: admins, error: admErr } = await supabase
     .from('usuarios')
     .select('user_id')
     .eq('rol', 'admin')
+  if (admErr) console.error('[procesar-asignacion] error query admins:', admErr.message)
+  const adminsConId = (admins || []).filter((u: any) => u.user_id)
+  console.log(`[procesar-asignacion] notificando ${adminsConId.length} admins para pedido ${pedidoId}`)
+
   await Promise.all(
-    (admins || [])
-      .filter((u: any) => u.user_id)
-      .map((u: any) =>
-        fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
+    adminsConId.map(async (u: any) => {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
           body: JSON.stringify({
@@ -152,7 +170,16 @@ async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: 
             body: 'Sin repartidores disponibles — revisión manual requerida',
             tipo: 'admin'
           })
-        }).catch((e: Error) => console.warn('[procesar-asignacion] admin push error:', e.message))
-      )
+        })
+        const json = await res.json()
+        if (!res.ok) {
+          console.error(`[procesar-asignacion] admin push HTTP ${res.status}:`, JSON.stringify(json))
+        } else {
+          console.log(`[procesar-asignacion] admin push OK — enviados: ${json.sent ?? 1}`)
+        }
+      } catch (e: any) {
+        console.error('[procesar-asignacion] admin fetch error:', e.message)
+      }
+    })
   )
 }
