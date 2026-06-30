@@ -2314,8 +2314,26 @@ async function confirmarAgregarParada(pedidoId) {
 
   btn.textContent = 'Agregando...'; btn.disabled = true
 
-  const { data: paradasOrd } = await db.from('paradas').select('orden').eq('pedido_id', pedidoId).order('orden', { ascending: false }).limit(1)
-  const orden = (paradasOrd?.[0]?.orden || 0) + 1
+  // Verificar paradas existentes para este pedido
+  const { data: paradasExistentes } = await db.from('paradas').select('orden').eq('pedido_id', pedidoId).order('orden', { ascending: false })
+  const maxOrden = paradasExistentes?.[0]?.orden || 0
+  const yaExisteParada1 = (paradasExistentes || []).some(p => p.orden === 1)
+
+  // Si no existe parada #1, insertar primero la dirección de entrega original del pedido
+  if (!yaExisteParada1) {
+    const { data: pedidoOrig } = await db.from('pedidos').select('direccion_entrega').eq('id', pedidoId).single()
+    if (pedidoOrig?.direccion_entrega) {
+      await db.from('paradas').insert({
+        pedido_id: pedidoId,
+        orden: 1,
+        direccion: pedidoOrig.direccion_entrega,
+        instrucciones: null,
+        estado: 'pendiente'
+      })
+    }
+  }
+
+  const orden = maxOrden === 0 ? 2 : maxOrden + 1
 
   const { error } = await db.from('paradas').insert({
     pedido_id: pedidoId,
