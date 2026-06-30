@@ -5131,27 +5131,32 @@ async function eliminarCliente(userId) {
   overlay.querySelector('#cli-confirm-btn').onclick = async () => {
     overlay.remove()
 
-    const { data: pedidos } = await db.from('pedidos').select('id').eq('user_id', userId)
-    const pedidoIds = (pedidos || []).map(p => p.id)
+    try {
+      const { data: pedidos } = await db.from('pedidos').select('id').eq('user_id', userId)
+      const pedidoIds = (pedidos || []).map(p => p.id)
 
-    if (pedidoIds.length > 0) {
-      await db.from('paradas').delete().in('pedido_id', pedidoIds)
-      await db.from('mensajes').delete().in('pedido_id', pedidoIds).catch(() => {})
-      await db.from('calificaciones').delete().in('pedido_id', pedidoIds).catch(() => {})
+      if (pedidoIds.length > 0) {
+        await db.from('paradas').delete().in('pedido_id', pedidoIds)
+        await db.from('mensajes').delete().in('pedido_id', pedidoIds)
+        await db.from('calificaciones').delete().in('pedido_id', pedidoIds)
+      }
+
+      await db.from('pedidos').delete().eq('user_id', userId)
+      await db.from('referidos').delete().eq('referido_id', userId)
+      await db.from('eventos_trafico').delete().eq('user_id', userId)
+
+      const { error } = await db.from('usuarios').delete().eq('user_id', userId)
+      if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
+
+      delete _clientesMap[userId]
+      document.getElementById('panel-cliente').style.display = 'none'
+      showToast('🗑️ Cuenta eliminada')
+      showToast('⚠️ Elimina manualmente en Supabase → Authentication → Users')
+      cargarClientes()
+    } catch (err) {
+      console.error('[eliminarCliente]', err)
+      showToast('❌ Error al eliminar cuenta')
     }
-
-    await db.from('pedidos').delete().eq('user_id', userId)
-    await db.from('referidos').delete().eq('referido_id', userId).catch(() => {})
-    await db.from('eventos_trafico').delete().eq('user_id', userId).catch(() => {})
-
-    const { error } = await db.from('usuarios').delete().eq('user_id', userId)
-    if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
-
-    delete _clientesMap[userId]
-    document.getElementById('panel-cliente').style.display = 'none'
-    showToast('🗑️ Cuenta eliminada')
-    showToast('⚠️ Elimina manualmente en Supabase → Authentication → Users')
-    cargarClientes()
   }
 }
 
