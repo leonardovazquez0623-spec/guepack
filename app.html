@@ -2245,12 +2245,29 @@ function eliminarParada(idx) {
 }
 
 async function _cargarParadasPedido(pedidoId) {
-  const { data } = await db.from('paradas').select('*').eq('pedido_id', pedidoId).order('orden')
+  const [{ data }, { data: pedidoData }] = await Promise.all([
+    db.from('paradas').select('*').eq('pedido_id', pedidoId).order('orden'),
+    db.from('pedidos').select('direccion_recoleccion').eq('id', pedidoId).single()
+  ])
   const el = document.getElementById('pac-' + pedidoId + '-paradas')
   if (!el) return
-  if (!data?.length) { el.style.display = 'none'; return }
+
+  const recoleccion = pedidoData?.direccion_recoleccion
+  if (!recoleccion && !data?.length) { el.style.display = 'none'; return }
+
   el.style.display = 'block'
-  el.innerHTML = '<div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:.8px;margin-bottom:6px">PARADAS</div>' +
+
+  const recoleccionHtml = recoleccion
+    ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:#1a4fa0">📍 Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
+    : ''
+
+  if (!data?.length) {
+    el.innerHTML = recoleccionHtml
+    return
+  }
+
+  el.innerHTML = recoleccionHtml +
+    '<div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:.8px;margin:6px 0">PARADAS</div>' +
     data.map(p => {
       const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
       const color = p.estado === 'completada' ? 'var(--success)' : p.estado === 'en_curso' ? 'var(--orange)' : '#8fa3c0'
