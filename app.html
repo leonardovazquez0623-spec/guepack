@@ -3177,93 +3177,20 @@ async function _enviarPushAEmail(email, titulo, cuerpo) {
 // ── Asignación automática ─────────────────────────────────────────────────────
 
 async function _iniciarAsignacionAutomatica(pedido) {
-  console.log('[asignacion] iniciando asignacion automatica para pedido:', pedido.id)
-
-  // Obtener configuración de rondas desde config_app
-  const { data: cfgRows } = await db.from('config_app')
-    .select('key,value')
-    .in('key', ['tiempo_aceptar', 'pausa_rondas', 'max_rondas'])
-  const cfg = {}
-  cfgRows?.forEach(r => { cfg[r.key] = r.value })
-  const tiempoAceptar = parseInt(cfg.tiempo_aceptar || '60', 10)
-  const pausaRondas   = parseInt(cfg.pausa_rondas   || '20', 10)
-  const maxRondas     = parseInt(cfg.max_rondas     || '3',  10)
-  const delayMs       = (tiempoAceptar + pausaRondas) * 1000
-  console.log('[asignacion] config → tiempo_aceptar:', tiempoAceptar, '| pausa_rondas:', pausaRondas, '| max_rondas:', maxRondas, '| delay por ronda:', delayMs / 1000, 's')
-
-  // Ronda 1 inmediata
-  const ronda1Ok = await _notificarRepartidores(pedido, 1)
-  if (!ronda1Ok) return // sin repartidores → admin ya notificado
-
-  // Encadenar rondas 2..maxRondas con setTimeout — cada una verifica si ya fue aceptado
-  _agendarSiguienteRonda(pedido, 2, maxRondas, delayMs)
-}
-
-function _agendarSiguienteRonda(pedido, ronda, maxRondas, delayMs) {
-  setTimeout(async () => {
-    // Verificar si el pedido ya fue aceptado antes de disparar la ronda
-    const { data: check } = await db.from('pedidos').select('repartidor').eq('id', pedido.id).single()
-    if (check?.repartidor) {
-      console.log('[asignacion] pedido', pedido.id, 'ya aceptado → cancelando ronda', ronda, 'y siguientes')
-      return
-    }
-
-    if (ronda <= maxRondas) {
-      await _notificarRepartidores(pedido, ronda)
-      _agendarSiguienteRonda(pedido, ronda + 1, maxRondas, delayMs)
-    } else {
-      // Todas las rondas expiraron sin aceptación → notificar admin
-      console.log('[asignacion] pedido', pedido.id, '→ todas las rondas agotadas, notificando admin')
-      await _notificarAdminSinRepartidores(pedido)
-    }
-  }, delayMs)
-}
-
-async function _notificarRepartidores(pedido, ronda) {
-  console.log('[asignacion] === RONDA', ronda, '=== pedido:', pedido.id)
-
-  const { data: repas, error: repErr } = await db.from('repartidores').select('email, nombre').eq('disponible', true)
-  console.log('[asignacion] repartidores disponibles:', repas?.length ?? 0, '| error:', repErr)
-
-  if (!repas?.length) {
-    console.log('[asignacion] sin repartidores disponibles → notificando al admin')
-    await _notificarAdminSinRepartidores(pedido)
-    return false
+  console.log('[asignacion] delegando ronda 1 a Edge Function para pedido:', pedido.id)
+  try {
+    const res = await fetch(SUPABASE_URL + '/functions/v1/procesar-asignacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ pedido_id: pedido.id, ronda: 1 })
+    })
+    const json = await res.json()
+    console.log('[asignacion] respuesta Edge Function:', json)
+  } catch (e) {
+    console.warn('[asignacion] error llamando procesar-asignacion:', e)
   }
-
-  const emails = repas.map(r => r.email).filter(Boolean)
-  const { data: users, error: usrErr } = await db.from('usuarios').select('user_id, email').in('email', emails)
-  const conUserId = (users || []).filter(u => u.user_id)
-  console.log('[asignacion] repartidores con user_id:', conUserId.length, '/ total:', emails.length, '| error:', usrErr)
-
-  const notifBody = 'GK-' + pedido.id + ' · ' + (pedido.direccion_recoleccion || '')
-  const pushPromises = conUserId.map(u => {
-    console.log('[asignacion] enviando push a repartidor:', u.email)
-    return _enviarPushAUsuario(u.user_id, '📦 Nuevo pedido disponible', notifBody)
-      .catch(e => console.warn('[asignacion] error push a ' + u.email + ':', e))
-  })
-  await Promise.all(pushPromises)
-  console.log('[asignacion] push enviados a', pushPromises.length, 'repartidores')
-
-  const { error: roundErr } = await db.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido.id)
-  console.log('[asignacion] ronda_asignacion =', ronda, '| error:', roundErr)
-
-  return true
-}
-
-async function _notificarAdminSinRepartidores(pedido) {
-  const { data: admins, error: admErr } = await db.from('usuarios').select('user_id, email').eq('rol', 'admin')
-  console.log('[asignacion] admins encontrados:', admins?.length ?? 0, '| error:', admErr)
-  const conUserId = (admins || []).filter(u => u.user_id)
-  const pushPromises = conUserId.map(u => {
-    console.log('[asignacion] notificando admin:', u.email)
-    return _enviarPushAUsuario(u.user_id,
-      '⚠️ Pedido GK-' + pedido.id + ' sin asignar',
-      'Sin repartidores disponibles — revisión manual requerida'
-    ).catch(e => console.warn('[asignacion] error push admin:', e))
-  })
-  await Promise.all(pushPromises)
-  console.log('[asignacion] notificacion(es) admin enviadas:', conUserId.length)
+  // Las rondas 2+ las programa la Edge Function en rondas_pendientes
+  // y el pg_cron de Supabase las dispara server-side sin depender del navegador
 }
 
 async function _cargarBadgesNoLeidos(pedidoIds) {
