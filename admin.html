@@ -4941,7 +4941,7 @@ async function cargarClientes() {
   elG.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
 
   const { data: todos } = await db.from('usuarios')
-    .select('user_id, email, nombre, whatsapp, empresa_codigo, nivel_vip, total_pedidos')
+    .select('user_id, email, whatsapp, empresa_codigo, nivel_vip, total_pedidos')
     .eq('rol', 'cliente')
     .order('email')
 
@@ -4961,9 +4961,9 @@ async function cargarClientes() {
   todos.forEach(u => { if (countMap[u.user_id] !== undefined) _clientesMap[u.user_id].pedidosReal = countMap[u.user_id] })
 
   const _renderItem = (u, sublinea) => {
-    const nombre = u.nombre || '—'
-    const inicial = (u.nombre || u.email || '?')[0].toUpperCase()
-    const completo = !!(u.nombre && u.whatsapp)
+    const nombre = u.email || '—'
+    const inicial = (u.email || '?')[0].toUpperCase()
+    const completo = !!u.whatsapp
     const badge = completo
       ? `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#16a34a">✅ Completo</span>`
       : `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#f59e0b">⚠️ Incompleto</span>`
@@ -5011,7 +5011,7 @@ async function abrirPanelCliente(userId) {
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const { data: usuario } = await db.from('usuarios')
-    .select('email, nombre, whatsapp, nivel_vip, total_pedidos, empresa_codigo, cargo_cancelacion')
+    .select('email, whatsapp, nivel_vip, total_pedidos, empresa_codigo, cargo_cancelacion')
     .eq('user_id', userId).single()
 
   if (!usuario) {
@@ -5019,8 +5019,8 @@ async function abrirPanelCliente(userId) {
     return
   }
 
-  const nombre = usuario.nombre || '—'
-  const completo = !!(usuario.nombre && usuario.whatsapp)
+  const nombre = usuario.email || '—'
+  const completo = !!usuario.whatsapp
   const empresaCodigo = usuario.empresa_codigo
   const totalPedidos = usuario.total_pedidos || (_clientesMap[userId]?.pedidosReal) || 0
 
@@ -5107,7 +5107,7 @@ async function abrirPanelCliente(userId) {
 
 async function eliminarCliente(userId) {
   const u = _clientesMap[userId]
-  const nombre = u?.nombre || u?.email || userId
+  const nombre = u?.email || userId
 
   const overlay = document.createElement('div')
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
