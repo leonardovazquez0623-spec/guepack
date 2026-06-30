@@ -272,7 +272,7 @@ function _checkPassword() {
   const val = document.getElementById('reg-password').value
   const okLong     = val.length >= 8
   const okMayus    = /[A-Z]/.test(val) && /[a-z]/.test(val)
-  const okEspecial = /[!@#$%^&*]/.test(val)
+  const okEspecial = /[!@#$%^&*(),.?":{}|<>]/.test(val)
 
   const _set = (id, icoId, ok) => {
     document.getElementById(icoId).textContent = ok ? '✅' : '❌'
@@ -295,7 +295,7 @@ function _checkPassword() {
 
 function _actualizarBtnRegistro() {
   const val        = document.getElementById('reg-password').value
-  const passwordOk = val.length >= 8 && /[A-Z]/.test(val) && /[a-z]/.test(val) && /[!@#$%^&*]/.test(val)
+  const passwordOk = val.length >= 8 && /[A-Z]/.test(val) && /[a-z]/.test(val) && /[!@#$%^&*(),.?":{}|<>]/.test(val)
   const terminosOk = document.getElementById('acepto-terminos')?.checked
   const btn        = document.getElementById('btn-crear-cuenta')
   if (!btn) return
@@ -422,7 +422,7 @@ async function registrar() {
 
   if (!document.getElementById('acepto-terminos')?.checked) { showError('⚠️ Debes aceptar los términos y condiciones para continuar'); return; }
   if (!nombre || !email || !password || !whatsapp) { showError('Llena todos los campos'); return; }
-  if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[!@#$%^&*]/.test(password)) { showError('La contraseña no cumple los requisitos de seguridad'); return; }
+  if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) { showError('La contraseña no cumple los requisitos de seguridad'); return; }
   if (!/^\d{10}$/.test(whatsapp)) { showError('El WhatsApp debe tener exactamente 10 dígitos'); return; }
 
   const { data: waDup } = await db.from('usuarios').select('id').eq('whatsapp', whatsapp).maybeSingle()
@@ -451,7 +451,22 @@ async function registrar() {
   if (signUpData?.user) {
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: signUpData.user.id }).then(() => {})
   }
-  showSuccess('¡Cuenta creada! Revisa tu correo para confirmar.')
+  _mostrarModalCuentaCreada()
+}
+
+function _mostrarModalCuentaCreada() {
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-cuenta-creada'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a2740;margin-bottom:10px">¡Cuenta creada!</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:24px">Revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.</div>
+      <button onclick="document.getElementById('modal-cuenta-creada').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px">Entendido</button>
+    </div>
+  `
+  document.body.appendChild(overlay)
 }
 </script>
 </body>
