@@ -595,6 +595,22 @@ async function init() {
 
   _suscribirPedidosNuevos()
   cargarPedidos(session.user.email)
+
+  // Verificar si hay pedido pendiente al abrir la app (ej: desde notificación push)
+  if (_repaData?.disponible !== false) {
+    const { data: pendientes } = await db.from('pedidos')
+      .select('*')
+      .eq('estado', 'Pendiente')
+      .is('repartidor', null)
+      .gt('ronda_asignacion', 0)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (pendientes?.length > 0
+      && !_pedidosRechazados.has(pendientes[0].id)
+      && !_esPedidoFinDeSemanaGDL(pendientes[0].created_at)) {
+      _mostrarModalNuevoPedido(pendientes[0])
+    }
+  }
 }
 
 async function cargarPedidos(email) {
