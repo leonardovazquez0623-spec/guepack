@@ -5142,12 +5142,13 @@ async function eliminarCliente(userId) {
       }
 
       await db.from('pedidos').delete().eq('user_id', userId)
-      await db.from('referidos').delete().eq('referido_id', userId)
+      await db.from('referidos').delete().eq('user_id_referido', userId)
       await db.from('eventos_trafico').delete().eq('user_id', userId)
 
       const { error } = await db.from('usuarios').delete().eq('user_id', userId)
       if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
 
+      console.log('[eliminar] user_id a eliminar:', userId)
       const authRes = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/eliminar-usuario', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
