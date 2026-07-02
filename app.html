@@ -2329,12 +2329,15 @@ function usarDireccion(inputId, direccion) {
       _latEntrega = place.geometry.location.lat()
       _lngEntrega = place.geometry.location.lng()
       _detectarZonaEntrega(place)
+      setTimeout(_actualizarMapaWizard, 50)
     })
   } else if (inputId === 'dir-recoleccion') {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
+    setTimeout(_actualizarMapaWizard, 50)
   } else if (inputId.startsWith('parada-dir-')) {
     const idx = parseInt(inputId.replace('parada-dir-', ''), 10)
     _paradaDirChange(idx, direccion)
+    setTimeout(_actualizarMapaWizard, 50)
   }
 }
 
