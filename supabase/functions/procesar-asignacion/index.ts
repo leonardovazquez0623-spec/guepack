@@ -11,142 +11,150 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  let pedido_id: number, ronda: number
   try {
-    const body = await req.json()
-    pedido_id = Number(body.pedido_id)
-    ronda     = Number(body.ronda)
-  } catch {
-    return new Response(JSON.stringify({ error: 'Body inválido' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    let pedido_id: number, ronda: number
+    try {
+      const body = await req.json()
+      pedido_id = Number(body.pedido_id)
+      ronda     = Number(body.ronda)
+    } catch {
+      return new Response(JSON.stringify({ error: 'Body inválido' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-  if (!pedido_id || !ronda) {
-    return new Response(JSON.stringify({ error: 'pedido_id y ronda son requeridos' }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    if (!pedido_id || !ronda) {
+      return new Response(JSON.stringify({ error: 'pedido_id y ronda son requeridos' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const supabase    = createClient(supabaseUrl, serviceKey)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey  = Deno.env.get('SERVICE_ROLE_KEY')!
+    const supabase    = createClient(supabaseUrl, serviceKey)
 
-  console.log(`[procesar-asignacion] pedido=${pedido_id} ronda=${ronda}`)
+    console.log(`[procesar-asignacion] pedido=${pedido_id} ronda=${ronda}`)
 
-  // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
-  const { data: pedido, error: pedErr } = await supabase
-    .from('pedidos')
-    .select('id, repartidor, direccion_recoleccion')
-    .eq('id', pedido_id)
-    .single()
+    // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
+    const { data: pedido, error: pedErr } = await supabase
+      .from('pedidos')
+      .select('id, repartidor, direccion_recoleccion')
+      .eq('id', pedido_id)
+      .single()
 
-  if (pedErr || !pedido) {
-    console.warn('[procesar-asignacion] pedido no encontrado:', pedErr?.message)
-    return new Response(JSON.stringify({ skipped: true, reason: 'pedido no encontrado' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    if (pedErr || !pedido) {
+      console.warn('[procesar-asignacion] pedido no encontrado:', pedErr?.message)
+      return new Response(JSON.stringify({ skipped: true, reason: 'pedido no encontrado' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-  if (pedido.repartidor) {
-    console.log('[procesar-asignacion] ya aceptado por', pedido.repartidor, '— cancelando rondas pendientes')
-    await supabase.from('rondas_pendientes')
-      .update({ procesado: true })
-      .eq('pedido_id', pedido_id)
-      .eq('procesado', false)
-    return new Response(JSON.stringify({ skipped: true, reason: 'ya aceptado' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    if (pedido.repartidor) {
+      console.log('[procesar-asignacion] ya aceptado por', pedido.repartidor, '— cancelando rondas pendientes')
+      await supabase.from('rondas_pendientes')
+        .update({ procesado: true })
+        .eq('pedido_id', pedido_id)
+        .eq('procesado', false)
+      return new Response(JSON.stringify({ skipped: true, reason: 'ya aceptado' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-  // ── 2. Leer configuración de rondas ─────────────────────────────────────────
-  const { data: cfgRows } = await supabase
-    .from('config_app')
-    .select('key, value')
-    .in('key', ['tiempo_aceptar', 'pausa_rondas', 'max_rondas'])
-  const cfg: Record<string, string> = {}
-  cfgRows?.forEach((r: any) => { cfg[r.key] = r.value })
-  const tiempoAceptar = parseInt(cfg.tiempo_aceptar || '60', 10)
-  const pausaRondas   = parseInt(cfg.pausa_rondas   || '20', 10)
-  const maxRondas     = parseInt(cfg.max_rondas     || '3',  10)
-  console.log(`[procesar-asignacion] config — tiempo_aceptar:${tiempoAceptar} pausa_rondas:${pausaRondas} max_rondas:${maxRondas}`)
+    // ── 2. Leer configuración de rondas ─────────────────────────────────────────
+    const { data: cfgRows } = await supabase
+      .from('config_app')
+      .select('key, value')
+      .in('key', ['tiempo_aceptar', 'pausa_rondas', 'max_rondas'])
+    const cfg: Record<string, string> = {}
+    cfgRows?.forEach((r: any) => { cfg[r.key] = r.value })
+    const tiempoAceptar = parseInt(cfg.tiempo_aceptar || '60', 10)
+    const pausaRondas   = parseInt(cfg.pausa_rondas   || '20', 10)
+    const maxRondas     = parseInt(cfg.max_rondas     || '3',  10)
+    console.log(`[procesar-asignacion] config — tiempo_aceptar:${tiempoAceptar} pausa_rondas:${pausaRondas} max_rondas:${maxRondas}`)
 
-  // ── 3. Obtener repartidores disponibles ─────────────────────────────────────
-  const { data: repas } = await supabase
-    .from('repartidores')
-    .select('email, nombre')
-    .eq('disponible', true)
-  console.log(`[procesar-asignacion] repartidores disponibles: ${repas?.length ?? 0}`)
+    // ── 3. Obtener repartidores disponibles ─────────────────────────────────────
+    const { data: repas } = await supabase
+      .from('repartidores')
+      .select('email, nombre')
+      .eq('disponible', true)
+    console.log(`[procesar-asignacion] repartidores disponibles: ${repas?.length ?? 0}`)
 
-  if (!repas?.length) {
-    console.log('[procesar-asignacion] sin repartidores — notificando admin')
-    await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
-    return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
+    if (!repas?.length) {
+      console.log('[procesar-asignacion] sin repartidores — notificando admin')
+      await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
+      return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-  // ── 4. Enviar push a repartidores ────────────────────────────────────────────
-  const emails = repas.map((r: any) => r.email).filter(Boolean)
-  console.log('[procesar-asignacion] buscando user_ids para emails:', emails)
+    // ── 4. Enviar push a repartidores ────────────────────────────────────────────
+    const emails = repas.map((r: any) => r.email).filter(Boolean)
+    console.log('[procesar-asignacion] buscando user_ids para emails:', emails)
 
-  const { data: users, error: usersErr } = await supabase
-    .from('usuarios')
-    .select('user_id, email')
-    .in('email', emails)
+    const { data: users, error: usersErr } = await supabase
+      .from('usuarios')
+      .select('user_id, email')
+      .in('email', emails)
 
-  if (usersErr) console.error('[procesar-asignacion] error query usuarios:', usersErr.message)
-  const usersConId = (users || []).filter((u: any) => u.user_id)
-  console.log(`[procesar-asignacion] user_ids encontrados: ${usersConId.length} de ${emails.length} emails`)
-  if (usersConId.length === 0) console.warn('[procesar-asignacion] ⚠️ ningún repartidor tiene user_id en usuarios — push no se enviará')
+    if (usersErr) console.error('[procesar-asignacion] error query usuarios:', usersErr.message)
+    const usersConId = (users || []).filter((u: any) => u.user_id)
+    console.log(`[procesar-asignacion] user_ids encontrados: ${usersConId.length} de ${emails.length} emails`)
+    if (usersConId.length === 0) console.warn('[procesar-asignacion] ⚠️ ningún repartidor tiene user_id en usuarios — push no se enviará')
 
-  const notifBody = `GK-${pedido_id} · ${pedido.direccion_recoleccion || ''}`
-  const pushHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` }
+    const notifBody = `GK-${pedido_id} · ${pedido.direccion_recoleccion || ''}`
+    const pushHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` }
 
-  await Promise.all(
-    usersConId.map(async (u: any) => {
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
-          method: 'POST',
-          headers: pushHeaders,
-          body: JSON.stringify({ user_id: u.user_id, title: '📦 Nuevo pedido disponible', body: notifBody, tipo: 'pedido' })
-        })
-        const json = await res.json()
-        if (!res.ok) {
-          console.error(`[procesar-asignacion] enviar-push HTTP ${res.status} para ${u.email}:`, JSON.stringify(json))
-        } else {
-          console.log(`[procesar-asignacion] push OK para ${u.email} — enviados: ${json.sent ?? 1}`)
+    await Promise.all(
+      usersConId.map(async (u: any) => {
+        try {
+          const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
+            method: 'POST',
+            headers: pushHeaders,
+            body: JSON.stringify({ user_id: u.user_id, title: '📦 Nuevo pedido disponible', body: notifBody, tipo: 'pedido' })
+          })
+          const json = await res.json()
+          if (!res.ok) {
+            console.error(`[procesar-asignacion] enviar-push HTTP ${res.status} para ${u.email}:`, JSON.stringify(json))
+          } else {
+            console.log(`[procesar-asignacion] push OK para ${u.email} — enviados: ${json.sent ?? 1}`)
+          }
+        } catch (e: any) {
+          console.error('[procesar-asignacion] fetch error a enviar-push para', u.email, ':', e.message)
         }
-      } catch (e: any) {
-        console.error('[procesar-asignacion] fetch error a enviar-push para', u.email, ':', e.message)
-      }
-    })
-  )
-  console.log(`[procesar-asignacion] push procesados para ${usersConId.length} repartidores`)
+      })
+    )
+    console.log(`[procesar-asignacion] push procesados para ${usersConId.length} repartidores`)
 
-  // ── 5. Actualizar ronda_asignacion en el pedido ──────────────────────────────
-  await supabase.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido_id)
+    // ── 5. Actualizar ronda_asignacion en el pedido ──────────────────────────────
+    await supabase.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido_id)
 
-  // ── 6. Programar siguiente ronda o notificar agotamiento ─────────────────────
-  if (ronda < maxRondas) {
-    const delaySegundos = tiempoAceptar + pausaRondas
-    const ejecutarEn = new Date(Date.now() + delaySegundos * 1000).toISOString()
-    await supabase.from('rondas_pendientes').insert({
-      pedido_id,
-      ronda: ronda + 1,
-      ejecutar_en: ejecutarEn,
-      procesado: false
+    // ── 6. Programar siguiente ronda o notificar agotamiento ─────────────────────
+    if (ronda < maxRondas) {
+      const delaySegundos = tiempoAceptar + pausaRondas
+      const ejecutarEn = new Date(Date.now() + delaySegundos * 1000).toISOString()
+      await supabase.from('rondas_pendientes').insert({
+        pedido_id,
+        ronda: ronda + 1,
+        ejecutar_en: ejecutarEn,
+        procesado: false
+      })
+      console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
+    } else {
+      console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
+      await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, ronda, siguienteRonda: ronda < maxRondas ? ronda + 1 : null }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  } catch (err: any) {
+    console.error('[procesar-asignacion] ERROR FATAL:', err.message, err.stack)
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
-    console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
-  } else {
-    console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
-    await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
   }
-
-  return new Response(
-    JSON.stringify({ ok: true, ronda, siguienteRonda: ronda < maxRondas ? ronda + 1 : null }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  )
 })
 
 async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: string, pedidoId: number) {

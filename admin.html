@@ -5148,10 +5148,20 @@ async function eliminarCliente(userId) {
       const { error } = await db.from('usuarios').delete().eq('user_id', userId)
       if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
 
+      const authRes = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/eliminar-usuario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ user_id: userId })
+      })
+      const authJson = await authRes.json()
+      if (!authJson.success) {
+        console.error('[eliminarCliente] error en auth.users:', authJson.error)
+        showToast('⚠️ Datos eliminados, pero falló auth: ' + (authJson.error || 'error desconocido'))
+      }
+
       delete _clientesMap[userId]
       document.getElementById('panel-cliente').style.display = 'none'
-      showToast('🗑️ Cuenta eliminada')
-      showToast('⚠️ Elimina manualmente en Supabase → Authentication → Users')
+      showToast('🗑️ Cuenta eliminada completamente')
       cargarClientes()
     } catch (err) {
       console.error('[eliminarCliente]', err)
