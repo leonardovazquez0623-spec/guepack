@@ -232,6 +232,8 @@
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="tracking-repartidor.js"></script>
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
@@ -478,6 +480,7 @@ async function _aceptarPedido(pedidoId) {
   document.getElementById('modal-nuevo-pedido')?.remove()
   if (error) { _toastRepa('❌ El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
   _toastRepa('✅ Pedido GK-' + pedidoId + ' aceptado', '#22c55e')
+  iniciarTracking(pedidoId, _repaUserId)
   cargarPedidos(_repaData.email)
 }
 
@@ -485,6 +488,7 @@ function _rechazarPedido(pedidoId, silencioso = false) {
   clearInterval(_modalCountdownTimer)
   document.getElementById('modal-nuevo-pedido')?.remove()
   _pedidosRechazados.add(pedidoId)
+  detenerTracking()
   if (!silencioso) _toastRepa('❌ Pedido rechazado', '#ef4444')
 }
 
@@ -1263,6 +1267,8 @@ function _mostrarAvisoBloqueadoEfectivo(acumulado) {
 async function cambiarEstado(id, status, telefono, nombre) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
+
+  if (status === 'Entregado') detenerTracking()
 
   if (status === 'Entregado' && _repaData?.nombre) {
     const nuevoTotal = (Number(_repaData.total_envios) || 0) + 1

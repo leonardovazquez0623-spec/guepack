@@ -6,6 +6,8 @@
 <title>Rastreo de envío – GUEPACK</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
 <style>
   :root {
     --blue: #1a4fa0;
@@ -213,6 +215,20 @@
     margin-top: 6px;
     display: none;
   }
+  #mapa-tracking {
+    width: 100%;
+    height: 260px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .mapa-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray-mid);
+    margin-bottom: 10px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
@@ -270,6 +286,11 @@
       </div>
     </div>
 
+    <div class="card" id="mapa-tracking-card" style="display:none">
+      <div class="mapa-label">📍 Ubicación del repartidor</div>
+      <div id="mapa-tracking"></div>
+    </div>
+
     <div class="card" id="r-paradas-card" style="display:none">
       <div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-bottom:10px;letter-spacing:.5px;text-transform:uppercase">Paradas</div>
       <div id="r-paradas-list"></div>
@@ -284,6 +305,8 @@
   </div>
 </div>
 
+<script src="config.js"></script>
+<script src="tracking-cliente.js"></script>
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
@@ -366,6 +389,12 @@ async function init() {
   actualizarUI(data)
   document.getElementById('pedido-state').style.display = 'block'
 
+  // Mapa de tracking — solo cuando hay repartidor asignado y el estado es activo
+  const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
+  if (data.repartidor && estadosConMapa.includes(data.estado)) {
+    iniciarMapaTracking(_pedidoId)
+  }
+
   // Cargar paradas
   const { data: paradas } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
   _renderParadasRastreo(paradas)
@@ -391,6 +420,12 @@ async function init() {
       _estadoActual = nuevo.estado
       actualizarUI(nuevo)
       await _enviarPushRastreo(data.id, nuevo.estado)
+
+      // Iniciar mapa si el nuevo estado requiere tracking y aún no está activo
+      const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
+      if (nuevo.repartidor && estadosConMapa.includes(nuevo.estado) && !_mapa) {
+        iniciarMapaTracking(_pedidoId)
+      }
     })
     .subscribe()
 }

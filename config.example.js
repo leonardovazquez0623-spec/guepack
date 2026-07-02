@@ -1,0 +1,1 @@
+const MAPBOX_TOKEN = 'TU_TOKEN_AQUI';
