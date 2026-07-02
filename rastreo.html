@@ -370,7 +370,7 @@ async function init() {
   if (!_token) { mostrarError(); return }
 
   const { data, error } = await db.from('pedidos')
-    .select('id, nombre, tamanio, zona, estado, repartidor')
+    .select('id, nombre, tamanio, zona, estado, repartidor, lat_entrega, lng_entrega')
     .eq('token_rastreo', _token)
     .single()
 
@@ -390,7 +390,7 @@ async function init() {
   // Mapa de tracking — solo cuando hay repartidor asignado y el estado es activo
   const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
   if (data.repartidor && estadosConMapa.includes(data.estado)) {
-    iniciarMapaTracking(_pedidoId)
+    iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
   }
 
   // Cargar paradas
@@ -422,7 +422,7 @@ async function init() {
       // Iniciar mapa si el nuevo estado requiere tracking y aún no está activo
       const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
       if (nuevo.repartidor && estadosConMapa.includes(nuevo.estado) && !_mapa) {
-        iniciarMapaTracking(_pedidoId)
+        iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
       }
     })
     .subscribe()

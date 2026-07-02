@@ -4,9 +4,22 @@
 let _mapa            = null
 let _marcador        = null
 let _channelTracking = null
-let _DriverOverlay   = null  // clase definida lazy tras confirmar Maps cargado
+let _DriverOverlay   = null
+let _latEntrega      = null
+let _lngEntrega      = null
 
-// ── Clase OverlayView (se crea una sola vez, cuando Maps ya está disponible) ─
+// ── Haversine ────────────────────────────────────────────────────────────────
+function calcularDistanciaKm(lat1, lng1, lat2, lng2) {
+  const R    = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a    = Math.sin(dLat / 2) ** 2
+              + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+              * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// ── Clase OverlayView (lazy, se crea cuando Maps ya está disponible) ─────────
 function _ensureOverlayClass() {
   if (_DriverOverlay) return
   _DriverOverlay = class extends google.maps.OverlayView {
@@ -61,7 +74,7 @@ function _ensureOverlayClass() {
   }
 }
 
-// ── CSS del marcador y pulso (inyectado una sola vez en <head>) ──────────────
+// ── CSS del marcador y pulso ─────────────────────────────────────────────────
 function _inyectarEstilosOverlay() {
   if (document.getElementById('driver-overlay-styles')) return
   const s = document.createElement('style')
@@ -99,49 +112,60 @@ function _inyectarEstilosOverlay() {
   document.head.appendChild(s)
 }
 
+// ── Card "en camino" (se inyecta una vez antes de mapa-tracking-card) ────────
+function _asegurarCardEnCamino() {
+  if (document.getElementById('camino-tracking-card')) return
+  const mapaCard = document.getElementById('mapa-tracking-card')
+  if (!mapaCard) return
+  const card = document.createElement('div')
+  card.id = 'camino-tracking-card'
+  card.className = 'card'
+  card.style.display = 'none'
+  card.innerHTML = `
+    <div style="text-align:center;padding:20px 12px">
+      <div style="font-size:36px;margin-bottom:12px">🚚</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--blue);margin-bottom:6px">Tu repartidor va en camino</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:var(--gray-mid);line-height:1.5">El mapa aparecerá cuando el repartidor<br>esté cerca de tu domicilio</div>
+    </div>
+  `
+  mapaCard.insertAdjacentElement('beforebegin', card)
+}
+
 // ── Funciones públicas ───────────────────────────────────────────────────────
 
-function iniciarMapaTracking(pedidoId, contenedorId) {
+function iniciarMapaTracking(pedidoId, latEntrega, lngEntrega, contenedorId) {
   contenedorId = contenedorId || 'mapa-tracking'
 
   if (!window.google?.maps) {
-    setTimeout(() => iniciarMapaTracking(pedidoId, contenedorId), 150)
+    setTimeout(() => iniciarMapaTracking(pedidoId, latEntrega, lngEntrega, contenedorId), 150)
     return
   }
 
   _inyectarEstilosOverlay()
   _ensureOverlayClass()
+  _latEntrega = latEntrega ?? null
+  _lngEntrega = lngEntrega ?? null
+  _asegurarCardEnCamino()
 
-  const el = document.getElementById(contenedorId)
-  if (!el) { console.warn('[tracking-cli] contenedor no encontrado:', contenedorId); return }
-
-  _mapa = new google.maps.Map(el, {
-    center:           { lat: 20.6597, lng: -103.3496 },
-    zoom:             15,
-    disableDefaultUI: true,
-    zoomControl:      true,
-    gestureHandling:  'cooperative'
-  })
-
-  _cargarPosicionInicial(pedidoId)
-  _suscribirTracking(pedidoId)
+  _cargarPosicionInicial(pedidoId, contenedorId)
+  _suscribirTracking(pedidoId, contenedorId)
 }
 
-async function _cargarPosicionInicial(pedidoId) {
+async function _cargarPosicionInicial(pedidoId, contenedorId) {
   const { data } = await db.from('driver_locations')
     .select('lat, lng, heading')
     .eq('pedido_id', pedidoId)
     .maybeSingle()
 
   if (data?.lat && data?.lng) {
-    _actualizarMarcador(data.lat, data.lng, data.heading)
+    _evaluarProximidad(data.lat, data.lng, data.heading, contenedorId)
     console.log('[tracking-cli] posición inicial cargada:', data.lat, data.lng)
   } else {
     console.log('[tracking-cli] sin posición inicial — esperando Realtime')
   }
 }
 
-function _suscribirTracking(pedidoId) {
+function _suscribirTracking(pedidoId, contenedorId) {
   _channelTracking = db.channel('tracking-' + pedidoId)
     .on('postgres_changes', {
       event:  '*',
@@ -152,23 +176,62 @@ function _suscribirTracking(pedidoId) {
       const row = payload.new
       if (!row?.lat || !row?.lng) return
       console.log('[tracking-cli] actualización Realtime:', row.lat, row.lng)
-      _actualizarMarcador(row.lat, row.lng, row.heading)
+      _evaluarProximidad(row.lat, row.lng, row.heading, contenedorId)
     })
     .subscribe(status => {
       console.log('[tracking-cli] Realtime status:', status)
     })
 }
 
-function _actualizarMarcador(lat, lng, heading) {
-  const card = document.getElementById('mapa-tracking-card')
-  if (card) card.style.display = 'block'
+function _evaluarProximidad(lat, lng, heading, contenedorId) {
+  // Pedidos sin coords guardadas → mostrar mapa directo (comportamiento anterior)
+  if (_latEntrega == null || _lngEntrega == null) {
+    _mostrarMapa(lat, lng, heading, contenedorId)
+    return
+  }
+  const dist = calcularDistanciaKm(lat, lng, _latEntrega, _lngEntrega)
+  console.log('[tracking-cli] distancia a entrega:', dist.toFixed(3), 'km')
+  if (dist <= 1) {
+    _mostrarMapa(lat, lng, heading, contenedorId)
+  } else {
+    _mostrarEnCamino()
+  }
+}
 
+function _mostrarMapa(lat, lng, heading, contenedorId) {
+  const mapaCard   = document.getElementById('mapa-tracking-card')
+  const caminoCard = document.getElementById('camino-tracking-card')
+  if (mapaCard)   mapaCard.style.display   = 'block'
+  if (caminoCard) caminoCard.style.display = 'none'
+
+  if (!_mapa) {
+    const el = document.getElementById(contenedorId || 'mapa-tracking')
+    if (!el) return
+    _mapa = new google.maps.Map(el, {
+      center:           { lat, lng },
+      zoom:             15,
+      disableDefaultUI: true,
+      zoomControl:      true,
+      gestureHandling:  'cooperative'
+    })
+  }
+
+  _actualizarMarcador(lat, lng, heading)
+}
+
+function _mostrarEnCamino() {
+  const mapaCard   = document.getElementById('mapa-tracking-card')
+  const caminoCard = document.getElementById('camino-tracking-card')
+  if (mapaCard)   mapaCard.style.display   = 'none'
+  if (caminoCard) caminoCard.style.display = 'block'
+}
+
+function _actualizarMarcador(lat, lng, heading) {
   if (!_marcador) {
     _marcador = new _DriverOverlay(_mapa, lat, lng, heading)
   } else {
     _marcador.setPosition(lat, lng, heading)
   }
-
   _mapa.panTo({ lat, lng })
 }
 

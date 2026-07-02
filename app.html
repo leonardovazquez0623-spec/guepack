@@ -1878,6 +1878,8 @@ let _corporativoPrecio = null  // precio calculado por km para corporativos
 let _corporativoKm = null      // distancia calculada
 let _corporativoRangos = null  // rangos cacheados para recalcular sin fetch
 let _entregaPlace = null       // último place seleccionado en dir-entrega
+let _latEntrega   = null       // coordenadas de entrega para cálculo de proximidad en tracking
+let _lngEntrega   = null
 let _multiParadaPrecio = null  // precio calculado para rutas multi-parada
 let _multiParadaKm = null      // km totales del recorrido completo
 let _multiParadaZonaData = null // zona de la última parada
@@ -2102,6 +2104,8 @@ const { data, error } = await db.from('pedidos').insert({
     empresa_codigo: _empresaData?.codigo || null,
     es_tarifa_adicional: (_empresaData?.tipo_tarifa === 'diaria' && _tarifaDiariaYaCubierta) ? true : false,
     km_recorridos: _kmRecorridos,
+    lat_entrega: _latEntrega ?? null,
+    lng_entrega: _lngEntrega ?? null,
   }).select()
 
   if (error) {
@@ -2322,6 +2326,8 @@ function usarDireccion(inputId, direccion) {
       if (status !== 'OK' || !results[0]) return
       const place = results[0]
       _entregaPlace = place
+      _latEntrega = place.geometry.location.lat()
+      _lngEntrega = place.geometry.location.lng()
       _detectarZonaEntrega(place)
     })
   } else if (inputId === 'dir-recoleccion') {
@@ -4927,6 +4933,8 @@ window.initMapsGuepack = function() {
     const place = acEntrega.getPlace()
     if (!place.geometry) return
     _entregaPlace = place
+    _latEntrega = place.geometry.location.lat()
+    _lngEntrega = place.geometry.location.lng()
 
     // Si _empresaData aún no cargó (race condition con initMapsGuepack), esperar
     if (!_empresaData) {
