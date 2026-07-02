@@ -191,13 +191,33 @@ Deno.serve(async (req) => {
       })
     }
 
+    const INVALID_CODES = new Set(['INVALID_REGISTRATION', 'UNREGISTERED', 'SENDER_ID_MISMATCH'])
+
     const results = await Promise.all(
-      tokenRows.map(({ fcm_token }) =>
-        sendFCMMessage(fcm_token, title, body, tipo, accessToken)
-          .catch((err: any) => ({ error: err.message, token: fcm_token.slice(0, 20) }))
-      )
+      tokenRows.map(async ({ fcm_token }) => {
+        try {
+          const data = await sendFCMMessage(fcm_token, title, body, tipo, accessToken)
+
+          // Detectar token inválido por errorCode en details o por status NOT_FOUND
+          const errorCode: string | null =
+            data?.error?.details?.find((d: any) => d.errorCode)?.errorCode
+            ?? (data?.error?.status === 'NOT_FOUND' ? 'UNREGISTERED' : null)
+
+          if (errorCode && INVALID_CODES.has(errorCode)) {
+            console.log(`[enviar-push] token inválido (${errorCode}) — eliminando:`, fcm_token.slice(0, 20))
+            await supabase.from('usuarios_tokens').delete().eq('fcm_token', fcm_token)
+            return { deleted: true, reason: errorCode, token: fcm_token.slice(0, 20) }
+          }
+
+          return data
+        } catch (err: any) {
+          return { error: err.message, token: fcm_token.slice(0, 20) }
+        }
+      })
     )
-    return new Response(JSON.stringify({ sent: tokenRows.length, results }), {
+
+    const sent = results.filter((r: any) => !r?.deleted && !r?.error).length
+    return new Response(JSON.stringify({ sent, results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }

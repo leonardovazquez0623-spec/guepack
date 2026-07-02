@@ -3413,24 +3413,48 @@ async function enviarNotificacionTodos() {
   if (!titulo || !mensaje) return showToast('⚠️ Ingresa título y mensaje')
   const btn = document.getElementById('btn-enviar-notif')
   btn.disabled = true; btn.textContent = '⏳ Enviando...'
-  const { data: usuarios } = await db.from('usuarios').select('fcm_token').eq('rol', 'cliente').not('fcm_token', 'is', null)
-  if (!usuarios?.length) {
+
+  // Paso 1: obtener user_ids de clientes
+  const { data: clientes } = await db.from('usuarios').select('user_id').eq('rol', 'cliente')
+  const clienteIds = (clientes || []).map(u => u.user_id).filter(Boolean)
+  console.log('[push masiva] clientes encontrados:', clienteIds.length)
+
+  if (!clienteIds.length) {
+    showToast('⚠️ No hay clientes registrados')
+    btn.disabled = false; btn.textContent = '📤 Enviar a todos'
+    return
+  }
+
+  // Paso 2: obtener tokens desde usuarios_tokens (múltiples dispositivos por usuario)
+  const { data: tokens } = await db.from('usuarios_tokens').select('user_id, fcm_token').in('user_id', clienteIds)
+  console.log('[push masiva] tokens encontrados:', tokens?.length ?? 0)
+  tokens?.forEach(t => console.log('[push masiva] token:', t.user_id, t.fcm_token?.substring(0, 20)))
+
+  // Agrupar por user_id para usar modo user_id de enviar-push (evita duplicados)
+  const userIds = [...new Set((tokens || []).map(t => t.user_id))]
+  console.log('[push masiva] usuarios únicos con tokens:', userIds.length)
+
+  if (!userIds.length) {
     showToast('⚠️ No hay clientes con notificaciones activas')
     btn.disabled = false; btn.textContent = '📤 Enviar a todos'
     return
   }
+
   let ok = 0, fail = 0
-  await Promise.all(usuarios.map(async u => {
-    if (!u.fcm_token) return
+  const resultados = await Promise.all(userIds.map(async user_id => {
     try {
       const r = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-        body: JSON.stringify({ token: u.fcm_token, title: titulo, body: mensaje })
+        body: JSON.stringify({ user_id, title: titulo, body: mensaje })
       })
-      if (r.ok) ok++; else fail++
-    } catch { fail++ }
+      const json = await r.json()
+      if (r.ok) { ok++; return { user_id, sent: json.sent } }
+      else { fail++; return { user_id, error: json.error } }
+    } catch (e) { fail++; return { user_id, error: e.message } }
   }))
+  console.log('[push masiva] resultado:', resultados)
+
   btn.disabled = false; btn.textContent = '📤 Enviar a todos'
   showToast(`✅ Enviado a ${ok} cliente${ok !== 1 ? 's' : ''}${fail ? ' · ❌ ' + fail + ' fallidos' : ''}`)
 }
