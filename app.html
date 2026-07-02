@@ -1695,6 +1695,7 @@ let selSize = null, selZone = null, selMetodoPago = null
 let _notaEntrega = ''
 let _wizardPasoActual = 1
 let _wizardMap = null, _wizardPinRec = null, _wizardPinEnt = null, _wizardDirRenderer = null
+let _wizardPinsIntermedios = []
 let _notaDirContext = null
 
 // ── Wizard navegación ────────────────────────────────────────────────────────
@@ -1861,6 +1862,16 @@ function _actualizarMapaWizard() {
         if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('#f05a1a') })
         _wizardPinRec.setPosition(orig)
         _wizardPinEnt.setPosition(dest)
+        // Limpiar intermedios anteriores y dibujar los nuevos
+        _wizardPinsIntermedios.forEach(m => m.setMap(null))
+        _wizardPinsIntermedios = []
+        legs.slice(0, -1).forEach(leg => {
+          _wizardPinsIntermedios.push(new google.maps.Marker({
+            map:      _wizardMap,
+            position: leg.end_location,
+            icon:     _wizardPinIcon('#f05a1a')
+          }))
+        })
       }
     )
   } else if (dirRec) {
