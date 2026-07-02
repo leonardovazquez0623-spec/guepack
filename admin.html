@@ -1099,11 +1099,19 @@ function initMapsAdmin() {
   <div id="tab-clientes" class="tab-content">
     <div class="card">
       <div class="card-title">👥 Clientes</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="stab-empresariales" onclick="_switchClienteTab('empresariales')"
                 style="padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#1a4fa0;color:white">🏢 Empresariales</button>
         <button id="stab-generales" onclick="_switchClienteTab('generales')"
                 style="padding:8px 16px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#f4f6fb;color:#8fa3c0">👤 Generales</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button id="fnotif-todos" onclick="_setFiltroNotif('todos')"
+                style="padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#1a4fa0;color:white">🔔 Todos</button>
+        <button id="fnotif-activas" onclick="_setFiltroNotif('activas')"
+                style="padding:6px 12px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#f4f6fb;color:#8fa3c0">✅ Con notificaciones</button>
+        <button id="fnotif-sin" onclick="_setFiltroNotif('sin')"
+                style="padding:6px 12px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#f4f6fb;color:#8fa3c0">❌ Sin notificaciones</button>
       </div>
       <div id="clientes-lista-empresariales"><div class="loader--4" style="margin:12px auto"></div></div>
       <div id="clientes-lista-generales" style="display:none"></div>
@@ -4922,6 +4930,19 @@ async function _renderRetencion() {
 // ── Clientes ─────────────────────────────────────────────────────────────────
 
 let _clientesMap = {}
+let _clientesConToken = new Set()
+let _filtroNotif = 'todos'
+let _clientesRenderData = null
+
+function _setFiltroNotif(filtro) {
+  _filtroNotif = filtro
+  const activeStyle = 'padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#1a4fa0;color:white'
+  const inactiveStyle = 'padding:6px 12px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#f4f6fb;color:#8fa3c0'
+  document.getElementById('fnotif-todos').style.cssText   = filtro === 'todos'   ? activeStyle : inactiveStyle
+  document.getElementById('fnotif-activas').style.cssText = filtro === 'activas' ? activeStyle : inactiveStyle
+  document.getElementById('fnotif-sin').style.cssText     = filtro === 'sin'     ? activeStyle : inactiveStyle
+  if (_clientesRenderData) _renderListasClientes(_clientesRenderData)
+}
 
 function _switchClienteTab(tab) {
   const isEmp = tab === 'empresariales'
@@ -4938,7 +4959,7 @@ async function cargarClientes() {
   const elG = document.getElementById('clientes-lista-generales')
   if (!elE || !elG) return
   elE.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
-  elG.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
+  elG.innerHTML = ''
 
   const { data: todos } = await db.from('usuarios')
     .select('user_id, email, whatsapp, empresa_codigo, nivel_vip, total_pedidos')
@@ -4955,21 +4976,42 @@ async function cargarClientes() {
   empresas?.forEach(e => { empMap[e.codigo] = e.nombre })
 
   const userIds = todos.map(u => u.user_id).filter(Boolean)
-  const { data: pedidosCounts } = await db.from('pedidos').select('user_id').in('user_id', userIds)
+
+  const [{ data: pedidosCounts }, { data: tokenRows }] = await Promise.all([
+    db.from('pedidos').select('user_id').in('user_id', userIds),
+    db.from('usuarios_tokens').select('user_id').in('user_id', userIds)
+  ])
+
   const countMap = {}
   pedidosCounts?.forEach(p => { countMap[p.user_id] = (countMap[p.user_id] || 0) + 1 })
   todos.forEach(u => { if (countMap[u.user_id] !== undefined) _clientesMap[u.user_id].pedidosReal = countMap[u.user_id] })
+
+  _clientesConToken = new Set(tokenRows?.map(r => r.user_id) || [])
+
+  _clientesRenderData = { todos, empMap, countMap }
+  _renderListasClientes(_clientesRenderData)
+}
+
+function _renderListasClientes({ todos, empMap, countMap }) {
+  const elE = document.getElementById('clientes-lista-empresariales')
+  const elG = document.getElementById('clientes-lista-generales')
+  if (!elE || !elG) return
+
+  const bellActiva = `<svg width="18" height="18" viewBox="0 0 24 24" style="display:block"><path d="M12 2C8.5 2 6 4.5 6 8v5l-2 2v1h16v-1l-2-2V8c0-3.5-2.5-6-6-6z" fill="#22c55e"/><path d="M10 19a2 2 0 0 0 4 0" fill="#22c55e"/><path d="M11 6l1 3 1-3" fill="#F05A1A" stroke="#F05A1A" stroke-width="1.5"/></svg>`
+  const bellInactiva = `<svg width="18" height="18" viewBox="0 0 24 24" style="display:block"><path d="M12 2C8.5 2 6 4.5 6 8v5l-2 2v1h16v-1l-2-2V8c0-3.5-2.5-6-6-6z" fill="#9ca3af"/><path d="M10 19a2 2 0 0 0 4 0" fill="#9ca3af"/><line x1="4" y1="4" x2="20" y2="20" stroke="#ef4444" stroke-width="2"/></svg>`
 
   const _renderItem = (u, sublinea) => {
     const nombre = u.email || '—'
     const inicial = (u.email || '?')[0].toUpperCase()
     const completo = !!u.whatsapp
+    const tieneToken = _clientesConToken.has(u.user_id)
     const badge = completo
       ? `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#16a34a">✅ Completo</span>`
       : `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#f59e0b">⚠️ Incompleto</span>`
     const wsp = u.whatsapp
       ? `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#8fa3c0">📱 ${u.whatsapp}</span>`
       : `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:#f59e0b">⚠️ Sin WhatsApp</span>`
+    const bellHtml = `<div title="${tieneToken ? 'Notificaciones activas' : 'Sin notificaciones'}" style="flex-shrink:0;cursor:default">${tieneToken ? bellActiva : bellInactiva}</div>`
     return `
       <div onclick="abrirPanelCliente('${u.user_id}')"
            style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8;cursor:pointer;border-radius:10px;transition:background .15s"
@@ -4987,20 +5029,29 @@ async function cargarClientes() {
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600">${countMap[u.user_id] || u.total_pedidos || 0} pedidos</div>
           <div style="margin-top:3px">${badge}</div>
         </div>
+        ${bellHtml}
         <div style="color:#8fa3c0;font-size:14px">›</div>
       </div>`
   }
 
-  const empresariales = todos.filter(u => u.empresa_codigo)
-  const generales = todos.filter(u => !u.empresa_codigo)
+  const aplicarFiltro = lista => {
+    if (_filtroNotif === 'activas') return lista.filter(u => _clientesConToken.has(u.user_id))
+    if (_filtroNotif === 'sin')     return lista.filter(u => !_clientesConToken.has(u.user_id))
+    return lista
+  }
+
+  const empresariales = aplicarFiltro(todos.filter(u => u.empresa_codigo))
+  const generales     = aplicarFiltro(todos.filter(u => !u.empresa_codigo))
+
+  const tabActiva = document.getElementById('clientes-lista-empresariales').style.display !== 'none' ? 'empresariales' : 'generales'
 
   elE.innerHTML = empresariales.length
     ? empresariales.map(u => _renderItem(u, `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#1a4fa0">🏢 ${empMap[u.empresa_codigo] || u.empresa_codigo}</span>`)).join('')
-    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes empresariales</div>'
+    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin resultados</div>'
 
   elG.innerHTML = generales.length
     ? generales.map(u => _renderItem(u, '')).join('')
-    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes generales</div>'
+    : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin resultados</div>'
 }
 
 async function abrirPanelCliente(userId) {
