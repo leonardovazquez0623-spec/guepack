@@ -2141,9 +2141,6 @@ const { data, error } = await db.from('pedidos').insert({
   console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
   _iniciarAsignacionAutomatica(data[0])
 
-  // Actualizar contador VIP — fire-and-forget (solo clientes no-corporativos)
-  if (!_empresaData) actualizarVipTrasEntrega()
-
   // Tarifa diaria: el primer pedido del día cubre todos los siguientes
   if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
     _tarifaDiariaYaCubierta = true
@@ -2868,6 +2865,7 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, n
       if (nuevoEstado === 'Entregado') {
         console.log('[GUEPACK] Pedido', id, 'ENTREGADO — lanzando modal de calificación en 3s')
         setTimeout(() => mostrarModalCalificacion(id, nuevoRepartidor), 3000)
+        if (!_empresaData) actualizarVipTrasEntrega()
       }
 
       if (ESTADOS_FINALES.includes(nuevoEstado)) {
@@ -5219,6 +5217,19 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
 
   const cargoGrande = selSize === 'grande' ? 30 : 0
   let subtotal = precioBase + cargoGrande
+
+  // Descuento VIP — solo usuarios sin cuenta corporativa, antes del IVA y del cupón
+  let descuentoVip = 0, linVip = ''
+  if (!_empresaUsuario && _clienteNivelVip && _clienteNivelVip !== 'normal') {
+    const pctVip = { bronce: 0.02, plata: 0.03, oro: 0.05 }[_clienteNivelVip] || 0
+    if (pctVip > 0) {
+      descuentoVip = Math.round(subtotal * pctVip * 100) / 100
+      subtotal     = Math.round((subtotal - descuentoVip) * 100) / 100
+      const etq    = _clienteNivelVip.charAt(0).toUpperCase() + _clienteNivelVip.slice(1)
+      linVip       = '⭐ Descuento VIP ' + etq + ' (-' + (pctVip * 100) + '%): -$' + descuentoVip.toFixed(2)
+    }
+  }
+
   const ivaAmt           = Math.round(subtotal * iva * 100) / 100
   const cargoCancelacion = _cargoCancelacionPendiente || 0
   let   total            = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
@@ -5246,6 +5257,7 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
     const lineas = ['📍 Distancia: ' + km + ' km', desgloseRango]
     if (kmExtra > 0) lineas.push('➕ Extra: ' + kmExtra.toFixed(1) + ' km × $' + precioKmExtra + ' = $' + (kmExtra * precioKmExtra).toFixed(2))
     if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$30')
+    if (linVip) lineas.push(linVip)
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
     if (cargoCancelacion > 0) lineas.push('⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion)
