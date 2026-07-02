@@ -1843,10 +1843,14 @@ function _actualizarMapaWizard() {
 
   if (dirRec && dirEnt && !_modoPaqueteria) {
     const ds = new google.maps.DirectionsService()
-    const waypoints = (_paradasList || [])
+    const paradasDirs = (_paradasList || [])
       .filter(p => p.direccion?.trim())
-      .map(p => ({ location: p.direccion, stopover: true }))
-    ds.route({ origin: dirRec, destination: dirEnt, waypoints, travelMode: google.maps.TravelMode.DRIVING },
+      .map(p => p.direccion)
+    // Orden: recolección → entrega → parada2 → parada3 → ...
+    const allStops   = [dirEnt, ...paradasDirs]
+    const destination = allStops[allStops.length - 1]
+    const waypoints  = allStops.slice(0, -1).map(loc => ({ location: loc, stopover: true }))
+    ds.route({ origin: dirRec, destination, waypoints, optimizeWaypoints: false, travelMode: google.maps.TravelMode.DRIVING },
       (result, status) => {
         if (status !== 'OK') return
         _wizardDirRenderer.setDirections(result)
