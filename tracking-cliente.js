@@ -1,5 +1,5 @@
-// tracking-cliente.js
-// Depende de: db (global de rastreo.html), MAPBOX_TOKEN (de config.js)
+// tracking-cliente.js — usa Google Maps JS API
+// Depende de: db (global de rastreo.html), Google Maps cargado en rastreo.html
 
 let _mapa            = null
 let _marcador        = null
@@ -7,18 +7,22 @@ let _channelTracking = null
 
 function iniciarMapaTracking(pedidoId, contenedorId) {
   contenedorId = contenedorId || 'mapa-tracking'
-  if (!MAPBOX_TOKEN) { console.warn('[tracking-cli] MAPBOX_TOKEN no definido'); return }
 
-  mapboxgl.accessToken = MAPBOX_TOKEN
+  if (!window.google?.maps) {
+    setTimeout(() => iniciarMapaTracking(pedidoId, contenedorId), 150)
+    return
+  }
 
-  _mapa = new mapboxgl.Map({
-    container: contenedorId,
-    style:     'mapbox://styles/mapbox/streets-v12',
-    center:    [-103.3496, 20.6597], // Guadalajara
-    zoom:      14
+  const el = document.getElementById(contenedorId)
+  if (!el) { console.warn('[tracking-cli] contenedor no encontrado:', contenedorId); return }
+
+  _mapa = new google.maps.Map(el, {
+    center:          { lat: 20.6597, lng: -103.3496 },
+    zoom:            15,
+    disableDefaultUI: true,
+    zoomControl:     true,
+    gestureHandling: 'cooperative'
   })
-
-  _mapa.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
   _cargarPosicionInicial(pedidoId)
   _suscribirTracking(pedidoId)
@@ -57,38 +61,30 @@ function _suscribirTracking(pedidoId) {
 }
 
 function _actualizarMarcador(lat, lng, heading) {
-  const coords = [lng, lat]
+  const pos = { lat, lng }
 
-  // Mostrar el card del mapa si estaba oculto
   const card = document.getElementById('mapa-tracking-card')
   if (card) card.style.display = 'block'
 
   if (!_marcador) {
-    const el = document.createElement('div')
-    el.style.cssText = [
-      'width:38px', 'height:38px',
-      'background:var(--orange)',
-      'border-radius:50%',
-      'border:3px solid white',
-      'box-shadow:0 2px 14px rgba(240,90,26,0.55)',
-      'display:flex', 'align-items:center', 'justify-content:center',
-      'font-size:18px', 'cursor:default'
-    ].join(';')
-    el.textContent = '🏍️'
-    el.title = 'Tu repartidor'
-
-    _marcador = new mapboxgl.Marker({ element: el, anchor: 'center' })
-      .setLngLat(coords)
-      .addTo(_mapa)
+    _marcador = new google.maps.Marker({
+      position: pos,
+      map:      _mapa,
+      title:    'Tu repartidor',
+      icon: {
+        path:        google.maps.SymbolPath.CIRCLE,
+        scale:       12,
+        fillColor:   '#f05a1a',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 3
+      }
+    })
   } else {
-    _marcador.setLngLat(coords)
+    _marcador.setPosition(pos)
   }
 
-  if (heading !== null && heading !== undefined) {
-    _marcador.setRotation(heading)
-  }
-
-  _mapa.easeTo({ center: coords, duration: 800 })
+  _mapa.panTo(pos)
 }
 
 function detenerMapaTracking() {
@@ -96,9 +92,9 @@ function detenerMapaTracking() {
     db.removeChannel(_channelTracking)
     _channelTracking = null
   }
-  if (_mapa) {
-    _mapa.remove()
-    _mapa    = null
+  if (_marcador) {
+    _marcador.setMap(null)
     _marcador = null
   }
+  _mapa = null
 }

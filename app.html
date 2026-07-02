@@ -700,6 +700,23 @@
     66% { opacity: 0.8; transform: scale(1.2) translateZ(6vmin); }
     100% { transform: scale(1.8) translateZ(2vmin); }
   }
+
+  /* ── WIZARD SOLICITUD ── */
+  .wizard-progress { display:flex; align-items:center; justify-content:center; margin-bottom:20px; padding:6px 0; }
+  .wp-step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:0 0 auto; }
+  .wp-circle { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:Montserrat,sans-serif; font-weight:900; font-size:13px; border:2.5px solid var(--gray); background:var(--gray-light); color:var(--gray-mid); transition:all .25s; }
+  .wp-step.active .wp-circle { border-color:var(--orange); background:var(--orange); color:white; box-shadow:0 2px 10px rgba(240,90,26,0.35); }
+  .wp-step.done .wp-circle { border-color:var(--blue); background:var(--blue); color:white; }
+  .wp-label { font-family:Montserrat,sans-serif; font-size:9px; font-weight:700; color:var(--gray-mid); letter-spacing:.5px; text-transform:uppercase; transition:color .25s; }
+  .wp-step.active .wp-label { color:var(--orange); }
+  .wp-step.done .wp-label { color:var(--blue); }
+  .wp-line { flex:1; height:2.5px; background:var(--gray); min-width:28px; max-width:60px; transition:background .25s; margin-bottom:16px; border-radius:2px; }
+  .wp-line.done { background:var(--blue); }
+  .wizard-back-btn { background:none; border:1.5px solid var(--gray); border-radius:10px; color:var(--gray-mid); font-family:Montserrat,sans-serif; font-weight:700; font-size:12px; padding:12px 16px; cursor:pointer; transition:all .2s; width:100%; }
+  .wizard-back-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .btn-nota-dir { padding:9px 11px; border:2px solid var(--gray); border-radius:10px; background:white; color:var(--gray-mid); font-size:14px; cursor:pointer; line-height:1; transition:border-color .2s,color .2s; flex-shrink:0; }
+  .btn-nota-dir.has-nota { border-color:var(--orange); color:var(--orange); }
+  #mapa-ruta-wizard { width:100%; height:230px; border-radius:10px; overflow:hidden; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
@@ -770,166 +787,213 @@
         </div>
       </div>
 
-      <!-- FORMULARIO -->
+      <!-- FORMULARIO WIZARD -->
       <div id="form-state">
-        <div class="card">
-          <div class="card-title">Datos del envío</div>
 
-          <div class="form-group">
-            <label class="form-label">Nombre del destinatario</label>
-            <input type="text" id="nombre-destinatario" class="form-input" placeholder="Nombre de quien recibe el paquete">
+        <!-- Barra de progreso -->
+        <div class="wizard-progress">
+          <div class="wp-step active" id="wp-1">
+            <div class="wp-circle">1</div>
+            <div class="wp-label">Ruta</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Nombre del remitente</label>
-            <input type="text" id="nombre-remitente" class="form-input" placeholder="Tu nombre (quien envía)">
+          <div class="wp-line" id="wl-1"></div>
+          <div class="wp-step" id="wp-2">
+            <div class="wp-circle">2</div>
+            <div class="wp-label">Detalles</div>
           </div>
-          <div class="form-group">
-            <label class="form-label">WhatsApp</label>
-            <input type="tel" id="whatsapp" class="form-input" placeholder="10 dígitos ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          <div class="wp-line" id="wl-2"></div>
+          <div class="wp-step" id="wp-3">
+            <div class="wp-circle">3</div>
+            <div class="wp-label">Pago</div>
           </div>
-          <div class="form-group">
-  <label class="form-label">Dirección de recolección</label>
-  <div style="display:flex;gap:8px;margin-bottom:6px">
-    <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-    <button type="button" onclick="mostrarDirecciones('dir-recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
-  </div>
-</div>
-<!-- Toggles paquetería/ML (solo visible si empresa lo permite) -->
-<div id="paqueteria-section" style="display:none;margin-bottom:10px">
-  <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Tipo de envío</div>
-  <div id="paqueteria-toggles" style="display:flex;flex-direction:column;gap:8px"></div>
-</div>
-
-<div id="dir-entrega-group" class="form-group">
-  <label class="form-label">Dirección de entrega</label>
-  <div style="display:flex;gap:8px;margin-bottom:6px">
-    <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-    <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
-  </div>
-  <div id="zona-aviso" style="display:none;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;margin-top:4px"></div>
-</div>
-
-<!-- Cantidades paquetería (oculto por default) -->
-<div id="paqueteria-cantidades" style="display:none;margin-bottom:10px">
-  <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Cantidad de paquetes</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    <div class="form-group" style="margin-bottom:0">
-      <label class="form-label">Bolsas</label>
-      <input type="number" id="paqueteria-bolsas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-      <label class="form-label">Cajas</label>
-      <input type="number" id="paqueteria-cajas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
-    </div>
-  </div>
-</div>
-
-<div id="paradas-container"></div>
-
-<button id="btn-agregar-parada-form" type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:10px;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
-  ➕ Agregar parada
-</button>
-
-          <div class="form-group">
-  <label class="form-label">Instrucciones de recolección (opcional)</label>
-  <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Recoger Pedido Folio XFB12867, entregar en recepción..."></textarea>
-</div>
-          <div class="form-group">
-  <label class="form-label">Fecha de recolección</label>
-  <div style="display:flex;gap:8px;margin-bottom:8px">
-    <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Hoy</button>
-    <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Día siguiente</button>
-    <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Otra fecha</button>
-  </div>
-  <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
-  <input type="hidden" id="fecha-seleccionada">
-  <div id="aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
-</div>
         </div>
 
-        <div class="card">
-          <div class="card-title">Tamaño del paquete</div>
-          <div class="size-grid">
-            <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
-              <span class="size-icon">✉️</span>
-              <span class="size-name">Sobre / Chico</span>
-              <span class="size-desc">Documentos o paquetes pequeños</span>
+        <!-- ── PASO 1: RUTA ── -->
+        <div id="wizard-paso-1">
+          <div class="card">
+            <div class="card-title">Datos del envío</div>
+
+            <div class="form-group">
+              <label class="form-label">Nombre del destinatario</label>
+              <input type="text" id="nombre-destinatario" class="form-input" placeholder="Nombre de quien recibe el paquete">
             </div>
-            <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
-              <span class="size-icon">📦</span>
-              <span class="size-name">Grande</span>
-              <span class="size-desc">Cajas medianas a grandes</span>
+            <div class="form-group">
+              <label class="form-label">Nombre del remitente</label>
+              <input type="text" id="nombre-remitente" class="form-input" placeholder="Tu nombre (quien envía)">
             </div>
-          </div>
-        </div>
+            <div class="form-group">
+              <label class="form-label">WhatsApp</label>
+              <input type="tel" id="whatsapp" class="form-input" placeholder="10 dígitos ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            </div>
 
-        <div class="card">
-          <div class="card-title">Zona de entrega</div>
-          <div id="zona-detect-result" style="padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px">
-            <span style="font-size:16px">📍</span>
-            <span>Se detectará al ingresar tu dirección de entrega</span>
-          </div>
-        </div>
-
-        <!-- COTIZACIÓN -->
-        <div id="quote-display" class="quote-box" style="display:none">
-          <div class="quote-label">Costo de envío</div>
-          <div style="display:flex;align-items:baseline;gap:10px">
-            <div class="quote-price" id="quote-amount">$0</div>
-            <button onclick="_mostrarDesglose()" title="Ver desglose" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--blue);padding:0;line-height:1;opacity:0.75;flex-shrink:0" id="quote-info-btn">ⓘ</button>
-          </div>
-          <div class="quote-detail" id="quote-detail" style="display:none">—</div>
-        </div>
-
-        <!-- CUPÓN -->
-        <div class="card" id="cupon-card">
-          <div class="card-title">¿Tienes un cupón?</div>
-          <div id="cupon-input-row" style="display:flex;gap:8px">
-            <input type="text" id="cupon-input" class="form-input" placeholder="Código de descuento" style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
-            <button onclick="aplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;white-space:nowrap">Aplicar</button>
-          </div>
-          <div id="cupon-aplicado-row" style="display:none;background:rgba(34,197,94,0.08);border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:8px">
-            <span id="cupon-aplicado-label" style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a"></span>
-            <button onclick="quitarCupon()" style="background:none;border:none;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#8fa3c0;padding:2px 6px;border-radius:6px;white-space:nowrap">✕ Quitar</button>
-          </div>
-          <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
-        </div>
-
-        <div class="card" id="card-metodo-pago">
-          <div class="card-title">Método de pago</div>
-          <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
-            <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
-          </div>
-          <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
-            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">CLABE</div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">012320029474665791</span>
-                <button onclick="copiarDato(this,'012320029474665791')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+            <div class="form-group">
+              <label class="form-label">Dirección de recolección</label>
+              <div style="display:flex;gap:8px;margin-bottom:6px">
+                <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+                <button type="button" onclick="mostrarDirecciones('dir-recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;flex-shrink:0">⭐</button>
+                <button type="button" id="btn-nota-rec" class="btn-nota-dir" onclick="_abrirNotaDir('recoleccion')" title="Agregar nota para esta dirección">📝</button>
               </div>
             </div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">BANCO</div>
-              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">BBVA</div>
+
+            <!-- Toggles paquetería/ML (solo visible si empresa lo permite) -->
+            <div id="paqueteria-section" style="display:none;margin-bottom:10px">
+              <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Tipo de envío</div>
+              <div id="paqueteria-toggles" style="display:flex;flex-direction:column;gap:8px"></div>
             </div>
-            <div style="margin-bottom:16px">
-              <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">NOMBRE</div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">Leonardo Vazquez Fajardo</span>
-                <button onclick="copiarDato(this,'Leonardo Vazquez Fajardo')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+
+            <div id="dir-entrega-group" class="form-group">
+              <label class="form-label">Dirección de entrega</label>
+              <div style="display:flex;gap:8px;margin-bottom:6px">
+                <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+                <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;flex-shrink:0">⭐</button>
+                <button type="button" id="btn-nota-ent" class="btn-nota-dir" onclick="_abrirNotaDir('entrega')" title="Agregar nota para esta dirección">📝</button>
+              </div>
+              <div id="zona-aviso" style="display:none;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:7px 12px;border-radius:8px;margin-top:4px"></div>
+            </div>
+
+            <!-- Cantidades paquetería (oculto por default) -->
+            <div id="paqueteria-cantidades" style="display:none;margin-bottom:10px">
+              <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Cantidad de paquetes</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Bolsas</label>
+                  <input type="number" id="paqueteria-bolsas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Cajas</label>
+                  <input type="number" id="paqueteria-cajas" class="form-input" placeholder="0" min="0" value="0" oninput="_calcularPrecioPaqueteria()">
+                </div>
               </div>
             </div>
-            <input type="file" id="comprobante-input" accept="image/*" style="display:none">
-            <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
-            <div id="comprobante-preview" style="margin-top:10px"></div>
+
+            <div id="paradas-container"></div>
+            <button id="btn-agregar-parada-form" type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:0;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
+              ➕ Agregar parada
+            </button>
+          </div>
+
+          <!-- Mapa de ruta -->
+          <div class="card" id="mapa-wizard-card" style="display:none;padding-bottom:4px;overflow:hidden">
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📍 Ruta de envío</div>
+            <div id="mapa-ruta-wizard"></div>
+          </div>
+
+          <button class="btn btn-primary" onclick="_wizardContinuar(1)">Continuar →</button>
+        </div>
+
+        <!-- ── PASO 2: DETALLES ── -->
+        <div id="wizard-paso-2" style="display:none">
+
+          <div class="card">
+            <div class="card-title">Tamaño del paquete</div>
+            <div class="size-grid">
+              <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
+                <span class="size-icon">✉️</span>
+                <span class="size-name">Sobre / Chico</span>
+                <span class="size-desc">Documentos o paquetes pequeños</span>
+              </div>
+              <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
+                <span class="size-icon">📦</span>
+                <span class="size-name">Grande</span>
+                <span class="size-desc">Cajas medianas a grandes</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Zona de entrega</div>
+            <div id="zona-detect-result" style="padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px">
+              <span style="font-size:16px">📍</span>
+              <span>Se detectará al ingresar tu dirección de entrega</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Fecha de recolección</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Hoy</button>
+              <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Día siguiente</button>
+              <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Otra fecha</button>
+            </div>
+            <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
+            <input type="hidden" id="fecha-seleccionada">
+            <div id="aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Instrucciones de recolección (opcional)</div>
+            <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Recoger en recepción, dejar con portero, piso 3..."></textarea>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="wizard-back-btn" onclick="_irPaso(1)" style="flex:1;width:auto">← Atrás</button>
+            <button class="btn btn-primary" onclick="_wizardContinuar(2)" style="flex:2;margin-top:0">Continuar →</button>
           </div>
         </div>
 
-        <button class="btn btn-primary" onclick="submitRequest()">
-          Solicitar Recolección →
-        </button>
+        <!-- ── PASO 3: PAGO ── -->
+        <div id="wizard-paso-3" style="display:none">
+
+          <!-- COTIZACIÓN -->
+          <div id="quote-display" class="quote-box" style="display:none">
+            <div class="quote-label">Costo de envío</div>
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <div class="quote-price" id="quote-amount">$0</div>
+              <button onclick="_mostrarDesglose()" title="Ver desglose" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--blue);padding:0;line-height:1;opacity:0.75;flex-shrink:0" id="quote-info-btn">ⓘ</button>
+            </div>
+            <div class="quote-detail" id="quote-detail" style="display:none">—</div>
+          </div>
+
+          <!-- CUPÓN -->
+          <div class="card" id="cupon-card">
+            <div class="card-title">¿Tienes un cupón?</div>
+            <div id="cupon-input-row" style="display:flex;gap:8px">
+              <input type="text" id="cupon-input" class="form-input" placeholder="Código de descuento" style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
+              <button onclick="aplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;white-space:nowrap">Aplicar</button>
+            </div>
+            <div id="cupon-aplicado-row" style="display:none;background:rgba(34,197,94,0.08);border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;display:none;align-items:center;justify-content:space-between;gap:8px">
+              <span id="cupon-aplicado-label" style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#16a34a"></span>
+              <button onclick="quitarCupon()" style="background:none;border:none;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#8fa3c0;padding:2px 6px;border-radius:6px;white-space:nowrap">✕ Quitar</button>
+            </div>
+            <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
+          </div>
+
+          <div class="card" id="card-metodo-pago">
+            <div class="card-title">Método de pago</div>
+            <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
+              <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
+            </div>
+            <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
+              <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
+              <div style="margin-bottom:10px">
+                <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">CLABE</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">012320029474665791</span>
+                  <button onclick="copiarDato(this,'012320029474665791')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+                </div>
+              </div>
+              <div style="margin-bottom:10px">
+                <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">BANCO</div>
+                <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">BBVA</div>
+              </div>
+              <div style="margin-bottom:16px">
+                <div style="font-size:10px;font-weight:700;color:#666;margin-bottom:4px">NOMBRE</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--text)">Leonardo Vazquez Fajardo</span>
+                  <button onclick="copiarDato(this,'Leonardo Vazquez Fajardo')" style="padding:4px 10px;border:none;border-radius:8px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+                </div>
+              </div>
+              <input type="file" id="comprobante-input" accept="image/*" style="display:none">
+              <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
+              <div id="comprobante-preview" style="margin-top:10px"></div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="submitRequest()">Solicitar Recolección →</button>
+          <button class="wizard-back-btn" onclick="_irPaso(2)" style="margin-top:8px">← Atrás</button>
+        </div>
+
       </div>
 
     </div><!-- /client-new -->
@@ -1628,6 +1692,185 @@ async function activarNotificaciones() {
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
 if (Notification.permission === 'granted') activarNotificaciones()
 let selSize = null, selZone = null, selMetodoPago = null
+let _notaEntrega = ''
+let _wizardPasoActual = 1
+let _wizardMap = null, _wizardPinRec = null, _wizardPinEnt = null, _wizardDirRenderer = null
+let _notaDirContext = null
+
+// ── Wizard navegación ────────────────────────────────────────────────────────
+function _irPaso(n) {
+  document.getElementById('wizard-paso-' + _wizardPasoActual).style.display = 'none'
+  _wizardPasoActual = n
+  document.getElementById('wizard-paso-' + n).style.display = 'block'
+  _actualizarBarraProgreso()
+  // Cuando se regresa al paso 1, sincroniza el botón de nota-rec con el textarea
+  if (n === 1) {
+    const ta = document.getElementById('instrucciones-recoleccion')
+    const btnRec = document.getElementById('btn-nota-rec')
+    if (ta && btnRec) btnRec.classList.toggle('has-nota', ta.value.trim().length > 0)
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function _actualizarBarraProgreso() {
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('wp-' + i)
+    if (!dot) continue
+    dot.classList.remove('active', 'done')
+    if (i < _wizardPasoActual) dot.classList.add('done')
+    else if (i === _wizardPasoActual) dot.classList.add('active')
+  }
+  for (let i = 1; i <= 2; i++) {
+    const line = document.getElementById('wl-' + i)
+    if (!line) continue
+    if (i < _wizardPasoActual) line.classList.add('done')
+    else line.classList.remove('done')
+  }
+}
+
+function _wizardContinuar(paso) {
+  if (paso === 1) {
+    const nombre = document.getElementById('nombre-destinatario').value.trim()
+    const remitente = document.getElementById('nombre-remitente').value.trim()
+    const whatsapp = document.getElementById('whatsapp').value.trim()
+    const dirRec = document.getElementById('dir-recoleccion').value.trim()
+    const dirEnt = document.getElementById('dir-entrega').value.trim()
+    if (!nombre)            { mostrarToast('⚠️ Ingresa el nombre del destinatario', 'var(--orange)'); return }
+    if (!remitente)         { mostrarToast('⚠️ Ingresa tu nombre (remitente)', 'var(--orange)'); return }
+    if (whatsapp.length < 10) { mostrarToast('⚠️ Ingresa un WhatsApp válido de 10 dígitos', 'var(--orange)'); return }
+    if (!dirRec)            { mostrarToast('⚠️ Ingresa la dirección de recolección', 'var(--orange)'); return }
+    if (!_modoPaqueteria && !dirEnt) { mostrarToast('⚠️ Ingresa la dirección de entrega', 'var(--orange)'); return }
+    _irPaso(2)
+    return
+  }
+  if (paso === 2) {
+    if (!selSize) { mostrarToast('⚠️ Selecciona el tamaño del paquete', 'var(--orange)'); return }
+    if (!document.getElementById('fecha-seleccionada').value) { mostrarToast('⚠️ Selecciona una fecha de recolección', 'var(--orange)'); return }
+    _irPaso(3)
+  }
+}
+
+// ── Modal de nota por dirección ──────────────────────────────────────────────
+function _abrirNotaDir(tipo, idx) {
+  if (document.getElementById('modal-nota-dir')) return
+  _notaDirContext = { tipo, idx: idx !== undefined ? idx : null }
+
+  let valorActual = ''
+  if (tipo === 'recoleccion')  valorActual = document.getElementById('instrucciones-recoleccion')?.value || ''
+  else if (tipo === 'entrega') valorActual = _notaEntrega
+  else if (tipo === 'parada' && idx != null) valorActual = _paradasList[idx]?.instrucciones || ''
+
+  const labels = { recoleccion: 'Nota de recolección', entrega: 'Nota de entrega', parada: 'Nota de parada ' + ((idx ?? 0) + 2) }
+  const label = labels[tipo] || 'Nota'
+
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-nota-dir'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .2s ease'
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:24px 22px;max-width:340px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.22)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:var(--blue)">📝 ${label}</div>
+        <button onclick="document.getElementById('modal-nota-dir').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0;line-height:1;padding:0">✕</button>
+      </div>
+      <textarea id="nota-dir-textarea" class="form-input" rows="4" placeholder="Instrucciones, referencias, piso, número exterior..." style="font-size:13px;resize:none">${valorActual.replace(/</g,'&lt;')}</textarea>
+      <button onclick="_guardarNotaDir()" style="width:100%;padding:13px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-top:12px">Guardar nota</button>
+    </div>`
+  document.body.appendChild(overlay)
+  setTimeout(() => document.getElementById('nota-dir-textarea')?.focus(), 80)
+}
+
+function _guardarNotaDir() {
+  const val = (document.getElementById('nota-dir-textarea')?.value || '').trim()
+  const { tipo, idx } = _notaDirContext || {}
+  if (tipo === 'recoleccion') {
+    const ta = document.getElementById('instrucciones-recoleccion')
+    if (ta) ta.value = val
+    const btn = document.getElementById('btn-nota-rec')
+    if (btn) btn.classList.toggle('has-nota', val.length > 0)
+  } else if (tipo === 'entrega') {
+    _notaEntrega = val
+    const btn = document.getElementById('btn-nota-ent')
+    if (btn) btn.classList.toggle('has-nota', val.length > 0)
+  } else if (tipo === 'parada' && idx != null && _paradasList[idx]) {
+    _paradasList[idx].instrucciones = val
+    const btn = document.getElementById('btn-nota-parada-' + idx)
+    if (btn) btn.classList.toggle('has-nota', val.length > 0)
+  }
+  document.getElementById('modal-nota-dir')?.remove()
+}
+
+// ── Mapa de ruta en Paso 1 ───────────────────────────────────────────────────
+function _iniciarMapaWizard() {
+  const el = document.getElementById('mapa-ruta-wizard')
+  if (!el || _wizardMap) return
+  _wizardMap = new google.maps.Map(el, {
+    center: { lat: 20.6597, lng: -103.3496 },
+    zoom: 13,
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'cooperative'
+  })
+  _wizardDirRenderer = new google.maps.DirectionsRenderer({
+    suppressMarkers: true,
+    polylineOptions: { strokeColor: '#1a4fa0', strokeWeight: 4, strokeOpacity: 0.85 }
+  })
+  _wizardDirRenderer.setMap(_wizardMap)
+}
+
+function _wizardPinIcon(color) {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: 9,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2.5
+  }
+}
+
+function _actualizarMapaWizard() {
+  if (!window.google?.maps || !_wizardMap) return
+  const dirRec = document.getElementById('dir-recoleccion')?.value?.trim()
+  const dirEnt = document.getElementById('dir-entrega')?.value?.trim()
+  const card = document.getElementById('mapa-wizard-card')
+
+  if (!dirRec && !dirEnt) {
+    if (card) card.style.display = 'none'
+    return
+  }
+  if (card) card.style.display = 'block'
+
+  if (dirRec && dirEnt && !_modoPaqueteria) {
+    const ds = new google.maps.DirectionsService()
+    const waypoints = (_paradasList || [])
+      .filter(p => p.direccion?.trim())
+      .map(p => ({ location: p.direccion, stopover: true }))
+    ds.route({ origin: dirRec, destination: dirEnt, waypoints, travelMode: google.maps.TravelMode.DRIVING },
+      (result, status) => {
+        if (status !== 'OK') return
+        _wizardDirRenderer.setDirections(result)
+        const legs = result.routes[0].legs
+        const orig = legs[0].start_location
+        const dest = legs[legs.length - 1].end_location
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
+        if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('#f05a1a') })
+        _wizardPinRec.setPosition(orig)
+        _wizardPinEnt.setPosition(dest)
+      }
+    )
+  } else if (dirRec) {
+    if (_wizardDirRenderer) _wizardDirRenderer.setDirections({ routes: [] })
+    new google.maps.Geocoder().geocode({ address: dirRec }, (res, status) => {
+      if (status !== 'OK' || !res[0]) return
+      const loc = res[0].geometry.location
+      _wizardMap.setCenter(loc)
+      _wizardMap.setZoom(15)
+      if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
+      _wizardPinRec.setPosition(loc)
+    })
+  }
+}
 let _zonaData = null        // zona detectada desde Supabase zonas_cobertura
 let _empresaData = null     // datos de empresa afiliada del usuario logueado
 let _empresaUsuario = null  // alias público de _empresaData (accesible desde consola)
@@ -2264,17 +2507,18 @@ function agregarParada() {
       <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue)">📍 Parada ${idx + 2}</span>
       <button type="button" onclick="eliminarParada(${idx})" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✕</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:6px">
+    <div style="display:flex;gap:8px">
       <input type="text" id="parada-dir-${idx}" class="form-input" placeholder="Dirección de entrega" style="flex:1" oninput="_paradaDirChange(${idx},this.value)">
-      <button type="button" onclick="mostrarDirecciones('parada-dir-${idx}')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer">⭐</button>
+      <button type="button" onclick="mostrarDirecciones('parada-dir-${idx}')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;flex-shrink:0">⭐</button>
+      <button type="button" id="btn-nota-parada-${idx}" class="btn-nota-dir" onclick="_abrirNotaDir('parada',${idx})" title="Agregar nota para esta parada">📝</button>
     </div>
-    <input type="text" id="parada-inst-${idx}" class="form-input" placeholder="Instrucciones (opcional)" style="font-size:12px" oninput="_paradasList[${idx}].instrucciones=this.value">
   `
   cont.appendChild(div)
   // Attach Places autocomplete if Maps already loaded (centralized in _attachAutocompletePararadas)
   if (window.google?.maps?.places && _mapsPlacesOpts) {
     _attachAutocompletePararadas(_mapsPlacesOpts)
   }
+  _actualizarMapaWizard()
 }
 
 function eliminarParada(idx) {
@@ -2288,7 +2532,8 @@ function eliminarParada(idx) {
     const i = _paradasList.length - 1
     _paradasList[i] = p
     document.getElementById('parada-dir-' + i).value = p.direccion
-    document.getElementById('parada-inst-' + i).value = p.instrucciones || ''
+    const btnNota = document.getElementById('btn-nota-parada-' + i)
+    if (btnNota) btnNota.classList.toggle('has-nota', !!(p.instrucciones?.trim()))
   })
   // Recalcular cotización tras eliminar parada
   if (_paradasList.filter(p => p.direccion.trim()).length === 0) {
@@ -2301,6 +2546,7 @@ function eliminarParada(idx) {
   } else {
     _calcularCotizacionMultiParada()
   }
+  _actualizarMapaWizard()
 }
 
 async function _cargarParadasPedido(pedidoId) {
@@ -3304,6 +3550,28 @@ function mostrarToast(texto, color) {
 function resetForm() {
   document.getElementById('form-state').style.display = 'block'
   document.getElementById('success-state').style.display = 'none'
+
+  // Resetear wizard al paso 1
+  ;[1, 2, 3].forEach(i => {
+    const p = document.getElementById('wizard-paso-' + i)
+    if (p) p.style.display = i === 1 ? 'block' : 'none'
+  })
+  _wizardPasoActual = 1
+  _actualizarBarraProgreso()
+
+  // Notas por dirección
+  _notaEntrega = ''
+  const btnRec = document.getElementById('btn-nota-rec')
+  const btnEnt = document.getElementById('btn-nota-ent')
+  if (btnRec) btnRec.classList.remove('has-nota')
+  if (btnEnt) btnEnt.classList.remove('has-nota')
+
+  // Mapa wizard
+  if (_wizardPinRec) { _wizardPinRec.setMap(null); _wizardPinRec = null }
+  if (_wizardPinEnt) { _wizardPinEnt.setMap(null); _wizardPinEnt = null }
+  if (_wizardDirRenderer) { try { _wizardDirRenderer.setDirections({ routes: [] }) } catch (_) {} }
+  const mapaCard = document.getElementById('mapa-wizard-card')
+  if (mapaCard) mapaCard.style.display = 'none'
 
   // Tamaño y zona
   selSize = null
@@ -4646,7 +4914,13 @@ window.initMapsGuepack = function() {
   const inputEnt = document.getElementById('dir-entrega')
   if (!inputRec || !inputEnt) return
 
-  new google.maps.places.Autocomplete(inputRec, opts)
+  // Inicializar mapa del wizard
+  _iniciarMapaWizard()
+
+  const acRec = new google.maps.places.Autocomplete(inputRec, opts)
+  acRec.addListener('place_changed', () => {
+    setTimeout(_actualizarMapaWizard, 50)
+  })
 
   const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
   acEntrega.addListener('place_changed', async function () {
@@ -4665,6 +4939,7 @@ window.initMapsGuepack = function() {
     console.log('[place_changed] _empresaUsuario:', _empresaUsuario)
 
     _detectarZonaEntrega(place)
+    setTimeout(_actualizarMapaWizard, 50)
   })
 
   // Recalcular precio si ya hay lugar de entrega y cambia la recolección
@@ -4698,6 +4973,7 @@ function _attachAutocompletePararadas(opts) {
         inp.value = dir
         console.log('[multiParada] place_changed parada', idx, '→', dir)
         _calcularCotizacionMultiParada()
+        setTimeout(_actualizarMapaWizard, 50)
       }
     })
   })

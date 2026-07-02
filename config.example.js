@@ -1,1 +1,1 @@
-const MAPBOX_TOKEN = 'TU_TOKEN_AQUI';
+// config.example.js — copia este archivo como config.js y llena los valores
