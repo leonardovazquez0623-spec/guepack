@@ -5155,14 +5155,14 @@ async function eliminarCliente(userId) {
         body: JSON.stringify({ user_id: userId })
       })
       const authJson = await authRes.json()
-      if (!authJson.success) {
+      if (!authJson.success && authJson.error !== 'User not found') {
         console.error('[eliminarCliente] error en auth.users:', authJson.error)
         showToast('⚠️ Datos eliminados, pero falló auth: ' + (authJson.error || 'error desconocido'))
       }
 
       delete _clientesMap[userId]
       document.getElementById('panel-cliente').style.display = 'none'
-      showToast('🗑️ Cuenta eliminada completamente')
+      showToast('✅ Cuenta eliminada correctamente')
       cargarClientes()
     } catch (err) {
       console.error('[eliminarCliente]', err)

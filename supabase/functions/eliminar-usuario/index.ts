@@ -1,4 +1,3 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -28,16 +27,20 @@ Deno.serve(async (req) => {
       })
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseUrl = Deno.env.get('SB_URL') ?? 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
     const serviceKey  = Deno.env.get('SERVICE_ROLE_KEY')!
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    console.log('[eliminar-usuario] eliminando user_id:', user_id)
+    console.log('SERVICE_ROLE_KEY existe:', !!serviceKey)
+    console.log('SERVICE_ROLE_KEY primeros chars:', serviceKey?.substring(0, 20))
+    console.log('Intentando eliminar user_id:', user_id)
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)
+
+    console.log('Resultado deleteUser - error:', error?.message ?? 'ninguno')
 
     if (error) {
       console.error('[eliminar-usuario] error:', error.message)
