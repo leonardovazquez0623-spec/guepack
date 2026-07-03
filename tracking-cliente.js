@@ -184,13 +184,22 @@ function _suscribirTracking(pedidoId, contenedorId) {
 }
 
 function _evaluarProximidad(lat, lng, heading, contenedorId) {
+  const dbg = document.getElementById('debug-tracking')
+
   // Pedidos sin coords guardadas → mostrar mapa directo (comportamiento anterior)
   if (_latEntrega == null || _lngEntrega == null) {
+    if (dbg) dbg.innerHTML =
+      '🚚 Driver: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '<br>' +
+      '📍 Entrega: sin coords (fallback)'
     _mostrarMapa(lat, lng, heading, contenedorId)
     return
   }
   const dist = calcularDistanciaKm(lat, lng, _latEntrega, _lngEntrega)
   console.log('[tracking-cli] distancia a entrega:', dist.toFixed(3), 'km')
+  if (dbg) dbg.innerHTML =
+    '🚚 Driver: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '<br>' +
+    '📍 Entrega: ' + _latEntrega.toFixed(6) + ', ' + _lngEntrega.toFixed(6) + '<br>' +
+    '📏 Distancia: ' + dist.toFixed(3) + ' km ' + (dist <= 1 ? '✅ MAPA' : '🟡 EN CAMINO')
   if (dist <= 1) {
     _mostrarMapa(lat, lng, heading, contenedorId)
   } else {
