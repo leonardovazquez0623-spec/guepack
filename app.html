@@ -62,6 +62,7 @@
   .screen { display: none; animation: fadeIn .3s ease; }
   .screen.active { display: block; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
   @keyframes parpadeoRojo { 0%,100% { border-color:#ef4444; } 50% { border-color:transparent; } }
 
   /* ── VIP TEMAS ── */
@@ -1076,6 +1077,103 @@ const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
+// ── PWA install prompt (capturar temprano, antes del load) ──
+let _deferredPwaPrompt = null
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault()
+  _deferredPwaPrompt = e
+})
+
+// ── PWA: detección de instalación y prompt ──
+async function _verificarEstadoPwa(userId) {
+  const esStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true
+
+  const { data: perfil } = await db.from('usuarios')
+    .select('pwa_instalada, pwa_prompt_pospuesto_at')
+    .eq('user_id', userId)
+    .single()
+
+  if (!perfil) return
+
+  if (esStandalone) {
+    if (!perfil.pwa_instalada) {
+      db.from('usuarios').update({ pwa_instalada: true }).eq('user_id', userId).then(() => {})
+    }
+    return
+  }
+
+  // No está en standalone — evaluar si mostrar el banner
+  if (perfil.pwa_instalada) return
+
+  if (perfil.pwa_prompt_pospuesto_at) {
+    const diasDesde = (Date.now() - new Date(perfil.pwa_prompt_pospuesto_at).getTime()) / 86400000
+    if (diasDesde < 3) return
+  }
+
+  const esIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+  // En Android/Chrome esperamos un momento por si el beforeinstallprompt tarda
+  if (!esIos) {
+    setTimeout(() => _mostrarBannerPwa(false, userId), 2500)
+  } else {
+    setTimeout(() => _mostrarBannerPwa(true, userId), 2500)
+  }
+}
+
+function _mostrarBannerPwa(esIos, userId) {
+  // En Android: solo mostrar si hay prompt disponible o no se detectó (algunos browsers lo retrasan)
+  if (document.getElementById('pwa-banner')) return
+
+  const banner = document.createElement('div')
+  banner.id = 'pwa-banner'
+  banner.style.cssText = [
+    'position:fixed', 'bottom:0', 'left:0', 'right:0', 'z-index:10000',
+    'background:white', 'border-top:3px solid var(--orange)',
+    'box-shadow:0 -4px 24px rgba(26,79,160,0.15)',
+    'padding:16px 20px 20px', 'display:flex', 'flex-direction:column', 'gap:10px',
+    'font-family:Montserrat,sans-serif', 'animation:slideUp .3s ease'
+  ].join(';')
+
+  const instrucciones = esIos
+    ? '<div style="font-size:12px;font-weight:600;color:var(--gray-mid);line-height:1.5;margin-top:2px">Toca <strong style="color:var(--blue)">Compartir</strong> <span style="font-size:14px">⬆️</span> y luego <strong style="color:var(--blue)">"Agregar a pantalla de inicio"</strong></div>'
+    : '<div style="font-size:12px;font-weight:600;color:var(--gray-mid);line-height:1.5;margin-top:2px">Accede más rápido y recibe notificaciones sin abrir el navegador</div>'
+
+  const botonAccion = esIos
+    ? ''
+    : '<button onclick="_instalarPwa()" style="flex:1;padding:13px;background:linear-gradient(135deg,var(--orange),#ff7a3d);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(240,90,26,0.35)">📲 Instalar app</button>'
+
+  banner.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-weight:900;font-size:14px;color:var(--blue)">📱 Instala GUEPACK</div>
+        ${instrucciones}
+      </div>
+      <button onclick="_posponerrPwaBanner('${userId}')" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-mid);padding:0 0 0 12px;line-height:1">✕</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      ${botonAccion}
+      <button onclick="_posponerrPwaBanner('${userId}')" style="flex:1;padding:13px;border:1.5px solid var(--gray);border-radius:12px;background:white;color:var(--gray-mid);font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer">Ahora no</button>
+    </div>
+  `
+  document.body.appendChild(banner)
+}
+
+async function _instalarPwa() {
+  if (!_deferredPwaPrompt) return
+  _deferredPwaPrompt.prompt()
+  const { outcome } = await _deferredPwaPrompt.userChoice
+  _deferredPwaPrompt = null
+  document.getElementById('pwa-banner')?.remove()
+  console.log('[PWA] resultado instalación:', outcome)
+}
+
+async function _posponerrPwaBanner(userId) {
+  document.getElementById('pwa-banner')?.remove()
+  await db.from('usuarios')
+    .update({ pwa_prompt_pospuesto_at: new Date().toISOString() })
+    .eq('user_id', userId)
+}
+
 // ── Verificar sesión ──
 async function verificarSesion() {
   const { data: { session } } = await db.auth.getSession()
@@ -1111,6 +1209,7 @@ async function verificarSesion() {
   await _cargarEmpresaUsuario(session.user)
   await _cargarCargoCancelacion(session.user)
   await _cargarAvatarCliente(session.user)
+  _verificarEstadoPwa(session.user.id)
   iniciarTour()
   // Evento retorno: si el usuario ya tiene pedidos previos es visita de retorno
   db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
