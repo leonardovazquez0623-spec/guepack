@@ -1426,6 +1426,14 @@
           <div class="empty-text">No encontramos ese folio</div>
         </div>
       </div>
+
+      <!-- ── Envíos nacionales (guías generadas) ── -->
+      <div id="nacionales-rastreo-wrap" style="display:none">
+        <div class="card">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-mid);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">📦 Envíos nacionales</div>
+          <div id="nacionales-rastreo-list"></div>
+        </div>
+      </div>
     </div>
 
 <!-- ── HISTORIAL ── -->
@@ -2717,6 +2725,51 @@ async function rastrearPedido() {
 
   document.getElementById('resultado-rastreo').style.display = 'block'
 }
+
+async function _cargarNacionalesRastreo() {
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) return
+
+  const { data } = await db
+    .from('envios_nacionales')
+    .select('id, paqueteria, servicio, numero_guia, tracking_url, estado, destino_ciudad, destino_estado')
+    .eq('user_id', session.user.id)
+    .not('numero_guia', 'is', null)
+    .order('created_at', { ascending: false })
+
+  const wrap = document.getElementById('nacionales-rastreo-wrap')
+  const list = document.getElementById('nacionales-rastreo-list')
+  if (!wrap || !list) return
+  if (!data?.length) { wrap.style.display = 'none'; return }
+
+  wrap.style.display = 'block'
+  list.innerHTML = data.map((e, i) => {
+    const badgeClass = e.estado === 'guia_generada'   ? 'badge-done'
+                     : e.estado === 'pago_verificado' ? 'badge-transit'
+                     :                                  'badge-pending'
+    const estadoLabel = e.estado === 'guia_generada'   ? 'Guía generada'
+                      : e.estado === 'pago_verificado' ? 'Pago verificado'
+                      :                                  e.estado
+    const destino = [e.destino_ciudad, e.destino_estado].filter(Boolean).join(', ')
+    const accion = e.tracking_url
+      ? `<a href="${e.tracking_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:var(--blue);color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">Ver rastreo</a>`
+      : `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600">Consulta el estado directo con la paquetería</span>`
+    return `
+      ${i > 0 ? '<hr style="border:none;border-top:1px solid var(--gray);margin:10px 0">' : ''}
+      <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between">
+        <div style="min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--blue)">${e.paqueteria || '—'}${e.servicio ? ' · ' + e.servicio : ''}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:2px;word-break:break-all">${e.numero_guia}</div>
+          ${destino ? `<div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:1px">→ ${destino}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <span class="status-badge ${badgeClass}">${estadoLabel}</span>
+          ${accion}
+        </div>
+      </div>`
+  }).join('')
+}
+
 async function cerrarSesion() {
   await db.auth.signOut()
   window.location.href = 'login.html'
@@ -4298,7 +4351,7 @@ function showClientSection(section) {
   const idx = ['new','nacional','tracking','history'].indexOf(section);
   clientBtns[idx].classList.add('active');
   if (section === 'history') cargarHistorial();
-  if (section === 'tracking') { }
+  if (section === 'tracking') _cargarNacionalesRastreo()
   if (section === 'nacional' && !localStorage.getItem('nac_visitado')) {
     localStorage.setItem('nac_visitado', 'true')
     document.getElementById('btn-tab-nacional')?.classList.remove('tab-nacional')

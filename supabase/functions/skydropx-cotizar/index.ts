@@ -133,6 +133,7 @@ serve(async (req) => {
     const margenFijo = config?.margen_fijo ?? 0;
 
     // 4. Formatea para el comparador (ordenado por precio con margen aplicado)
+    console.log("SKYDROPX RATE RAW:", JSON.stringify(rates[0]));
     const opciones = rates
       .filter((r: any) => r.success !== false && (r.total ?? r.amount) != null)
       .map((r: any) => {

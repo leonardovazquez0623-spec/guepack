@@ -2,7 +2,7 @@
 // Depende de: db, SUPABASE_URL (globales de app.html), comparador-nacional.js
 
 const NAC_TAMANOS = {
-  sobre:        { largo: 35, ancho: 25, alto:  1 },
+  sobre:        { largo: 35, ancho: 25, alto:  5 },
   caja_chica:   { largo: 30, ancho: 20, alto: 15 },
   caja_mediana: { largo: 45, ancho: 35, alto: 30 },
   caja_grande:  { largo: 60, ancho: 50, alto: 40 },
