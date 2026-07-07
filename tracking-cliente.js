@@ -173,13 +173,14 @@ function _suscribirTracking(pedidoId, contenedorId) {
       table:  'driver_locations',
       filter: 'pedido_id=eq.' + pedidoId
     }, payload => {
+      console.log('[tracking-cli] evento recibido — payload completo:', JSON.stringify(payload))
       const row = payload.new
       if (!row?.lat || !row?.lng) return
       console.log('[tracking-cli] actualización Realtime:', row.lat, row.lng)
       _evaluarProximidad(row.lat, row.lng, row.heading, contenedorId)
     })
-    .subscribe(status => {
-      console.log('[tracking-cli] Realtime status:', status)
+    .subscribe((status, err) => {
+      console.log('[tracking-cli] Realtime status:', status, err ?? '')
     })
 }
 
