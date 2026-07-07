@@ -2,10 +2,10 @@
 // Requiere que ya tengas `db` y `SUPABASE_URL` inicializados globalmente.
 
 const EXTRAS = {
-  recoleccion: { label: "🚚 Recolección a domicilio con GuePack", costo: 60 },
-  cajas:       { label: "📦 Venta de cajas y sobres",             costo: 35 },
-  seguro:      { label: "🛡️ Seguro adicional",                    costo: 45 },
-  prioritario: { label: "⚡ Envío prioritario",                   costo: 80 },
+  recoleccion: { label: "Recolección a domicilio con GuePack", icon: "repartidor", costo: 60 },
+  cajas:       { label: "Venta de cajas y sobres",             icon: "paquete",    costo: 35 },
+  seguro:      { label: "🛡️ Seguro adicional",                                     costo: 45 },
+  prioritario: { label: "Envío prioritario",                   icon: "entrega_rapida", costo: 80 },
 };
 
 let cotizacionActual    = null; // { quotation_id, opciones }
@@ -34,11 +34,11 @@ async function cotizarEnvio(origen, destino, paquete) {
 function renderComparador(opciones) {
   const contenedor = document.getElementById("comparador-envios");
   contenedor.innerHTML = `
-    <h3 class="comparador-titulo">📦 Opciones de envío</h3>
+    <h3 class="comparador-titulo" style="display:flex;align-items:center;gap:6px">${typeof GUEPACK_ICONS !== 'undefined' ? '<span style="display:inline-flex;width:20px;height:20px">' + GUEPACK_ICONS.paquete + '</span>' : ''} Opciones de envío</h3>
     <div class="comparador-lista">
       ${opciones.map((op, i) => `
         <div class="opcion-envio" data-index="${i}">
-          <div class="opcion-medalla">${op.medalla || "📦"}</div>
+          <div class="opcion-medalla">${op.medalla || (typeof GUEPACK_ICONS !== 'undefined' ? '<span style="display:inline-flex;width:28px;height:28px">' + GUEPACK_ICONS.paquete + '</span>' : '📦')}</div>
           <div class="opcion-info">
             <div class="opcion-paqueteria">${op.paqueteria}</div>
             <div class="opcion-servicio">${op.servicio || ""}</div>
@@ -72,13 +72,17 @@ function renderUpsell() {
   contenedor.innerHTML = `
     <h3 class="upsell-titulo">Servicios adicionales</h3>
     <div class="upsell-lista">
-      ${Object.entries(EXTRAS).map(([key, extra]) => `
+      ${Object.entries(EXTRAS).map(([key, extra]) => {
+        const iconHtml = extra.icon && typeof GUEPACK_ICONS !== 'undefined'
+          ? `<span style="display:inline-flex;width:16px;height:16px;vertical-align:middle">${GUEPACK_ICONS[extra.icon]}</span> `
+          : '';
+        return `
         <label class="upsell-item">
           <input type="checkbox" data-extra="${key}" />
-          <span class="upsell-label">${extra.label}</span>
+          <span class="upsell-label">${iconHtml}${extra.label}</span>
           <span class="upsell-precio">+$${extra.costo}</span>
-        </label>
-      `).join("")}
+        </label>`;
+      }).join("")}
     </div>
     <div class="upsell-total">
       Total: <span id="total-envio">$${opcionSeleccionada.costo.toFixed(0)}</span>
