@@ -133,6 +133,7 @@
   }
   .sidebar-item:hover { background: rgba(255,255,255,.12); color: white; }
   .sidebar-item.active { background: var(--orange); color: white; }
+  .sidebar-item.active .guep-icon-inline { filter: brightness(0) invert(1); }
 
   @media (min-width: 768px) {
     body { display: flex; flex-direction: row; align-items: flex-start; }
@@ -186,6 +187,7 @@
   [data-icon] svg { display:block; }
   .guep-icon-inline { display:inline-flex; align-items:center; vertical-align:middle; }
   .guep-icon-inline svg { width:15px; height:15px; display:block; }
+  .icon-on-color { filter: brightness(0) invert(1); }
 </style>
 <script>
 // Callback real — Google Maps lo llama cuando termina de cargar
