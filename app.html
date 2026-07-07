@@ -1383,9 +1383,19 @@
           </div>
 
           <div class="timeline">
+            <div class="tl-item" id="tl-encamino-rec">
+              <div class="tl-dot"></div>
+              <div class="tl-title"><span class="guep-icon-inline" data-icon="repartidor"></span> Guepartidor en camino</div>
+              <div class="tl-time" id="tl-encamino-rec-time">Pendiente</div>
+            </div>
+            <div class="tl-item" id="tl-llegamos-rec">
+              <div class="tl-dot"></div>
+              <div class="tl-title">Llegamos a recolectar</div>
+              <div class="tl-time" id="tl-llegamos-rec-time">Pendiente</div>
+            </div>
             <div class="tl-item" id="tl-recolectado">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="entregado"></span> Paquete recolectado</div>
+              <div class="tl-title"><span class="guep-icon-inline" data-icon="paquete"></span> Paquete recolectado</div>
               <div class="tl-time" id="tl-recolectado-time">Pendiente</div>
             </div>
             <div class="tl-item" id="tl-camino">
@@ -1393,14 +1403,14 @@
               <div class="tl-title"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino a entrega</div>
               <div class="tl-time" id="tl-camino-time">Pendiente</div>
             </div>
-            <div class="tl-item" id="tl-llegando">
+            <div class="tl-item" id="tl-llegamos-dest">
               <div class="tl-dot"></div>
-              <div class="tl-title">⏰ A punto de llegar</div>
-              <div class="tl-time" id="tl-llegando-time">Pendiente</div>
+              <div class="tl-title">Llegamos al destino</div>
+              <div class="tl-time" id="tl-llegamos-dest-time">Pendiente</div>
             </div>
             <div class="tl-item" id="tl-entregado">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="paquete"></span> Entregado</div>
+              <div class="tl-title"><span class="guep-icon-inline" data-icon="entregado"></span> ¡Entregado!</div>
               <div class="tl-time" id="tl-entregado-time">Pendiente</div>
             </div>
           </div>
@@ -2684,15 +2694,16 @@ async function rastrearPedido() {
   badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
 
   const estadoMap = {
-    'En camino a recoleccion': 0,
-    'En camino a entrega':     1,
-    'A punto de llegar':       2,
-    'Repartidor en domicilio': 2,
-    'Entregado':               4   // > último índice → todos quedan done
+    'En camino a recoleccion':             0,
+    'Repartidor en domicilio recoleccion': 1,
+    'Recolectado':                         2,
+    'En camino a entrega':                 3,
+    'Repartidor en domicilio':             4,
+    'Entregado':                           6
   }
   const estadoActual = estadoMap[data.estado] ?? -1
 
-  const items = ['tl-recolectado', 'tl-camino', 'tl-llegando', 'tl-entregado']
+  const items = ['tl-encamino-rec', 'tl-llegamos-rec', 'tl-recolectado', 'tl-camino', 'tl-llegamos-dest', 'tl-entregado']
   items.forEach((id, i) => {
     const el = document.getElementById(id)
     if (estadoActual < 0)         el.className = 'tl-item pending'
@@ -3220,16 +3231,17 @@ async function compartirRastreo(id) {
 }
 
 const ESTADO_CONFIG = {
-  'Pendiente':                   { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ Estamos llamando al Guepartidor más cercano.' },
-  'Pendiente verificación de pago': { color: '#f59e0b',      badge: 'badge-transit',  texto: '🧾 Revisando el comprobante con lupa y bigotes.' },
-  'En camino a recoleccion':     { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🏍️ Mensajero en camino a recolectar' },
-  'En camino a entrega':         { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🚚 Tu paquete va en camino' },
-  'A punto de llegar':           { color: '#f59e0b',         badge: 'badge-pending',  texto: '⏰ Tu Guepartidor ya casi araña la puerta.' },
-  'Repartidor en domicilio':     { color: '#ef4444',         badge: 'badge-pending',  texto: '📍 Tu repartidor está en tu domicilio' },
-  'Entregado':                   { color: 'var(--success)',  badge: 'badge-done',     texto: '✅ ¡Listo! El GuePartidor cumplió la misión.' },
-  'Cancelado':                   { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ El paquete se escabulló por decisión tuya, no por accidente.' },
-  'Pago rechazado':              { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pago rechazado' },
-  'Intento de entrega fallido':  { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Ups... este paquete se nos escapó.' },
+  'Pendiente':                             { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ Estamos llamando al Guepartidor más cercano.' },
+  'Pendiente verificación de pago':        { color: '#f59e0b',         badge: 'badge-transit',  texto: '🧾 Revisando el comprobante con lupa y bigotes.' },
+  'En camino a recoleccion':               { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🏍️ Guepartidor en camino a recolectar' },
+  'Repartidor en domicilio recoleccion':   { color: 'var(--orange)',   badge: 'badge-pending',  texto: '📍 Tu Guepartidor llegó a recolectar tu paquete' },
+  'Recolectado':                           { color: 'var(--orange)',   badge: 'badge-pending',  texto: '📦 Paquete recolectado, ¡vamos en camino!' },
+  'En camino a entrega':                   { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🚚 Tu paquete va en camino' },
+  'Repartidor en domicilio':               { color: '#ef4444',         badge: 'badge-pending',  texto: '📍 Tu GuePartidor está en tu domicilio' },
+  'Entregado':                             { color: 'var(--success)',  badge: 'badge-done',     texto: '✅ ¡Listo! El GuePartidor cumplió la misión.' },
+  'Cancelado':                             { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ El paquete se escabulló por decisión tuya, no por accidente.' },
+  'Pago rechazado':                        { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pago rechazado' },
+  'Intento de entrega fallido':            { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Ups... este paquete se nos escapó.' },
 }
 const ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
 
@@ -4303,7 +4315,7 @@ async function cargarPedidos() {
 
   // ── Actualizar estadísticas ──
   const pendientes = data.filter(p => p.estado === 'Pendiente').length
-  const enRuta = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+  const enRuta = data.filter(p => ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(p.estado)).length
   const entregados = data.filter(p => p.estado === 'Entregado').length
 
   document.querySelectorAll('.stat-number')[0].textContent = pendientes
@@ -4333,8 +4345,7 @@ async function cargarPedidos() {
         </div>
         <div class="order-actions">
           ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary btn-sm" onclick="assignDelivery(this,' + pedido.id + ')">Asignar repartidor</button>' : ''}
-          ${pedido.estado === 'En camino a entrega' ? '<button class="btn btn-sm" style="background:rgba(240,90,26,0.1);color:var(--orange);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
-          ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+          ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
         </div>
       </div>
     `
@@ -4365,8 +4376,10 @@ async function updateStatus(btn, id, status, telefono, nombre) {
   if (error) { alert('Error al actualizar'); return; }
 
   const mensajes = {
-    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
-    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Repartidor en domicilio recoleccion': 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete. - GUEPACK Express',
+    'Recolectado': 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino. - GUEPACK Express',
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete va en camino al destino. - GUEPACK Express',
+    'Repartidor en domicilio': 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos. - GUEPACK Express',
     'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
   }
 
@@ -4425,9 +4438,13 @@ async function cargarPedidosRepartidor() {
           <div class="route-addr">${pedido.direccion_recoleccion} → ${pedido.direccion_entrega}</div>
           <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
           <div class="status-steps">
-            <div class="step-btn ${pedido.estado === 'En camino a recoleccion' ? 'active' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">✅ Recolectado</div>
-            <div class="step-btn ${pedido.estado === 'En camino a entrega' ? 'active' : pedido.estado === 'En camino a recoleccion' ? 'inactive' : 'done'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')">🚚 En camino</div>
-            <div class="step-btn ${pedido.estado === 'A punto de llegar' ? 'active' : pedido.estado === 'Entregado' ? 'done' : 'inactive'}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado', '${pedido.whatsapp}', '${pedido.nombre}')">⏰ Llegando</div>
+            ${(() => { const _e = pedido.estado; const _si = {'En camino a recoleccion':0,'Repartidor en domicilio recoleccion':1,'Recolectado':2,'En camino a entrega':3,'Repartidor en domicilio':4,'Entregado':5}; const _idx = _si[_e]??-1; const _sb = n => _idx > n ? 'done' : _idx === n ? 'active' : 'inactive'; const _sb1 = _idx <= 0 ? 'active' : 'done'; return `
+            <div class="step-btn ${_sb1}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
+            <div class="step-btn ${_sb(1)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')">Recolectado</div>
+            <div class="step-btn ${_sb(2)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">En camino</div>
+            <div class="step-btn ${_sb(3)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
+            <div class="step-btn ${_sb(4)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado', '${pedido.whatsapp}', '${pedido.nombre}')">Entregado</div>
+            `; })()}
           </div>
         </div>
       </div>
@@ -4439,8 +4456,10 @@ async function cambiarEstadoRepartidor(id, status, telefono, nombre) {
   if (error) { alert('Error al actualizar'); return; }
 
   const mensajes = {
-    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino. - GUEPACK Express',
-    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Repartidor en domicilio recoleccion': 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete. - GUEPACK Express',
+    'Recolectado': 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino. - GUEPACK Express',
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete va en camino al destino. - GUEPACK Express',
+    'Repartidor en domicilio': 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos. - GUEPACK Express',
     'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
   }
 

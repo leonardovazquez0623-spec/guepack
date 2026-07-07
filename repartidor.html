@@ -1067,15 +1067,16 @@ function _renderBotonesNormales(pedido) {
   const stepsEl = document.getElementById('status-steps-' + pedido.id)
   if (!stepsEl) return
   const _e = pedido.estado
-  const _sb1 = (_e === 'Pendiente' || _e === 'En camino a recoleccion') ? 'active' : 'done'
-  const _sb2 = _e === 'En camino a entrega' ? 'active' : (_e === 'A punto de llegar' || _e === 'Repartidor en domicilio') ? 'done' : 'inactive'
-  const _sb3 = _e === 'A punto de llegar' ? 'active' : _e === 'Repartidor en domicilio' ? 'done' : 'inactive'
-  const _sb4 = _e === 'Repartidor en domicilio' ? 'active' : 'inactive'
+  const _si = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1, 'Recolectado': 2, 'En camino a entrega': 3, 'Repartidor en domicilio': 4, 'Entregado': 5 }
+  const _idx = _si[_e] ?? -1
+  const _sb = n => _idx > n ? 'done' : _idx === n ? 'active' : 'inactive'
+  const _sb1 = _idx <= 0 ? 'active' : 'done'
   stepsEl.innerHTML = `
-    <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')"><span class="guep-icon-inline" data-icon="entregado"></span> Recolectado</div>
-    <div class="step-btn ${_sb2}" onclick="cambiarEstado(${pedido.id}, 'A punto de llegar', '${pedido.whatsapp}', '${pedido.nombre}')"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino</div>
-    <div class="step-btn ${_sb3}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})"><span class="guep-icon-inline" data-icon="ubicacion"></span> Ya llegué</div>
-    <div class="step-btn ${_sb4}" onclick="abrirModalEntrega(${pedido.id})">⏰ Llegando</div>
+    <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
+    <div class="step-btn ${_sb(1)}" onclick="cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')">Recolectado</div>
+    <div class="step-btn ${_sb(2)}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">En camino</div>
+    <div class="step-btn ${_sb(3)}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})">Llegue</div>
+    <div class="step-btn ${_sb(4)}" onclick="abrirModalEntrega(${pedido.id})">Entregado</div>
   `
   window._initGuepIcons && _initGuepIcons(stepsEl)
   // Inyectar entrega única en paradas-rep
@@ -1156,7 +1157,7 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
   const todasCompletadas = completadas === total
-  const enRuta = ['En camino a entrega', 'A punto de llegar', 'Repartidor en domicilio'].includes(pedido?.estado)
+  const enRuta = ['Recolectado', 'En camino a entrega', 'Repartidor en domicilio recoleccion', 'Repartidor en domicilio'].includes(pedido?.estado)
 
   // Reemplaza COMPLETAMENTE los 4 botones por 2 botones grandes
   const stepsEl = document.getElementById('status-steps-' + pedidoId)
@@ -1354,10 +1355,11 @@ async function cambiarEstado(id, status, telefono, nombre) {
   }
 
   const mensajes = {
-    'En camino a entrega': { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete ya fue recolectado y va en camino.' },
-    'A punto de llegar': { title: '⏰ GUEPACK Express', body: 'Hola ' + nombre + '! Tu repartidor está a punto de llegar. ¡Prepárate!' },
-    'Repartidor en domicilio': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu repartidor ya está en tu domicilio. Tienes 7 minutos para recibirlo, de lo contrario se cobrará el servicio.' },
-    'Entregado': { title: '✅ GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete fue entregado. ¡Gracias por confiar en nosotros!' }
+    'Repartidor en domicilio recoleccion': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete.' },
+    'Recolectado':          { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino.' },
+    'En camino a entrega':  { title: '🚚 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete va en camino al destino.' },
+    'Repartidor en domicilio': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos.' },
+    'Entregado':            { title: '✅ GUEPACK Express', body: 'Hola ' + nombre + '! ¡Tu paquete fue entregado! Gracias por confiar en GUEPACK.' }
   }
 
   const msg = mensajes[status]

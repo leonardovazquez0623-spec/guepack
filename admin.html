@@ -2825,7 +2825,7 @@ async function cargarPedidos() {
     data.forEach(p => { p._paradas = _paradasConteo[p.id] || null })
 
     document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
-    document.getElementById('stat-ruta').textContent = data.filter(p => p.estado === 'En camino a entrega' || p.estado === 'A punto de llegar').length
+    document.getElementById('stat-ruta').textContent = data.filter(p => ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(p.estado)).length
     document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
 
     let html = ''
@@ -2965,8 +2965,7 @@ function renderPedido(pedido) {
           <button class="btn" style="background:rgba(239,68,68,0.12);color:#ef4444" onclick="updateStatus(${pedido.id},\'Pago rechazado\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">❌ Rechazar pago</button>
         ` : ''}
         ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
-        ${pedido.estado === 'En camino a entrega' ? '<button class="btn" style="background:rgba(240,90,26,0.1);color:var(--orange)" onclick="updateStatus(' + pedido.id + ',\'A punto de llegar\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">⏰ A punto de llegar</button>' : ''}
-        ${pedido.estado === 'En camino a entrega' || pedido.estado === 'A punto de llegar' ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+        ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
         ${pedido.foto_evidencia ? '<button class="btn btn-secondary" onclick="verEvidencia(\'' + pedido.foto_evidencia + '\',\'' + (pedido.firma_evidencia || '') + '\')">📸 Ver evidencia</button>' : ''}
       </div>` : ''}
     </div>
@@ -3081,7 +3080,10 @@ async function updateStatus(id, status, telefono, nombre) {
   if (error) { alert('Error al actualizar'); return }
 
   const mensajes = {
-    'A punto de llegar': 'Hola ' + nombre + '! Tu repartidor esta a punto de llegar. Preparate! - GUEPACK Express',
+    'Repartidor en domicilio recoleccion': 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete. - GUEPACK Express',
+    'Recolectado': 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino. - GUEPACK Express',
+    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete va en camino al destino. - GUEPACK Express',
+    'Repartidor en domicilio': 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos. - GUEPACK Express',
     'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!',
     'Pendiente': 'Hola ' + nombre + '! Tu pago fue verificado y aprobado. Tu pedido esta en proceso. - GUEPACK Express',
     'Pago rechazado': 'Hola ' + nombre + '! Tu comprobante de pago no pudo ser verificado. Por favor contáctanos para aclarar tu pago. - GUEPACK Express'

@@ -320,21 +320,29 @@
       </div>
       <div class="estado-texto" id="r-estado-texto">—</div>
       <div class="timeline">
+        <div class="tl-item" id="rtl-encamino-rec">
+          <div class="tl-dot"></div>
+          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> Guepartidor en camino a recolección</div>
+        </div>
+        <div class="tl-item" id="rtl-llegamos-rec">
+          <div class="tl-dot"></div>
+          <div class="tl-title">Llegamos a recolectar</div>
+        </div>
         <div class="tl-item" id="rtl-recolectado">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="entregado"></span> Paquete recolectado</div>
+          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span> Paquete recolectado</div>
         </div>
         <div class="tl-item" id="rtl-camino">
           <div class="tl-dot"></div>
           <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino a entrega</div>
         </div>
-        <div class="tl-item" id="rtl-llegando">
+        <div class="tl-item" id="rtl-llegamos-dest">
           <div class="tl-dot"></div>
-          <div class="tl-title">⏰ A punto de llegar</div>
+          <div class="tl-title">Llegamos al destino</div>
         </div>
         <div class="tl-item" id="rtl-entregado">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span> Entregado</div>
+          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="entregado"></span> ¡Entregado!</div>
         </div>
       </div>
     </div>
@@ -384,22 +392,24 @@ let _pedidoId = null
 let _estadoActual = null
 
 const ESTADO_MAP = {
-  'En camino a recoleccion': 0,
-  'En camino a entrega':     1,
-  'A punto de llegar':       2,
-  'Repartidor en domicilio': 2,
-  'Entregado':               4
+  'En camino a recoleccion':             0,
+  'Repartidor en domicilio recoleccion': 1,
+  'Recolectado':                         2,
+  'En camino a entrega':                 3,
+  'Repartidor en domicilio':             4,
+  'Entregado':                           5
 }
 
 const ESTADO_TEXTO = {
-  'Pendiente':                      'Estamos llamando al Guepartidor más cercano.',
-  'Pendiente verificación de pago': 'Revisando el comprobante con lupa y bigotes.',
-  'En camino a recoleccion':        '🏍️ Mensajero en camino a recolectar',
-  'En camino a entrega':            '🚚 Tu paquete va en camino a entregarse',
-  'A punto de llegar':              'Tu Guepartidor ya casi araña la puerta.',
-  'Repartidor en domicilio':        '📍 Tu repartidor está en tu domicilio',
-  'Entregado':                      '¡Listo! El GuePartidor cumplió la misión.',
-  'Cancelado':                      'El paquete se escabulló por decisión tuya, no por accidente.'
+  'Pendiente':                             'Estamos llamando al Guepartidor más cercano.',
+  'Pendiente verificación de pago':        'Revisando el comprobante con lupa y bigotes.',
+  'En camino a recoleccion':               '🏍️ Guepartidor en camino a recolectar',
+  'Repartidor en domicilio recoleccion':   '📍 Tu Guepartidor llegó a recolectar',
+  'Recolectado':                           '📦 Paquete recolectado, ¡vamos en camino!',
+  'En camino a entrega':                   '🚚 Tu paquete va en camino a entregarse',
+  'Repartidor en domicilio':               '📍 Tu GuePartidor está en tu domicilio',
+  'Entregado':                             '¡Listo! El GuePartidor cumplió la misión.',
+  'Cancelado':                             'El paquete se escabulló por decisión tuya, no por accidente.'
 }
 
 function actualizarUI(data) {
@@ -428,7 +438,7 @@ function actualizarUI(data) {
 
   // Timeline
   const idx = ESTADO_MAP[estado] ?? -1
-  ;['rtl-recolectado','rtl-camino','rtl-llegando','rtl-entregado'].forEach((elId, i) => {
+  ;['rtl-encamino-rec','rtl-llegamos-rec','rtl-recolectado','rtl-camino','rtl-llegamos-dest','rtl-entregado'].forEach((elId, i) => {
     const el = document.getElementById(elId)
     if (!el) return
     el.className = 'tl-item ' + (idx < 0 ? 'pending' : i < idx ? 'done' : i === idx ? 'current' : i === idx + 1 ? 'next' : 'pending')
@@ -457,7 +467,7 @@ async function init() {
   document.getElementById('pedido-state').style.display = 'block'
 
   // Mapa de tracking — solo cuando hay repartidor asignado y el estado es activo
-  const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
+  const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']
   if (data.repartidor && estadosConMapa.includes(data.estado)) {
     iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
   }
@@ -489,7 +499,7 @@ async function init() {
       await _enviarPushRastreo(data.id, nuevo.estado)
 
       // Iniciar mapa si el nuevo estado requiere tracking y aún no está activo
-      const estadosConMapa = ['En camino a recoleccion','En camino a entrega','A punto de llegar','Repartidor en domicilio']
+      const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']
       if (nuevo.repartidor && estadosConMapa.includes(nuevo.estado) && !_mapa) {
         iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
       }
