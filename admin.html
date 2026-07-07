@@ -234,6 +234,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-widget" onclick="showTab('widget')">📦 Widget</button>
     <button class="sidebar-item" id="snav-calificaciones" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
     <button class="sidebar-item" id="snav-finanzas" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="sidebar-item" id="snav-guias" onclick="showTab('guias')">📦 Guías</button>
     <button class="sidebar-item" id="snav-vip" onclick="showTab('vip')">👑 VIP</button>
     <button class="sidebar-item" id="snav-zonas" onclick="showTab('zonas')">🗺️ Zonas</button>
     <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')">🏢 Empresas</button>
@@ -277,6 +278,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('widget')">📦 Widget</button>
     <button class="tab" onclick="showTab('calificaciones')">⭐ Calificaciones</button>
     <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="tab" onclick="showTab('guias')">📦 Guías</button>
     <button class="tab" onclick="showTab('vip')">👑 VIP</button>
     <button class="tab" onclick="showTab('zonas')">🗺️ Zonas</button>
     <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
@@ -717,6 +719,100 @@ function initMapsAdmin() {
     </div>
 
   </div>
+
+  <!-- TAB GUÍAS -->
+  <div id="tab-guias" class="tab-content">
+
+    <!-- Sub-tabs internos -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button id="gstab-config" onclick="showGuiasSubtab('config')"
+        class="btn btn-secondary" style="font-size:11px;padding:8px 16px">⚙️ Configuración</button>
+      <button id="gstab-ventas" onclick="showGuiasSubtab('ventas')"
+        class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">📈 Ventas y ganancias</button>
+    </div>
+
+    <!-- Sub-tab: Configuración -->
+    <div id="gs-config">
+      <div class="card">
+        <div class="card-title">⚙️ Márgenes de guías nacionales</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Margen porcentual (%)</label>
+            <input id="cfg-margen-pct" type="number" class="form-input" min="0" max="100" step="0.1" placeholder="Ej. 15">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Margen fijo (MXN)</label>
+            <input id="cfg-margen-fijo" type="number" class="form-input" min="0" step="1" placeholder="Ej. 0">
+          </div>
+        </div>
+        <button onclick="guardarConfigGuias()" class="btn btn-primary" style="width:100%">Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- Sub-tab: Ventas y ganancias -->
+    <div id="gs-ventas" style="display:none">
+
+      <!-- Pills de período (mismo patrón que Tráfico) -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button onclick="setFiltroGuias('hoy')"    id="fguias-hoy"    class="btn btn-secondary" style="font-size:11px;padding:8px 16px">Hoy</button>
+        <button onclick="setFiltroGuias('semana')" id="fguias-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Esta semana</button>
+        <button onclick="setFiltroGuias('mes')"    id="fguias-mes"    class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este mes</button>
+        <button onclick="setFiltroGuias('anio')"   id="fguias-anio"   class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este año</button>
+      </div>
+
+      <!-- 5 KPI cards (solo estados pago_verificado / guia_generada) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px">
+        <div class="stat-box">
+          <div class="stat-number" id="guias-n-generadas">–</div>
+          <div class="stat-label">📦 Guías generadas</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number orange" id="guias-ingreso">–</div>
+          <div class="stat-label">💰 Ingreso total</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="guias-costo-sky">–</div>
+          <div class="stat-label">💸 Costo Skydropx</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="guias-ganancia" style="color:var(--gray-mid)">–</div>
+          <div class="stat-label">📈 Ganancia neta</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="guias-margen-prom">–</div>
+          <div class="stat-label">📊 Margen promedio %</div>
+        </div>
+      </div>
+
+      <!-- 6ª tarjeta: pendientes en el aire -->
+      <div style="background:rgba(240,90,26,0.06);border:1.5px solid rgba(240,90,26,0.2);border-radius:12px;padding:12px 16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:900;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⏳ Pendientes de pago</div>
+        <div id="guias-pendientes-txt" style="font-size:13px;font-weight:700;color:var(--text)">–</div>
+      </div>
+
+      <!-- Tabla detalle: todos los estados, últimos 100 ordenados por fecha desc -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 16px 8px"><div class="card-title">📋 Detalle de envíos</div></div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:Montserrat,sans-serif">
+            <thead>
+              <tr style="background:#f4f6fb">
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">FECHA</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">PAQUETERÍA</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:900;color:#8fa3c0;font-size:10px">COBRADO</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:900;color:#8fa3c0;font-size:10px">COSTO REAL</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:900;color:#22c55e;font-size:10px">MARGEN</th>
+                <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">ESTADO</th>
+              </tr>
+            </thead>
+            <tbody id="guias-tabla-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /gs-ventas -->
+
+  </div><!-- /tab-guias -->
 
   <!-- TAB VIP -->
   <div id="tab-vip" class="tab-content">
@@ -2237,6 +2333,7 @@ function showTab(tab, btn) {
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') { cargarFinanzas(); cargarCargosConcelacion() }
+  if (tab === 'guias') cargarGuias()
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
@@ -5260,6 +5357,133 @@ async function _togglePedidosActivos(empresaId, valor) {
   console.log('[pedidos_activos] resultado:', data, 'error:', error)
   if (error) { showToast('❌ Error: ' + error.message); document.getElementById('toggle-pedidos-activos').checked = !valor; return }
   showToast(valor ? '✅ Pedidos activados' : '🚫 Pedidos desactivados')
+}
+
+// ── GUÍAS NACIONALES ─────────────────────────────────────────────────────────
+let _guiasFiltro = 'hoy'
+
+async function cargarGuias() {
+  const { data: config } = await db.from('config_guias')
+    .select('margen_porcentaje, margen_fijo').single()
+  if (config) {
+    document.getElementById('cfg-margen-pct').value  = config.margen_porcentaje ?? 0
+    document.getElementById('cfg-margen-fijo').value = config.margen_fijo ?? 0
+  }
+  showGuiasSubtab('config')
+}
+
+function showGuiasSubtab(tab) {
+  const ON  = ['btn btn-secondary', 'font-size:11px;padding:8px 16px']
+  const OFF = ['btn', 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0']
+  const cfg = document.getElementById('gstab-config')
+  const ven = document.getElementById('gstab-ventas')
+  ;[cfg.className, cfg.style.cssText] = tab === 'config' ? ON : OFF
+  ;[ven.className, ven.style.cssText] = tab === 'ventas' ? ON : OFF
+  document.getElementById('gs-config').style.display = tab === 'config' ? '' : 'none'
+  document.getElementById('gs-ventas').style.display = tab === 'ventas' ? '' : 'none'
+  if (tab === 'ventas') cargarVentasGuias()
+}
+
+function setFiltroGuias(filtro) {
+  _guiasFiltro = filtro
+  ;['hoy','semana','mes','anio'].forEach(f => {
+    const b = document.getElementById('fguias-' + f); if (!b) return
+    b.className = f === filtro ? 'btn btn-secondary' : 'btn'
+    b.style.cssText = f === filtro
+      ? 'font-size:11px;padding:8px 16px'
+      : 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0'
+  })
+  cargarVentasGuias()
+}
+
+function _rangoGuias() {
+  const ahora = new Date(), fin = ahora.toISOString()
+  let ini
+  if (_guiasFiltro === 'hoy') {
+    const d = new Date(ahora); d.setHours(0,0,0,0); ini = d.toISOString()
+  } else if (_guiasFiltro === 'semana') {
+    const d = new Date(ahora); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); ini = d.toISOString()
+  } else if (_guiasFiltro === 'mes') {
+    ini = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString()
+  } else {
+    ini = new Date(ahora.getFullYear(), 0, 1).toISOString()
+  }
+  return { ini, fin }
+}
+
+async function cargarVentasGuias() {
+  const { ini, fin } = _rangoGuias()
+
+  // Una sola query sin límite: KPIs usan todos los rows, tabla solo los primeros 100.
+  const { data: todos, error } = await db
+    .from('envios_nacionales')
+    .select('created_at, paqueteria, costo_envio, costo_skydropx_real, margen_aplicado, costo_total, estado, numero_guia')
+    .gte('created_at', ini)
+    .lte('created_at', fin)
+    .order('created_at', { ascending: false })
+  if (error || !todos) return
+
+  const confirmados = todos.filter(r => ['pago_verificado','guia_generada'].includes(r.estado))
+  const pendientes  = todos.filter(r => r.estado === 'pendiente_pago')
+
+  const guiasGen   = confirmados.filter(r => r.numero_guia).length
+  const ingreso    = confirmados.reduce((s, r) => s + (r.costo_total         ?? 0), 0)
+  const costoSky   = confirmados.reduce((s, r) => s + (r.costo_skydropx_real ?? 0), 0)
+  const ganancia   = confirmados.reduce((s, r) => s + (r.margen_aplicado     ?? 0), 0)
+  const margenProm = costoSky > 0 ? (ganancia / costoSky) * 100 : 0
+  const nPend      = pendientes.length
+  const sumPend    = pendientes.reduce((s, r) => s + (r.costo_total ?? 0), 0)
+
+  document.getElementById('guias-n-generadas').textContent = guiasGen
+  document.getElementById('guias-ingreso').textContent     = '$' + ingreso.toFixed(0)
+  document.getElementById('guias-costo-sky').textContent   = '$' + costoSky.toFixed(0)
+  document.getElementById('guias-margen-prom').textContent = margenProm.toFixed(1) + '%'
+
+  const ganEl = document.getElementById('guias-ganancia')
+  ganEl.textContent = '$' + ganancia.toFixed(0)
+  ganEl.style.color = ganancia > 0 ? '#22c55e' : ganancia < 0 ? '#ef4444' : 'var(--gray-mid)'
+
+  document.getElementById('guias-pendientes-txt').textContent = nPend === 0
+    ? 'Sin envíos pendientes de pago en este periodo'
+    : `${nPend} pendiente${nPend !== 1 ? 's' : ''} de pago · $${sumPend.toFixed(0)} en el aire`
+
+  const BADGE = {
+    pendiente_pago:  { bg: 'rgba(240,90,26,0.12)',  color: '#f05a1a', label: 'Pendiente'  },
+    pago_verificado: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Verificado' },
+    guia_generada:   { bg: 'rgba(34,197,94,0.12)',  color: '#22c55e', label: 'Guía lista' },
+    cancelado:       { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', label: 'Cancelado'  },
+  }
+  document.getElementById('guias-tabla-body').innerHTML = todos.slice(0, 100).map(r => {
+    const b     = BADGE[r.estado] ?? { bg: '#f4f6fb', color: '#8fa3c0', label: r.estado }
+    const fecha = new Date(r.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+    const mg    = r.margen_aplicado ?? 0
+    return `<tr style="border-top:1px solid #f0f4fa">
+      <td style="padding:10px 12px;font-size:11px;color:#8fa3c0;white-space:nowrap">${fecha}</td>
+      <td style="padding:10px 12px;font-weight:700;font-size:12px">${r.paqueteria ?? '–'}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700">$${(r.costo_envio ?? 0).toFixed(0)}</td>
+      <td style="padding:10px 12px;text-align:right;color:#8fa3c0">$${(r.costo_skydropx_real ?? 0).toFixed(0)}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;color:${mg >= 0 ? '#22c55e' : '#ef4444'}">$${mg.toFixed(0)}</td>
+      <td style="padding:10px 12px;text-align:center">
+        <span style="background:${b.bg};color:${b.color};padding:3px 9px;border-radius:20px;font-size:10px;font-weight:900">${b.label}</span>
+      </td>
+    </tr>`
+  }).join('') || '<tr><td colspan="6" style="padding:24px;text-align:center;color:#8fa3c0;font-size:12px">Sin registros en este periodo</td></tr>'
+}
+
+async function guardarConfigGuias() {
+  const margenPct  = parseFloat(document.getElementById('cfg-margen-pct').value)
+  const margenFijo = parseFloat(document.getElementById('cfg-margen-fijo').value)
+  if (isNaN(margenPct)  || margenPct < 0  || margenPct > 100) { showToast('⚠️ El margen porcentual debe estar entre 0 y 100'); return }
+  if (isNaN(margenFijo) || margenFijo < 0)                    { showToast('⚠️ El margen fijo debe ser 0 o mayor'); return }
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) { showToast('Sesión expirada'); return }
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/actualizar-config-guias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ margen_porcentaje: margenPct, margen_fijo: margenFijo }),
+  })
+  const result = await res.json()
+  showToast(res.ok ? '✅ Configuración guardada' : '❌ ' + (result.error || 'Error al guardar'))
 }
 </script>
 </div><!-- /#main-wrapper -->

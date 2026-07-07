@@ -718,6 +718,35 @@
   .btn-nota-dir { padding:9px 11px; border:2px solid var(--gray); border-radius:10px; background:white; color:var(--gray-mid); font-size:14px; cursor:pointer; line-height:1; transition:border-color .2s,color .2s; flex-shrink:0; }
   .btn-nota-dir.has-nota { border-color:var(--orange); color:var(--orange); }
   #mapa-ruta-wizard { width:100%; height:230px; border-radius:10px; overflow:hidden; }
+
+  /* ── COMPARADOR NACIONAL ── */
+  .comparador-titulo { font-family:Montserrat,sans-serif; font-size:13px; font-weight:900; color:var(--blue); margin:0 0 12px; }
+  .comparador-lista  { display:flex; flex-direction:column; gap:10px; }
+  .opcion-envio {
+    display:flex; align-items:center; gap:12px; padding:14px 16px;
+    border:2px solid var(--gray); border-radius:14px; background:#fff;
+    cursor:pointer; text-align:left; transition:border-color .2s, box-shadow .2s; width:100%;
+  }
+  .opcion-envio.seleccionada { border-color:var(--orange); box-shadow:0 2px 12px rgba(240,90,26,0.18); }
+  .opcion-medalla  { font-size:22px; flex:0 0 auto; }
+  .opcion-info     { flex:1; min-width:0; }
+  .opcion-paqueteria { font-family:Montserrat,sans-serif; font-size:13px; font-weight:700; color:var(--blue); }
+  .opcion-servicio   { font-family:Montserrat,sans-serif; font-size:11px; color:var(--gray-mid); margin-top:1px; }
+  .opcion-tiempo     { font-family:Montserrat,sans-serif; font-size:11px; color:var(--gray-mid); }
+  .opcion-precio     { font-family:Montserrat,sans-serif; font-size:18px; font-weight:900; color:var(--orange); flex:0 0 auto; }
+  .upsell-titulo { font-family:Montserrat,sans-serif; font-size:13px; font-weight:900; color:var(--blue); margin:16px 0 10px; }
+  .upsell-lista  { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; }
+  .upsell-item   { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1.5px solid var(--gray); border-radius:12px; cursor:pointer; }
+  .upsell-item input { accent-color:var(--orange); width:16px; height:16px; flex:0 0 auto; }
+  .upsell-label  { font-family:Montserrat,sans-serif; font-size:12px; font-weight:600; flex:1; }
+  .upsell-precio { font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; color:var(--orange); }
+  .upsell-total  { font-family:Montserrat,sans-serif; font-size:14px; font-weight:700; color:var(--blue); text-align:right; margin-bottom:12px; }
+  .btn-primario  { width:100%; background:var(--orange); color:#fff; border:none; border-radius:12px; padding:14px; font-family:Montserrat,sans-serif; font-weight:900; font-size:14px; cursor:pointer; transition:opacity .2s; }
+  .btn-primario:disabled { opacity:.5; cursor:not-allowed; }
+  .opcion-envio  { cursor:default; }
+  .nac-tamano-chip { padding:8px 14px; border-radius:20px; border:1.5px solid var(--gray); background:#fff; font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; color:var(--gray-mid); cursor:pointer; transition:all .15s; }
+  .nac-tamano-chip.active { border-color:var(--blue); background:var(--blue); color:#fff; }
+  .nac-cp-lock { font-size:11px; color:var(--gray-mid); font-family:Montserrat,sans-serif; margin-top:4px; }
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
@@ -758,6 +787,9 @@
   <div class="bottom-bar">
     <button class="bottom-btn active" onclick="showClientSection('new')">
       <span class="b-icon">➕</span>Nuevo
+    </button>
+    <button class="bottom-btn" onclick="showClientSection('nacional')">
+      <span class="b-icon">📦</span>Nacional
     </button>
     <button class="bottom-btn" onclick="showClientSection('tracking')">
       <span class="b-icon">📍</span>Rastreo
@@ -998,6 +1030,292 @@
       </div>
 
     </div><!-- /client-new -->
+
+    <!-- ── NACIONAL ── -->
+    <div id="client-nacional" class="client-section">
+
+      <!-- Barra de progreso -->
+      <div class="wizard-progress">
+        <div class="wp-step active" id="nac-wp-1">
+          <div class="wp-circle">1</div>
+          <div class="wp-label">Cotizador</div>
+        </div>
+        <div class="wp-line" id="nac-wl-1"></div>
+        <div class="wp-step" id="nac-wp-2">
+          <div class="wp-circle">2</div>
+          <div class="wp-label">Direcciones</div>
+        </div>
+        <div class="wp-line" id="nac-wl-2"></div>
+        <div class="wp-step" id="nac-wp-3">
+          <div class="wp-circle">3</div>
+          <div class="wp-label">Pago</div>
+        </div>
+      </div>
+
+      <!-- ── PASO 1: Cotizador rápido ── -->
+      <div id="nac-step-1">
+
+        <div class="card">
+          <div class="card-title">🔍 ¿A dónde va tu paquete?</div>
+
+          <!-- CPs en 2 columnas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">CP origen *</label>
+              <input id="nac-cp-origen" type="text" class="form-input" placeholder="Ej. 64000" maxlength="5" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">CP destino *</label>
+              <input id="nac-cp-destino" type="text" class="form-input" placeholder="Ej. 06600" maxlength="5" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            </div>
+          </div>
+
+          <!-- Peso -->
+          <div class="form-group">
+            <label class="form-label">Peso (kg) *</label>
+            <input id="nac-paso1-peso" type="number" class="form-input" placeholder="Ej. 2.5" step="0.1" min="0.1">
+          </div>
+
+          <!-- Tamaño: chips -->
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Tamaño del paquete *</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <button type="button" class="nac-tamano-chip" data-tamano="sobre"        onclick="_nacOnTamanoChange('sobre',this)">📄 Sobre</button>
+              <button type="button" class="nac-tamano-chip" data-tamano="caja_chica"   onclick="_nacOnTamanoChange('caja_chica',this)">📦 Caja chica</button>
+              <button type="button" class="nac-tamano-chip" data-tamano="caja_mediana" onclick="_nacOnTamanoChange('caja_mediana',this)">📦 Caja mediana</button>
+              <button type="button" class="nac-tamano-chip" data-tamano="caja_grande"  onclick="_nacOnTamanoChange('caja_grande',this)">📦 Caja grande</button>
+              <button type="button" class="nac-tamano-chip" data-tamano="personalizado" onclick="_nacOnTamanoChange('personalizado',this)">✏️ Personalizado</button>
+            </div>
+            <!-- Medidas personalizadas (ocultas hasta seleccionar "Personalizado") -->
+            <div id="nac-dims-custom" style="display:none;margin-top:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Largo (cm)</label>
+                  <input id="nac-paso1-largo" type="number" class="form-input" placeholder="Ej. 40" min="1">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Ancho (cm)</label>
+                  <input id="nac-paso1-ancho" type="number" class="form-input" placeholder="Ej. 30" min="1">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Alto (cm)</label>
+                  <input id="nac-paso1-alto" type="number" class="form-input" placeholder="Ej. 20" min="1">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="nac-btn-cotizar" onclick="nacCotizarRapido()"
+            style="width:100%;background:var(--blue);color:#fff;font-weight:900;padding:14px;border-radius:12px;font-size:14px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-top:18px">
+            🔍 Cotizar
+          </button>
+        </div>
+
+        <!-- Resultados del comparador (oculto hasta cotizar) -->
+        <div id="comparador-envios" style="display:none;padding:0 2px"></div>
+
+      </div><!-- /nac-step-1 -->
+
+      <!-- ── PASO 2: Direcciones completas ── -->
+      <div id="nac-step-2" style="display:none">
+
+        <!-- Tarjeta Origen -->
+        <div class="card">
+          <div class="card-title">📍 Origen</div>
+
+          <!-- CP bloqueado -->
+          <div class="form-group">
+            <label class="form-label">Código Postal</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="nac-ori-cp" type="text" class="form-input" readonly
+                style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+              <span style="font-size:16px">🔒</span>
+            </div>
+            <div class="nac-cp-lock">CP fijo de tu cotización</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre de contacto *</label>
+            <input id="nac-ori-nombre" type="text" class="form-input" placeholder="Nombre de quien entrega">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono *</label>
+            <input id="nac-ori-tel" type="tel" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input id="nac-ori-email" type="email" class="form-input" placeholder="correo@ejemplo.com">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Calle *</label>
+              <input id="nac-ori-calle" type="text" class="form-input" placeholder="Nombre de la calle">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Número</label>
+              <input id="nac-ori-num" type="text" class="form-input" placeholder="Ext">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Colonia *</label>
+            <input id="nac-ori-colonia" type="text" class="form-input" placeholder="Colonia o fraccionamiento">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Ciudad *</label>
+              <input id="nac-ori-ciudad" type="text" class="form-input" placeholder="Ciudad">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Estado *</label>
+              <input id="nac-ori-estado" type="text" class="form-input" placeholder="Estado">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Referencia</label>
+            <input id="nac-ori-ref" type="text" class="form-input" placeholder="Ej. Fachada roja, junto a la farmacia">
+          </div>
+        </div>
+
+        <!-- Tarjeta Destino -->
+        <div class="card">
+          <div class="card-title">🏠 Destino</div>
+
+          <!-- CP bloqueado -->
+          <div class="form-group">
+            <label class="form-label">Código Postal</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="nac-dst-cp" type="text" class="form-input" readonly
+                style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+              <span style="font-size:16px">🔒</span>
+            </div>
+            <div class="nac-cp-lock">CP fijo de tu cotización</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre de quien recibe *</label>
+            <input id="nac-dst-nombre" type="text" class="form-input" placeholder="Nombre del destinatario">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono *</label>
+            <input id="nac-dst-tel" type="tel" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input id="nac-dst-email" type="email" class="form-input" placeholder="correo@ejemplo.com">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Calle *</label>
+              <input id="nac-dst-calle" type="text" class="form-input" placeholder="Nombre de la calle">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Número</label>
+              <input id="nac-dst-num" type="text" class="form-input" placeholder="Ext">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Colonia *</label>
+            <input id="nac-dst-colonia" type="text" class="form-input" placeholder="Colonia o fraccionamiento">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Ciudad *</label>
+              <input id="nac-dst-ciudad" type="text" class="form-input" placeholder="Ciudad">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Estado *</label>
+              <input id="nac-dst-estado" type="text" class="form-input" placeholder="Estado">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Referencia</label>
+            <input id="nac-dst-ref" type="text" class="form-input" placeholder="Ej. Edificio azul, depto 3B">
+          </div>
+        </div>
+
+        <!-- Tipo de contenido -->
+        <div class="card">
+          <div class="card-title">📋 Tipo de contenido</div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">¿Qué vas a enviar? *</label>
+            <select id="nac-tipo-contenido" class="form-input">
+              <option value="">— Selecciona —</option>
+              <option value="Ropa">Ropa y textiles</option>
+              <option value="Documentos">Documentos</option>
+              <option value="Electronica">Electrónica</option>
+              <option value="Calzado">Calzado</option>
+              <option value="Cosmeticos">Cosméticos y cuidado personal</option>
+              <option value="Juguetes">Juguetes</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <button onclick="nacSiguiente(2)"
+          style="width:100%;background:var(--blue);color:#fff;font-weight:900;padding:15px;border-radius:12px;font-size:15px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-bottom:10px">
+          Siguiente →
+        </button>
+        <button onclick="nacShowStep(1)" class="wizard-back-btn" style="margin-bottom:16px">
+          ← Atrás
+        </button>
+
+      </div><!-- /nac-step-2 -->
+
+      <!-- ── PASO 3: Pago + resumen ── -->
+      <div id="nac-step-3" style="display:none">
+
+        <!-- Upsell extras -->
+        <div id="upsell-envios" style="padding:0 2px"></div>
+
+        <!-- Resumen -->
+        <div class="card">
+          <div class="card-title">📋 Resumen del envío</div>
+          <div id="nac-resumen"></div>
+        </div>
+
+        <!-- Comprobante de pago -->
+        <div class="card">
+          <div class="card-title">💳 Comprobante de pago</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:12px;color:var(--gray-mid);margin-bottom:14px;line-height:1.5">
+            Realiza tu transferencia y adjunta el comprobante. Generaremos la guía una vez que verifiquemos el pago.
+          </div>
+          <input type="file" id="nac-comprobante-input" accept="image/*,.pdf" style="display:none" onchange="nacPreviewComprobante(this)">
+          <button onclick="document.getElementById('nac-comprobante-input').click()"
+            style="width:100%;padding:14px;border:2px dashed var(--blue);border-radius:12px;background:rgba(26,79,160,0.04);color:var(--blue);font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;font-size:13px">
+            📎 Seleccionar comprobante
+          </button>
+          <div id="nac-comprobante-preview" style="display:none;margin-top:8px">
+            <div style="font-size:12px;color:var(--success);font-weight:700;font-family:Montserrat,sans-serif">
+              ✅ <span id="nac-comprobante-nombre"></span>
+            </div>
+          </div>
+        </div>
+
+        <button id="nac-btn-confirmar" onclick="nacConfirmarEnvioFinal()"
+          style="width:100%;background:linear-gradient(135deg,var(--orange),#c94812);color:#fff;font-weight:900;padding:16px;border-radius:12px;font-size:16px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-bottom:10px">
+          Confirmar envío
+        </button>
+        <button onclick="nacShowStep(2)" class="wizard-back-btn" style="margin-bottom:16px">
+          ← Atrás
+        </button>
+
+      </div><!-- /nac-step-3 -->
+
+      <!-- ── ÉXITO ── -->
+      <div id="nac-success" style="display:none">
+        <div class="card success-screen">
+          <span class="success-icon">✅</span>
+          <div class="success-title">¡Envío registrado!</div>
+          <div class="success-sub">Verificaremos tu pago y generaremos la guía en breve.<br>Te notificaremos cuando esté lista.</div>
+          <div class="folio-box">
+            <div class="folio-label">Folio de envío nacional</div>
+            <div class="folio-number" id="nac-folio">GKN-...</div>
+          </div>
+          <button class="btn btn-outline" onclick="nacReset()" style="margin-top:8px">Nuevo envío nacional</button>
+        </div>
+      </div>
+
+    </div><!-- /client-nacional -->
 
    <!-- ── RASTREO ── -->
     <div id="client-tracking" class="client-section">
@@ -3909,7 +4227,7 @@ function showClientSection(section) {
   document.querySelectorAll('.client-section').forEach(s => s.classList.remove('active'));
   document.getElementById('client-' + section).classList.add('active');
   clientBtns.forEach(b => b.classList.remove('active'));
-  const idx = ['new','tracking','history'].indexOf(section);
+  const idx = ['new','nacional','tracking','history'].indexOf(section);
   clientBtns[idx].classList.add('active');
   if (section === 'history') cargarHistorial();
   if (section === 'tracking') { }
@@ -6124,5 +6442,7 @@ function _cerrarTour() {
   </div>
 </div>
 
+<script src="comparador-nacional.js"></script>
+<script src="nacional.js"></script>
 </body>
 </html>
