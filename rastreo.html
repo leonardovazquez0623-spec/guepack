@@ -134,6 +134,8 @@
   .tl-title { font-size: 13px; font-weight: 700; color: var(--text); }
   .tl-item.done .tl-title    { color: var(--success); }
   .tl-item.current .tl-title { color: var(--orange); }
+  .tl-item.next .tl-dot      { border-color: var(--text); }
+  .tl-item.next .tl-title    { color: var(--text); }
   .tl-item.pending .tl-title { color: var(--gray-mid); }
 
   /* ── ESTADO TEXTO ── */
@@ -429,7 +431,7 @@ function actualizarUI(data) {
   ;['rtl-recolectado','rtl-camino','rtl-llegando','rtl-entregado'].forEach((elId, i) => {
     const el = document.getElementById(elId)
     if (!el) return
-    el.className = 'tl-item ' + (idx < 0 ? 'pending' : i < idx ? 'done' : i === idx ? 'current' : 'pending')
+    el.className = 'tl-item ' + (idx < 0 ? 'pending' : i < idx ? 'done' : i === idx ? 'current' : i === idx + 1 ? 'next' : 'pending')
   })
 }
 
