@@ -79,11 +79,21 @@ serve(async (req) => {
     const costoEnvio     = Math.ceil(costoReal * (1 + margenPct / 100) + margenFijo);
     const margenAplicado = costoEnvio - costoReal;
 
-    // 5. Calcula extras con precios fijos del servidor (ignora precios del cliente)
+    // 5. Mapea extras a columnas individuales (precios fijos del servidor)
     const extrasValidos: string[] = Array.isArray(extras_seleccionados)
       ? extras_seleccionados.filter((k: string) => k in EXTRAS_PRECIOS)
       : [];
     const costoExtras = extrasValidos.reduce((sum, k) => sum + EXTRAS_PRECIOS[k], 0);
+
+    const extrasColumnas = {
+      recoleccion_domicilio: extrasValidos.includes("recoleccion"),
+      recoleccion_costo:     extrasValidos.includes("recoleccion") ? EXTRAS_PRECIOS.recoleccion : 0,
+      seguro_adicional:      extrasValidos.includes("seguro"),
+      seguro_costo:          extrasValidos.includes("seguro")      ? EXTRAS_PRECIOS.seguro      : 0,
+      envio_prioritario:     extrasValidos.includes("prioritario"),
+      prioritario_costo:     extrasValidos.includes("prioritario") ? EXTRAS_PRECIOS.prioritario : 0,
+      costo_cajas_sobres:    extrasValidos.includes("cajas")       ? EXTRAS_PRECIOS.cajas       : 0,
+    };
 
     // 6. Total final
     const costoTotal = costoEnvio + costoExtras;
@@ -119,8 +129,7 @@ serve(async (req) => {
         costo_skydropx_real: costoReal,
         margen_aplicado:     margenAplicado,
         costo_envio:         costoEnvio,
-        extras:              extrasValidos,
-        costo_extras:        costoExtras,
+        ...extrasColumnas,
         costo_total:         costoTotal,
         comprobante_pago:    comprobante_pago_url ?? null,
         estado:              "pendiente_pago",

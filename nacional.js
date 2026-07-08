@@ -333,17 +333,6 @@ function _nacRenderResumen() {
   `
 }
 
-function nacPreviewComprobante(input) {
-  const preview = document.getElementById('nac-comprobante-preview')
-  const nombre  = document.getElementById('nac-comprobante-nombre')
-  if (input.files[0]) {
-    nombre.textContent = input.files[0].name
-    preview.style.display = ''
-  } else {
-    preview.style.display = 'none'
-  }
-}
-
 async function nacConfirmarEnvioFinal() {
   if (!_nacVerificarExpiracion()) return
 
@@ -354,18 +343,6 @@ async function nacConfirmarEnvioFinal() {
   try {
     const { data: { session } } = await db.auth.getSession()
     if (!session) { mostrarToast('Sesión expirada, recarga la página', '#ef4444'); return }
-
-    let comprobanteUrl = null
-    const file = document.getElementById('nac-comprobante-input').files[0]
-    if (file) {
-      const ext   = file.name.split('.').pop() || 'jpg'
-      const tmpId = Date.now()
-      const { error: upErr } = await db.storage.from('evidencias').upload(
-        `comprobantes/${tmpId}.${ext}`, file, { upsert: true }
-      )
-      if (upErr) { mostrarToast('Error subiendo comprobante: ' + upErr.message, '#ef4444'); return }
-      comprobanteUrl = `https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias/comprobantes/${tmpId}.${ext}`
-    }
 
     const tipoContenido = document.getElementById('nac-tipo-contenido').value
 
@@ -390,7 +367,6 @@ async function nacConfirmarEnvioFinal() {
           contenido: tipoContenido,
         },
         extras_seleccionados: Array.from(extrasSeleccionados),
-        comprobante_pago_url: comprobanteUrl,
       }),
     })
 
@@ -398,9 +374,24 @@ async function nacConfirmarEnvioFinal() {
     if (!res.ok) { mostrarToast(result.error || 'Error al confirmar el envío', '#ef4444'); return }
 
     _nacEnvioId = result.envio_id
-    document.getElementById('nac-step-3').style.display = 'none'
-    document.getElementById('nac-success').style.display = ''
-    document.getElementById('nac-folio').textContent = 'GKN-' + String(result.envio_id).padStart(5, '0')
+
+    // Crea el PaymentLink en Conekta y redirige al cliente
+    btn.textContent = '⏳ Generando link de pago...'
+    const pagoRes = await fetch(`${SUPABASE_URL}/functions/v1/conekta-crear-pago`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ envio_id: result.envio_id }),
+    })
+    const pagoJson = await pagoRes.json()
+    if (!pagoRes.ok) {
+      mostrarToast(pagoJson.error || 'Error al generar el link de pago', '#ef4444')
+      return
+    }
+
+    window.location.href = pagoJson.checkout_url
 
   } catch (e) {
     mostrarToast('Error inesperado: ' + e.message, '#ef4444')
@@ -438,10 +429,6 @@ function nacReset() {
   if (ups)  ups.innerHTML = ''
   document.getElementById('nac-confirmacion-panel')?.remove()
 
-  const ci = document.getElementById('nac-comprobante-input')
-  if (ci)  ci.value = ''
-  const cp = document.getElementById('nac-comprobante-preview')
-  if (cp)  cp.style.display = 'none'
   const sc = document.getElementById('nac-success')
   if (sc)  sc.style.display = 'none'
   const rs = document.getElementById('nac-resumen')

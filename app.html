@@ -1321,24 +1321,6 @@
           <div id="nac-resumen"></div>
         </div>
 
-        <!-- Comprobante de pago -->
-        <div class="card">
-          <div class="card-title">💳 Comprobante de pago</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:12px;color:var(--gray-mid);margin-bottom:14px;line-height:1.5">
-            Realiza tu transferencia y adjunta el comprobante. Generaremos la guía una vez que verifiquemos el pago.
-          </div>
-          <input type="file" id="nac-comprobante-input" accept="image/*,.pdf" style="display:none" onchange="nacPreviewComprobante(this)">
-          <button onclick="document.getElementById('nac-comprobante-input').click()"
-            style="width:100%;padding:14px;border:2px dashed var(--blue);border-radius:12px;background:rgba(26,79,160,0.04);color:var(--blue);font-weight:700;font-family:Montserrat,sans-serif;cursor:pointer;font-size:13px">
-            📎 Seleccionar comprobante
-          </button>
-          <div id="nac-comprobante-preview" style="display:none;margin-top:8px">
-            <div style="font-size:12px;color:var(--success);font-weight:700;font-family:Montserrat,sans-serif">
-              ✅ <span id="nac-comprobante-nombre"></span>
-            </div>
-          </div>
-        </div>
-
         <button id="nac-btn-confirmar" onclick="nacConfirmarEnvioFinal()"
           style="width:100%;background:linear-gradient(135deg,var(--orange),#c94812);color:#fff;font-weight:900;padding:16px;border-radius:12px;font-size:16px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-bottom:10px">
           Confirmar envío
@@ -2438,6 +2420,29 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('guepack_actualizada')
     setTimeout(() => mostrarToast('✅ ¡App actualizada a la última versión!', '#22c55e'), 500)
   }
+
+  // ── Retorno desde checkout de Conekta ────────────────────────────────────
+  const _params  = new URLSearchParams(window.location.search)
+  const _pago    = _params.get('pago')
+  const _envioId = _params.get('envio_id')
+
+  if (_pago && _envioId) {
+    history.replaceState({}, '', window.location.pathname)
+    showClientSection('nacional')
+
+    if (_pago === 'exitoso') {
+      nacReset()
+      document.getElementById('nac-step-1').style.display = 'none'
+      document.getElementById('nac-success').style.display = ''
+      document.getElementById('nac-folio').textContent = 'GKN-' + String(_envioId).padStart(5, '0')
+      document.querySelector('#nac-success .success-title').textContent = '¡Pago recibido!'
+      document.querySelector('#nac-success .success-sub').textContent =
+        'Recibimos tu pago. Estamos generando tu guía y te avisaremos cuando esté lista.'
+    } else if (_pago === 'fallido') {
+      mostrarToast('⚠️ El pago no fue completado. Puedes intentarlo de nuevo.', 'var(--orange)')
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   document.getElementById('comprobante-input').addEventListener('change', function() {
     const file = this.files[0]

@@ -6,6 +6,15 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSkydropxToken, skydropxHost } from "../_shared/skydropx-auth.ts";
 
+const CONSIGNMENT_NOTES: Record<string, string> = {
+  documentos:  "14111500",
+  ropa:        "53101501",
+  electronica: "43191504",
+  otro:        "44101601",
+};
+
+const PACKAGE_TYPE_DEFAULT = "4G"; // Caja de cartón
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -20,22 +29,28 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ── Auth: solo admins pueden generar guías ────────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader ?? "" } } }
-    );
-    const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
-    if (userErr || !user) return json({ error: "No autorizado" }, 401);
+    // ── Auth: llamada interna O admin JWT ────────────────────────────────────
+    const internalSecret = Deno.env.get("INTERNAL_FUNCTIONS_SECRET");
+    const isInternal = internalSecret &&
+      req.headers.get("x-internal-secret") === internalSecret;
 
-    const { data: perfil } = await supabaseAdmin
-      .from("usuarios")
-      .select("rol")
-      .eq("user_id", user.id)
-      .single();
-    if (perfil?.rol !== "admin") return json({ error: "Acceso restringido a administradores" }, 403);
+    if (!isInternal) {
+      const authHeader = req.headers.get("Authorization");
+      const supabaseUser = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader ?? "" } } }
+      );
+      const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
+      if (userErr || !user) return json({ error: "No autorizado" }, 401);
+
+      const { data: perfil } = await supabaseAdmin
+        .from("usuarios")
+        .select("rol")
+        .eq("user_id", user.id)
+        .single();
+      if (perfil?.rol !== "admin") return json({ error: "Acceso restringido a administradores" }, 403);
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     const { envio_id } = await req.json();
@@ -99,8 +114,9 @@ serve(async (req) => {
           length: envio.largo_cm,
           width: envio.ancho_cm,
           height: envio.alto_cm,
+          consignment_note: CONSIGNMENT_NOTES[envio.contenido] ?? CONSIGNMENT_NOTES.otro,
+          package_type: PACKAGE_TYPE_DEFAULT,
         },
-        consignment_note: envio.consignment_note,
       },
     };
 
