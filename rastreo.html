@@ -438,7 +438,9 @@ function actualizarUI(data) {
   }
 
   // Timeline
-  const idx = ESTADO_MAP[estado] ?? -1
+  let idx = ESTADO_MAP[estado] ?? -1
+  // Repartidor asignado pero estado aún fuera del mapa (Pendiente): mostrar primer paso como activo
+  if (idx === -1 && data.repartidor && estado !== 'Cancelado') idx = 0
   ;['rtl-encamino-rec','rtl-llegamos-rec','rtl-recolectado','rtl-camino','rtl-llegamos-dest','rtl-entregado'].forEach((elId, i) => {
     const el = document.getElementById(elId)
     if (!el) return

@@ -1478,7 +1478,7 @@
       <div id="rastreo-error" style="display:none" class="card">
         <div class="empty-state">
           <span class="empty-icon">🔍</span>
-          <div class="empty-text">No encontramos ese folio</div>
+          <div class="empty-text" id="rastreo-error-text">No encontramos ese folio</div>
         </div>
       </div>
 
@@ -2770,12 +2770,15 @@ async function rastrearPedido() {
 
   const folio = folioInput.replace('GK-', '').replace('gk-', '')
 
-  const { data, error } = await db.from('pedidos').select('*').eq('id', folio).single()
+  const { data: { session } } = await db.auth.getSession()
+
+  const { data, error } = await db.from('pedidos').select('*').eq('id', folio).eq('user_id', session?.user?.id ?? '').single()
 
   document.getElementById('resultado-rastreo').style.display = 'none'
   document.getElementById('rastreo-error').style.display = 'none'
 
   if (error || !data) {
+    document.getElementById('rastreo-error-text').textContent = '❌ No encontramos un pedido con ese folio en tu cuenta'
     document.getElementById('rastreo-error').style.display = 'block'
     return
   }
@@ -4987,15 +4990,19 @@ async function cargarVipUsuario(userId) {
 }
 
 async function actualizarVipTrasEntrega() {
+  console.log('[VIP] actualizarVipTrasEntrega() iniciado')
   const { data: { session } } = await db.auth.getSession()
-  if (!session) return
+  if (!session) { console.log('[VIP] sin sesión — saliendo'); return }
   const userId = session.user.id
-  const { data: usuario } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  const { data: usuario, error: usuErr } = await db.from('usuarios').select('total_pedidos, nivel_vip').eq('user_id', userId).single()
+  console.log('[VIP] datos actuales:', usuario, '| error:', usuErr)
   const totalAnterior = usuario?.total_pedidos || 0
   const nuevoTotal = totalAnterior + 1
   const nivelAnterior = _calcNivel(totalAnterior).nivel
   const nuevoNivel = _calcNivel(nuevoTotal).nivel
-  await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
+  console.log('[VIP] totalAnterior:', totalAnterior, '→ nuevoTotal:', nuevoTotal, '| nivel:', nivelAnterior, '→', nuevoNivel)
+  const { error: updateErr } = await db.from('usuarios').update({ total_pedidos: nuevoTotal, nivel_vip: nuevoNivel }).eq('user_id', userId)
+  console.log('[VIP] update resultado:', updateErr ? 'ERROR: ' + updateErr.message : 'OK')
   _clienteTotalPedidos = nuevoTotal
   _clienteNivelVip = nuevoNivel
   if (nuevoNivel !== nivelAnterior) {

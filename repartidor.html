@@ -117,6 +117,7 @@
   .step-btn.inactive { border-color: var(--gray); color: var(--gray-mid); background: var(--gray-light); }
   .step-btn.active { border-color: var(--orange); color: white; background: var(--orange); }
   .step-btn.done { border-color: var(--success); color: white; background: var(--success); }
+  .step-btn.blocked { opacity: 0.45; cursor: not-allowed; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-mid); }
   .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
   .empty-text { font-size: 13px; font-weight: 700; }
@@ -767,7 +768,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
           </div>
-          ${!pedido.foto_recoleccion ? `<div style="margin-bottom:8px"><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer">❌ Cancelar pedido</button></div>` : ''}
+          ${!['Recolectado','En camino a entrega','Repartidor en domicilio','Entregado'].includes(pedido.estado) ? `<div style="margin-bottom:8px"><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer">❌ Cancelar pedido</button></div>` : ''}
           <div id="status-steps-${pedido.id}" class="status-steps"></div>
         </div>
       </div>
@@ -957,11 +958,13 @@ async function _cargarGanancias(nombreRepa) {
   const viernesStr = proxViernes.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 
   // Query semana actual — mínimo de campos necesarios
-  const { data: semanaData } = await db.from('pedidos')
+  const { data: semanaData, error: semanaError } = await db.from('pedidos')
     .select('ganancia_repartidor')
     .eq('repartidor', nombreRepa)
     .eq('estado', 'Entregado')
     .gte('created_at', lunes.toISOString())
+
+  console.log('[ganancias] repartidor:', nombreRepa, '| desde:', lunes.toISOString(), '| resultado:', semanaData, '| error:', semanaError)
 
   const totalPedidos = (semanaData || []).length
   const totalGanancia = (semanaData || []).reduce((s, p) => s + (Number(p.ganancia_repartidor) || 0), 0)
@@ -1072,9 +1075,15 @@ function _renderBotonesNormales(pedido) {
   const _idx = _si[_e] ?? -1
   const _sb = n => _idx > n ? 'done' : _idx === n ? 'active' : 'inactive'
   const _sb1 = _idx <= 0 ? 'active' : 'done'
+  // Botón Recolectado: bloqueado hasta que exista foto de recolección
+  const _fotoOk = !!pedido.foto_recoleccion
+  const _clasRecol = _sb(1) + (!_fotoOk && _idx === 1 ? ' blocked' : '')
+  const _clickRecol = (!_fotoOk && _idx === 1)
+    ? `_toastRepa('📸 Sube la foto y firma antes de marcar como recolectado', '#f59e0b')`
+    : `cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')`
   stepsEl.innerHTML = `
     <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
-    <div class="step-btn ${_sb(1)}" onclick="cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')">Recolectado</div>
+    <div class="step-btn ${_clasRecol}" onclick="${_clickRecol}">Recolectado</div>
     <div class="step-btn ${_sb(2)}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">En camino</div>
     <div class="step-btn ${_sb(3)}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})">Llegue</div>
     <div class="step-btn ${_sb(4)}" onclick="abrirModalEntrega(${pedido.id})">Entregado</div>
