@@ -2190,6 +2190,28 @@ function _mostrarRecordatorioNotif() {
   document.body.insertBefore(reminder, document.body.firstChild)
 }
 
+// ── Aviso sistema nacional en finalización ────────────────────────────────────
+function _mostrarAvisoNacional() {
+  if (document.getElementById('modal-aviso-nacional')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-aviso-nacional'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px;animation:fadeIn .2s ease'
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px 24px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.18);position:relative;font-family:Montserrat,sans-serif">
+      <button onclick="document.getElementById('modal-aviso-nacional').remove()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0;line-height:1;padding:0">✕</button>
+      <div style="font-size:22px;margin-bottom:10px">⚠️</div>
+      <div style="font-weight:900;font-size:16px;color:var(--blue);margin-bottom:10px;line-height:1.3">Sistema en finalización</div>
+      <div style="font-size:13px;color:#4b5563;font-weight:600;line-height:1.55;margin-bottom:22px">Por el momento nuestro sistema de envíos nacionales está en terminación. Puedes empezar o completar tu compra directamente con un ejecutivo.</div>
+      <a href="https://wa.me/523339395178?text=Quiero%20comprar%20una%20gu%C3%ADa" target="_blank" rel="noopener"
+         onclick="document.getElementById('modal-aviso-nacional').remove()"
+         style="display:block;width:100%;padding:14px;background:#25D366;color:white;border-radius:12px;font-weight:900;font-size:14px;text-align:center;text-decoration:none;box-sizing:border-box">
+        💬 Hablar con un ejecutivo
+      </a>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
 // ── Firebase Push Notifications ──
 async function activarNotificaciones() {
   try {
@@ -4564,9 +4586,12 @@ function showClientSection(section) {
   clientBtns[idx].classList.add('active');
   if (section === 'history') cargarHistorial();
   if (section === 'tracking') _cargarNacionalesRastreo()
-  if (section === 'nacional' && !localStorage.getItem('nac_visitado')) {
-    localStorage.setItem('nac_visitado', 'true')
-    document.getElementById('btn-tab-nacional')?.classList.remove('tab-nacional')
+  if (section === 'nacional') {
+    if (!localStorage.getItem('nac_visitado')) {
+      localStorage.setItem('nac_visitado', 'true')
+      document.getElementById('btn-tab-nacional')?.classList.remove('tab-nacional')
+    }
+    _mostrarAvisoNacional()
   }
 }
 
