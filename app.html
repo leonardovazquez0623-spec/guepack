@@ -1525,8 +1525,6 @@ const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
-// ── Stub Maps callback: captura la llamada aunque el API cargue antes que initMapsGuepack esté listo ──
-window.initMapsGuepack = function() { window._mapsPending = true }
 
 // ════════════════════════════════════════════════════════════════════
 // VARIABLES GLOBALES — al top del script para evitar TDZ en iOS Safari
@@ -5893,8 +5891,6 @@ function _attachAutocompletePararadas(opts) {
     })
   })
 }
-// Si el script de Maps cargó antes de que llegara aquí, ejecutar ahora
-if (window._mapsPending) { window._mapsPending = false; window.initMapsGuepack() }
 
 function _pointInPolygon(lat, lng, polygon) {
   let inside = false
