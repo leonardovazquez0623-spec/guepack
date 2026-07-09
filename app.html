@@ -676,7 +676,12 @@
     box-shadow: 0 0 0 3px rgba(255,255,255,0.6) !important;
     border-radius: 14px !important;
   }
-  .pac-container { z-index: 999999 !important; }
+  /* iOS Safari: el teclado reduce el visual viewport; position:fixed ancla el
+     dropdown sobre el teclado en lugar de dejarlo en el layout viewport invisible */
+  .pac-container {
+    position: fixed !important;
+    z-index: 999999 !important;
+  }
   .loader--4 {
     --anim-duration: 0.5s;
     aspect-ratio: 1 / 1;
@@ -5812,6 +5817,8 @@ function _initAutocompleteDirecciones() {
   })
 
   const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
+  console.log('[DEBUG] Autocomplete dir-entrega creado. input:', inputEnt, '| instancia:', acEntrega)
+  inputEnt.addEventListener('input', function() { console.log('[DEBUG] keystroke detectado dir-entrega:', this.value) })
   acEntrega.addListener('place_changed', async function () {
     const place = acEntrega.getPlace()
     if (!place.geometry) return
@@ -5844,6 +5851,26 @@ function _initAutocompleteDirecciones() {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
     else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
   })
+
+  _initPacContainerFix()
+}
+
+// iOS Safari: reposicionar .pac-container usando coordenadas del visual viewport
+// Google Maps calcula top/left con position:absolute; con fixed necesitamos getBoundingClientRect
+function _initPacContainerFix() {
+  if (window._pacObserverActive) return
+  window._pacObserverActive = true
+  const obs = new MutationObserver(() => {
+    const pac = document.querySelector('.pac-container')
+    if (!pac || pac.style.display === 'none') return
+    const focused = document.activeElement
+    if (!focused || !['dir-recoleccion','dir-entrega'].includes(focused.id) && !focused.id.startsWith('parada-dir-')) return
+    const rect = focused.getBoundingClientRect()
+    pac.style.top  = (rect.bottom + 2) + 'px'
+    pac.style.left = rect.left + 'px'
+    pac.style.width = rect.width + 'px'
+  })
+  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] })
 }
 
 function _attachAutocompletePararadas(opts) {
