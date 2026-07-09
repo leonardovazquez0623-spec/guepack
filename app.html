@@ -1523,8 +1523,57 @@ const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 // ── Stub Maps callback: captura la llamada aunque el API cargue antes que initMapsGuepack esté listo ──
 window.initMapsGuepack = function() { window._mapsPending = true }
 
-// ── Variables de estado global (var = sin TDZ, hoist seguro) ──
+// ════════════════════════════════════════════════════════════════════
+// VARIABLES GLOBALES — al top del script para evitar TDZ en iOS Safari
+// ════════════════════════════════════════════════════════════════════
 var _deferredPwaPrompt = null
+// Wizard / UI
+var _notaEntrega = '', _wizardPasoActual = 1, _notaDirContext = null
+var _wizardMap = null, _wizardPinRec = null, _wizardPinEnt = null, _wizardDirRenderer = null
+var _wizardPinsIntermedios = []
+// Zona / pricing
+var _zonaData = null, _empresaData = null, _empresaUsuario = null
+var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
+var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
+var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
+var _precioGeneralTotal = null, _precioGeneralKm = null
+var _preciosGeneralesData = null, _rangosGeneralesData = null
+var _limiteCiudadCoords = undefined, _cargoCancelacionPendiente = 0
+var _modoPaqueteria = null, _rangosPaqueteria = null, _paqueteriaPrecio = null, _tarifaDiariaYaCubierta = false
+// Pedidos / historial / paradas
+var _pedidos = {}, _pedidoTokens = {}, _historialPedidosMap = {}, _historialParadasMap = {}
+var _paradasList = [], _debounceMultiParada = null
+// Chat / soporte
+var _chatChannel = null, _chatPedidoId = null, _chatRol = null
+var _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
+// Push / cupón
+var _unreadChat = {}, _fcmToken = null, _cuponActivo = null, _cuponDescuento = 0
+// Modal bienvenida
+var _bvUserId = null
+// VIP catálogos
+const _VIP_NIVELES = [
+  { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
+  { min: 20, nivel: 'plata',  icono: '🥈', label: 'Plata',   bg: '#555555' },
+  { min: 10, nivel: 'bronce', icono: '🥉', label: 'Bronce',  bg: '#8B4513' },
+  { min:  0, nivel: 'normal', icono: '',   label: '',         bg: ''        }
+]
+const _VIP_TEMAS = {
+  normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
+  bronce: { blue:'#8B4513', blueDark:'#5D2E0C', blueLight:'#CD7F32', orange:'#CD7F32', orangeLight:'#DFA152', logo:'/icono_vip_bronce.png', sweep:'#CD7F32' },
+  plata:  { blue:'#555555', blueDark:'#333333', blueLight:'#808080', orange:'#909090', orangeLight:'#C0C0C0', logo:'/icono_vip_plata.png',  sweep:'#808080' },
+  oro:    { blue:'#B8860B', blueDark:'#8B6914', blueLight:'#DAA520', orange:'#FFD700', orangeLight:'#FFE44D', logo:'/logo_vip.png',       sweep:'#DAA520' }
+}
+const _NIVEL_ORDEN = { normal: 0, bronce: 1, plata: 2, oro: 3 }
+// Cliente / perfil
+var _clienteUserId = null, _clienteEmail = '', _clienteFotoUrl = null
+var _clienteCodigoReferido = null, _clienteNombre = '', _clienteWhatsapp = ''
+var _clienteWhatsappEditado = false, _clienteTotalPedidos = 0, _clienteNivelVip = 'normal', _clienteEnviosGratis = 0
+// Varios
+var _calStars = 0, _mapsPlacesOpts = null
+var _tourStep = 0, _tourHighlightEl = null, _tourHighlightClass = 'tour-highlight'
+var _TOUR_STEPS  // asignado abajo; declarado aquí para eliminar TDZ
+// ════════════════════════════════════════════════════════════════════
+
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault()
   _deferredPwaPrompt = e
@@ -2264,12 +2313,6 @@ async function activarNotificaciones() {
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
 if (Notification.permission === 'granted') activarNotificaciones()
 let selSize = null, selZone = null, selMetodoPago = null
-var _notaEntrega = ''
-var _wizardPasoActual = 1
-var _wizardMap = null, _wizardPinRec = null, _wizardPinEnt = null, _wizardDirRenderer = null
-var _wizardPinsIntermedios = []
-var _notaDirContext = null
-
 // ── Wizard navegación ────────────────────────────────────────────────────────
 function _irPaso(n) {
   document.getElementById('wizard-paso-' + _wizardPasoActual).style.display = 'none'
@@ -2458,28 +2501,6 @@ function _actualizarMapaWizard() {
     })
   }
 }
-var _zonaData = null        // zona detectada desde Supabase zonas_cobertura
-var _empresaData = null     // datos de empresa afiliada del usuario logueado
-var _empresaUsuario = null  // alias público de _empresaData (accesible desde consola)
-var _corporativoPrecio = null  // precio calculado por km para corporativos
-var _corporativoKm = null      // distancia calculada
-var _corporativoRangos = null  // rangos cacheados para recalcular sin fetch
-var _entregaPlace = null       // último place seleccionado en dir-entrega
-var _latEntrega   = null       // coordenadas de entrega para cálculo de proximidad en tracking
-var _lngEntrega   = null
-var _multiParadaPrecio = null  // precio calculado para rutas multi-parada
-var _multiParadaKm = null      // km totales del recorrido completo
-var _multiParadaZonaData = null // zona de la última parada
-var _precioGeneralTotal = null  // precio calculado por KM para no-corporativos
-var _precioGeneralKm = null     // km calculados para no-corporativos
-var _preciosGeneralesData = null // precios_generales cacheados para recalcular sin fetch
-var _rangosGeneralesData  = null // rangos_precio_general cacheados
-var _limiteCiudadCoords = undefined  // undefined=sin cargar, null=no existe en DB
-var _cargoCancelacionPendiente = 0   // cargo pendiente por cancelación tardía (usuarios.cargo_cancelacion)
-var _modoPaqueteria          = null   // null | 'paqueteria' | 'mercado_libre'
-var _rangosPaqueteria        = null   // rangos cargados de rangos_paqueteria para la empresa actual
-var _paqueteriaPrecio        = null   // precio calculado en modo paquetería
-var _tarifaDiariaYaCubierta  = false  // true si ya hay pedidos hoy para esta empresa diaria
 const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
 const prices = {
@@ -3145,14 +3166,8 @@ function seleccionarFecha(opcion) {
   }
 }
 // ── Pedidos Activos (multi-pedido) ──
-var _pedidos = {}       // id -> { intervalCancelar, intervalDomicilio, realtimeChannel }
-var _pedidoTokens = {}  // id -> token_rastreo
-var _historialPedidosMap = {}  // id -> pedido completo (para calificar desde historial)
-var _historialParadasMap = {}  // id -> [paradas] de pedidos entregados
 
 // ── Paradas múltiples ────────────────────────────────────────────────────────
-var _paradasList = [] // [{direccion, instrucciones}]
-var _debounceMultiParada = null
 
 function _paradaDirChange(idx, val) {
   _paradasList[idx].direccion = val
@@ -3735,7 +3750,6 @@ async function cancelarPedido(id) {
 }
 
 // ── Chat ──
-var _chatChannel = null, _chatPedidoId = null, _chatRol = null
 
 async function abrirChat(pedidoId, rol, titulo) {
   _chatPedidoId = pedidoId; _chatRol = rol
@@ -3827,8 +3841,6 @@ async function responderConIA(mensajeUsuario, historial) {
   }
   return data.respuesta
 }
-
-var _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
 
 function abrirSoporte() {
   if (document.getElementById('modal-soporte')) return
@@ -4052,11 +4064,6 @@ function _iniciarNuevaConversacion(pedidoId) {
   const inp = document.getElementById('soporte-input')
   if (inp) inp.focus()
 }
-
-var _unreadChat = {}
-var _fcmToken = null
-var _cuponActivo    = null
-var _cuponDescuento = 0
 
 async function aplicarCupon() {
   const codigo = document.getElementById('cupon-input').value.trim().toUpperCase()
@@ -4788,7 +4795,6 @@ function stepClick(btn, idx) {
 }
 
 // ── MODAL BIENVENIDA ──
-var _bvUserId = null
 
 function _mostrarModalBienvenida(userId, nombrePrevio) {
   _bvUserId = userId
@@ -4913,20 +4919,6 @@ function cerrarPopupAnuncio() {
 }
 
 // ── VIP ──
-const _VIP_NIVELES = [
-  { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
-  { min: 20, nivel: 'plata',  icono: '🥈', label: 'Plata',   bg: '#555555' },
-  { min: 10, nivel: 'bronce', icono: '🥉', label: 'Bronce',  bg: '#8B4513' },
-  { min:  0, nivel: 'normal', icono: '',   label: '',         bg: ''        }
-]
-
-const _VIP_TEMAS = {
-  normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
-  bronce: { blue:'#8B4513', blueDark:'#5D2E0C', blueLight:'#CD7F32', orange:'#CD7F32', orangeLight:'#DFA152', logo:'/icono_vip_bronce.png', sweep:'#CD7F32' },
-  plata:  { blue:'#555555', blueDark:'#333333', blueLight:'#808080', orange:'#909090', orangeLight:'#C0C0C0', logo:'/icono_vip_plata.png',  sweep:'#808080' },
-  oro:    { blue:'#B8860B', blueDark:'#8B6914', blueLight:'#DAA520', orange:'#FFD700', orangeLight:'#FFE44D', logo:'/logo_vip.png',       sweep:'#DAA520' }
-}
-
 function _calcNivel(total) {
   return _VIP_NIVELES.find(v => total >= v.min)
 }
@@ -4985,8 +4977,6 @@ function _mostrarVipHeader(nivel) {
   const actions = document.getElementById('header-actions')
   if (actions) actions.insertBefore(badge, actions.firstChild)
 }
-
-const _NIVEL_ORDEN = { normal: 0, bronce: 1, plata: 2, oro: 3 }
 
 async function cargarVipUsuario(userId) {
   console.log('[VIP] Consultando usuario:', userId)
@@ -5063,17 +5053,6 @@ async function _verificarReferidoAlLlegarBronce(userId) {
 }
 
 // ── Avatar de perfil (cliente) ────────────────────────────────────────────────
-
-var _clienteUserId = null
-var _clienteEmail = ''
-var _clienteFotoUrl = null
-var _clienteCodigoReferido = null
-var _clienteNombre = ''
-var _clienteWhatsapp = ''
-var _clienteWhatsappEditado = false
-var _clienteTotalPedidos = 0
-var _clienteNivelVip = 'normal'
-var _clienteEnviosGratis = 0
 
 async function _cargarCargoCancelacion(user) {
   if (_empresaData) return  // corporativos: el cargo se registra en pedidos, no en usuarios
@@ -5643,7 +5622,6 @@ function _confettiVip(nivel) {
 }
 
 // ── MODAL DE CALIFICACIÓN ──
-var _calStars = 0
 
 function mostrarModalCalificacion(pedidoId, repartidor) {
   console.log('[GUEPACK] mostrarModalCalificacion llamada — pedido:', pedidoId, 'repartidor:', repartidor)
@@ -5716,8 +5694,6 @@ function cerrarModalCalificacion() {
 }
 
 // ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
-
-var _mapsPlacesOpts = null
 
 window.initMapsGuepack = function() {
   const gdlBounds = new google.maps.LatLngBounds(
@@ -6539,7 +6515,7 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 // ─────────────────────────────────────────────────────────────────
 // Tour GuepGato — se activa una sola vez al registrarse
 // ─────────────────────────────────────────────────────────────────
-const _TOUR_STEPS = [
+_TOUR_STEPS = [
   {
     targetQuery: null,
     catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
@@ -6609,10 +6585,6 @@ const _TOUR_STEPS = [
     ]
   }
 ]
-
-var _tourStep = 0
-var _tourHighlightEl = null
-var _tourHighlightClass = 'tour-highlight'
 
 function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
