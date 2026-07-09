@@ -4386,6 +4386,11 @@ function _abrirModo(modo) {
   }
   document.getElementById('home-state').style.display = 'none'
   document.getElementById('form-state').style.display = ''
+  // Ahora que form-state es visible, inicializar mapa y autocomplete de direcciones
+  if (window.google?.maps) {
+    _iniciarMapaWizard()
+    _initAutocompleteDirecciones()
+  }
   if (modo === 'multiparadas') {
     agregarParada()
   } else {
@@ -5775,13 +5780,31 @@ window.initMapsGuepack = function() {
     bounds: gdlBounds,
     strictBounds: false
   }
+
+  // Solo inicializar autocomplete de dir-recoleccion/dir-entrega si form-state
+  // ya está visible — si está oculto, Google Maps Autocomplete no funciona bien
+  // y se llamará desde _abrirModo() cuando el formulario sea visible.
+  const formState = document.getElementById('form-state')
+  if (formState && formState.style.display !== 'none') {
+    _iniciarMapaWizard()
+    _initAutocompleteDirecciones()
+  }
+
+  // Vincular autocomplete a paradas que ya existan en el DOM al cargar Maps
+  _attachAutocompletePararadas(_mapsPlacesOpts)
+}
+
+function _initAutocompleteDirecciones() {
+  if (!window.google?.maps?.places) return
   const opts = _mapsPlacesOpts
+  if (!opts) return
   const inputRec = document.getElementById('dir-recoleccion')
   const inputEnt = document.getElementById('dir-entrega')
   if (!inputRec || !inputEnt) return
+  if (inputRec.dataset.acAttached) return // evitar doble attach
 
-  // Inicializar mapa del wizard
-  _iniciarMapaWizard()
+  inputRec.dataset.acAttached = '1'
+  inputEnt.dataset.acAttached = '1'
 
   const acRec = new google.maps.places.Autocomplete(inputRec, opts)
   acRec.addListener('place_changed', () => {
@@ -5821,9 +5844,6 @@ window.initMapsGuepack = function() {
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
     else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
   })
-
-  // Vincular autocomplete a paradas que ya existan en el DOM al cargar Maps
-  _attachAutocompletePararadas(opts)
 }
 
 function _attachAutocompletePararadas(opts) {
