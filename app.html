@@ -1571,7 +1571,76 @@ var _clienteWhatsappEditado = false, _clienteTotalPedidos = 0, _clienteNivelVip 
 // Varios
 var _calStars = 0, _mapsPlacesOpts = null
 var _tourStep = 0, _tourHighlightEl = null, _tourHighlightClass = 'tour-highlight'
-var _TOUR_STEPS  // asignado abajo; declarado aquí para eliminar TDZ
+var _TOUR_STEPS = [
+  {
+    targetQuery: null,
+    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'bottom:45%;left:calc(50% - 140px)',
+    overlayGradient: true,
+    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos ',
+    modalPos: 'bottom', modalStyle: 'bottom:60px',
+    btns: [
+      { label: 'Saltar tour', action: 'skip', primary: false },
+      { label: '¡Empezar!',   action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '#form-state .card',
+    catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'bottom:236px;left:16px',
+    text: '¡Aquí llenas los datos de tu envío! Nombre, dirección, tamaño y fecha 📦',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',   action: 'prev', primary: false },
+      { label: 'Siguiente',  action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: 'button[onclick*="agregarParada"]',
+    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
+    highlightClass: 'tour-highlight-white',
+    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '#pedido-activo-container',
+    catSrc: '/gato_s_der.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:50%;left:8px;transform:translateY(-50%)',
+    text: '¡Aquí verás el estado de tus envíos en tiempo real! Con chat y rastreo incluidos 🚚',
+    modalPos: 'bottom',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: '.bottom-bar',
+    catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+    catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
+    text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
+    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:40%;transform:translateX(-50%);width:90%;max-width:400px',
+    btns: [
+      { label: 'Anterior',  action: 'prev', primary: false },
+      { label: 'Siguiente', action: 'next', primary: true  }
+    ]
+  },
+  {
+    targetQuery: null,
+    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: false, catAnim: 'tourBounce 1s ease infinite',
+    catFixedStyle: 'bottom:54%;left:calc(50% - 140px)',
+    overlayGradient: true,
+    text: '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉',
+    modalPos: 'bottom', modalStyle: 'bottom:60px',
+    btns: [
+      { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
+    ]
+  }
+]
 // ════════════════════════════════════════════════════════════════════
 
 window.addEventListener('beforeinstallprompt', e => {
@@ -6515,76 +6584,6 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 // ─────────────────────────────────────────────────────────────────
 // Tour GuepGato — se activa una sola vez al registrarse
 // ─────────────────────────────────────────────────────────────────
-_TOUR_STEPS = [
-  {
-    targetQuery: null,
-    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'bottom:45%;left:calc(50% - 140px)',
-    overlayGradient: true,
-    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos ',
-    modalPos: 'bottom', modalStyle: 'bottom:60px',
-    btns: [
-      { label: 'Saltar tour', action: 'skip', primary: false },
-      { label: '¡Empezar!',   action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '#form-state .card',
-    catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'bottom:236px;left:16px',
-    text: '¡Aquí llenas los datos de tu envío! Nombre, dirección, tamaño y fecha 📦',
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',   action: 'prev', primary: false },
-      { label: 'Siguiente',  action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: 'button[onclick*="agregarParada"]',
-    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
-    highlightClass: 'tour-highlight-white',
-    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '#pedido-activo-container',
-    catSrc: '/gato_s_der.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:50%;left:8px;transform:translateY(-50%)',
-    text: '¡Aquí verás el estado de tus envíos en tiempo real! Con chat y rastreo incluidos 🚚',
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '.bottom-bar',
-    catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
-    text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
-    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:40%;transform:translateX(-50%);width:90%;max-width:400px',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: null,
-    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: false, catAnim: 'tourBounce 1s ease infinite',
-    catFixedStyle: 'bottom:54%;left:calc(50% - 140px)',
-    overlayGradient: true,
-    text: '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉',
-    modalPos: 'bottom', modalStyle: 'bottom:60px',
-    btns: [
-      { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
-    ]
-  }
-]
 
 function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
@@ -6617,7 +6616,9 @@ function iniciarTour() {
 const iniciarTourSiNecesario = iniciarTour
 
 function _renderTourStep() {
+  if (!_TOUR_STEPS || !_TOUR_STEPS.length) return
   const step = _TOUR_STEPS[_tourStep]
+  if (!step) return
 
   const overlay = document.getElementById('tour-overlay')
   if (!overlay) return
