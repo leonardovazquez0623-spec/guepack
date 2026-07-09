@@ -1525,6 +1525,28 @@ const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
+// Definida aquí — antes de cualquier código que pueda fallar — para que el
+// callback de Maps (línea ~6861) siempre encuentre la función, aunque ocurra
+// un error posterior en el script. Las referencias internas se resuelven en el
+// momento en que Maps la llama, no al definirla.
+window.initMapsGuepack = function() {
+  const gdlBounds = new google.maps.LatLngBounds(
+    { lat: 20.50, lng: -103.55 },
+    { lat: 20.85, lng: -103.15 }
+  )
+  _mapsPlacesOpts = {
+    componentRestrictions: { country: 'mx' },
+    fields: ['formatted_address', 'address_components', 'geometry'],
+    bounds: gdlBounds,
+    strictBounds: false
+  }
+  const formState = document.getElementById('form-state')
+  if (formState && formState.style.display !== 'none') {
+    _iniciarMapaWizard()
+    _initAutocompleteDirecciones()
+  }
+  _attachAutocompletePararadas(_mapsPlacesOpts)
+}
 
 // ════════════════════════════════════════════════════════════════════
 // VARIABLES GLOBALES — al top del script para evitar TDZ en iOS Safari
@@ -5771,31 +5793,6 @@ function cerrarModalCalificacion() {
 }
 
 // ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
-
-window.initMapsGuepack = function() {
-  const gdlBounds = new google.maps.LatLngBounds(
-    { lat: 20.50, lng: -103.55 },
-    { lat: 20.85, lng: -103.15 }
-  )
-  _mapsPlacesOpts = {
-    componentRestrictions: { country: 'mx' },
-    fields: ['formatted_address', 'address_components', 'geometry'],
-    bounds: gdlBounds,
-    strictBounds: false
-  }
-
-  // Solo inicializar autocomplete de dir-recoleccion/dir-entrega si form-state
-  // ya está visible — si está oculto, Google Maps Autocomplete no funciona bien
-  // y se llamará desde _abrirModo() cuando el formulario sea visible.
-  const formState = document.getElementById('form-state')
-  if (formState && formState.style.display !== 'none') {
-    _iniciarMapaWizard()
-    _initAutocompleteDirecciones()
-  }
-
-  // Vincular autocomplete a paradas que ya existan en el DOM al cargar Maps
-  _attachAutocompletePararadas(_mapsPlacesOpts)
-}
 
 function _initAutocompleteDirecciones() {
   if (!window.google?.maps?.places) return
