@@ -826,7 +826,6 @@
 <link rel="apple-touch-icon" href="/Icono_gp.png">
 <meta name="theme-color" content="#1a4fa0">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack" defer></script>
 </head>
 <body>
 <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a4fa0;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
@@ -4786,7 +4785,7 @@ function stepClick(btn, idx) {
 }
 
 // ── MODAL BIENVENIDA ──
-let _bvUserId = null
+var _bvUserId = null
 
 function _mostrarModalBienvenida(userId, nombrePrevio) {
   _bvUserId = userId
@@ -6838,6 +6837,7 @@ function _cerrarTour() {
 </script>
 <script src="comparador-nacional.js"></script>
 <script src="nacional.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack"></script>
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>eruda.init();</script>
 </body>
