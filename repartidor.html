@@ -2113,8 +2113,6 @@ async function _subirFotoRepartidor(e) {
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
 <script>
 // ── MAPA REPARTIDOR ──────────────────────────────────────────────────────────
-const MAPBOX_TOKEN = 'pk.TU_TOKEN_MAPBOX_AQUI'
-
 const _MAPA_PALETA = [
   '#1E56C7','#F05A1A','#0E9488','#9333ea','#0891b2','#b45309','#be123c','#16a34a'
 ]
@@ -2129,7 +2127,7 @@ let _mapaGrupoIdx   = {}
 let _mapaGrupoCount = 0
 
 // ── Tab toggle ───────────────────────────────────────────────────────────────
-function _cambiarVista(vista) {
+async function _cambiarVista(vista) {
   const tabs  = document.querySelectorAll('.vista-tab')
   const lista = document.getElementById('vista-lista')
   const wrap  = document.getElementById('vista-mapa-wrap')
@@ -2142,7 +2140,7 @@ function _cambiarVista(vista) {
     const tabsEl = document.getElementById('vista-tabs')
     if (tabsEl) wrap.style.top = tabsEl.getBoundingClientRect().bottom + 'px'
     wrap.classList.add('visible')
-    _initMapaRepartidor()
+    await _initMapaRepartidor()
     _cargarPedidosEnMapa()
   } else {
     tabs[0].classList.add('active')
@@ -2157,11 +2155,17 @@ function _toggleSheet() {
 }
 
 // ── Inicializar Mapbox (una sola vez) ────────────────────────────────────────
-function _initMapaRepartidor() {
+async function _initMapaRepartidor() {
   if (_mapaIniciado) return
   _mapaIniciado = true
 
-  mapboxgl.accessToken = MAPBOX_TOKEN
+  const { data: cfgToken, error: cfgErr } = await db.from('config_app').select('value').eq('key', 'mapbox_token').single()
+  if (cfgErr || !cfgToken?.value) {
+    console.error('[mapa] No se pudo obtener token Mapbox:', cfgErr)
+    _mapaIniciado = false
+    return
+  }
+  mapboxgl.accessToken = cfgToken.value
 
   _mapboxMap = new mapboxgl.Map({
     container: 'mapa-repartidor',
@@ -2387,11 +2391,9 @@ async function _cargarPedidosEnMapa() {
   if (!_repaData?.nombre) return
   const nombreRepa = _repaData.nombre
 
+  // 1) Pedidos sin embed — empresa_codigo no es FK formal a empresas_afiliadas
   const { data: pedidos, error } = await db.from('pedidos')
-    .select(`id, nombre, direccion_recoleccion, lat_recoleccion, lng_recoleccion,
-             direccion_entrega, lat_entrega, lng_entrega,
-             estado, empresa_codigo,
-             empresas_afiliadas!left(nombre)`)
+    .select('id, nombre, direccion_recoleccion, lat_recoleccion, lng_recoleccion, direccion_entrega, lat_entrega, lng_entrega, estado, empresa_codigo')
     .eq('repartidor', nombreRepa)
     .not('estado', 'in', '(Entregado,Cancelado)')
     .order('empresa_codigo', { nullsFirst: false })
@@ -2399,9 +2401,19 @@ async function _cargarPedidosEnMapa() {
 
   if (error) { console.error('[mapa] pedidos:', error); return }
 
+  // 2) Nombres de empresa — solo los códigos distintos que aparecen en este batch
+  const codigosUnicos = [...new Set((pedidos || []).map(p => p.empresa_codigo).filter(Boolean))]
+  const empresaMap = {}
+  if (codigosUnicos.length) {
+    const { data: empresas } = await db.from('empresas_afiliadas')
+      .select('codigo, nombre')
+      .in('codigo', codigosUnicos)
+    if (empresas) empresas.forEach(e => { empresaMap[e.codigo] = e.nombre })
+  }
+
   const pedidosMapeados = (pedidos || []).map(p => ({
     ...p,
-    nombre_mostrar: p.empresas_afiliadas?.nombre || p.nombre,
+    nombre_mostrar: (p.empresa_codigo && empresaMap[p.empresa_codigo]) || p.nombre,
     tipo_cliente:   p.empresa_codigo ? 'empresa' : 'individual'
   }))
 
