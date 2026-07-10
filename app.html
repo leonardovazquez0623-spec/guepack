@@ -1571,6 +1571,7 @@ var _pedidos = {}, _pedidoTokens = {}, _historialPedidosMap = {}, _historialPara
 var _paradasList = [], _debounceMultiParada = null
 // Chat / soporte
 var _chatChannel = null, _chatPedidoId = null, _chatRol = null
+var _rastreoChannel = null
 var _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
 // Push / cupón
 var _unreadChat = {}, _fcmToken = null, _cuponActivo = null, _cuponDescuento = 0
@@ -2932,7 +2933,28 @@ async function rastrearPedido() {
   document.getElementById('rastreo-folio').textContent = 'GK-' + data.id
   document.getElementById('rastreo-detalle').textContent = data.nombre + ' · ' + data.tamanio + ' · ' + data.zona
 
+  _actualizarUIRastreo(data)
+
+  document.getElementById('resultado-rastreo').style.display = 'block'
+
+  // Realtime: desuscribir canal anterior si el usuario rastreó otro folio
+  if (_rastreoChannel) { db.removeChannel(_rastreoChannel); _rastreoChannel = null }
+  _rastreoChannel = db.channel('rastreo-pedido-' + data.id)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'pedidos',
+      filter: 'id=eq.' + data.id
+    }, payload => {
+      console.log('[rastreo] estado actualizado:', payload.new.estado)
+      _actualizarUIRastreo(payload.new)
+    })
+    .subscribe()
+}
+
+function _actualizarUIRastreo(data) {
   const badge = document.getElementById('rastreo-badge')
+  if (!badge) return
   badge.textContent = data.estado
   badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
 
@@ -2947,15 +2969,14 @@ async function rastrearPedido() {
   const estadoActual = estadoMap[data.estado] ?? -1
 
   const items = ['tl-encamino-rec', 'tl-llegamos-rec', 'tl-recolectado', 'tl-camino', 'tl-llegamos-dest', 'tl-entregado']
-  items.forEach((id, i) => {
-    const el = document.getElementById(id)
+  items.forEach((itemId, i) => {
+    const el = document.getElementById(itemId)
+    if (!el) return
     if (estadoActual < 0)         el.className = 'tl-item pending'
     else if (i < estadoActual)    el.className = 'tl-item done'
     else if (i === estadoActual)  el.className = 'tl-item current'
     else                          el.className = 'tl-item pending'
   })
-
-  document.getElementById('resultado-rastreo').style.display = 'block'
 }
 
 async function _cargarNacionalesRastreo() {
