@@ -2253,9 +2253,9 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
 
     // Pins entrega — multi-stop o simple
     const paradas = paradasPorPedido[p.id]
-    if (paradas?.length) {
-      paradas.forEach(par => {
-        if (par.lat == null || par.lng == null) return
+    const paradasConCoords = paradas?.filter(par => par.lat != null && par.lng != null)
+    if (paradasConCoords?.length) {
+      paradasConCoords.forEach(par => {
         const kp = 'par-' + par.id
         idsVistos.add(kp)
         if (_markersMap.has(kp)) {
@@ -2270,7 +2270,7 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
           _markersMap.set(kp, m)
         }
       })
-    } else if (p.lat_entrega != null && p.lng_entrega != null) {
+    } else if (p.lat_entrega != null && p.lng_entrega != null) {  // fallback: paradas sin coords o sin multi-stop
       idsVistos.add(keyEnt)
       if (_markersMap.has(keyEnt)) {
         _markersMap.get(keyEnt).setLngLat([p.lng_entrega, p.lat_entrega])
