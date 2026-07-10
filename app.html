@@ -1560,6 +1560,7 @@ var _wizardPinsIntermedios = []
 var _zonaData = null, _empresaData = null, _empresaUsuario = null
 var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
 var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
+var _latRecoleccion = null, _lngRecoleccion = null
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
 var _precioGeneralTotal = null, _precioGeneralKm = null
 var _preciosGeneralesData = null, _rangosGeneralesData = null
@@ -2831,6 +2832,8 @@ const { data, error } = await db.from('pedidos').insert({
     km_recorridos: _kmRecorridos,
     lat_entrega: _latEntrega ?? null,
     lng_entrega: _lngEntrega ?? null,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
   }).select()
 
   if (error) {
@@ -2872,14 +2875,18 @@ const { data, error } = await db.from('pedidos').insert({
         orden: 1,
         direccion: dir_entrega,
         instrucciones: null,
-        estado: 'pendiente'
+        estado: 'pendiente',
+        lat: _latEntrega ?? null,
+        lng: _lngEntrega ?? null
       },
       ...paradasAdicionales.map((p, i) => ({
         pedido_id: folioReal,
         orden: i + 2,
         direccion: p.direccion.trim(),
         instrucciones: p.instrucciones?.trim() || null,
-        estado: 'pendiente'
+        estado: 'pendiente',
+        lat: p.lat ?? null,
+        lng: p.lng ?? null
       }))
     ]
     console.log('[paradas] a insertar:', paradasAInsertar)
@@ -3273,7 +3280,7 @@ function _paradaDirChange(idx, val) {
 
 function agregarParada() {
   const idx = _paradasList.length
-  _paradasList.push({ direccion: '', instrucciones: '' })
+  _paradasList.push({ direccion: '', instrucciones: '', lat: null, lng: null })
   const cont = document.getElementById('paradas-container')
   const div = document.createElement('div')
   div.id = 'parada-item-' + idx
@@ -4351,6 +4358,8 @@ function resetForm() {
   _corporativoPrecio = null
   _corporativoKm = null
   _entregaPlace = null
+  _latRecoleccion = null
+  _lngRecoleccion = null
   _precioGeneralTotal = null
   _precioGeneralKm = null
   if (_empresaData?.tipo_tarifa === 'diaria') _mostrarCotizacionDiaria()
@@ -5808,6 +5817,11 @@ function _initAutocompleteDirecciones() {
 
   const acRec = new google.maps.places.Autocomplete(inputRec, opts)
   acRec.addListener('place_changed', () => {
+    const pl = acRec.getPlace()
+    if (pl?.geometry) {
+      _latRecoleccion = pl.geometry.location.lat()
+      _lngRecoleccion = pl.geometry.location.lng()
+    }
     setTimeout(_actualizarMapaWizard, 50)
   })
 
@@ -5881,6 +5895,10 @@ function _attachAutocompletePararadas(opts) {
       if (dir) {
         _paradasList[idx].direccion = dir
         inp.value = dir
+        if (pl?.geometry) {
+          _paradasList[idx].lat = pl.geometry.location.lat()
+          _paradasList[idx].lng = pl.geometry.location.lng()
+        }
         console.log('[multiParada] place_changed parada', idx, '→', dir)
         _calcularCotizacionMultiParada()
         setTimeout(_actualizarMapaWizard, 50)

@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="/Icono_gp.png">
 <meta name="theme-color" content="#1a4fa0">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
+<link href="/lib/mapbox-gl.css" rel="stylesheet">
 <style>
   :root {
     --blue: #1a4fa0;
@@ -186,6 +187,134 @@
   @keyframes guep-puff { 0%{opacity:0;transform:translateY(0) scale(.6)} 30%{opacity:.6} 100%{opacity:0;transform:translateY(12px) scale(1.4)} }
   .guep-loader-wrap { text-align:center; padding:24px 20px; }
   .guep-loader-caption { font-size:12px; color:var(--gray-mid); font-weight:700; margin-top:10px; }
+
+  /* ── VISTA MAPA ─────────────────────────────────────────────────── */
+  #vista-tabs { display:flex; gap:0; background:#0e3070; padding:0 16px; position:relative; z-index:510; }
+  .vista-tab {
+    flex:1; padding:10px 0; border:none; background:transparent;
+    color:rgba(255,255,255,0.55); font-family:'Montserrat',sans-serif;
+    font-weight:900; font-size:11px; letter-spacing:.8px; cursor:pointer;
+    border-bottom:3px solid transparent; transition:all .2s;
+  }
+  .vista-tab.active { color:white; border-bottom-color:var(--orange); }
+
+  .delivery-header { position:relative; z-index:510; }
+
+  #vista-mapa-wrap {
+    display:none; position:fixed; left:0; right:0; bottom:0; z-index:500;
+    flex-direction:column;
+  }
+  #vista-mapa-wrap.visible { display:flex; }
+  #mapa-repartidor { flex:1; width:100%; min-height:0; }
+
+  /* Legend overlay */
+  #mapa-legend {
+    position:absolute; top:10px; left:10px; z-index:511;
+    background:rgba(255,255,255,0.95); border-radius:10px;
+    padding:8px 10px; font-size:10.5px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.12);
+    font-family:'Montserrat',sans-serif; font-weight:700;
+    pointer-events:none; max-width:200px; display:none;
+  }
+  #mapa-legend .lg-row { display:flex; align-items:center; gap:6px; margin:3px 0; color:#14181f; }
+  #mapa-legend .lg-sw { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+  /* Bottom sheet (mockup style: collapses body with max-height, always shows header) */
+  #mapa-sheet {
+    background:white; border-radius:20px 20px 0 0;
+    position:relative; z-index:510;
+    padding:14px 16px 18px;
+    box-shadow:0 -6px 16px rgba(0,0,0,0.08);
+    flex-shrink:0;
+  }
+  #mapa-sheet-handle {
+    width:38px; height:4px; background:#d8dee8; border-radius:4px;
+    margin:0 auto 12px; cursor:pointer;
+  }
+  #mapa-sheet-head {
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; -webkit-tap-highlight-color:transparent;
+    font-family:'Montserrat',sans-serif;
+  }
+  #mapa-sheet-head h3 { margin:0 0 2px; font-size:15px; color:#14181f; font-weight:700; }
+  .ms-count-head { font-size:12px; color:#7a8394; font-weight:600; }
+  #mapa-sheet-chevron {
+    width:26px; height:26px; border-radius:50%;
+    background:#f0f2f6; display:flex; align-items:center; justify-content:center;
+    color:#7a8394; font-size:11px; flex-shrink:0;
+    transition:transform .3s ease;
+  }
+  #mapa-sheet.collapsed #mapa-sheet-chevron { transform:rotate(180deg); }
+
+  #mapa-sheet-body {
+    max-height:38vh; overflow-y:auto;
+    transition:max-height .35s ease, opacity .25s ease, margin-top .35s ease;
+    margin-top:12px; opacity:1;
+    -webkit-overflow-scrolling:touch;
+  }
+  #mapa-sheet.collapsed #mapa-sheet-body {
+    max-height:0; opacity:0; margin-top:0; overflow:hidden;
+  }
+
+  /* Client groups */
+  .ms-group { border:1px solid #d8dee8; border-radius:12px; margin-bottom:10px; overflow:hidden; }
+  .ms-group-header {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 12px; background:#fafbfd;
+    font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; color:#14181f;
+  }
+  .ms-swatch { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .ms-kind { font-size:9px; font-weight:700; color:#9aa3b2; text-transform:uppercase; letter-spacing:.3px; }
+  .ms-count-right { margin-left:auto; font-size:11px; font-weight:600; color:#7a8394; white-space:nowrap; }
+
+  .ms-stop {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-top:1px solid #f0f2f6;
+    font-family:'Montserrat',sans-serif;
+  }
+  .ms-idx {
+    width:20px; height:20px; border-radius:50%;
+    color:white; font-size:10px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .ms-idx.sq { border-radius:5px; }
+  .ms-addr { color:#14181f; font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ms-tag { font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:10px; flex-shrink:0; }
+  .ms-tag.rec { background:#eaf0fd; color:#1a4fa0; }
+  .ms-tag.ent { background:#fcefe9; color:#b03f10; }
+
+  .ms-optimize-btn {
+    margin-top:4px; width:100%;
+    background:var(--blue); color:white;
+    border:none; border-radius:12px; padding:13px;
+    font-family:'Montserrat',sans-serif; font-size:13.5px; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .ms-note { text-align:center; font-size:10.5px; color:#9aa3b2; font-family:'Montserrat',sans-serif; margin-top:8px; }
+
+  /* Pins del mapa */
+  .mapa-pin-dot {
+    width:26px; height:26px;
+    border-radius:50% 50% 50% 0;
+    transform:rotate(45deg);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 6px rgba(0,0,0,0.3);
+    border:2px solid white; cursor:pointer;
+  }
+  .mapa-pin-dot.pickup { border-radius:6px; transform:none; }
+  .mapa-pin-num {
+    transform:rotate(-45deg); color:white;
+    font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800;
+    line-height:1;
+  }
+  .mapa-pin-dot.pickup .mapa-pin-num { transform:none; }
+
+  /* Driver marker */
+  .mapa-driver-dot {
+    width:16px; height:16px;
+    background:#14181f; border:3px solid white; border-radius:50%;
+    box-shadow:0 0 0 5px rgba(20,24,31,0.15); cursor:default;
+  }
 </style>
 </head>
 <body>
@@ -201,6 +330,29 @@
       <button id="btn-disponible" onclick="toggleDisponible()" style="border:2px solid #22c55e;background:rgba(34,197,94,0.2);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .2s">🟢 Disponible</button>
       <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
     </div>
+  </div>
+</div>
+
+<!-- Tabs lista / mapa -->
+<div id="vista-tabs">
+  <button class="vista-tab active" onclick="_cambiarVista('lista')">🏍️ LISTA</button>
+  <button class="vista-tab" onclick="_cambiarVista('mapa')">🗺️ MAPA</button>
+</div>
+
+<!-- Contenedor mapa full-screen (oculto hasta que se activa la pestaña) -->
+<div id="vista-mapa-wrap">
+  <div id="mapa-legend"></div>
+  <div id="mapa-repartidor"></div>
+  <div id="mapa-sheet">
+    <div id="mapa-sheet-handle" onclick="_toggleSheet()"></div>
+    <div id="mapa-sheet-head" onclick="_toggleSheet()">
+      <div>
+        <h3>Todas mis paradas</h3>
+        <div class="ms-count-head" id="mapa-sheet-count">—</div>
+      </div>
+      <div id="mapa-sheet-chevron">▲</div>
+    </div>
+    <div id="mapa-sheet-body"></div>
   </div>
 </div>
 
@@ -257,6 +409,7 @@
   </div>
 </div>
 
+<div id="vista-lista">
 <div class="container" style="padding-top:16px">
   <div class="card-title">🏍️ Mis entregas de hoy</div>
   <div id="lista-repartidor">
@@ -286,6 +439,7 @@
     </div>
   </div>
 </div>
+</div><!-- /#vista-lista -->
 
 <script src="guepack-icons.js"></script>
 <script>
@@ -1953,6 +2107,327 @@ async function _subirFotoRepartidor(e) {
   const img = document.getElementById('mfr-img')
   if (img) img.src = publicUrl
   if (status) status.textContent = '✅ Foto actualizada'
+}
+</script>
+
+<script src="/lib/mapbox-gl.js"></script>
+<script>
+// ── MAPA REPARTIDOR ──────────────────────────────────────────────────────────
+const MAPBOX_TOKEN = 'pk.TU_TOKEN_MAPBOX_AQUI'
+
+const _MAPA_PALETA = [
+  '#1E56C7','#F05A1A','#0E9488','#9333ea','#0891b2','#b45309','#be123c','#16a34a'
+]
+
+let _mapaIniciado   = false
+let _mapboxMap      = null
+let _markersMap     = new Map()   // key → Mapbox Marker
+let _markerDriver   = null
+let _driverWatchId  = null
+let _mapaRealtimeCh = null
+let _mapaGrupoIdx   = {}
+let _mapaGrupoCount = 0
+
+// ── Tab toggle ───────────────────────────────────────────────────────────────
+function _cambiarVista(vista) {
+  const tabs  = document.querySelectorAll('.vista-tab')
+  const lista = document.getElementById('vista-lista')
+  const wrap  = document.getElementById('vista-mapa-wrap')
+
+  tabs.forEach(t => t.classList.remove('active'))
+  if (vista === 'mapa') {
+    tabs[1].classList.add('active')
+    lista.style.display = 'none'
+    // Posicionar el wrapper debajo del header + tabs
+    const tabsEl = document.getElementById('vista-tabs')
+    if (tabsEl) wrap.style.top = tabsEl.getBoundingClientRect().bottom + 'px'
+    wrap.classList.add('visible')
+    _initMapaRepartidor()
+    _cargarPedidosEnMapa()
+  } else {
+    tabs[0].classList.add('active')
+    lista.style.display = ''
+    wrap.classList.remove('visible')
+  }
+}
+
+// ── Sheet toggle (colapsa body, no mueve el sheet entero) ────────────────────
+function _toggleSheet() {
+  document.getElementById('mapa-sheet').classList.toggle('collapsed')
+}
+
+// ── Inicializar Mapbox (una sola vez) ────────────────────────────────────────
+function _initMapaRepartidor() {
+  if (_mapaIniciado) return
+  _mapaIniciado = true
+
+  mapboxgl.accessToken = MAPBOX_TOKEN
+
+  _mapboxMap = new mapboxgl.Map({
+    container: 'mapa-repartidor',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [-103.346, 20.659],
+    zoom: 12
+  })
+  _mapboxMap.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+
+  // Marcador del repartidor — punto oscuro con halo
+  const driverEl = document.createElement('div')
+  driverEl.className = 'mapa-driver-dot'
+  _markerDriver = new mapboxgl.Marker({ element: driverEl, anchor: 'center' })
+
+  if (navigator.geolocation) {
+    _driverWatchId = navigator.geolocation.watchPosition(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords
+      _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
+    }, null, { enableHighAccuracy: true, maximumAge: 5000 })
+  }
+}
+
+// ── Paleta de colores por grupo ──────────────────────────────────────────────
+function _colorGrupo(g) {
+  if (_mapaGrupoIdx[g] === undefined) {
+    _mapaGrupoIdx[g] = _mapaGrupoCount % _MAPA_PALETA.length
+    _mapaGrupoCount++
+  }
+  return _MAPA_PALETA[_mapaGrupoIdx[g]]
+}
+
+// ── Crear elementos de pin ───────────────────────────────────────────────────
+function _mkPinPickup(color) {
+  const dot = document.createElement('div')
+  dot.className = 'mapa-pin-dot pickup'
+  dot.style.background = color
+  const num = document.createElement('span')
+  num.className = 'mapa-pin-num'
+  num.textContent = 'R'
+  dot.appendChild(num)
+  return dot
+}
+
+function _mkPinDelivery(color, label) {
+  const dot = document.createElement('div')
+  dot.className = 'mapa-pin-dot'
+  dot.style.background = color
+  const num = document.createElement('span')
+  num.className = 'mapa-pin-num'
+  num.textContent = label
+  dot.appendChild(num)
+  return dot
+}
+
+// ── Actualizar marcadores en el mapa (diff — no recrear el mapa) ─────────────
+function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
+  if (!_mapboxMap) return
+  const idsVistos = new Set()
+
+  pedidos.forEach(p => {
+    const color  = _colorGrupo(p.nombre_mostrar || p.nombre)
+    const keyRec = 'rec-' + p.id
+    const keyEnt = 'ent-' + p.id
+
+    // Pin recolección (cuadrado con "R")
+    if (p.lat_recoleccion != null && p.lng_recoleccion != null) {
+      idsVistos.add(keyRec)
+      if (_markersMap.has(keyRec)) {
+        _markersMap.get(keyRec).setLngLat([p.lng_recoleccion, p.lat_recoleccion])
+      } else {
+        const m = new mapboxgl.Marker({ element: _mkPinPickup(color), anchor: 'center' })
+          .setLngLat([p.lng_recoleccion, p.lat_recoleccion])
+          .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
+            `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id}</b><br>📦 ${p.direccion_recoleccion || ''}</div>`
+          ))
+          .addTo(_mapboxMap)
+        _markersMap.set(keyRec, m)
+      }
+    }
+
+    // Pins entrega — multi-stop o simple
+    const paradas = paradasPorPedido[p.id]
+    if (paradas?.length) {
+      paradas.forEach(par => {
+        if (par.lat == null || par.lng == null) return
+        const kp = 'par-' + par.id
+        idsVistos.add(kp)
+        if (_markersMap.has(kp)) {
+          _markersMap.get(kp).setLngLat([par.lng, par.lat])
+        } else {
+          const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, par.orden), anchor: 'bottom' })
+            .setLngLat([par.lng, par.lat])
+            .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
+              `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id} · Parada ${par.orden}</b><br>📍 ${par.direccion || ''}</div>`
+            ))
+            .addTo(_mapboxMap)
+          _markersMap.set(kp, m)
+        }
+      })
+    } else if (p.lat_entrega != null && p.lng_entrega != null) {
+      idsVistos.add(keyEnt)
+      if (_markersMap.has(keyEnt)) {
+        _markersMap.get(keyEnt).setLngLat([p.lng_entrega, p.lat_entrega])
+      } else {
+        const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, 1), anchor: 'bottom' })
+          .setLngLat([p.lng_entrega, p.lat_entrega])
+          .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
+            `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id}</b><br>📍 ${p.direccion_entrega || ''}</div>`
+          ))
+          .addTo(_mapboxMap)
+        _markersMap.set(keyEnt, m)
+      }
+    }
+  })
+
+  // Remover solo los que ya no aplican
+  for (const [key, marker] of _markersMap) {
+    if (!idsVistos.has(key)) { marker.remove(); _markersMap.delete(key) }
+  }
+
+  _renderSheetPedidos(pedidos, paradasPorPedido)
+}
+
+// ── Sheet body (estilo mockup: client-group / stop rows / tags) ──────────────
+function _renderSheetPedidos(pedidos, paradasPorPedido) {
+  const body    = document.getElementById('mapa-sheet-body')
+  const countEl = document.getElementById('mapa-sheet-count')
+  const legend  = document.getElementById('mapa-legend')
+  if (!body) return
+
+  // Totales para el subtítulo
+  let totalRec = pedidos.length
+  let totalEnt = 0
+  pedidos.forEach(p => {
+    const pars = paradasPorPedido[p.id]
+    totalEnt += pars?.length || (p.lat_entrega != null ? 1 : 0)
+  })
+  if (countEl) countEl.textContent =
+    `${totalRec} recolección${totalRec !== 1 ? 'es' : ''} · ${totalEnt} entrega${totalEnt !== 1 ? 's' : ''} · orden sugerido`
+
+  // Agrupar por nombre_mostrar
+  const grupos = {}
+  pedidos.forEach(p => {
+    const g = p.nombre_mostrar || p.nombre
+    if (!grupos[g]) grupos[g] = { pedidos: [], tipo: p.tipo_cliente }
+    grupos[g].pedidos.push(p)
+  })
+
+  // Actualizar leyenda
+  let lgHtml = ''
+  for (const [g, info] of Object.entries(grupos)) {
+    const c = _colorGrupo(g)
+    const t = info.tipo === 'empresa' ? 'empresa' : 'cliente'
+    const cnt = info.pedidos.reduce((acc, p) => {
+      return acc + ((paradasPorPedido[p.id]?.length) || (p.lat_entrega != null ? 1 : 0))
+    }, 0)
+    lgHtml += `<div class="lg-row"><span class="lg-sw" style="background:${c}"></span>${g} (${cnt}) · ${t}</div>`
+  }
+  if (legend) { legend.innerHTML = lgHtml; legend.style.display = lgHtml ? '' : 'none' }
+
+  if (pedidos.length === 0) {
+    body.innerHTML = '<div style="font-family:Montserrat,sans-serif;font-size:12px;color:#9aa3b2;padding:8px 0">Sin pedidos activos</div>'
+    return
+  }
+
+  let html = ''
+  for (const [g, info] of Object.entries(grupos)) {
+    const color     = _colorGrupo(g)
+    const tipoLabel = info.tipo === 'empresa' ? 'Empresa' : 'Cliente'
+    let rCnt = info.pedidos.length
+    let eCnt = info.pedidos.reduce((acc, p) => {
+      return acc + ((paradasPorPedido[p.id]?.length) || (p.lat_entrega != null ? 1 : 0))
+    }, 0)
+
+    html += `<div class="ms-group">
+      <div class="ms-group-header">
+        <span class="ms-swatch" style="background:${color}"></span>
+        ${g}
+        <span class="ms-kind">· ${tipoLabel}</span>
+        <span class="ms-count-right">${rCnt} recolección${rCnt!==1?'es':''} · ${eCnt} entrega${eCnt!==1?'s':''}</span>
+      </div>`
+
+    info.pedidos.forEach(p => {
+      const pars = paradasPorPedido[p.id]
+      // Fila recolección
+      html += `<div class="ms-stop">
+        <div class="ms-idx sq" style="background:${color}">R</div>
+        <div class="ms-addr">${p.direccion_recoleccion || '—'}</div>
+        <span class="ms-tag rec">Recolección</span>
+      </div>`
+      // Filas entrega
+      if (pars?.length) {
+        pars.forEach(par => {
+          html += `<div class="ms-stop">
+            <div class="ms-idx" style="background:${color}">${par.orden}</div>
+            <div class="ms-addr">${par.direccion || '—'}</div>
+            <span class="ms-tag ent">Entrega</span>
+          </div>`
+        })
+      } else {
+        html += `<div class="ms-stop">
+          <div class="ms-idx" style="background:${color}">1</div>
+          <div class="ms-addr">${p.direccion_entrega || '—'}</div>
+          <span class="ms-tag ent">Entrega</span>
+        </div>`
+      }
+    })
+    html += `</div>`
+  }
+
+  html += `<button class="ms-optimize-btn">📍 Optimizar orden de ruta</button>`
+  html += `<div class="ms-note">El mapa se carga una sola vez por sesión · los pines se actualizan en tiempo real</div>`
+  body.innerHTML = html
+}
+
+// ── Cargar pedidos activos del repartidor ────────────────────────────────────
+async function _cargarPedidosEnMapa() {
+  if (!_repaData?.nombre) return
+  const nombreRepa = _repaData.nombre
+
+  const { data: pedidos, error } = await db.from('pedidos')
+    .select(`id, nombre, direccion_recoleccion, lat_recoleccion, lng_recoleccion,
+             direccion_entrega, lat_entrega, lng_entrega,
+             estado, empresa_codigo,
+             empresas_afiliadas!left(nombre)`)
+    .eq('repartidor', nombreRepa)
+    .not('estado', 'in', '(Entregado,Cancelado)')
+    .order('empresa_codigo', { nullsFirst: false })
+    .order('created_at')
+
+  if (error) { console.error('[mapa] pedidos:', error); return }
+
+  const pedidosMapeados = (pedidos || []).map(p => ({
+    ...p,
+    nombre_mostrar: p.empresas_afiliadas?.nombre || p.nombre,
+    tipo_cliente:   p.empresa_codigo ? 'empresa' : 'individual'
+  }))
+
+  const ids = pedidosMapeados.map(p => p.id)
+  const paradasPorPedido = {}
+  if (ids.length) {
+    const { data: pars } = await db.from('paradas')
+      .select('id, pedido_id, orden, direccion, lat, lng, estado')
+      .in('pedido_id', ids)
+      .order('orden')
+    if (pars) {
+      pars.forEach(par => {
+        if (!paradasPorPedido[par.pedido_id]) paradasPorPedido[par.pedido_id] = []
+        paradasPorPedido[par.pedido_id].push(par)
+      })
+    }
+  }
+
+  _actualizarMarcadoresMapa(pedidosMapeados, paradasPorPedido)
+  _suscribirMapaRealtime(nombreRepa)
+}
+
+// ── Realtime — suscripción única ─────────────────────────────────────────────
+function _suscribirMapaRealtime(nombreRepa) {
+  if (_mapaRealtimeCh) return
+  _mapaRealtimeCh = db.channel('mapa-pedidos-' + nombreRepa)
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'pedidos',
+      filter: 'repartidor=eq.' + nombreRepa
+    }, () => { _cargarPedidosEnMapa() })
+    .subscribe()
 }
 </script>
 

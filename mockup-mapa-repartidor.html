@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guepack — Mapa consolidado del repartidor</title>
+<style>
+  :root{
+    --blue:#1E56C7;
+    --blue-dark:#1a4fa0;
+    --orange:#F05A1A;
+    --teal:#0E9488;
+    --ink:#14181F;
+    --paper:#F4F6F9;
+    --line:#D8DEE8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#0B0E14;
+    display:flex;
+    justify-content:center;
+    padding:24px 12px;
+  }
+  .phone{
+    width:390px;
+    max-width:100%;
+    background:var(--paper);
+    border-radius:32px;
+    overflow:hidden;
+    box-shadow:0 30px 60px rgba(0,0,0,.5);
+    border:8px solid #1a1d24;
+    position:relative;
+  }
+
+  /* Top bar */
+  .topbar{
+    background:var(--blue);
+    color:#fff;
+    padding:14px 16px 12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .hamburger{
+    width:34px;height:34px;
+    border-radius:10px;
+    background:rgba(255,255,255,.16);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    cursor:pointer;
+  }
+  .hamburger svg{width:17px;height:17px;}
+  .logo-mark{
+    width:30px;height:30px;
+    border-radius:8px;
+    background:var(--orange);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    font-size:15px;
+    box-shadow:0 2px 5px rgba(0,0,0,.2);
+  }
+  .topbar .text-wrap{flex:1;min-width:0;}
+  .topbar .title{font-weight:700;font-size:15px;}
+  .topbar .sub{font-size:11px;opacity:.85;margin-top:2px;}
+  .badge{
+    background:rgba(255,255,255,.18);
+    border-radius:20px;
+    padding:5px 10px;
+    font-size:11px;
+    font-weight:600;
+    flex-shrink:0;
+  }
+
+  /* Fake map area */
+  .map{
+    position:relative;
+    height:400px;
+    background:
+      repeating-linear-gradient(0deg, #E7EBF2 0 2px, transparent 2px 46px),
+      repeating-linear-gradient(90deg, #E7EBF2 0 2px, transparent 2px 46px),
+      #EEF1F6;
+    overflow:hidden;
+  }
+  .map::before{ /* diagonal avenue */
+    content:"";
+    position:absolute;
+    top:-20%; left:35%;
+    width:14%; height:140%;
+    background:#DDE3EC;
+    transform:rotate(18deg);
+  }
+  .map::after{
+    content:"";
+    position:absolute;
+    top:60%; left:-10%;
+    width:130%; height:10%;
+    background:#DDE3EC;
+    transform:rotate(-6deg);
+  }
+
+  .route-line{
+    position:absolute;
+    top:0;left:0;width:100%;height:100%;
+    z-index:1;
+  }
+
+  .pin{
+    position:absolute;
+    transform:translate(-50%,-100%);
+    z-index:3;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    cursor:default;
+  }
+  .pin .dot{
+    width:26px;height:26px;
+    border-radius:50% 50% 50% 0;
+    transform:rotate(45deg);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 6px rgba(0,0,0,.3);
+    border:2px solid #fff;
+  }
+  .pin .num{
+    transform:rotate(-45deg);
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+  }
+  .pin.pickup .dot{
+    border-radius:6px;
+    transform:none;
+  }
+  .pin.pickup .num{transform:none;}
+
+  .pin.cA .dot{background:var(--blue);}
+  .pin.cB .dot{background:var(--orange);}
+  .pin.cC .dot{background:var(--teal);}
+
+  .driver{
+    position:absolute;
+    width:16px;height:16px;
+    background:#14181F;
+    border:3px solid #fff;
+    border-radius:50%;
+    box-shadow:0 0 0 5px rgba(20,24,31,.15);
+    z-index:4;
+  }
+
+  .legend{
+    position:absolute;
+    top:10px; left:10px;
+    background:rgba(255,255,255,.95);
+    border-radius:10px;
+    padding:8px 10px;
+    font-size:10.5px;
+    box-shadow:0 4px 10px rgba(0,0,0,.12);
+    z-index:5;
+  }
+  .legend div{display:flex;align-items:center;gap:6px;margin:3px 0;}
+  .legend .sw{width:9px;height:9px;border-radius:50%;}
+
+  /* Bottom sheet */
+  .sheet{
+    background:#fff;
+    border-radius:20px 20px 0 0;
+    margin-top:-18px;
+    position:relative;
+    z-index:6;
+    padding:14px 16px 18px;
+    box-shadow:0 -6px 16px rgba(0,0,0,.08);
+  }
+  .handle{
+    width:38px;height:4px;background:#D8DEE8;border-radius:4px;
+    margin:0 auto 12px;
+    cursor:pointer;
+  }
+  .sheet-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .sheet-head-text h3{margin:0 0 2px;font-size:15px;color:var(--ink);}
+  .sheet-head-text .count{font-size:12px;color:#7A8394;}
+  .chevron{
+    width:26px;height:26px;
+    border-radius:50%;
+    background:#F0F2F6;
+    display:flex;align-items:center;justify-content:center;
+    color:#7A8394;
+    font-size:11px;
+    transition:transform .3s ease;
+    flex-shrink:0;
+  }
+  .sheet.collapsed .chevron{transform:rotate(180deg);}
+
+  .sheet-body{
+    max-height:340px;
+    overflow-y:auto;
+    transition:max-height .35s ease, opacity .25s ease, margin-top .35s ease;
+    margin-top:12px;
+    opacity:1;
+  }
+  .sheet.collapsed .sheet-body{
+    max-height:0;
+    opacity:0;
+    margin-top:0;
+    overflow:hidden;
+  }
+  .sheet h3{margin:0 0 2px;font-size:15px;color:var(--ink);}
+  .sheet .count{font-size:12px;color:#7A8394;margin-bottom:12px;}
+
+  .client-group{
+    border:1px solid var(--line);
+    border-radius:12px;
+    margin-bottom:10px;
+    overflow:hidden;
+  }
+  .client-header{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px;
+    background:#FAFBFD;
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .client-header .sw{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .client-header .kind{
+    font-size:9px;font-weight:700;
+    color:#9AA3B2;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+  }
+  .client-header .n{
+    margin-left:auto;
+    font-size:11px;font-weight:600;
+    color:#7A8394;
+  }
+  .stop{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 12px;
+    font-size:12.5px;
+    border-top:1px solid #F0F2F6;
+  }
+  .stop .idx{
+    width:20px;height:20px;
+    border-radius:50%;
+    color:#fff;
+    font-size:10px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .stop .addr{color:var(--ink);}
+  .stop .tag{
+    margin-left:auto;
+    font-size:9.5px;font-weight:700;
+    padding:2px 7px;border-radius:10px;
+  }
+  .tag.recoleccion{background:#EAF0FD;color:var(--blue-dark);}
+  .tag.entrega{background:#FCEFE9;color:#B03F10;}
+
+  .optimize-btn{
+    margin-top:4px;
+    width:100%;
+    background:var(--blue);
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:13px;
+    font-size:13.5px;
+    font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .note{
+    text-align:center;
+    font-size:10.5px;
+    color:#9AA3B2;
+    margin-top:8px;
+  }
+
+  /* Drawer de perfil */
+  .drawer{
+    position:absolute;
+    top:0; left:0;
+    width:78%;
+    height:100%;
+    background:#fff;
+    z-index:20;
+    transform:translateX(-105%);
+    transition:transform .3s ease;
+    box-shadow:8px 0 24px rgba(0,0,0,.2);
+    padding:20px 16px;
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer-header{
+    display:flex;align-items:center;gap:10px;
+    padding-bottom:16px;
+    margin-bottom:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .avatar{
+    width:42px;height:42px;
+    border-radius:50%;
+    background:var(--blue);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:13px;
+    flex-shrink:0;
+  }
+  .drawer-name{font-size:13.5px;font-weight:700;color:var(--ink);}
+  .drawer-role{font-size:11px;color:#7A8394;margin-top:1px;}
+  .drawer-close{
+    margin-left:auto;
+    width:26px;height:26px;
+    border-radius:50%;
+    background:#F0F2F6;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;
+    color:#7A8394;
+    cursor:pointer;
+  }
+  .drawer-item{
+    padding:12px 4px;
+    font-size:13px;
+    color:var(--ink);
+    border-bottom:1px solid #F3F4F7;
+    cursor:pointer;
+  }
+  .scrim{
+    position:absolute;
+    top:0;left:0;width:100%;height:100%;
+    background:rgba(10,14,20,.4);
+    z-index:15;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .3s ease;
+  }
+  .scrim.show{opacity:1;pointer-events:auto;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="topbar">
+    <div class="hamburger" onclick="toggleMenu()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </div>
+    <div class="logo-mark">🐆</div>
+    <div class="text-wrap">
+      <div class="title">Mis rutas de hoy</div>
+      <div class="sub">Edgar Natanael · 10 paradas activas</div>
+    </div>
+    <div class="badge">🔴 En ruta</div>
+  </div>
+
+  <!-- Drawer de perfil, oculto por default -->
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div class="avatar">EN</div>
+      <div>
+        <div class="drawer-name">Edgar Natanael</div>
+        <div class="drawer-role">Guepartidor · Zona Zapopan</div>
+      </div>
+      <div class="drawer-close" onclick="toggleMenu()">✕</div>
+    </div>
+    <div class="drawer-item">👤 Mi perfil</div>
+    <div class="drawer-item">💰 Mis ganancias</div>
+    <div class="drawer-item">⭐ Mi nivel VIP</div>
+    <div class="drawer-item">📄 Historial de entregas</div>
+    <div class="drawer-item">⚙️ Ajustes</div>
+    <div class="drawer-item">🚪 Cerrar sesión</div>
+  </div>
+  <div class="scrim" id="scrim" onclick="toggleMenu()"></div>
+
+  <div class="map">
+    <div class="legend">
+      <div><span class="sw" style="background:var(--blue)"></span>Zamper (3) · empresa</div>
+      <div><span class="sw" style="background:var(--orange)"></span>Art Dental (5) · empresa</div>
+      <div><span class="sw" style="background:var(--teal)"></span>Sofía Ramírez (2) · cliente</div>
+    </div>
+
+    <!-- driver position -->
+    <div class="driver" style="top:52%; left:48%;"></div>
+
+    <!-- Cliente A - Zamper (azul) : 1 recolección + 3 entregas -->
+    <div class="pin pickup cA" style="top:30%; left:20%;"><div class="dot"><span class="num">R</span></div></div>
+    <div class="pin cA" style="top:14%; left:34%;"><div class="dot"><span class="num">1</span></div></div>
+    <div class="pin cA" style="top:22%; left:58%;"><div class="dot"><span class="num">2</span></div></div>
+    <div class="pin cA" style="top:8%; left:72%;"><div class="dot"><span class="num">3</span></div></div>
+
+    <!-- Cliente B - Art Dental (naranja): 1 recolección + 5 entregas -->
+    <div class="pin pickup cB" style="top:64%; left:74%;"><div class="dot"><span class="num">R</span></div></div>
+    <div class="pin cB" style="top:46%; left:80%;"><div class="dot"><span class="num">1</span></div></div>
+    <div class="pin cB" style="top:60%; left:90%;"><div class="dot"><span class="num">2</span></div></div>
+    <div class="pin cB" style="top:78%; left:85%;"><div class="dot"><span class="num">3</span></div></div>
+    <div class="pin cB" style="top:88%; left:65%;"><div class="dot"><span class="num">4</span></div></div>
+    <div class="pin cB" style="top:70%; left:55%;"><div class="dot"><span class="num">5</span></div></div>
+
+    <!-- Cliente C - Alterco (teal): 1 recolección + 2 entregas -->
+    <div class="pin pickup cC" style="top:38%; left:8%;"><div class="dot"><span class="num">R</span></div></div>
+    <div class="pin cC" style="top:20%; left:8%;"><div class="dot"><span class="num">1</span></div></div>
+    <div class="pin cC" style="top:44%; left:30%;"><div class="dot"><span class="num">2</span></div></div>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <div class="handle" onclick="toggleSheet()"></div>
+    <div class="sheet-head" onclick="toggleSheet()">
+      <div class="sheet-head-text">
+        <h3>Todas mis paradas</h3>
+        <div class="count">3 recolecciones · 10 entregas · orden sugerido</div>
+      </div>
+      <div class="chevron">▲</div>
+    </div>
+
+    <div class="sheet-body">
+    <div class="client-group">
+      <div class="client-header"><span class="sw" style="background:var(--blue)"></span>Zamper<span class="kind">· Empresa</span> <span class="n">1 recolección · 3 entregas</span></div>
+      <div class="stop"><div class="idx" style="background:var(--blue)">R</div><div class="addr">Bodega Zamper, Av. López Mateos</div><div class="tag recoleccion">Recolección</div></div>
+      <div class="stop"><div class="idx" style="background:var(--blue)">1</div><div class="addr">Sucursal Providencia</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--blue)">2</div><div class="addr">Plaza del Sol, local 14</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--blue)">3</div><div class="addr">Col. Chapalita, calle Río Bravo</div><div class="tag entrega">Entrega</div></div>
+    </div>
+
+    <div class="client-group">
+      <div class="client-header"><span class="sw" style="background:var(--orange)"></span>Art Dental<span class="kind">· Empresa</span> <span class="n">1 recolección · 5 entregas</span></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">R</div><div class="addr">Consultorio central, Zapopan</div><div class="tag recoleccion">Recolección</div></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">1</div><div class="addr">Paciente — Col. Vallarta</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">2</div><div class="addr">Paciente — Puerta de Hierro</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">3</div><div class="addr">Paciente — Andares</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">4</div><div class="addr">Paciente — Col. Americana</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--orange)">5</div><div class="addr">Paciente — Colomos</div><div class="tag entrega">Entrega</div></div>
+    </div>
+
+    <div class="client-group">
+      <div class="client-header"><span class="sw" style="background:var(--teal)"></span>Sofía Ramírez<span class="kind">· Cliente</span> <span class="n">1 recolección · 2 entregas</span></div>
+      <div class="stop"><div class="idx" style="background:var(--teal)">R</div><div class="addr">Su domicilio — Col. Providencia</div><div class="tag recoleccion">Recolección</div></div>
+      <div class="stop"><div class="idx" style="background:var(--teal)">1</div><div class="addr">Envío a — Tlaquepaque centro</div><div class="tag entrega">Entrega</div></div>
+      <div class="stop"><div class="idx" style="background:var(--teal)">2</div><div class="addr">Envío a — Tonalá</div><div class="tag entrega">Entrega</div></div>
+    </div>
+
+    <button class="optimize-btn">📍 Optimizar orden de ruta</button>
+    <div class="note">El mapa se carga una sola vez por sesión · los pines se actualizan en tiempo real</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleSheet(){
+    document.getElementById('sheet').classList.toggle('collapsed');
+  }
+  function toggleMenu(){
+    document.getElementById('drawer').classList.toggle('open');
+    document.getElementById('scrim').classList.toggle('show');
+  }
+</script>
+
+</body>
+</html>
