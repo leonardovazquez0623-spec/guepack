@@ -3065,7 +3065,7 @@ async function mostrarDirecciones(inputId) {
   const lista = data && data.length > 0
     ? data.map(d => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--gray)">
-          <div onclick="usarDireccion('${inputId}', '${d.direccion.replace(/'/g, "\\'")}')" style="flex:1;cursor:pointer">
+          <div onclick="usarDireccion('${inputId}', '${d.direccion.replace(/'/g, "\\'")}', ${d.lat ?? 'null'}, ${d.lng ?? 'null'})" style="flex:1;cursor:pointer">
             <div style="font-size:13px;font-weight:700;color:var(--text)">${d.nombre}</div>
             <div style="font-size:11px;color:var(--gray-mid)">${d.direccion}</div>
           </div>
@@ -3096,26 +3096,38 @@ async function mostrarDirecciones(inputId) {
   document.body.appendChild(div)
 }
 
-function usarDireccion(inputId, direccion) {
+function usarDireccion(inputId, direccion, lat, lng) {
   const el = document.getElementById(inputId)
   if (el) el.value = direccion
   document.getElementById('modal-direcciones').remove()
 
-  if (inputId === 'dir-entrega' && window.google?.maps) {
-    new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
-      if (status !== 'OK' || !results[0]) return
-      const place = results[0]
-      _entregaPlace = place
-      _latEntrega = place.geometry.location.lat()
-      _lngEntrega = place.geometry.location.lng()
-      _detectarZonaEntrega(place)
-      setTimeout(_actualizarMapaWizard, 50)
-    })
+  if (inputId === 'dir-entrega') {
+    // Entrega necesita _entregaPlace para detección de zona — siempre geocodificar
+    if (window.google?.maps) {
+      new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
+        if (status !== 'OK' || !results[0]) return
+        const place = results[0]
+        _entregaPlace = place
+        // Si la dirección tenía coords guardadas, usarlas (más precisas que el Geocoder)
+        _latEntrega = (lat != null) ? lat : place.geometry.location.lat()
+        _lngEntrega = (lng != null) ? lng : place.geometry.location.lng()
+        _detectarZonaEntrega(place)
+        setTimeout(_actualizarMapaWizard, 50)
+      })
+    }
   } else if (inputId === 'dir-recoleccion') {
+    if (lat != null && lng != null) {
+      _latRecoleccion = lat
+      _lngRecoleccion = lng
+    }
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
     setTimeout(_actualizarMapaWizard, 50)
   } else if (inputId.startsWith('parada-dir-')) {
     const idx = parseInt(inputId.replace('parada-dir-', ''), 10)
+    if (lat != null && lng != null && _paradasList[idx]) {
+      _paradasList[idx].lat = lat
+      _paradasList[idx].lng = lng
+    }
     _paradaDirChange(idx, direccion)
     setTimeout(_actualizarMapaWizard, 50)
   }
@@ -3131,11 +3143,25 @@ async function guardarDireccion(inputId) {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
 
+  // Capturar las coords que ya están en memoria según el input origen
+  let latSave = null, lngSave = null
+  if (inputId === 'dir-recoleccion') {
+    latSave = _latRecoleccion; lngSave = _lngRecoleccion
+  } else if (inputId === 'dir-entrega') {
+    latSave = _latEntrega; lngSave = _lngEntrega
+  } else if (inputId.startsWith('parada-dir-')) {
+    const idx = parseInt(inputId.replace('parada-dir-', ''), 10)
+    latSave = _paradasList[idx]?.lat ?? null
+    lngSave = _paradasList[idx]?.lng ?? null
+  }
+
   const { error } = await db.from('direcciones').insert({
     user_id: session.user.id,
     nombre: nombre,
     direccion: direccion,
-    tipo: 'general'
+    tipo: 'general',
+    lat: latSave,
+    lng: lngSave
   })
 
   if (error) { alert('Error al guardar'); return }
