@@ -2176,10 +2176,15 @@ function _initMapaRepartidor() {
   driverEl.className = 'mapa-driver-dot'
   _markerDriver = new mapboxgl.Marker({ element: driverEl, anchor: 'center' })
 
+  let _firstFix = true
   if (navigator.geolocation) {
     _driverWatchId = navigator.geolocation.watchPosition(pos => {
       const { latitude: lat, longitude: lng } = pos.coords
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
+      if (_firstFix) {
+        _firstFix = false
+        _mapboxMap.flyTo({ center: [lng, lat], zoom: 15, speed: 1.4 })
+      }
     }, null, { enableHighAccuracy: true, maximumAge: 5000 })
   }
 }
