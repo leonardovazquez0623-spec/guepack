@@ -65,9 +65,26 @@ self.addEventListener('activate', event => {
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return
-  if (event.request.url.includes('app.html')) {
-    event.respondWith(fetch(event.request))
-  }
+
+  const url = event.request.url
+  // Dejar pasar sin interceptar: APIs externas y assets de Firebase/Supabase
+  if (
+    url.includes('supabase.co') ||
+    url.includes('googleapis.com') ||
+    url.includes('firebaseapp.com') ||
+    url.includes('firebasestorage.app') ||
+    url.includes('gstatic.com') ||
+    url.includes('mapbox.com') ||
+    url.includes('api.mapbox.com')
+  ) return
+
+  event.respondWith(
+    caches.match(event.request).then(function(response) {
+      return response || fetch(event.request).catch(function() {
+        // Sin caché y sin red — no hay fallback para este recurso
+      })
+    })
+  )
 })

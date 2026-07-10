@@ -201,11 +201,14 @@
   .delivery-header { position:relative; z-index:510; }
 
   #vista-mapa-wrap {
-    display:none; position:fixed; left:0; right:0; bottom:0; z-index:500;
+    display:none; position:fixed; top:0; left:0; right:0; height:100dvh; z-index:500;
     flex-direction:column;
   }
   #vista-mapa-wrap.visible { display:flex; }
   #mapa-repartidor { flex:1; width:100%; min-height:0; }
+
+  /* Google Places dropdown must float above Mapbox canvas */
+  .pac-container { z-index:99999 !important; }
 
   /* Legend overlay */
   #mapa-legend {
@@ -2151,7 +2154,12 @@ async function _cambiarVista(vista) {
 
 // ── Sheet toggle (colapsa body, no mueve el sheet entero) ────────────────────
 function _toggleSheet() {
-  document.getElementById('mapa-sheet').classList.toggle('collapsed')
+  const sheet = document.getElementById('mapa-sheet')
+  sheet.classList.toggle('collapsed')
+  // Resize Mapbox canvas once the CSS transition finishes so it fills the freed space
+  document.getElementById('mapa-sheet-body').addEventListener(
+    'transitionend', () => { _mapboxMap?.resize() }, { once: true }
+  )
 }
 
 // ── Inicializar Mapbox (una sola vez) ────────────────────────────────────────
