@@ -2949,7 +2949,7 @@ async function rastrearPedido() {
       console.log('[rastreo] estado actualizado:', payload.new.estado)
       _actualizarUIRastreo(payload.new)
     })
-    .subscribe()
+    .subscribe(status => { console.log('[rastreo app] canal status:', status) })
 }
 
 function _actualizarUIRastreo(data) {
