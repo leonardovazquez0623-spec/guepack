@@ -3119,6 +3119,14 @@ function usarDireccion(inputId, direccion, lat, lng) {
     if (lat != null && lng != null) {
       _latRecoleccion = lat
       _lngRecoleccion = lng
+    } else if (window.google?.maps) {
+      // dirección guardada sin coords → geocodificar
+      new google.maps.Geocoder().geocode({ address: direccion }, (res, st) => {
+        if (st === 'OK' && res[0]?.geometry) {
+          _latRecoleccion = res[0].geometry.location.lat()
+          _lngRecoleccion = res[0].geometry.location.lng()
+        }
+      })
     }
     if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
     setTimeout(_actualizarMapaWizard, 50)
@@ -5849,8 +5857,18 @@ function _initAutocompleteDirecciones() {
     if (pl?.geometry) {
       _latRecoleccion = pl.geometry.location.lat()
       _lngRecoleccion = pl.geometry.location.lng()
+      setTimeout(_actualizarMapaWizard, 50)
+    } else {
+      // Enter sin seleccionar del dropdown → geocodificar texto actual
+      const val = inputRec.value?.trim()
+      if (val) new google.maps.Geocoder().geocode({ address: val }, (res, st) => {
+        if (st === 'OK' && res[0]?.geometry) {
+          _latRecoleccion = res[0].geometry.location.lat()
+          _lngRecoleccion = res[0].geometry.location.lng()
+        }
+        setTimeout(_actualizarMapaWizard, 50)
+      })
     }
-    setTimeout(_actualizarMapaWizard, 50)
   })
 
   const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
