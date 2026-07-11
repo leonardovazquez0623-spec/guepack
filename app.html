@@ -2962,7 +2962,7 @@ async function rastrearPedido() {
       table: 'pedidos',
       filter: 'id=eq.' + data.id
     }, payload => {
-      console.log('[rastreo] estado actualizado:', payload.new.estado)
+      console.log('[rastreo] UPDATE — estado:', payload.new.estado, '| repartidor:', payload.new.repartidor ?? 'sin asignar')
       _actualizarUIRastreo(payload.new)
     })
     .subscribe(status => { console.log('[rastreo app] canal status:', status) })
@@ -2983,15 +2983,17 @@ function _actualizarUIRastreo(data) {
     'Entregado':                           6
   }
   const estadoActual = estadoMap[data.estado] ?? -1
+  // Si repartidor fue asignado pero el estado sigue en Pendiente, activar el primer paso en verde
+  const efectivo = (estadoActual < 0 && data.repartidor) ? 0 : estadoActual
 
   const items = ['tl-encamino-rec', 'tl-llegamos-rec', 'tl-recolectado', 'tl-camino', 'tl-llegamos-dest', 'tl-entregado']
   items.forEach((itemId, i) => {
     const el = document.getElementById(itemId)
     if (!el) return
-    if (estadoActual < 0)         el.className = 'tl-item pending'
-    else if (i < estadoActual)    el.className = 'tl-item done'
-    else if (i === estadoActual)  el.className = 'tl-item current'
-    else                          el.className = 'tl-item pending'
+    if (efectivo < 0)        el.className = 'tl-item pending'
+    else if (i < efectivo)   el.className = 'tl-item done'
+    else if (i === efectivo) el.className = 'tl-item current'
+    else                     el.className = 'tl-item pending'
   })
 }
 
