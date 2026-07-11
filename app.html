@@ -2424,7 +2424,7 @@ async function activarNotificaciones() {
 
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
 if (Notification.permission === 'granted') activarNotificaciones()
-let selSize = null, selZone = null, selMetodoPago = null
+var selSize = null, selZone = null, selMetodoPago = null
 // ── Wizard navegación ────────────────────────────────────────────────────────
 function _irPaso(n) {
   document.getElementById('wizard-paso-' + _wizardPasoActual).style.display = 'none'
