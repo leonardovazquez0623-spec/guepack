@@ -676,12 +676,34 @@
     box-shadow: 0 0 0 3px rgba(255,255,255,0.6) !important;
     border-radius: 14px !important;
   }
-  /* iOS Safari: el teclado reduce el visual viewport; position:fixed ancla el
-     dropdown sobre el teclado en lugar de dejarlo en el layout viewport invisible */
-  .pac-container {
-    position: fixed !important;
-    z-index: 999999 !important;
+  /* ── Custom Autocomplete Dropdown (reemplaza .pac-container de Google) ── */
+  .guep-ac-dropdown {
+    position: fixed;
+    z-index: 999999;
+    background: #fff;
+    border: 1.5px solid #1E56C7;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(26,79,160,0.18);
+    overflow: hidden;
+    display: none;
+    max-height: 230px;
+    overflow-y: auto;
   }
+  .guep-ac-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f4f9;
+    font-family: 'Montserrat', sans-serif;
+    border-left: 3px solid transparent;
+    transition: background .1s, border-left-color .1s;
+  }
+  .guep-ac-item:last-child { border-bottom: none; }
+  .guep-ac-item:hover, .guep-ac-item.activo {
+    background: #f0f4ff;
+    border-left-color: #1E56C7;
+  }
+  .guep-ac-item-main { font-weight: 700; font-size: 13px; color: #1a2740; }
+  .guep-ac-item-sub  { font-size: 11px; color: #8fa3c0; margin-top: 2px; }
   .loader--4 {
     --anim-duration: 0.5s;
     aspect-ratio: 1 / 1;
@@ -767,13 +789,13 @@
   /* ── GUEP ICON SYSTEM ── */
   [data-icon] { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; }
   [data-icon] svg { display:block; width:100%; height:100%; }
-  .b-icon[data-icon] svg, .b-icon [data-icon] svg { width:26px; height:26px; display:block; }
-  .tab-icon[data-icon] svg { width:18px; height:18px; }
+  .b-icon[data-icon] svg, .b-icon [data-icon] svg { width:30px; height:30px; display:block; }
+  .tab-icon[data-icon] svg { width:22px; height:22px; }
   .success-icon[data-icon] svg { width:64px; height:64px; }
   .empty-icon[data-icon] svg { width:48px; height:48px; }
-  .size-icon[data-icon] svg { width:26px; height:26px; display:block; margin-bottom:4px; }
+  .size-icon[data-icon] svg { width:30px; height:30px; display:block; margin-bottom:4px; }
   .guep-icon-inline { display:inline-flex; align-items:center; vertical-align:middle; }
-  .guep-icon-inline svg { width:15px; height:15px; display:block; }
+  .guep-icon-inline svg { width:18px; height:18px; display:block; }
   .icon-on-color { filter: brightness(0) invert(1); }
   /* ── GUEPARTIDOR SPINNER ── */
   .guep-spinner { position:relative; width:80px; height:80px; margin:0 auto; }
@@ -862,16 +884,16 @@
   <!-- Client Bottom Bar -->
   <div class="bottom-bar">
     <button class="bottom-btn active" onclick="showClientSection('new')">
-      <span class="b-icon">➕</span>Nuevo
+      <span class="b-icon" data-icon="agregar"></span>Nuevo
     </button>
     <button class="bottom-btn tab-nacional" id="btn-tab-nacional" onclick="showClientSection('nacional')">
-      <span class="b-icon" data-icon="paquete"></span>Nacional
+      <span class="b-icon" data-icon="nacional"></span>Nacional
     </button>
     <button class="bottom-btn" onclick="showClientSection('tracking')">
-      <span class="b-icon" data-icon="ubicacion"></span>Rastreo
+      <span class="b-icon" data-icon="rastreo"></span>Rastreo
     </button>
     <button class="bottom-btn" onclick="showClientSection('history')">
-      <span class="b-icon">📋</span>Historial
+      <span class="b-icon" data-icon="historial"></span>Historial
     </button>
   </div>
 
@@ -890,17 +912,17 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div class="modo-card" onclick="_abrirModo('enviar')">
-            <div class="mc-icon">📤</div>
+            <div class="mc-icon"><span data-icon="enviar_paquete" style="display:inline-flex;width:32px;height:32px"></span></div>
             <div class="mc-label">Enviar paquete</div>
             <div class="mc-sub">Recolectamos en tu domicilio</div>
           </div>
           <div class="modo-card" onclick="_abrirModo('recibir')">
-            <div class="mc-icon">📥</div>
+            <div class="mc-icon"><span data-icon="recibir_paquete" style="display:inline-flex;width:32px;height:32px"></span></div>
             <div class="mc-label">Recibir paquete</div>
             <div class="mc-sub">Lo llevamos hasta ti</div>
           </div>
           <div class="modo-card" onclick="_abrirModo('nacional')">
-            <div class="mc-icon">🚚</div>
+            <div class="mc-icon"><span data-icon="nacional" style="display:inline-flex;width:32px;height:32px"></span></div>
             <div class="mc-label">Envío Nacional</div>
             <div class="mc-sub">FedEx · DHL · Estafeta</div>
           </div>
@@ -975,7 +997,7 @@
               <div style="display:flex;gap:8px;margin-bottom:6px">
                 <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
                 <button type="button" onclick="mostrarDirecciones('dir-recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:30px;height:30px;display:inline-flex"></span></button>
-                <button type="button" id="btn-nota-rec" class="btn-nota-dir" onclick="_abrirNotaDir('recoleccion')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:20px;height:20px" data-icon="nota_pedido"></span></button>
+                <button type="button" id="btn-nota-rec" class="btn-nota-dir" onclick="_abrirNotaDir('recoleccion')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:24px;height:24px" data-icon="nota_pedido"></span></button>
               </div>
               <div id="link-ajustar-gps-rec" style="display:none;margin-top:2px">
                 <a href="#" onclick="_activarAjusteGps('rec');return false" style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--blue);text-decoration:underline">¿No es tu ubicación? Ajústala aquí</a>
@@ -993,7 +1015,7 @@
               <div style="display:flex;gap:8px;margin-bottom:6px">
                 <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
                 <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:30px;height:30px;display:inline-flex"></span></button>
-                <button type="button" id="btn-nota-ent" class="btn-nota-dir" onclick="_abrirNotaDir('entrega')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:20px;height:20px" data-icon="nota_pedido"></span></button>
+                <button type="button" id="btn-nota-ent" class="btn-nota-dir" onclick="_abrirNotaDir('entrega')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:24px;height:24px" data-icon="nota_pedido"></span></button>
               </div>
               <div id="link-ajustar-gps-ent" style="display:none;margin-top:2px">
                 <a href="#" onclick="_activarAjusteGps('ent');return false" style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--blue);text-decoration:underline">¿No es tu ubicación? Ajústala aquí</a>
@@ -1056,7 +1078,7 @@
           <div class="card">
             <div class="card-title">Zona de entrega</div>
             <div id="zona-detect-result" style="padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px">
-              <span style="display:inline-flex;width:20px;height:20px;flex-shrink:0" data-icon="ubicacion"></span>
+              <span style="display:inline-flex;width:24px;height:24px;flex-shrink:0" data-icon="ubicacion"></span>
               <span>Se detectará al ingresar tu dirección de entrega</span>
             </div>
           </div>
@@ -1303,7 +1325,7 @@
 
         <!-- Tarjeta Destino -->
         <div class="card">
-          <div class="card-title">🏠 Destino</div>
+          <div class="card-title"><span class="guep-icon-inline" data-icon="inicio"></span> Destino</div>
 
           <!-- CP bloqueado -->
           <div class="form-group">
@@ -1489,7 +1511,7 @@
       <!-- ── Envíos nacionales (guías generadas) ── -->
       <div id="nacionales-rastreo-wrap" style="display:none">
         <div class="card">
-          <div style="font-size:11px;font-weight:700;color:var(--gray-mid);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">📦 Envíos nacionales</div>
+          <div style="font-size:11px;font-weight:700;color:var(--gray-mid);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:5px"><span class="guep-icon-inline" data-icon="nacional"></span> Envíos nacionales</div>
           <div id="nacionales-rastreo-list"></div>
         </div>
       </div>
@@ -1530,22 +1552,16 @@ const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 // un error posterior en el script. Las referencias internas se resuelven en el
 // momento en que Maps la llama, no al definirla.
 window.initMapsGuepack = function() {
-  const gdlBounds = new google.maps.LatLngBounds(
+  _gdlBounds = new google.maps.LatLngBounds(
     { lat: 20.50, lng: -103.55 },
     { lat: 20.85, lng: -103.15 }
   )
-  _mapsPlacesOpts = {
-    componentRestrictions: { country: 'mx' },
-    fields: ['formatted_address', 'address_components', 'geometry'],
-    bounds: gdlBounds,
-    strictBounds: false
-  }
   const formState = document.getElementById('form-state')
   if (formState && formState.style.display !== 'none') {
     _iniciarMapaWizard()
     _initAutocompleteDirecciones()
   }
-  _attachAutocompletePararadas(_mapsPlacesOpts)
+  _attachAutocompletePararadas()
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1596,7 +1612,7 @@ var _clienteUserId = null, _clienteEmail = '', _clienteFotoUrl = null
 var _clienteCodigoReferido = null, _clienteNombre = '', _clienteWhatsapp = ''
 var _clienteWhatsappEditado = false, _clienteTotalPedidos = 0, _clienteNivelVip = 'normal', _clienteEnviosGratis = 0
 // Varios
-var _calStars = 0, _mapsPlacesOpts = null
+var _calStars = 0, _gdlBounds = null
 var _tourStep = 0, _tourHighlightEl = null, _tourHighlightClass = 'tour-highlight'
 var _TOUR_STEPS = [
   {
@@ -1929,7 +1945,7 @@ function _mostrarTogglesPaqueteria(empresa) {
   const btnBaseInactivo = 'padding:10px 14px;border:1px solid #e5e7eb;border-radius:8px;background:white;color:#374151;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;text-align:left;width:100%'
   let html = `<button id="toggle-normal-btn" onclick="_toggleModoPaqueteria(null)" style="${btnBaseActivo}">🏍️ Envío a domicilio</button>`
   if (empresa.permite_paqueterias) {
-    html += `<button id="toggle-paqueteria-btn" onclick="_toggleModoPaqueteria('paqueteria')" style="${btnBaseInactivo};display:inline-flex;align-items:center;gap:7px"><span style="display:inline-flex;width:20px;height:20px;flex-shrink:0">${GUEPACK_ICONS.paquete}</span> Enviar a Paquetería (DHL/FedEx/Estafeta)</button>`
+    html += `<button id="toggle-paqueteria-btn" onclick="_toggleModoPaqueteria('paqueteria')" style="${btnBaseInactivo};display:inline-flex;align-items:center;gap:7px"><span style="display:inline-flex;width:24px;height:24px;flex-shrink:0">${GUEPACK_ICONS.paquete}</span> Enviar a Paquetería (DHL/FedEx/Estafeta)</button>`
   }
   if (empresa.permite_mercado_libre) {
     html += `<button id="toggle-mercadolibre-btn" onclick="_toggleModoPaqueteria('mercado_libre')" style="${btnBaseInactivo}">🟡 Enviar a Mercado Libre</button>`
@@ -3342,19 +3358,18 @@ function agregarParada() {
   div.style.cssText = 'background:var(--gray-light);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1.5px solid var(--gray)'
   div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);display:inline-flex;align-items:center;gap:4px"><span style="display:inline-flex;width:14px;height:14px">${GUEPACK_ICONS.ubicacion}</span> Parada ${idx + 2}</span>
+      <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);display:inline-flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Parada ${idx + 2}</span>
       <button type="button" onclick="eliminarParada(${idx})" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✕</button>
     </div>
     <div style="display:flex;gap:8px">
       <input type="text" id="parada-dir-${idx}" class="form-input" placeholder="Dirección de entrega" style="flex:1" oninput="_paradaDirChange(${idx},this.value)">
       <button type="button" onclick="mostrarDirecciones('parada-dir-${idx}')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="direccion_guardada" data-icon-done="1" style="display:inline-flex;width:30px;height:30px">${GUEPACK_ICONS.direccion_guardada}</span></button>
-      <button type="button" id="btn-nota-parada-${idx}" class="btn-nota-dir" onclick="_abrirNotaDir('parada',${idx})" title="Agregar nota para esta parada"><span data-icon="nota_pedido" data-icon-done="1" style="display:inline-flex;width:20px;height:20px">${GUEPACK_ICONS.nota_pedido}</span></button>
+      <button type="button" id="btn-nota-parada-${idx}" class="btn-nota-dir" onclick="_abrirNotaDir('parada',${idx})" title="Agregar nota para esta parada"><span data-icon="nota_pedido" data-icon-done="1" style="display:inline-flex;width:24px;height:24px">${GUEPACK_ICONS.nota_pedido}</span></button>
     </div>
   `
   cont.appendChild(div)
-  // Attach Places autocomplete if Maps already loaded (centralized in _attachAutocompletePararadas)
-  if (window.google?.maps?.places && _mapsPlacesOpts) {
-    _attachAutocompletePararadas(_mapsPlacesOpts)
+  if (window.google?.maps?.places?.AutocompleteSuggestion) {
+    _attachAutocompletePararadas()
   }
   _actualizarMapaWizard()
 }
@@ -3401,7 +3416,7 @@ async function _cargarParadasPedido(pedidoId) {
   el.style.display = 'block'
 
   const recoleccionHtml = recoleccion
-    ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:#1a4fa0;display:flex;align-items:center;gap:3px"><span style="display:inline-flex;width:12px;height:12px">${GUEPACK_ICONS.ubicacion}</span> Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
+    ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:#1a4fa0;display:flex;align-items:center;gap:3px"><span style="display:inline-flex;width:16px;height:16px">${GUEPACK_ICONS.ubicacion}</span> Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
     : ''
 
   if (!data?.length) {
@@ -3433,11 +3448,11 @@ function abrirModalAgregarParada(pedidoId) {
     <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">➕ Agregar parada · GK-${pedidoId}</div>
       <div style="margin-bottom:14px">
-        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:14px;height:14px">${GUEPACK_ICONS.ubicacion}</span> Dirección</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Dirección</div>
         <input id="nueva-parada-dir" type="text" placeholder="Escribe una dirección..." autocomplete="off" style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
       </div>
       <div style="margin-bottom:20px">
-        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:14px;height:14px">${GUEPACK_ICONS.nota_pedido}</span> Instrucciones (opcional)</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.nota_pedido}</span> Instrucciones (opcional)</div>
         <input id="parada-inst-input" type="text" placeholder="Ej: Tocar el timbre, 2do piso..." style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
       </div>
       <div style="display:flex;gap:10px">
@@ -3451,13 +3466,9 @@ function abrirModalAgregarParada(pedidoId) {
 
   setTimeout(() => {
     const input = document.getElementById('nueva-parada-dir')
-    console.log('input encontrado:', input)
-    if (input && window.google?.maps?.places) {
-      const opts = Object.assign({}, _mapsPlacesOpts, { types: ['geocode', 'establishment'] })
-      const ac = new google.maps.places.Autocomplete(input, opts)
-      ac.addListener('place_changed', () => {
-        const place = ac.getPlace()
-        input.value = place.formatted_address || place.name || input.value
+    if (input && window.google?.maps?.places?.AutocompleteSuggestion) {
+      _crearGuepAutocomplete(input, {
+        onSelect: ({ formatted_address }) => { input.value = formatted_address }
       })
     }
   }, 100)
@@ -4422,7 +4433,7 @@ function resetForm() {
   if (_empresaData?.tipo_tarifa === 'diaria') _mostrarCotizacionDiaria()
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
   const _zdr = document.getElementById('zona-detect-result')
-  if (_zdr) { _zdr.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'; _zdr.innerHTML = '<span style="display:inline-flex;width:20px;height:20px;flex-shrink:0">' + GUEPACK_ICONS.ubicacion + '</span><span>Se detectará al ingresar tu dirección de entrega</span>' }
+  if (_zdr) { _zdr.style.cssText = 'padding:13px 14px;border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--gray-mid);display:flex;align-items:center;gap:10px;min-height:46px'; _zdr.innerHTML = '<span style="display:inline-flex;width:24px;height:24px;flex-shrink:0">' + GUEPACK_ICONS.ubicacion + '</span><span>Se detectará al ingresar tu dirección de entrega</span>' }
   document.getElementById('quote-display').style.display = 'none'
 
   // Links y hint de ajuste GPS
@@ -5858,115 +5869,200 @@ function cerrarModalCalificacion() {
   setTimeout(() => el.remove(), 260)
 }
 
-// ── Google Maps Places Autocomplete + Detección de Zona ──────────────────────
+// ── GUEPACK Custom Autocomplete ──────────────────────────────────────────────
+// Usa AutocompleteSuggestion (nueva API) + AutocompleteSessionToken + dropdown
+// propio con posición fija — sin depender de .pac-container de Google.
+
+function _escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function _crearGuepAutocomplete(input, { onSelect } = {}) {
+  if (!window.google?.maps?.places?.AutocompleteSuggestion) return
+  if (input.dataset.acAttached) return
+  input.dataset.acAttached = '1'
+
+  let _token  = new google.maps.places.AutocompleteSessionToken()
+  let _timer  = null
+  let _drop   = null
+  let _sugs   = []
+  let _activo = -1
+
+  function _crearDrop() {
+    if (_drop) return
+    _drop = document.createElement('div')
+    _drop.className = 'guep-ac-dropdown'
+    document.body.appendChild(_drop)
+  }
+
+  function _posicionar() {
+    if (!_drop) return
+    const r = input.getBoundingClientRect()
+    _drop.style.top   = (r.bottom + 2) + 'px'
+    _drop.style.left  = r.left + 'px'
+    _drop.style.width = r.width + 'px'
+  }
+
+  function _resaltar() {
+    _drop.querySelectorAll('.guep-ac-item').forEach((el, i) => {
+      el.classList.toggle('activo', i === _activo)
+    })
+  }
+
+  function _renderizar(sugs) {
+    _sugs   = sugs
+    _activo = -1
+    _crearDrop()
+    if (!sugs.length) { _cerrar(); return }
+    _drop.innerHTML = sugs.map((s, i) => {
+      const pp   = s.placePrediction
+      const main = pp.mainText?.text || pp.text.text.split(',')[0]
+      const sub  = pp.secondaryText?.text || (pp.text.text.indexOf(',') > -1
+        ? pp.text.text.slice(pp.text.text.indexOf(',') + 1).trim() : '')
+      return `<div class="guep-ac-item" data-idx="${i}">
+        <div class="guep-ac-item-main">${_escapeHtml(main)}</div>
+        ${sub ? `<div class="guep-ac-item-sub">${_escapeHtml(sub)}</div>` : ''}
+      </div>`
+    }).join('')
+    _drop.querySelectorAll('.guep-ac-item').forEach(el => {
+      el.addEventListener('mouseenter', () => { _activo = +el.dataset.idx; _resaltar() })
+      el.addEventListener('mousedown', e => { e.preventDefault(); _seleccionar(+el.dataset.idx) })
+    })
+    _posicionar()
+    _drop.style.display = 'block'
+  }
+
+  function _cerrar() {
+    if (_drop) _drop.style.display = 'none'
+    _activo = -1
+  }
+
+  async function _seleccionar(idx) {
+    const sug = _sugs[idx]
+    if (!sug) return
+    const place = sug.placePrediction.toPlace()
+    try {
+      await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
+    } catch(e) {}
+    const addr = place.formattedAddress || sug.placePrediction.text.text
+    input.value = addr
+    _cerrar()
+    _token = new google.maps.places.AutocompleteSessionToken()
+    // Formato normalizado compatible con _detectarZonaEntrega y _fallbackZonaCiudad
+    const legacy = {
+      formatted_address: addr,
+      geometry: {
+        location: {
+          lat: () => place.location?.lat() ?? 0,
+          lng: () => place.location?.lng() ?? 0
+        }
+      },
+      address_components: (place.addressComponents || []).map(c => ({
+        long_name:  c.longText,
+        short_name: c.shortText,
+        types:      c.types
+      }))
+    }
+    if (onSelect) onSelect(legacy)
+  }
+
+  async function _buscar(val) {
+    if (!val || val.length < 3) { _cerrar(); return }
+    try {
+      const req = {
+        input:               val,
+        sessionToken:        _token,
+        language:            'es',
+        includedRegionCodes: ['mx'],
+      }
+      if (_gdlBounds) {
+        const sw = _gdlBounds.getSouthWest(), ne = _gdlBounds.getNorthEast()
+        req.locationBias = { rectangle: {
+          low:  { latitude: sw.lat(), longitude: sw.lng() },
+          high: { latitude: ne.lat(), longitude: ne.lng() }
+        }}
+      }
+      const { suggestions } = await google.maps.places.AutocompleteSuggestion
+        .fetchAutocompleteSuggestions(req)
+      _renderizar(suggestions || [])
+    } catch(e) { _cerrar() }
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(_timer)
+    _timer = setTimeout(() => _buscar(input.value.trim()), 300)
+  })
+
+  input.addEventListener('keydown', e => {
+    if (!_drop || _drop.style.display === 'none') return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); _activo = Math.min(_activo + 1, _sugs.length - 1); _resaltar()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); _activo = Math.max(_activo - 1, 0); _resaltar()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (_activo >= 0) _seleccionar(_activo)
+      else if (_sugs.length) _seleccionar(0)
+    } else if (e.key === 'Escape') {
+      _cerrar()
+    }
+  })
+
+  input.addEventListener('blur', () => { setTimeout(_cerrar, 150) })
+  window.addEventListener('scroll', _posicionar, { passive: true })
+  window.addEventListener('resize', _posicionar, { passive: true })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function _initAutocompleteDirecciones() {
-  if (!window.google?.maps?.places) return
-  const opts = _mapsPlacesOpts
-  if (!opts) return
+  if (!window.google?.maps?.places?.AutocompleteSuggestion) return
   const inputRec = document.getElementById('dir-recoleccion')
   const inputEnt = document.getElementById('dir-entrega')
-  if (!inputRec || !inputEnt) return
-  if (inputRec.dataset.acAttached) return // evitar doble attach
+  if (!inputRec || !inputEnt || inputRec.dataset.acAttached) return
 
-  inputRec.dataset.acAttached = '1'
-  inputEnt.dataset.acAttached = '1'
-
-  const acRec = new google.maps.places.Autocomplete(inputRec, opts)
-  acRec.addListener('place_changed', () => {
-    const pl = acRec.getPlace()
-    if (pl?.geometry) {
-      _latRecoleccion = pl.geometry.location.lat()
-      _lngRecoleccion = pl.geometry.location.lng()
+  _crearGuepAutocomplete(inputRec, {
+    onSelect: async (place) => {
+      _latRecoleccion = place.geometry.location.lat()
+      _lngRecoleccion = place.geometry.location.lng()
       setTimeout(_actualizarMapaWizard, 50)
-    } else {
-      // Enter sin seleccionar del dropdown → geocodificar texto actual
-      const val = inputRec.value?.trim()
-      if (val) new google.maps.Geocoder().geocode({ address: val }, (res, st) => {
-        if (st === 'OK' && res[0]?.geometry) {
-          _latRecoleccion = res[0].geometry.location.lat()
-          _lngRecoleccion = res[0].geometry.location.lng()
-        }
-        setTimeout(_actualizarMapaWizard, 50)
-      })
-    }
-  })
-
-  const acEntrega = new google.maps.places.Autocomplete(inputEnt, opts)
-  console.log('[DEBUG] Autocomplete dir-entrega creado. input:', inputEnt, '| instancia:', acEntrega)
-  inputEnt.addEventListener('input', function() { console.log('[DEBUG] keystroke detectado dir-entrega:', this.value) })
-  acEntrega.addListener('place_changed', async function () {
-    const place = acEntrega.getPlace()
-    if (!place.geometry) return
-    _entregaPlace = place
-    _latEntrega = place.geometry.location.lat()
-    _lngEntrega = place.geometry.location.lng()
-
-    // Si _empresaData aún no cargó (race condition con initMapsGuepack), esperar
-    if (!_empresaData) {
-      const { data: { session } } = await db.auth.getSession()
-      if (session?.user?.user_metadata?.empresa_codigo) {
-        await _cargarEmpresaUsuario(session.user)
+      if (!_empresaData) {
+        const { data: { session } } = await db.auth.getSession()
+        if (session?.user?.user_metadata?.empresa_codigo) await _cargarEmpresaUsuario(session.user)
       }
+      if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
+      else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
     }
-
-    console.log('[place_changed] _empresaUsuario:', _empresaUsuario)
-
-    _detectarZonaEntrega(place)
-    setTimeout(_actualizarMapaWizard, 50)
   })
 
-  // Recalcular precio si ya hay lugar de entrega y cambia la recolección
-  inputRec.addEventListener('change', async function () {
-    if (!_empresaData) {
-      const { data: { session } } = await db.auth.getSession()
-      if (session?.user?.user_metadata?.empresa_codigo) {
-        await _cargarEmpresaUsuario(session.user)
+  _crearGuepAutocomplete(inputEnt, {
+    onSelect: async (place) => {
+      _entregaPlace = place
+      _latEntrega   = place.geometry.location.lat()
+      _lngEntrega   = place.geometry.location.lng()
+      if (!_empresaData) {
+        const { data: { session } } = await db.auth.getSession()
+        if (session?.user?.user_metadata?.empresa_codigo) await _cargarEmpresaUsuario(session.user)
       }
+      _detectarZonaEntrega(place)
+      setTimeout(_actualizarMapaWizard, 50)
     }
-    if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
-    else if (!_empresaData && _entregaPlace) _calcularPrecioGeneral()
   })
-
-  _initPacContainerFix()
 }
 
-// iOS Safari: reposicionar .pac-container usando coordenadas del visual viewport
-// Google Maps calcula top/left con position:absolute; con fixed necesitamos getBoundingClientRect
-function _initPacContainerFix() {
-  if (window._pacObserverActive) return
-  window._pacObserverActive = true
-  const obs = new MutationObserver(() => {
-    const pac = document.querySelector('.pac-container')
-    if (!pac || pac.style.display === 'none') return
-    const focused = document.activeElement
-    if (!focused || !['dir-recoleccion','dir-entrega'].includes(focused.id) && !focused.id.startsWith('parada-dir-')) return
-    const rect = focused.getBoundingClientRect()
-    pac.style.top  = (rect.bottom + 2) + 'px'
-    pac.style.left = rect.left + 'px'
-    pac.style.width = rect.width + 'px'
-  })
-  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] })
-}
-
-function _attachAutocompletePararadas(opts) {
+function _attachAutocompletePararadas() {
+  if (!window.google?.maps?.places?.AutocompleteSuggestion) return
   document.querySelectorAll('[id^="parada-dir-"]').forEach(inp => {
-    const idx = parseInt(inp.id.replace('parada-dir-', ''))
+    const idx = parseInt(inp.id.replace('parada-dir-', ''), 10)
     if (isNaN(idx)) return
-    if (inp.dataset.acAttached) return // evitar doble attach
-    inp.dataset.acAttached = '1'
-    const ac = new google.maps.places.Autocomplete(inp, opts || _mapsPlacesOpts)
-    ac.addListener('place_changed', () => {
-      const pl = ac.getPlace()
-      const dir = pl?.formatted_address || pl?.name
-      if (dir) {
+    _crearGuepAutocomplete(inp, {
+      onSelect: (place) => {
+        const dir = place.formatted_address
+        if (!dir || !_paradasList[idx]) return
         _paradasList[idx].direccion = dir
         inp.value = dir
-        if (pl?.geometry) {
-          _paradasList[idx].lat = pl.geometry.location.lat()
-          _paradasList[idx].lng = pl.geometry.location.lng()
-        }
-        console.log('[multiParada] place_changed parada', idx, '→', dir)
+        _paradasList[idx].lat = place.geometry.location.lat()
+        _paradasList[idx].lng = place.geometry.location.lng()
         _calcularCotizacionMultiParada()
         setTimeout(_actualizarMapaWizard, 50)
       }

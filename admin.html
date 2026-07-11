@@ -186,7 +186,7 @@
   [data-icon] { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; }
   [data-icon] svg { display:block; }
   .guep-icon-inline { display:inline-flex; align-items:center; vertical-align:middle; }
-  .guep-icon-inline svg { width:15px; height:15px; display:block; }
+  .guep-icon-inline svg { width:18px; height:18px; display:block; }
   .icon-on-color { filter: brightness(0) invert(1); }
 </style>
 <script>
@@ -357,7 +357,7 @@ function initMapsAdmin() {
         <label class="form-label">Dirección de recolección</label>
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-          <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:20px;height:20px;display:inline-flex"></span></button>
+          <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:24px;height:24px;display:inline-flex"></span></button>
         </div>
       </div>
 
@@ -365,7 +365,7 @@ function initMapsAdmin() {
         <label class="form-label">Dirección de entrega</label>
         <div style="display:flex;gap:8px;margin-bottom:6px">
           <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-          <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:20px;height:20px;display:inline-flex"></span></button>
+          <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:24px;height:24px;display:inline-flex"></span></button>
         </div>
         <div id="a-zona-detect-result" style="display:none;padding:13px 14px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;display:flex;align-items:center;gap:10px;min-height:46px"></div>
       </div>
@@ -694,7 +694,7 @@ function initMapsAdmin() {
     </div>
 
     <!-- Tabla últimos 10 pedidos -->
-    <div class="card-title" style="padding:0;margin-bottom:12px">📋 Últimas entregas</div>
+    <div class="card-title" style="padding:0;margin-bottom:12px;display:flex;align-items:center;gap:5px"><span class="guep-icon-inline" data-icon="historial"></span> Últimas entregas</div>
     <div class="card" style="padding:0;overflow:hidden">
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table id="fin-tabla" style="width:100%;border-collapse:collapse;font-family:Montserrat,sans-serif;font-size:12px">
@@ -742,7 +742,7 @@ function initMapsAdmin() {
     <!-- Sub-tab: Configuración -->
     <div id="gs-config">
       <div class="card">
-        <div class="card-title">⚙️ Márgenes de guías nacionales</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:5px"><span class="guep-icon-inline" data-icon="configuracion"></span> Márgenes de guías nacionales</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Margen porcentual (%)</label>
@@ -772,7 +772,7 @@ function initMapsAdmin() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px">
         <div class="stat-box">
           <div class="stat-number" id="guias-n-generadas">–</div>
-          <div class="stat-label">📦 Guías generadas</div>
+          <div class="stat-label" style="display:flex;align-items:center;justify-content:center;gap:3px"><span class="guep-icon-inline" data-icon="paquete" style="width:16px;height:16px"></span> Guías generadas</div>
         </div>
         <div class="stat-box">
           <div class="stat-number orange" id="guias-ingreso">–</div>
@@ -1190,7 +1190,7 @@ function initMapsAdmin() {
       <div id="lista-ref-pendientes"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div class="card" style="margin-top:12px">
-      <div class="card-title">📋 Historial</div>
+      <div class="card-title" style="display:flex;align-items:center;gap:5px"><span class="guep-icon-inline" data-icon="historial"></span> Historial</div>
       <div id="lista-ref-historial"><div class="loader--4" style="margin:12px auto"></div></div>
     </div>
     <div class="card" style="margin-top:12px">
@@ -2957,7 +2957,7 @@ function renderPedido(pedido) {
         <span style="color:var(--orange);font-weight:700">$${pedido.precio}</span>
         ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;margin-top:4px">📝 ${pedido.instrucciones}</div>` : ''}
         ${pedido.metodo_pago ? `<div style="color:#999;font-size:11px;margin-top:4px">💳 ${pedido.metodo_pago}</div>` : ''}
-        ${pedido._paradas ? `<div style="margin-top:5px;display:inline-flex;align-items:center;gap:4px;background:rgba(26,79,160,0.08);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:900;color:var(--blue)">📍 ${pedido._paradas.completadas}/${pedido._paradas.total} paradas</div>` : ''}
+        ${pedido._paradas ? `<div style="margin-top:5px;display:inline-flex;align-items:center;gap:4px;background:rgba(26,79,160,0.08);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:900;color:var(--blue)"><span style="display:inline-flex;width:14px;height:14px">${GUEPACK_ICONS.ubicacion}</span> ${pedido._paradas.completadas}/${pedido._paradas.total} paradas</div>` : ''}
       </div>
       ${pedido.estado !== 'Cancelado' ? `
       <div class="order-actions">
@@ -4815,7 +4815,7 @@ function _mostrarModalRuta(grupos, total) {
           ${p.zona ? `<span style="background:rgba(26,79,160,.1);color:var(--blue);font-size:9px;font-weight:900;padding:2px 7px;border-radius:20px;letter-spacing:.5px">${p.zona}</span>` : ''}
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion_entrega || '—'}</div>
         </div>
-        <a href="https://maps.google.com?q=${encodeURIComponent(p.direccion_entrega || '')}" target="_blank" rel="noopener" style="color:var(--blue);font-size:18px;flex-shrink:0;text-decoration:none;line-height:1;margin-top:3px" title="Ver en Maps">📍</a>
+        <a href="https://maps.google.com?q=${encodeURIComponent(p.direccion_entrega || '')}" target="_blank" rel="noopener" style="color:var(--blue);flex-shrink:0;text-decoration:none;line-height:1;margin-top:3px;display:inline-flex" title="Ver en Maps"><span style="display:inline-flex;width:22px;height:22px">${GUEPACK_ICONS.ubicacion}</span></a>
       </div>`
     }).join('')
 
@@ -4825,7 +4825,7 @@ function _mostrarModalRuta(grupos, total) {
           <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:${color};letter-spacing:1px">🏍️ ${nombre}</div>
           <div style="font-size:10px;color:var(--gray-mid);font-weight:700;font-family:Montserrat,sans-serif">${lista.length} parada${lista.length !== 1 ? 's' : ''}</div>
         </div>
-        ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:7px 12px;background:var(--blue);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;text-decoration:none;letter-spacing:.5px">📍 Ver en Maps${lista.length > 10 ? ' (10)' : ''}</a>` : ''}
+        ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;padding:7px 12px;background:var(--blue);color:#fff;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;text-decoration:none;letter-spacing:.5px"><span style="display:inline-flex;width:14px;height:14px;filter:brightness(0)invert(1)">${GUEPACK_ICONS.ubicacion}</span> Ver en Maps${lista.length > 10 ? ' (10)' : ''}</a>` : ''}
       </div>
       ${itemsHtml}
     </div>`

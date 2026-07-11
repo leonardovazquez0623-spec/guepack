@@ -16,11 +16,11 @@ const GUEPACK_ICONS = {
   // 03 Envíos — camión sin palomita
   envios: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V7.5a1 1 0 0 1 1-1h9.5v9.5"/><path d="M13.5 10h4l3 3v3h-2"/><circle cx="7" cy="18" r="1.8"/><circle cx="16.5" cy="18" r="1.8"/><path d="M3 13h3" stroke="#F05A1A"/></svg>`,
 
-  // 04 Direcciones — pin con punto naranja
+  // 04 Direcciones — pin clásico con círculo naranja sólido (reemplaza 📍)
   ubicacion: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>`,
 
-  // 04 Direcciones (alias) — usado para "guardada" (pin con línea de seguimiento)
-  direccion_guardada: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10Z"/><circle cx="12" cy="10" r="2.2"/><path d="M4 20c2-1.6 4.6-2.5 8-2.5" stroke="#F05A1A" stroke-dasharray="1.6 2"/></svg>`,
+  // 09 Favoritos — corazón-pin naranja (dirección guardada/favorita)
+  direccion_guardada: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-9.6A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 7 3.4C19 15.6 12 20 12 20Z" fill="#F05A1A" stroke="#F05A1A"/></svg>`,
 
   // 05 Perfil — persona individual
   perfil: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/></svg>`,
@@ -76,8 +76,8 @@ const GUEPACK_ICONS = {
   // 23 Entrega — camión con palomita naranja
   entrega: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V7.5a1 1 0 0 1 1-1h9.5v9.5"/><path d="M13.5 10h4l3 3v3h-2"/><circle cx="7" cy="18" r="1.8"/><circle cx="16.5" cy="18" r="1.8"/><path d="M5.5 12.5l1.8 1.8L10.5 11" stroke="#F05A1A"/></svg>`,
 
-  // 24 Rastreo — pin con línea punteada naranja
-  rastreo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10Z"/><circle cx="12" cy="10" r="2.2"/><path d="M4 20c2-1.6 4.6-2.5 8-2.5" stroke="#F05A1A" stroke-dasharray="1.6 2"/></svg>`,
+  // 24 Rastreo — pin clásico con círculo naranja (04-Direcciones)
+  rastreo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>`,
 
   // 25 Seguro — escudo naranja con palomita
   seguro: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 5-3 7.7-7 8.5-4-.8-7-3.5-7-8.5V6l7-2.5Z" fill="#F05A1A" stroke="#F05A1A"/><path d="M8.7 12l2.2 2.2 4.4-4.4" stroke="white"/></svg>`,
