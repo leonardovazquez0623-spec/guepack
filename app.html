@@ -2423,7 +2423,7 @@ async function activarNotificaciones() {
 }
 
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
-if (Notification.permission === 'granted') activarNotificaciones()
+if (typeof Notification !== 'undefined' && Notification.permission === 'granted') activarNotificaciones()
 var selSize = null, selZone = null, selMetodoPago = null
 // ── Wizard navegación ────────────────────────────────────────────────────────
 function _irPaso(n) {
@@ -2613,9 +2613,9 @@ function _actualizarMapaWizard() {
     })
   }
 }
-const CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
+var CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
 
-const prices = {
+var prices = {
   centro: { sobre: 110, grande: 150 },
   norte:  { sobre: 150, grande: 200 },
   sur:    { sobre: 150, grande: 200 },
@@ -3578,7 +3578,7 @@ async function compartirRastreo(id) {
   }
 }
 
-const ESTADO_CONFIG = {
+var ESTADO_CONFIG = {
   'Pendiente':                             { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ Estamos llamando al Guepartidor más cercano.' },
   'Pendiente verificación de pago':        { color: '#f59e0b',         badge: 'badge-transit',  texto: '🧾 Revisando el comprobante con lupa y bigotes.' },
   'En camino a recoleccion':               { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🏍️ Guepartidor en camino a recolectar' },
@@ -3591,7 +3591,7 @@ const ESTADO_CONFIG = {
   'Pago rechazado':                        { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pago rechazado' },
   'Intento de entrega fallido':            { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Ups... este paquete se nos escapó.' },
 }
-const ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
+var ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
 
 function _guardarIds() {
   localStorage.setItem('guepack_pedidos_activos', JSON.stringify(Object.keys(_pedidos).map(Number)))
@@ -4762,7 +4762,7 @@ function verTodasEvidencias(pedidoId) {
 }
 
 // ── Client section switcher ──
-const clientBtns = document.querySelectorAll('.bottom-btn');
+var clientBtns = document.querySelectorAll('.bottom-btn');
 function showClientSection(section) {
   document.querySelectorAll('.client-section').forEach(s => s.classList.remove('active'));
   document.getElementById('client-' + section).classList.add('active');
@@ -6840,7 +6840,7 @@ function iniciarTour() {
     _renderTourStep()
   }, 0)
 }
-const iniciarTourSiNecesario = iniciarTour
+var iniciarTourSiNecesario = iniciarTour
 
 function _renderTourStep() {
   if (!_TOUR_STEPS || !_TOUR_STEPS.length) return
