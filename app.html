@@ -203,7 +203,7 @@
     outline: none;
     border-color: var(--blue);
   }
-  #dir-recoleccion, #dir-entrega, [id^="parada-dir-"] { font-size: 16px; }
+  input, select, textarea { font-size: 16px !important; }
 
   /* ── SIZE SELECTOR ── */
   .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -7043,7 +7043,5 @@ function _cerrarTour() {
 <script src="comparador-nacional.js"></script>
 <script src="nacional.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack"></script>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 </body>
 </html>
