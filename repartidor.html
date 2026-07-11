@@ -2129,6 +2129,9 @@ let _driverWatchId  = null
 let _mapaRealtimeCh = null
 let _mapaGrupoIdx   = {}
 let _mapaGrupoCount = 0
+let _mapaLastPedidos = []   // cache para optimización
+let _mapaLastParadas = {}
+let _mapaOptimizado  = false
 
 // ── Tab toggle ───────────────────────────────────────────────────────────────
 async function _cambiarVista(vista) {
@@ -2249,6 +2252,8 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
       idsVistos.add(keyRec)
       if (_markersMap.has(keyRec)) {
         _markersMap.get(keyRec).setLngLat([p.lng_recoleccion, p.lat_recoleccion])
+        const _numR = _markersMap.get(keyRec).getElement().querySelector('.mapa-pin-num')
+        if (_numR) _numR.textContent = 'R'
       } else {
         const m = new mapboxgl.Marker({ element: _mkPinPickup(color), anchor: 'center' })
           .setLngLat([p.lng_recoleccion, p.lat_recoleccion])
@@ -2269,6 +2274,8 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
         idsVistos.add(kp)
         if (_markersMap.has(kp)) {
           _markersMap.get(kp).setLngLat([par.lng, par.lat])
+          const _numP = _markersMap.get(kp).getElement().querySelector('.mapa-pin-num')
+          if (_numP) _numP.textContent = par.orden
         } else {
           const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, par.orden), anchor: 'bottom' })
             .setLngLat([par.lng, par.lat])
@@ -2283,6 +2290,8 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
       idsVistos.add(keyEnt)
       if (_markersMap.has(keyEnt)) {
         _markersMap.get(keyEnt).setLngLat([p.lng_entrega, p.lat_entrega])
+        const _numE = _markersMap.get(keyEnt).getElement().querySelector('.mapa-pin-num')
+        if (_numE) _numE.textContent = 1
       } else {
         const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, 1), anchor: 'bottom' })
           .setLngLat([p.lng_entrega, p.lat_entrega])
@@ -2390,7 +2399,7 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
     html += `</div>`
   }
 
-  html += `<button class="ms-optimize-btn"><span class="icon-on-color" style="display:inline-flex;width:16px;height:16px;vertical-align:middle;margin-right:4px">${GUEPACK_ICONS.ubicacion}</span>Optimizar orden de ruta</button>`
+  html += `<button class="ms-optimize-btn" id="btn-optimizar" onclick="_optimizarOrdenRuta()"><span class="icon-on-color" style="display:inline-flex;width:16px;height:16px;vertical-align:middle;margin-right:4px">${GUEPACK_ICONS.ubicacion}</span>Optimizar orden de ruta</button>`
   html += `<div class="ms-note">El mapa se carga una sola vez por sesión · los pines se actualizan en tiempo real</div>`
   body.innerHTML = html
 }
@@ -2441,6 +2450,9 @@ async function _cargarPedidosEnMapa() {
     }
   }
 
+  _mapaLastPedidos = pedidosMapeados
+  _mapaLastParadas = paradasPorPedido
+  _mapaOptimizado  = false
   _actualizarMarcadoresMapa(pedidosMapeados, paradasPorPedido)
   _suscribirMapaRealtime(nombreRepa)
 }
@@ -2454,6 +2466,134 @@ function _suscribirMapaRealtime(nombreRepa) {
       filter: 'repartidor=eq.' + nombreRepa
     }, () => { _cargarPedidosEnMapa() })
     .subscribe()
+}
+
+// ── Optimización de ruta — vecino más cercano (Haversine, 100% client-side) ──
+
+function _haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+function _buildStops() {
+  const stops = []
+  _mapaLastPedidos.forEach(p => {
+    const color = _colorGrupo(p.nombre_mostrar || p.nombre)
+    if (p.lat_recoleccion != null && p.lng_recoleccion != null) {
+      stops.push({ key: 'rec-' + p.id, type: 'rec', pedidoId: p.id,
+        lat: p.lat_recoleccion, lng: p.lng_recoleccion,
+        addr: p.direccion_recoleccion || '—', color })
+    }
+    const pars = _mapaLastParadas[p.id]
+    if (pars?.length) {
+      pars.forEach(par => {
+        if (par.lat != null && par.lng != null) {
+          stops.push({ key: 'par-' + par.id, type: 'par', pedidoId: p.id,
+            lat: par.lat, lng: par.lng,
+            addr: par.direccion || '—', color })
+        }
+      })
+    } else if (p.lat_entrega != null && p.lng_entrega != null) {
+      stops.push({ key: 'ent-' + p.id, type: 'par', pedidoId: p.id,
+        lat: p.lat_entrega, lng: p.lng_entrega,
+        addr: p.direccion_entrega || '—', color })
+    }
+  })
+  return stops
+}
+
+function _nearestNeighbor(startLat, startLng, stops) {
+  // Qué pedidos tienen pin de recolección (para aplicar la restricción)
+  const recPedidos = new Set(stops.filter(s => s.type === 'rec').map(s => s.pedidoId))
+  const unvisited = [...stops]
+  const ordered = []
+  const visitedKeys = new Set()
+  let curLat = startLat, curLng = startLng
+
+  while (unvisited.length > 0) {
+    let bestIdx = -1, bestDist = Infinity
+
+    for (let i = 0; i < unvisited.length; i++) {
+      const s = unvisited[i]
+      // Entrega bloqueada si su recolección aún no fue visitada
+      if (s.type === 'par' && recPedidos.has(s.pedidoId) && !visitedKeys.has('rec-' + s.pedidoId)) continue
+      const d = _haversine(curLat, curLng, s.lat, s.lng)
+      if (d < bestDist) { bestDist = d; bestIdx = i }
+    }
+
+    // Seguridad: todos bloqueados → elegir la recolección más cercana para desbloquear
+    if (bestIdx === -1) {
+      for (let i = 0; i < unvisited.length; i++) {
+        if (unvisited[i].type !== 'rec') continue
+        const d = _haversine(curLat, curLng, unvisited[i].lat, unvisited[i].lng)
+        if (d < bestDist) { bestDist = d; bestIdx = i }
+      }
+      if (bestIdx === -1) break
+    }
+
+    const chosen = unvisited.splice(bestIdx, 1)[0]
+    visitedKeys.add(chosen.key)
+    ordered.push(chosen)
+    curLat = chosen.lat; curLng = chosen.lng
+  }
+  return ordered
+}
+
+function _optimizarOrdenRuta() {
+  const btn = document.getElementById('btn-optimizar')
+  if (btn) { btn.textContent = '⏳ Calculando...'; btn.disabled = true }
+
+  setTimeout(() => {
+    const stops = _buildStops()
+    if (!stops.length) {
+      _toastRepa('ℹ️ Sin coordenadas para optimizar — agrega lat/lng a los pedidos', '#8fa3c0')
+      if (btn) { btn.textContent = 'Optimizar orden de ruta'; btn.disabled = false }
+      return
+    }
+
+    // Posición del repartidor o fallback GDL centro
+    let startLat = 20.659, startLng = -103.346
+    try {
+      const pos = _markerDriver?.getLngLat()
+      if (pos?.lat && pos?.lng) { startLat = pos.lat; startLng = pos.lng }
+    } catch(e) {}
+
+    const ordered = _nearestNeighbor(startLat, startLng, stops)
+    _mapaOptimizado = true
+
+    // Renumerar pines en el mapa
+    ordered.forEach((stop, idx) => {
+      const marker = _markersMap.get(stop.key)
+      if (!marker) return
+      const numEl = marker.getElement().querySelector('.mapa-pin-num')
+      if (numEl) numEl.textContent = idx + 1
+    })
+
+    _renderSheetOptimizado(ordered)
+  }, 60)
+}
+
+function _renderSheetOptimizado(ordered) {
+  const body    = document.getElementById('mapa-sheet-body')
+  const countEl = document.getElementById('mapa-sheet-count')
+  if (!body) return
+  if (countEl) countEl.textContent = `${ordered.length} paradas · ruta optimizada por distancia`
+
+  let html = ordered.map((stop, idx) => {
+    const esRec = stop.type === 'rec'
+    return `<div class="ms-stop">
+      <div class="ms-idx${esRec ? ' sq' : ''}" style="background:${stop.color}">${idx + 1}</div>
+      <div class="ms-addr">${stop.addr}</div>
+      <span class="ms-tag ${esRec ? 'rec' : 'ent'}">${esRec ? 'Recolección' : 'Entrega'}</span>
+    </div>`
+  }).join('')
+
+  html += `<button class="ms-optimize-btn" id="btn-optimizar" onclick="_optimizarOrdenRuta()"><span class="icon-on-color" style="display:inline-flex;width:16px;height:16px;vertical-align:middle;margin-right:4px">${GUEPACK_ICONS.ubicacion}</span>Optimizar de nuevo</button>`
+  html += `<div class="ms-note">Orden por vecino más cercano · recarga la página para restablecer</div>`
+  body.innerHTML = html
 }
 </script>
 
