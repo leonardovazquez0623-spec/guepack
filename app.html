@@ -884,7 +884,7 @@
   <!-- Client Bottom Bar -->
   <div class="bottom-bar">
     <button class="bottom-btn active" onclick="showClientSection('new')">
-      <span class="b-icon" data-icon="agregar"></span>Nuevo
+      <span class="b-icon" data-icon="agregar"></span>Envío Local
     </button>
     <button class="bottom-btn tab-nacional" id="btn-tab-nacional" onclick="showClientSection('nacional')">
       <span class="b-icon" data-icon="nacional"></span>Nacional
@@ -1063,7 +1063,7 @@
             <div class="card-title">Tamaño del paquete</div>
             <div class="size-grid">
               <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
-                <span class="size-icon">✉️</span>
+                <span class="size-icon" data-icon="paquete"></span>
                 <span class="size-name">Sobre / Chico</span>
                 <span class="size-desc">Documentos o paquetes pequeños</span>
               </div>
@@ -5878,9 +5878,12 @@ function _escapeHtml(s) {
 }
 
 function _crearGuepAutocomplete(input, { onSelect } = {}) {
-  if (!window.google?.maps?.places?.AutocompleteSuggestion) return
-  if (input.dataset.acAttached) return
+  const _tag = '[guepAC:' + (input.id || input.name || '?') + ']'
+  console.log(_tag, 'init — AutocompleteSuggestion disponible:', !!window.google?.maps?.places?.AutocompleteSuggestion)
+  if (!window.google?.maps?.places?.AutocompleteSuggestion) { console.warn(_tag, 'SALIENDO — AutocompleteSuggestion no existe'); return }
+  if (input.dataset.acAttached) { console.warn(_tag, 'SALIENDO — ya tiene acAttached'); return }
   input.dataset.acAttached = '1'
+  console.log(_tag, 'listener de input registrado correctamente')
 
   let _token  = new google.maps.places.AutocompleteSessionToken()
   let _timer  = null
@@ -5890,9 +5893,11 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
 
   function _crearDrop() {
     if (_drop) return
+    console.log(_tag, '(d) creando elemento .guep-ac-dropdown...')
     _drop = document.createElement('div')
     _drop.className = 'guep-ac-dropdown'
     document.body.appendChild(_drop)
+    console.log(_tag, '(e) .guep-ac-dropdown insertado en DOM:', _drop)
   }
 
   function _posicionar() {
@@ -5910,6 +5915,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
   }
 
   function _renderizar(sugs) {
+    console.log(_tag, '(c) suggestions recibidas →', sugs.length, sugs)
     _sugs   = sugs
     _activo = -1
     _crearDrop()
@@ -5930,6 +5936,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
     })
     _posicionar()
     _drop.style.display = 'block'
+    console.log(_tag, 'dropdown visible — items:', _drop.children.length)
   }
 
   function _cerrar() {
@@ -5943,7 +5950,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
     const place = sug.placePrediction.toPlace()
     try {
       await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
-    } catch(e) {}
+    } catch(e) { console.error(_tag, 'fetchFields error:', e) }
     const addr = place.formattedAddress || sug.placePrediction.text.text
     input.value = addr
     _cerrar()
@@ -5967,6 +5974,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
   }
 
   async function _buscar(val) {
+    console.log(_tag, '(b) _buscar llamado con val=', JSON.stringify(val))
     if (!val || val.length < 3) { _cerrar(); return }
     try {
       const req = {
@@ -5976,19 +5984,17 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
         includedRegionCodes: ['mx'],
       }
       if (_gdlBounds) {
-        const sw = _gdlBounds.getSouthWest(), ne = _gdlBounds.getNorthEast()
-        req.locationBias = { rectangle: {
-          low:  { latitude: sw.lat(), longitude: sw.lng() },
-          high: { latitude: ne.lat(), longitude: ne.lng() }
-        }}
+        req.locationBias = _gdlBounds
       }
+      console.log(_tag, 'locationBias:', req.locationBias, '— llamando fetchAutocompleteSuggestions')
       const { suggestions } = await google.maps.places.AutocompleteSuggestion
         .fetchAutocompleteSuggestions(req)
       _renderizar(suggestions || [])
-    } catch(e) { _cerrar() }
+    } catch(e) { console.error(_tag, 'fetchAutocompleteSuggestions ERROR:', e); _cerrar() }
   }
 
   input.addEventListener('input', () => {
+    console.log(_tag, '(a) evento input — valor actual:', JSON.stringify(input.value))
     clearTimeout(_timer)
     _timer = setTimeout(() => _buscar(input.value.trim()), 300)
   })
@@ -7037,6 +7043,7 @@ function _cerrarTour() {
 <script src="comparador-nacional.js"></script>
 <script src="nacional.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsGuepack"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 </body>
 </html>
