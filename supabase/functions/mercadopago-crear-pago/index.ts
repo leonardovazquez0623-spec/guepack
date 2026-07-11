@@ -44,8 +44,8 @@ serve(async (req) => {
     if (envio.estado !== "pendiente_pago") return json({ error: "Este envío ya fue procesado" }, 400);
 
     // 3. Crea la preferencia en Mercado Pago
-    const mpToken    = Deno.env.get("MP_ACCESS_TOKEN")!;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const mpToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN")!;
+    if (!mpToken) return json({ error: "MERCADOPAGO_ACCESS_TOKEN no configurado" }, 500);
 
     const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -55,26 +55,26 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         items: [{
-          title:     `Guía GUEPACK GK-N${envio_id}`,
-          quantity:  1,
-          unit_price: parseFloat(envio.costo_total) || 0,
+          title:      `Guia GUEPACK ${envio_id}`,
+          quantity:   1,
           currency_id: "MXN",
+          unit_price: parseFloat(envio.costo_total) || 0,
         }],
         payer: {
-          name:  envio.origen_nombre || envio.destino_nombre || "Cliente GUEPACK",
-          email: envio.origen_email  || "cliente@guepack.com",
-          phone: { number: (envio.origen_telefono || "0000000000").replace(/\D/g, "") },
+          name:  envio.destino_nombre || "Cliente GUEPACK",
+          email: envio.origen_email   || "cliente@guepack.com",
         },
+        payment_methods: {
+          excluded_payment_types: [{ id: "bank_transfer" }],
+        },
+        external_reference: String(envio_id),
         back_urls: {
           success: `https://guepack.com/app.html?pago=exitoso&envio_id=${envio_id}`,
           failure: `https://guepack.com/app.html?pago=fallido&envio_id=${envio_id}`,
           pending: `https://guepack.com/app.html?pago=pendiente&envio_id=${envio_id}`,
         },
-        auto_return:          "approved",
-        external_reference:   String(envio_id),
-        notification_url:     `${supabaseUrl}/functions/v1/mercadopago-webhook`,
-        statement_descriptor: "GUEPACK",
-        metadata:             { envio_id: String(envio_id) },
+        auto_return:      "approved",
+        notification_url: "https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/mercadopago-webhook",
       }),
     });
 
@@ -86,21 +86,25 @@ serve(async (req) => {
 
     const mpJson = await mpRes.json();
     const preferenceId = mpJson.id;
-    const checkoutUrl  = mpJson.init_point;   // sandbox: mpJson.sandbox_init_point
+
+    // Usa sandbox_init_point cuando el token es de pruebas
+    const isSandbox   = mpToken.startsWith("TEST-");
+    const checkoutUrl = isSandbox ? mpJson.sandbox_init_point : mpJson.init_point;
 
     if (!checkoutUrl) {
-      console.error("MP no devolvió init_point:", JSON.stringify(mpJson));
+      console.error("MP no devolvió URL de checkout:", JSON.stringify(mpJson));
       return json({ error: "Mercado Pago no devolvió el link de pago" }, 502);
     }
 
     // 4. Persiste preference_id y URL en BD
     const { error: updateErr } = await supabaseAdmin
       .from("envios_nacionales")
-      .update({ mp_preference_id: preferenceId, checkout_url: checkoutUrl })
+      .update({ mercadopago_preference_id: preferenceId, checkout_url: checkoutUrl })
       .eq("id", envio_id);
 
     if (updateErr) console.error("Error guardando preference en BD:", updateErr.message);
 
+    // 5. Devuelve la URL al frontend
     return json({ checkout_url: checkoutUrl });
 
   } catch (e: any) {

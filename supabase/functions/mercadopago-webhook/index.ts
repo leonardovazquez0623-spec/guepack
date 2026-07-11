@@ -5,8 +5,9 @@
 // consultamos directamente a la API de MP con nuestro token. Si alguien envía
 // un webhook falso, la consulta a MP devolverá datos que no coincidirán.
 //
-// Soporta dos formatos de notificación:
+// Formatos soportados:
 //   Webhooks 2.0: { type:"payment", data:{ id:"123" }, action:"payment.created" }
+//   action-only:  { action:"payment.updated", data:{ id:"123" } }
 //   IPN legacy:   { topic:"payment", resource:"https://.../v1/payments/123" }
 //
 // Siempre devuelve 200 para que MP no reintente en loop.
@@ -19,32 +20,37 @@ serve(async (req) => {
     const body = await req.json().catch(() => null);
     if (!body) return new Response("ok", { status: 200 });
 
-    console.log("MP WEBHOOK:", JSON.stringify(body));
+    // Log completo del primer evento para confirmar el shape real
+    console.log("MP WEBHOOK body:", JSON.stringify(body));
 
-    // Extrae el payment_id según el formato
+    // Extrae el payment_id según el formato recibido
     let paymentId: string | null = null;
 
-    if (body.type === "payment" && body.data?.id) {
-      // Webhooks 2.0
+    const isPaymentEvent =
+      body.type === "payment" ||
+      body.action === "payment.created" ||
+      body.action === "payment.updated";
+
+    if (isPaymentEvent && body.data?.id) {
       paymentId = String(body.data.id);
     } else if (body.topic === "payment" && body.resource) {
-      // IPN legacy
+      // IPN legacy: la URL termina en /payments/{id}
       const match = String(body.resource).match(/\/payments\/(\d+)/);
       if (match) paymentId = match[1];
     }
 
     if (!paymentId) {
-      console.log("Evento sin payment_id, ignorado. type/topic:", body.type ?? body.topic);
+      console.log("Evento sin payment_id, ignorado. type:", body.type, "action:", body.action);
       return new Response("ok", { status: 200 });
     }
 
-    const mpToken = Deno.env.get("MP_ACCESS_TOKEN")!;
+    const mpToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN")!;
     if (!mpToken) {
-      console.error("MP_ACCESS_TOKEN no configurado");
+      console.error("MERCADOPAGO_ACCESS_TOKEN no configurado");
       return new Response("ok", { status: 200 });
     }
 
-    // Consulta el pago a MP para verificar el status real
+    // Consulta el pago completo a MP para verificar el status real
     const pagoRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${mpToken}` },
     });
@@ -55,14 +61,14 @@ serve(async (req) => {
     }
 
     const pago = await pagoRes.json();
-    console.log("Pago MP — id:", pago.id, "| status:", pago.status, "| external_ref:", pago.external_reference);
+    console.log("Pago MP — id:", pago.id, "| status:", pago.status, "| external_reference:", pago.external_reference);
 
     if (pago.status !== "approved") {
       // Pendiente, rechazado, etc. — MP notificará de nuevo cuando cambie
       return new Response("ok", { status: 200 });
     }
 
-    const envioId = pago.external_reference ?? pago.metadata?.envio_id;
+    const envioId = pago.external_reference;
     if (!envioId) {
       console.error("Pago aprobado sin external_reference, payment_id:", paymentId);
       return new Response("ok", { status: 200 });
@@ -76,7 +82,7 @@ serve(async (req) => {
     // Idempotencia: no procesar dos veces el mismo pago
     const { data: envio } = await supabaseAdmin
       .from("envios_nacionales")
-      .select("id, pago_verificado, numero_guia")
+      .select("id, pago_verificado")
       .eq("id", envioId)
       .maybeSingle();
 
@@ -93,9 +99,9 @@ serve(async (req) => {
     const { error: updateErr } = await supabaseAdmin
       .from("envios_nacionales")
       .update({
-        pago_verificado:    true,
-        pago_verificado_at: new Date().toISOString(),
-        mp_payment_id:      String(paymentId),
+        pago_verificado:         true,
+        pago_verificado_at:      new Date().toISOString(),
+        mercadopago_payment_id:  String(paymentId),
       })
       .eq("id", envioId);
 
@@ -104,7 +110,7 @@ serve(async (req) => {
       return new Response("ok", { status: 200 });
     }
 
-    // Dispara generación de guía — mismo flujo que conekta-webhook
+    // Dispara generación de guía — mismo patrón que conekta-webhook
     const guiaRes = await fetch(
       `${Deno.env.get("SUPABASE_URL")}/functions/v1/skydropx-generar-guia`,
       {
@@ -123,7 +129,7 @@ serve(async (req) => {
       await supabaseAdmin
         .from("envios_nacionales")
         .update({
-          estado: "pago_recibido_guia_pendiente",
+          estado:                "pago_recibido_guia_pendiente",
           error_generacion_guia: errText,
         })
         .eq("id", envioId);
