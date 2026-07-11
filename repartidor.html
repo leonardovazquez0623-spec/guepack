@@ -296,6 +296,19 @@
   }
   .ms-note { text-align:center; font-size:10.5px; color:#9aa3b2; font-family:'Montserrat',sans-serif; margin-top:8px; }
 
+  /* Botón flotante "Centrar en mi posición" */
+  #btn-centrar-mapa {
+    position:absolute; bottom:calc(var(--sheet-h, 130px) + 14px); right:12px;
+    z-index:512;
+    background:white; color:#14181f;
+    border:none; border-radius:20px; padding:8px 14px;
+    font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700;
+    box-shadow:0 4px 12px rgba(0,0,0,0.18);
+    cursor:pointer; display:none; align-items:center; gap:5px;
+    transition:opacity .2s;
+  }
+  #btn-centrar-mapa.visible { display:flex; }
+
   /* Pins del mapa */
   .mapa-pin-dot {
     width:26px; height:26px;
@@ -347,6 +360,7 @@
 <div id="vista-mapa-wrap">
   <div id="mapa-legend"></div>
   <div id="mapa-repartidor"></div>
+  <button id="btn-centrar-mapa" onclick="_centrarEnRepartidor(true)">📍 Centrar</button>
   <div id="mapa-sheet">
     <div id="mapa-sheet-handle" onclick="_toggleSheet()"></div>
     <div id="mapa-sheet-head" onclick="_toggleSheet()">
@@ -2132,6 +2146,8 @@ let _mapaGrupoCount = 0
 let _mapaLastPedidos = []   // cache para optimización
 let _mapaLastParadas = {}
 let _mapaOptimizado  = false
+let _ultimaInteraccion  = 0       // timestamp del último gesto manual en el mapa
+let _autoCentrarInterval = null   // id del setInterval de auto-centrado
 
 // ── Tab toggle ───────────────────────────────────────────────────────────────
 async function _cambiarVista(vista) {
@@ -2203,6 +2219,36 @@ async function _initMapaRepartidor() {
       }
     }, null, { enableHighAccuracy: true, maximumAge: 5000 })
   }
+
+  // Auto-centrado — marca interacción y muestra botón "Centrar" al mover manualmente
+  const _marcarInteraccion = () => {
+    _ultimaInteraccion = Date.now()
+    document.getElementById('btn-centrar-mapa')?.classList.add('visible')
+  }
+  _mapboxMap.on('dragstart', _marcarInteraccion)
+  _mapboxMap.on('zoomstart', _marcarInteraccion)
+
+  // Cada 15 s: recentra si el usuario lleva ≥15 s sin interactuar
+  if (_autoCentrarInterval) clearInterval(_autoCentrarInterval)
+  _autoCentrarInterval = setInterval(() => _centrarEnRepartidor(false), 15000)
+}
+
+// ── Auto-centrado en posición del repartidor ─────────────────────────────────
+// manual=true → siempre centra (botón "Centrar" pulsado)
+// manual=false → solo centra si han pasado ≥15 s desde la última interacción
+function _centrarEnRepartidor(manual) {
+  const PAUSA_MS = 15000
+  if (!manual && Date.now() - _ultimaInteraccion < PAUSA_MS) return
+
+  const pos = _markerDriver?.getLngLat()
+  if (!pos) return
+
+  _mapboxMap.easeTo({ center: [pos.lng, pos.lat], duration: 800 })
+
+  // Oculta el botón al centrar (auto o manual)
+  document.getElementById('btn-centrar-mapa')?.classList.remove('visible')
+  // Resetea el timestamp para que el próximo ciclo no cuente la interacción pendiente
+  if (manual) _ultimaInteraccion = 0
 }
 
 // ── Paleta de colores por grupo ──────────────────────────────────────────────
