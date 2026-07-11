@@ -296,9 +296,12 @@
   }
   .ms-note { text-align:center; font-size:10.5px; color:#9aa3b2; font-family:'Montserrat',sans-serif; margin-top:8px; }
 
-  /* Botón flotante "Centrar en mi posición" */
+  /* Botón flotante "Centrar en mi posición"
+     position:fixed para que bottom sea relativo al viewport
+     (el wrap tiene height:100dvh + top dinámico, así que position:absolute
+      calcularía bottom desde fuera del viewport) */
   #btn-centrar-mapa {
-    position:absolute; bottom:calc(var(--sheet-h, 130px) + 14px); right:12px;
+    position:fixed; bottom:152px; right:12px;
     z-index:512;
     background:white; color:#14181f;
     border:none; border-radius:20px; padding:8px 14px;
@@ -332,6 +335,10 @@
     background:#14181f; border:3px solid white; border-radius:50%;
     box-shadow:0 0 0 5px rgba(20,24,31,0.15); cursor:default;
   }
+
+  /* Sube la atribución de Mapbox por encima del bottom-sheet para cumplir ToS.
+     El sheet en collapsed mide ~80px; 90px garantiza que sea siempre visible. */
+  .mapboxgl-ctrl-bottom-left { bottom: 90px !important; }
 </style>
 </head>
 <body>
@@ -2163,6 +2170,8 @@ async function _cambiarVista(vista) {
     const tabsEl = document.getElementById('vista-tabs')
     if (tabsEl) wrap.style.top = tabsEl.getBoundingClientRect().bottom + 'px'
     wrap.classList.add('visible')
+    // Notifica a Mapbox del tamaño real del contenedor antes de cualquier cámara
+    _mapboxMap?.resize()
     await _initMapaRepartidor()
     _cargarPedidosEnMapa()
   } else {
@@ -2215,6 +2224,7 @@ async function _initMapaRepartidor() {
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
       if (_firstFix) {
         _firstFix = false
+        _mapboxMap.resize()
         _mapboxMap.flyTo({ center: [lng, lat], zoom: 15, speed: 1.4 })
       }
     }, null, { enableHighAccuracy: true, maximumAge: 5000 })
@@ -2243,6 +2253,7 @@ function _centrarEnRepartidor(manual) {
   const pos = _markerDriver?.getLngLat()
   if (!pos) return
 
+  _mapboxMap.resize()
   _mapboxMap.easeTo({ center: [pos.lng, pos.lat], duration: 800 })
 
   // Oculta el botón al centrar (auto o manual)
