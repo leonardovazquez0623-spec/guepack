@@ -678,7 +678,7 @@
   }
   /* ── Custom Autocomplete Dropdown (reemplaza .pac-container de Google) ── */
   .guep-ac-dropdown {
-    position: fixed;
+    position: absolute;
     z-index: 999999;
     background: #fff;
     border: 1.5px solid #1E56C7;
@@ -5903,8 +5903,8 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
   function _posicionar() {
     if (!_drop) return
     const r = input.getBoundingClientRect()
-    _drop.style.top   = (r.bottom + 2) + 'px'
-    _drop.style.left  = r.left + 'px'
+    _drop.style.top   = (r.bottom + window.scrollY + 2) + 'px'
+    _drop.style.left  = (r.left  + window.scrollX)     + 'px'
     _drop.style.width = r.width + 'px'
   }
 
