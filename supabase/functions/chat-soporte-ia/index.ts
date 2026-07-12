@@ -1,13 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://guepack.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = ['https://guepack.com', 'https://www.guepack.com']
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(req) })
   }
 
   // Verifica JWT del usuario antes de llamar a Anthropic
@@ -21,7 +27,7 @@ Deno.serve(async (req) => {
   if (userErr || !user) {
     return new Response(JSON.stringify({ error: 'No autorizado' }), {
       status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
@@ -50,13 +56,13 @@ Deno.serve(async (req) => {
       respuesta: 'Error: ' + (data.error?.message || 'Error desconocido'),
       error: data
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
   const respuesta = data.content?.[0]?.text || 'Lo siento, no pude procesar tu mensaje.'
 
   return new Response(JSON.stringify({ respuesta }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
   })
 })

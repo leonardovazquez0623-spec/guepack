@@ -1,13 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://guepack.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = ['https://guepack.com', 'https://www.guepack.com']
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(req) })
   }
 
   try {
@@ -17,13 +23,13 @@ Deno.serve(async (req) => {
       user_id = body.user_id
     } catch {
       return new Response(JSON.stringify({ error: 'Body inválido' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id es requerido' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -40,7 +46,7 @@ Deno.serve(async (req) => {
     const { data: { user: caller }, error: callerErr } = await supabaseUser.auth.getUser()
     if (callerErr || !caller) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 401, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -56,7 +62,7 @@ Deno.serve(async (req) => {
 
     if (perfil?.rol !== 'admin') {
       return new Response(JSON.stringify({ error: 'Acceso restringido a administradores' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 403, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -69,18 +75,18 @@ Deno.serve(async (req) => {
     if (error) {
       console.error('[eliminar-usuario] error:', error.message)
       return new Response(JSON.stringify({ success: false, error: error.message }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
     console.log('[eliminar-usuario] eliminado OK:', user_id)
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   } catch (err: any) {
     console.error('[eliminar-usuario] ERROR FATAL:', err.message, err.stack)
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 })

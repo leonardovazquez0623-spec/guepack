@@ -1,9 +1,15 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://guepack.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = ['https://guepack.com', 'https://www.guepack.com']
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY')!.replace(/\\n/g, '\n')
@@ -119,7 +125,7 @@ async function sendFCMMessage(fcmToken: string, title: string, body: string, tip
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(req) })
   }
 
   // Parsear body
@@ -136,21 +142,21 @@ Deno.serve(async (req) => {
     console.error('[enviar-push] Error parseando body:', err.message)
     return new Response(JSON.stringify({ error: 'Body inválido', detail: err.message }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
   if (!title || !body) {
     return new Response(JSON.stringify({ error: 'Faltan campos requeridos: title, body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
   if (!token && !user_id) {
     return new Response(JSON.stringify({ error: 'Se requiere token o user_id' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
@@ -163,7 +169,7 @@ Deno.serve(async (req) => {
     console.error('[enviar-push] Error en getAccessToken:', err.message)
     return new Response(JSON.stringify({ error: 'Error obteniendo token Firebase', detail: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
@@ -181,7 +187,7 @@ Deno.serve(async (req) => {
 
     if (!tokenRows?.length) {
       return new Response(JSON.stringify({ sent: 0, message: 'Sin tokens registrados para este usuario' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -212,7 +218,7 @@ Deno.serve(async (req) => {
 
     const sent = results.filter((r: any) => !r?.deleted && !r?.error).length
     return new Response(JSON.stringify({ sent, results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
@@ -220,13 +226,13 @@ Deno.serve(async (req) => {
   try {
     const firebaseData = await sendFCMMessage(token, title, body, tipo, accessToken)
     return new Response(JSON.stringify(firebaseData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   } catch (err: any) {
     console.error('[enviar-push] Error llamando Firebase:', err.message)
     return new Response(JSON.stringify({ error: 'Error llamando Firebase FCM', detail: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 })

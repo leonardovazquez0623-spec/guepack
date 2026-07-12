@@ -1,14 +1,20 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://guepack.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = ['https://guepack.com', 'https://www.guepack.com']
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders(req) })
   }
 
   try {
@@ -19,13 +25,13 @@ Deno.serve(async (req) => {
       ronda     = Number(body.ronda)
     } catch {
       return new Response(JSON.stringify({ error: 'Body inválido' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
     if (!pedido_id || !ronda) {
       return new Response(JSON.stringify({ error: 'pedido_id y ronda son requeridos' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 400, headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -45,7 +51,7 @@ Deno.serve(async (req) => {
     if (pedErr || !pedido) {
       console.warn('[procesar-asignacion] pedido no encontrado:', pedErr?.message)
       return new Response(JSON.stringify({ skipped: true, reason: 'pedido no encontrado' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -56,7 +62,7 @@ Deno.serve(async (req) => {
         .eq('pedido_id', pedido_id)
         .eq('procesado', false)
       return new Response(JSON.stringify({ skipped: true, reason: 'ya aceptado' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -83,7 +89,7 @@ Deno.serve(async (req) => {
       console.log('[procesar-asignacion] sin repartidores — notificando admin')
       await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
       return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -146,13 +152,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ ok: true, ronda, siguienteRonda: ronda < maxRondas ? ronda + 1 : null }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders(req), 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
     console.error('[procesar-asignacion] ERROR FATAL:', err.message, err.stack)
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 })

@@ -15,13 +15,28 @@ const CONSIGNMENT_NOTES: Record<string, string> = {
 
 const PACKAGE_TYPE_DEFAULT = "4G"; // Caja de cartón
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://guepack.com",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const allowedOrigins = ["https://guepack.com", "https://www.guepack.com"]
+
+const corsHeaders = (req: Request) => {
+  const origin = req.headers.get("Origin") ?? ""
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  }
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const hdrs = corsHeaders(req)
+
+  function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...hdrs, "Content-Type": "application/json" },
+    })
+  }
+
+  if (req.method === "OPTIONS") return new Response("ok", { headers: hdrs });
 
   try {
     const supabaseAdmin = createClient(
@@ -162,9 +177,3 @@ serve(async (req) => {
   }
 });
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
