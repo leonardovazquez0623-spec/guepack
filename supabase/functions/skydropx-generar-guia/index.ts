@@ -16,7 +16,7 @@ const CONSIGNMENT_NOTES: Record<string, string> = {
 const PACKAGE_TYPE_DEFAULT = "4G"; // Caja de cartón
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://guepack.com",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 

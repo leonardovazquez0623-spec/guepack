@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://guepack.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -27,15 +27,39 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Verifica JWT y que el caller sea admin
+    const authHeader = req.headers.get('Authorization')
     const supabaseUrl = Deno.env.get('SB_URL') ?? 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
     const serviceKey  = Deno.env.get('SERVICE_ROLE_KEY')!
+
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader ?? '' } } }
+    )
+    const { data: { user: caller }, error: callerErr } = await supabaseUser.auth.getUser()
+    if (callerErr || !caller) {
+      return new Response(JSON.stringify({ error: 'No autorizado' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    console.log('SERVICE_ROLE_KEY existe:', !!serviceKey)
-    console.log('SERVICE_ROLE_KEY primeros chars:', serviceKey?.substring(0, 20))
+    const { data: perfil } = await supabaseAdmin
+      .from('usuarios')
+      .select('rol')
+      .eq('user_id', caller.id)
+      .single()
+
+    if (perfil?.rol !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Acceso restringido a administradores' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     console.log('Intentando eliminar user_id:', user_id)
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)

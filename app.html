@@ -4560,9 +4560,11 @@ async function _iniciarAsignacionAutomatica(pedido) {
 
   console.log('[asignacion] delegando ronda 1 a Edge Function para pedido:', pedidoId)
   try {
+    const { data: { session } } = await db.auth.getSession()
+    const jwt = session?.access_token ?? SUPABASE_KEY
     const res = await fetch(SUPABASE_URL + '/functions/v1/procesar-asignacion', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
       body: JSON.stringify({ pedido_id: pedidoId, ronda: 1 })
     })
     const json = await res.json()

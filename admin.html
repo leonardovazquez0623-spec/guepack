@@ -3102,6 +3102,15 @@ async function updateStatus(id, status, telefono, nombre) {
   cargarPedidos()
 }
 
+function escaparHTML(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 // ── Chats ──
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin', _chatEmail = null
 
@@ -3181,9 +3190,9 @@ async function cargarChats() {
         }
         const displayEmail = emailReal || 'desconocido'
         console.log('[card escalado] displayEmail:', displayEmail, '| pedidoId:', pedidoId)
-        return `<div data-email="${displayEmail}" onclick="abrirChatSoporte('${displayEmail}','${displayEmail.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
-          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${displayEmail}${badge}</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo?.de}: ${ultimo?.texto}</div>
+        return `<div data-email="${escaparHTML(displayEmail)}" onclick="abrirChatSoporte(${JSON.stringify(displayEmail)},${JSON.stringify(displayEmail.split('@')[0] + pedidoLabel)})" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${escaparHTML(displayEmail)}${badge}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escaparHTML(ultimo?.de ?? '')}: ${escaparHTML(ultimo?.texto ?? '')}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
         </div>`
       }).join('')
@@ -3200,9 +3209,9 @@ async function cargarChats() {
         const sorted = [...msgs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         const ultimo = sorted[0]
         const pedidoLabel = ultimo.pedido_id ? ` · GK-${ultimo.pedido_id}` : ''
-        return `<div data-email="${email}" onclick="abrirChatSoporte('${email}','${email.split('@')[0]}${pedidoLabel}')" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #22c55e;margin-bottom:8px">
-          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#22c55e">🤖 ${email}</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ultimo.de}: ${ultimo.texto}</div>
+        return `<div data-email="${escaparHTML(email)}" onclick="abrirChatSoporte(${JSON.stringify(email)},${JSON.stringify(email.split('@')[0] + pedidoLabel)})" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #22c55e;margin-bottom:8px">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#22c55e">🤖 ${escaparHTML(email)}</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escaparHTML(ultimo.de ?? '')}: ${escaparHTML(ultimo.texto ?? '')}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:4px">${msgs.length} mensajes${pedidoLabel}</div>
         </div>`
       }).join('')

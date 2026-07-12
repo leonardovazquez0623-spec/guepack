@@ -1,17 +1,32 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://guepack.com',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      }
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Verifica JWT del usuario antes de llamar a Anthropic
+  const authHeader = req.headers.get('Authorization')
+  const supabaseUser = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader ?? '' } } }
+  )
+  const { data: { user }, error: userErr } = await supabaseUser.auth.getUser()
+  if (userErr || !user) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
   const { messages } = await req.json()
   const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
-  console.log('API KEY existe:', !!ANTHROPIC_API_KEY)
-  console.log('API KEY primeros chars:', ANTHROPIC_API_KEY?.substring(0, 10))
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -29,24 +44,19 @@ Deno.serve(async (req) => {
   })
 
   const data = await response.json()
-  console.log('Anthropic response status:', response.status)
-  console.log('Anthropic response data:', JSON.stringify(data))
 
   if (!response.ok) {
     return new Response(JSON.stringify({
       respuesta: 'Error: ' + (data.error?.message || 'Error desconocido'),
       error: data
     }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
   const respuesta = data.content?.[0]?.text || 'Lo siento, no pude procesar tu mensaje.'
 
   return new Response(JSON.stringify({ respuesta }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 })
