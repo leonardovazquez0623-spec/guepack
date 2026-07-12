@@ -939,6 +939,12 @@ async function init() {
     _gpsWatchId = navigator.geolocation.watchPosition(pos => {
       _currentGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude }
       _renderProximaParada()
+      // Publica lat/lng en repartidores cada 10s para que el cliente vea proximidad
+      const now = Date.now()
+      if (now - _lastGpsPush > 10000 && _repaData?.nombre) {
+        _lastGpsPush = now
+        db.from('repartidores').update({ lat: _currentGPS.lat, lng: _currentGPS.lng }).eq('nombre', _repaData.nombre).then(() => {})
+      }
     }, null, { enableHighAccuracy: true, maximumAge: 8000 })
   }
 
@@ -2344,6 +2350,7 @@ let _autoCentrarInterval = null   // id del setInterval de auto-centrado
 // ── Estado global GPS + paradas (compartido entre vistas) ───────────────────
 let _currentGPS     = null   // { lat, lng } — actualizado por watchPosition
 let _gpsWatchId     = null   // watchId para vista lista (fuera del mapa)
+let _lastGpsPush    = 0      // timestamp del último push de lat/lng a Supabase
 let _todasParadas   = {}     // pedidoId → paradas[] — para proximidad sin queries extra
 let _calChannel     = null   // realtime channel calificaciones
 let _repaEmail      = null   // email del repartidor autenticado

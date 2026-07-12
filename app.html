@@ -344,39 +344,37 @@
   }
 
   /* ── TRACKING TIMELINE ── */
-  .timeline { position: relative; padding-left: 28px; }
-  .timeline::before {
-    content: '';
-    position: absolute;
-    left: 10px; top: 0; bottom: 0;
-    width: 2px;
-    background: var(--gray);
-  }
-  .tl-item {
-    position: relative;
-    margin-bottom: 20px;
-  }
+  /* ── TIMELINE ── */
+  .timeline { position:relative; padding-left:32px; }
+  .timeline::before { content:''; position:absolute; left:12px; top:4px; bottom:4px; width:2px; background:#e8edf5; }
+  .tl-item { position:relative; margin-bottom:18px; }
   .tl-dot {
-    position: absolute;
-    left: -24px;
-    top: 2px;
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    border: 3px solid var(--gray);
-    background: var(--white);
-    transition: all .3s;
+    position:absolute; left:-26px; top:1px;
+    width:22px; height:22px; border-radius:50%;
+    border:2.5px solid #d1d9e6; background:white;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .3s; font-size:11px; line-height:1;
   }
-  .tl-item.done .tl-dot { background: var(--success); border-color: var(--success); }
-  .tl-item.current .tl-dot { background: var(--orange); border-color: var(--orange); animation: pulse 1.5s infinite; }
+  .tl-item.done .tl-dot { background:#22c55e; border-color:#22c55e; color:white; }
+  .tl-item.current .tl-dot { background:#f05a1a; border-color:#f05a1a; animation:pulse 1.5s infinite; }
+  .tl-item.pending .tl-dot { background:white; border-color:#d1d9e6; }
   @keyframes pulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(240,90,26,0.4); }
-    50% { box-shadow: 0 0 0 6px rgba(240,90,26,0); }
+    0%,100% { box-shadow:0 0 0 0 rgba(240,90,26,0.4); }
+    50% { box-shadow:0 0 0 7px rgba(240,90,26,0); }
   }
-  .tl-title { font-size: 13px; font-weight: 700; color: var(--text); }
-  .tl-item.done .tl-title { color: var(--success); }
-  .tl-item.current .tl-title { color: var(--orange); }
-  .tl-item.pending .tl-title { color: var(--gray-mid); }
-  .tl-time { font-size: 10px; color: var(--gray-mid); font-weight: 600; margin-top: 2px; }
+  .tl-title { font-size:13px; font-weight:700; color:var(--text); }
+  .tl-item.done .tl-title { color:#15803d; }
+  .tl-item.current .tl-title { color:#f05a1a; font-weight:900; }
+  .tl-item.pending .tl-title { color:#a0aec0; font-weight:600; }
+  .tl-time { font-size:10px; color:var(--gray-mid); font-weight:600; margin-top:2px; }
+  /* ── RASTREO GATO ── */
+  .rastreo-gato-wrap { text-align:center; margin-bottom:-28px; position:relative; z-index:2; pointer-events:none; }
+  .rastreo-gato-wrap img { width:150px; height:150px; object-fit:contain; filter:drop-shadow(0 6px 16px rgba(14,32,85,0.18)); }
+  /* ── PAC CARD ── */
+  .pac-header { background:linear-gradient(90deg,#0a2a6e 0%,#1E56C7 100%); padding:13px 16px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; -webkit-tap-highlight-color:transparent; }
+  .pac-repa-card { display:flex; align-items:center; gap:12px; background:#f4f7fb; border-radius:12px; padding:10px 12px; margin-bottom:12px; }
+  .pac-repa-avatar { width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0; border:2px solid #dde4f0; background:#dde4f0; display:flex; align-items:center; justify-content:center; font-family:Montserrat,sans-serif; font-weight:900; font-size:16px; color:#1a2740; }
+  .pac-repa-avatar img { width:100%; height:100%; object-fit:cover; }
 
   /* ── ORDER CARD (admin) ── */
   .order-card {
@@ -1522,48 +1520,80 @@
       </div>
 
       <div id="resultado-rastreo" style="display:none">
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <!-- Gatito según estado -->
+        <div class="rastreo-gato-wrap">
+          <img id="rastreo-gato" src="/encamino_g.png" alt="">
+        </div>
+
+        <!-- Card principal -->
+        <div style="background:white;border-radius:20px;box-shadow:0 4px 20px rgba(14,32,85,0.10);padding:44px 18px 20px;margin-bottom:12px">
+          <!-- Folio + badge -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
             <div>
-              <div style="font-size:18px;font-weight:900;color:var(--blue)" id="rastreo-folio">GK-0</div>
-              <div style="font-size:11px;color:var(--gray-mid);font-weight:600" id="rastreo-detalle">—</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--blue);letter-spacing:2px" id="rastreo-folio">GK-0</div>
+              <div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px" id="rastreo-detalle">—</div>
             </div>
             <div class="status-badge" id="rastreo-badge">—</div>
           </div>
 
+          <!-- Timeline -->
           <div class="timeline">
             <div class="tl-item" id="tl-encamino-rec">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="repartidor"></span> Guepartidor en camino</div>
-              <div class="tl-time" id="tl-encamino-rec-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">Repartidor asignado</div>
+                <div class="tl-time" id="tl-encamino-rec-time"></div>
+              </div>
             </div>
             <div class="tl-item" id="tl-llegamos-rec">
               <div class="tl-dot"></div>
-              <div class="tl-title">Llegamos a recolectar</div>
-              <div class="tl-time" id="tl-llegamos-rec-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">En camino a recolectar</div>
+                <div class="tl-time" id="tl-llegamos-rec-time"></div>
+              </div>
             </div>
             <div class="tl-item" id="tl-recolectado">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="paquete"></span> Paquete recolectado</div>
-              <div class="tl-time" id="tl-recolectado-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">Paquete recolectado</div>
+                <div class="tl-time" id="tl-recolectado-time"></div>
+              </div>
             </div>
             <div class="tl-item" id="tl-camino">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino a entrega</div>
-              <div class="tl-time" id="tl-camino-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">En camino a entrega</div>
+                <div class="tl-time" id="tl-camino-time"></div>
+              </div>
             </div>
             <div class="tl-item" id="tl-llegamos-dest">
               <div class="tl-dot"></div>
-              <div class="tl-title">Llegamos al destino</div>
-              <div class="tl-time" id="tl-llegamos-dest-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">Llegamos al destino</div>
+                <div class="tl-time" id="tl-llegamos-dest-time"></div>
+              </div>
             </div>
-            <div class="tl-item" id="tl-entregado">
+            <div class="tl-item" id="tl-entregado" style="margin-bottom:0">
               <div class="tl-dot"></div>
-              <div class="tl-title"><span class="guep-icon-inline" data-icon="entregado"></span> ¡Entregado!</div>
-              <div class="tl-time" id="tl-entregado-time">Pendiente</div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div class="tl-title">¡Entregado!</div>
+                <div class="tl-time" id="tl-entregado-time"></div>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Banner repartidor cerca (1.5km) -->
+        <div id="rastreo-cerca-banner" style="display:none;background:linear-gradient(90deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:14px;padding:12px 16px;margin-bottom:12px;align-items:center;gap:10px">
+          <span style="font-size:26px">🛵</span>
+          <div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#15803d">¡Tu repartidor está cerca!</div>
+            <div style="font-size:11px;color:#166534;font-weight:600">A menos de 1.5 km de tu domicilio</div>
+          </div>
+        </div>
+
+        <!-- Card repartidor -->
+        <div id="rastreo-repa-card" style="display:none;background:white;border-radius:16px;box-shadow:0 2px 14px rgba(14,32,85,0.08);padding:16px;margin-bottom:12px"></div>
       </div>
 
       <div id="rastreo-error" style="display:none" class="card">
@@ -3027,24 +3057,29 @@ async function rastrearPedido() {
 
   document.getElementById('rastreo-folio').textContent = 'GK-' + data.id
   document.getElementById('rastreo-detalle').textContent = data.nombre + ' · ' + data.tamanio + ' · ' + data.zona
+  // Reset repartidor card y banner
+  const repaCard = document.getElementById('rastreo-repa-card')
+  if (repaCard) { repaCard.style.display = 'none'; repaCard.innerHTML = ''; repaCard.dataset.repa = '' }
+  const cercaBanner = document.getElementById('rastreo-cerca-banner')
+  if (cercaBanner) cercaBanner.style.display = 'none'
 
   _actualizarUIRastreo(data)
 
   document.getElementById('resultado-rastreo').style.display = 'block'
 
-  // Realtime: desuscribir canal anterior si el usuario rastreó otro folio
+  // Realtime pedido
   if (_rastreoChannel) { db.removeChannel(_rastreoChannel); _rastreoChannel = null }
   _rastreoChannel = db.channel('rastreo-pedido-' + data.id)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'pedidos',
-      filter: 'id=eq.' + data.id
-    }, payload => {
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: 'id=eq.' + data.id }, payload => {
       console.log('[rastreo] UPDATE — estado:', payload.new.estado, '| repartidor:', payload.new.repartidor ?? 'sin asignar')
       _actualizarUIRastreo(payload.new)
     })
     .subscribe(status => { console.log('[rastreo app] canal status:', status) })
+
+  // Realtime ubicación repartidor (1.5km)
+  if (data.repartidor && data.lat_entrega && data.lng_entrega) {
+    _suscribirUbicacionRepa(data.repartidor, data.lat_entrega, data.lng_entrega)
+  }
 }
 
 function _actualizarUIRastreo(data) {
@@ -3053,27 +3088,56 @@ function _actualizarUIRastreo(data) {
   badge.textContent = data.estado
   badge.className = 'status-badge ' + (data.estado === 'Entregado' ? 'badge-done' : data.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit')
 
+  // Gatito según estado
+  const gatoImg = document.getElementById('rastreo-gato')
+  if (gatoImg) {
+    const gatoMap = {
+      'Pendiente':                           '/encamino_g.png',
+      'En camino a recoleccion':             '/encamino_g.png',
+      'Repartidor en domicilio recoleccion': '/encamino_g.png',
+      'Recolectado':                         '/recolectado_g.png',
+      'En camino a entrega':                 '/transito_g.png',
+      'Repartidor en domicilio':             '/transito_g.png',
+      'Entregado':                           '/entregado_g.png',
+    }
+    gatoImg.src = gatoMap[data.estado] || '/encamino_g.png'
+  }
+
   const estadoMap = {
     'En camino a recoleccion':             0,
     'Repartidor en domicilio recoleccion': 1,
     'Recolectado':                         2,
     'En camino a entrega':                 3,
     'Repartidor en domicilio':             4,
-    'Entregado':                           6
+    'Entregado':                           5,
   }
   const estadoActual = estadoMap[data.estado] ?? -1
-  // Si repartidor fue asignado pero el estado sigue en Pendiente, activar el primer paso en verde
   const efectivo = (estadoActual < 0 && data.repartidor) ? 0 : estadoActual
+
+  const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
 
   const items = ['tl-encamino-rec', 'tl-llegamos-rec', 'tl-recolectado', 'tl-camino', 'tl-llegamos-dest', 'tl-entregado']
   items.forEach((itemId, i) => {
     const el = document.getElementById(itemId)
     if (!el) return
-    if (efectivo < 0)        el.className = 'tl-item pending'
-    else if (i < efectivo)   el.className = 'tl-item done'
-    else if (i === efectivo) el.className = 'tl-item current'
-    else                     el.className = 'tl-item pending'
+    const dot = el.querySelector('.tl-dot')
+    if (efectivo < 0) {
+      el.className = 'tl-item pending'
+      if (dot) dot.innerHTML = ''
+    } else if (i < efectivo) {
+      el.className = 'tl-item done'
+      if (dot) dot.innerHTML = CHECK_SVG
+    } else if (i === efectivo) {
+      el.className = 'tl-item current'
+      if (dot) dot.innerHTML = ''
+    } else {
+      el.className = 'tl-item pending'
+      if (dot) dot.innerHTML = ''
+    }
   })
+
+  // Mostrar card repartidor si hay repartidor asignado
+  if (data.repartidor) _cargarRepaCardRastreo(data.repartidor)
 }
 
 async function _cargarNacionalesRastreo() {
@@ -3118,6 +3182,65 @@ async function _cargarNacionalesRastreo() {
         </div>
       </div>`
   }).join('')
+}
+
+// ── Repartidor card en rastreo ─────────────────────────────────────────────
+var _repaCardLoaded = ''
+async function _cargarRepaCardRastreo(nombreRepa) {
+  const card = document.getElementById('rastreo-repa-card')
+  if (!card || !nombreRepa) return
+  if (card.dataset.repa === nombreRepa) return  // ya cargado
+  card.dataset.repa = nombreRepa
+
+  const [{ data: repa }, { data: cals }] = await Promise.all([
+    db.from('repartidores').select('foto_perfil, placas, telefono').eq('nombre', nombreRepa).single(),
+    db.from('calificaciones').select('estrellas').eq('repartidor', nombreRepa)
+  ])
+
+  const avg = cals?.length ? (cals.reduce((s, c) => s + (c.estrellas || 0), 0) / cals.length).toFixed(1) : null
+  const avatarInner = repa?.foto_perfil
+    ? `<img src="${repa.foto_perfil}" style="width:100%;height:100%;object-fit:cover">`
+    : `<div style="width:100%;height:100%;background:#dde4f0;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:20px;color:#1a2740">${nombreRepa.charAt(0).toUpperCase()}</div>`
+
+  const waBtn = repa?.telefono
+    ? `<a href="https://wa.me/52${repa.telefono}?text=Hola%20${encodeURIComponent(nombreRepa)}%2C%20soy%20tu%20cliente%20de%20GUEPACK" target="_blank" rel="noopener" style="flex:1;padding:10px;background:#22c55e;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>`
+    : ''
+
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:${waBtn ? '14' : '0'}px">
+      <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid #dde4f0;flex-shrink:0">${avatarInner}</div>
+      <div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a2740">${nombreRepa}</div>
+        <div style="font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">Tu repartidor${avg ? ' · ⭐ ' + avg : ''}${repa?.placas ? ' · 🔖 ' + repa.placas : ''}</div>
+      </div>
+    </div>
+    ${waBtn ? `<div style="display:flex;gap:8px">${waBtn}</div>` : ''}
+  `
+  card.style.display = 'block'
+}
+
+// ── Ubicación repartidor a 1.5km ────────────────────────────────────────────
+var _repaLocationChannel = null
+function _haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, toRad = x => x * Math.PI / 180
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+function _suscribirUbicacionRepa(nombreRepa, latEntrega, lngEntrega) {
+  if (_repaLocationChannel) db.removeChannel(_repaLocationChannel)
+  _repaLocationChannel = db.channel('repa-ubicacion-' + nombreRepa)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'repartidores', filter: 'nombre=eq.' + nombreRepa }, payload => {
+      const { lat, lng } = payload.new
+      if (!lat || !lng) return
+      const distKm = _haversineKm(lat, lng, latEntrega, lngEntrega)
+      const banner = document.getElementById('rastreo-cerca-banner')
+      if (banner) banner.style.display = distKm <= 1.5 ? 'flex' : 'none'
+    })
+    .subscribe()
 }
 
 async function cerrarSesion() {
@@ -3682,34 +3805,49 @@ function _crearCardHTML(id, nombreRemitente = null) {
   const _primerNombre = nombreRemitente ? nombreRemitente.trim().split(' ')[0] : null
   const _folioLabel = _primerNombre ? `GK-${id} · ${_primerNombre}` : `GK-${id}`
   return `
-    <div id="pac-${id}" style="background:white;border-radius:16px;box-shadow:0 4px 24px rgba(26,79,160,0.10);border-left:4px solid var(--blue);margin-bottom:10px;overflow:hidden;transition:border-color .4s">
-      <div onclick="togglePedidoCard(${id})" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer">
+    <div id="pac-${id}" style="background:white;border-radius:18px;box-shadow:0 4px 24px rgba(14,32,85,0.13);margin-bottom:12px;overflow:hidden;border-left:4px solid var(--blue);transition:border-color .4s">
+      <!-- Header azul -->
+      <div class="pac-header" onclick="togglePedidoCard(${id})">
         <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);letter-spacing:2px">${_folioLabel}</span>
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:19px;color:white;letter-spacing:2px">${_folioLabel}</span>
           <span class="status-badge badge-transit" id="pac-${id}-badge">...</span>
         </div>
-        <span id="pac-${id}-arrow" style="font-size:14px;color:#8fa3c0">▼</span>
+        <span id="pac-${id}-arrow" style="color:rgba(255,255,255,0.7);font-size:13px">▼</span>
       </div>
-      <div id="pac-${id}-body" style="padding:0 16px 14px">
-        <div style="font-size:12px;font-weight:700;color:#8fa3c0;margin-bottom:4px" id="pac-${id}-estado"></div>
-        <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-repartidor"></div>
-        <div style="font-size:11px;font-weight:600;color:#8fa3c0;display:none" id="pac-${id}-placas"></div>
-        <div id="pac-${id}-chat-wrap" style="display:none;margin-top:8px">
-          <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="width:100%;padding:10px;background:#1a4fa0;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px">
-            <span class="guep-icon-inline icon-on-color" data-icon="chat"></span> Chat con repartidor
-            <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
+      <!-- Body -->
+      <div id="pac-${id}-body" style="padding:14px 16px">
+        <div style="font-size:12px;font-weight:700;color:#5a6a8a;margin-bottom:10px;line-height:1.45" id="pac-${id}-estado"></div>
+        <!-- Repartidor card (se llena cuando hay repartidor) -->
+        <div id="pac-${id}-repartidor" style="display:none;margin-bottom:12px"></div>
+        <div id="pac-${id}-placas" style="display:none"></div>
+        <!-- Chat + Compartir (cuando hay repartidor) -->
+        <div id="pac-${id}-chat-wrap" style="display:none;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="padding:11px 8px;background:#1E56C7;color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;gap:5px">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Chat
+              <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
+            </button>
+            <button onclick="compartirRastreo(${id})" style="padding:11px 8px;background:white;color:#1E56C7;border:2px solid #1E56C7;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Compartir
+            </button>
+          </div>
+        </div>
+        <!-- Compartir solo (cuando NO hay repartidor aún) -->
+        <div id="pac-${id}-compartir-solo" style="margin-bottom:10px">
+          <button onclick="compartirRastreo(${id})" style="width:100%;padding:10px;background:rgba(30,86,199,0.07);color:#1E56C7;border:1.5px solid rgba(30,86,199,0.25);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Compartir rastreo
           </button>
         </div>
-        <div id="pac-${id}-paradas" style="display:none;margin-top:8px;padding:8px 10px;background:var(--gray-light);border-radius:10px;font-family:Montserrat,sans-serif"></div>
-        <div id="pac-${id}-timer-domicilio" style="display:none;margin-top:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
-        <div id="pac-${id}-agregar-parada-wrap" style="display:none;margin-top:8px">
+        <div id="pac-${id}-paradas" style="display:none;margin-bottom:8px;padding:8px 10px;background:#f4f7fb;border-radius:10px;font-family:Montserrat,sans-serif"></div>
+        <div id="pac-${id}-timer-domicilio" style="display:none;margin-bottom:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
+        <div id="pac-${id}-agregar-parada-wrap" style="display:none;margin-bottom:8px">
           <button onclick="abrirModalAgregarParada(${id})" style="width:100%;padding:9px;background:rgba(26,79,160,0.07);border:1.5px dashed var(--blue);border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--blue)">➕ Agregar parada</button>
         </div>
-        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px" id="pac-${id}-cancelar-container">
-          <button onclick="compartirRastreo(${id})" style="flex:1;background:rgba(26,79,160,0.08);color:var(--blue);border:2px solid var(--blue);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
-            🔗 Compartir rastreo
-          </button>
-          <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="flex:1;background:rgba(240,90,26,0.1);color:var(--orange);border:2px solid var(--orange);border-radius:8px;padding:7px 10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">
+        <div id="pac-${id}-cancelar-container">
+          <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="width:100%;padding:10px;background:rgba(240,90,26,0.08);color:var(--orange);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">
             ❌ Cancelar (<span id="pac-${id}-timer">5:00</span>)
           </button>
         </div>
@@ -3859,9 +3997,10 @@ function _actualizarCard(id, estado, repartidor) {
   const repaEl = document.getElementById('pac-' + id + '-repartidor')
   const chatWrap = document.getElementById('pac-' + id + '-chat-wrap')
   if (repartidor) {
-    repaEl.textContent = '🏍️ Repartidor: ' + repartidor
     repaEl.style.display = 'block'
     if (chatWrap) chatWrap.style.display = 'block'
+    const compartirSolo = document.getElementById('pac-' + id + '-compartir-solo')
+    if (compartirSolo) compartirSolo.style.display = 'none'
     _mostrarPlacasRepartidor(id, repartidor)
   }
 
@@ -3908,20 +4047,20 @@ function _actualizarCard(id, estado, repartidor) {
 }
 
 async function _mostrarPlacasRepartidor(pedidoId, nombreRepartidor) {
-  const placasEl = document.getElementById('pac-' + pedidoId + '-placas')
-  const repaEl   = document.getElementById('pac-' + pedidoId + '-repartidor')
-  if (!nombreRepartidor) return
+  const repaEl = document.getElementById('pac-' + pedidoId + '-repartidor')
+  if (!repaEl || !nombreRepartidor) return
   const { data } = await db.from('repartidores').select('placas, foto_perfil').eq('nombre', nombreRepartidor).single()
-  if (repaEl) {
-    var avatarHtml = data?.foto_perfil
-      ? '<img src="' + data.foto_perfil + '" class="repa-avatar-sm" alt="">'
-      : ''
-    repaEl.innerHTML = avatarHtml + '🏍️ Repartidor: ' + nombreRepartidor
-  }
-  if (placasEl && data?.placas) {
-    placasEl.textContent = '🔖 Placas: ' + data.placas
-    placasEl.style.display = 'block'
-  }
+  const avatarInner = data?.foto_perfil
+    ? `<img src="${data.foto_perfil}" style="width:100%;height:100%;object-fit:cover">`
+    : `<span>${nombreRepartidor.charAt(0).toUpperCase()}</span>`
+  repaEl.innerHTML = `
+    <div class="pac-repa-card">
+      <div class="pac-repa-avatar">${avatarInner}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a2740">${nombreRepartidor}</div>
+        <div style="font-size:10px;color:#8fa3c0;font-weight:600;margin-top:1px">Tu repartidor${data?.placas ? ' · 🔖 ' + data.placas : ''}</div>
+      </div>
+    </div>`
 }
 
 function cerrarCardPedido(id) {
@@ -5473,10 +5612,18 @@ function _maskWa(wa) {
   return '***-***-' + wa.slice(-3)
 }
 
+function _drawerToggle(id) {
+  const el = document.getElementById(id)
+  const arrow = document.getElementById(id + '-arrow')
+  if (!el) return
+  const open = el.style.display !== 'none'
+  el.style.display = open ? 'none' : 'block'
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(90deg)'
+}
+
 async function _abrirDrawer() {
   if (document.getElementById('side-drawer')) return
 
-  // Query fresca al abrir el drawer — nunca usar sólo valores en memoria
   if (_clienteUserId) {
     const { data: fresh } = await db.from('usuarios')
       .select('nivel_vip, total_pedidos, foto_perfil, envios_gratis, codigo_referido_propio')
@@ -5486,40 +5633,38 @@ async function _abrirDrawer() {
       _clienteTotalPedidos = fresh.total_pedidos  || 0
       _clienteEnviosGratis = fresh.envios_gratis  || 0
       if (fresh.foto_perfil) _clienteFotoUrl = fresh.foto_perfil
-      console.log('codigo referido:', fresh.codigo_referido_propio)
       if (fresh.codigo_referido_propio) {
         _clienteCodigoReferido = fresh.codigo_referido_propio
       } else {
-        // No tiene código aún — generar y guardar antes de mostrar el drawer
         await _generarYGuardarCodigo()
       }
     }
   }
 
-  const nivel = _clienteNivelVip || 'normal'
-  const total = _clienteTotalPedidos || 0
-  const _vipIcons  = { normal:'👤', bronce:'🥉', plata:'🥈', oro:'🥇' }
+  const nivel  = _clienteNivelVip || 'normal'
+  const total  = _clienteTotalPedidos || 0
   const _vipLabels = { normal:'Normal', bronce:'Bronce', plata:'Plata', oro:'Oro VIP' }
   const _vipColors = { normal:'#8fa3c0', bronce:'#CD7F32', plata:'#808080', oro:'#DAA520' }
+  const _vipBg     = { normal:'rgba(255,255,255,0.15)', bronce:'rgba(205,127,50,0.2)', plata:'rgba(128,128,128,0.2)', oro:'rgba(218,165,32,0.25)' }
 
-  const nivelData   = _calcNivel(total)
-  const nivelIdx    = _VIP_NIVELES.findIndex(v => v.nivel === nivel)
+  const nivelData     = _calcNivel(total)
+  const nivelIdx      = _VIP_NIVELES.findIndex(v => v.nivel === nivel)
   const nextNivelData = nivelIdx > 0 ? _VIP_NIVELES[nivelIdx - 1] : null
 
   let vipBarHtml = ''
   if (nextNivelData) {
-    const pct = Math.round(Math.min(1, (total - nivelData.min) / (nextNivelData.min - nivelData.min)) * 100)
+    const pct    = Math.round(Math.min(1, (total - nivelData.min) / (nextNivelData.min - nivelData.min)) * 100)
     const faltan = nextNivelData.min - total
     vipBarHtml = `
-      <div style="margin-top:10px">
+      <div style="margin-top:8px">
         <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-bottom:4px">
           <span>Hacia ${_vipLabels[nextNivelData.nivel]}</span><span>${total}/${nextNivelData.min} envíos</span>
         </div>
-        <div style="background:#f0f0f0;border-radius:6px;height:8px;overflow:hidden">
-          <div style="background:${_vipColors[nivel]};height:100%;width:${pct}%;border-radius:6px"></div>
+        <div style="background:#eef1f6;border-radius:6px;height:6px;overflow:hidden">
+          <div style="background:${_vipColors[nivel]};height:100%;width:${pct}%;border-radius:6px;transition:width .4s"></div>
         </div>
         <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-top:4px">
-          Faltan <strong style="color:${_vipColors[nivel]}">${faltan}</strong> para ${_vipLabels[nextNivelData.nivel]}
+          Faltan <strong style="color:${_vipColors[nivel]}">${faltan}</strong> envíos para ${_vipLabels[nextNivelData.nivel]}
         </div>
       </div>`
   } else {
@@ -5528,77 +5673,151 @@ async function _abrirDrawer() {
 
   const avatarHtml = _clienteFotoUrl
     ? `<img src="${_clienteFotoUrl}" style="width:100%;height:100%;object-fit:cover">`
-    : `<span>${(_clienteEmail.charAt(0) || '?').toUpperCase()}</span>`
+    : `<span style="font-size:30px;font-family:Montserrat,sans-serif;font-weight:900;color:white">${(_clienteEmail.charAt(0) || '?').toUpperCase()}</span>`
+
+  const svgArrow   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#c0c8d8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`
+  const svgPerfil  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/></svg>`
+  const svgDir     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>`
+  const svgRef     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z"/><circle cx="7.5" cy="7.5" r="1.3" fill="#F05A1A" stroke="#F05A1A"/></svg>`
+  const svgVip     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12v3.5c0 4-2.5 6.7-6 7.3-3.5-.6-6-3.3-6-7.3V5Z" fill="#F05A1A" stroke="#F05A1A"/><path d="M6 6.5H3.5v1.8A2.7 2.7 0 0 0 6 11M18 6.5h2.5v1.8A2.7 2.7 0 0 1 18 11" stroke="#F05A1A"/><path d="M10 19h4M9 21h6M12 15.8V19"/></svg>`
+  const svgSalir   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/><path d="M15.5 8 19.5 12l-4 4" stroke="#ef4444"/><path d="M19.5 12H9" stroke="#ef4444"/></svg>`
+  const svgApp     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#b0bec5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M6 5.5h12M6 18.5h12"/><circle cx="12" cy="20" r="0.9" fill="#b0bec5" stroke="#b0bec5"/></svg>`
 
   const overlay = document.createElement('div')
   overlay.id = 'drawer-overlay'
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:15000;opacity:0;transition:opacity .3s'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.52);z-index:15000;opacity:0;transition:opacity .3s'
   overlay.addEventListener('click', _cerrarDrawer)
 
   const drawer = document.createElement('div')
   drawer.id = 'side-drawer'
-  drawer.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:min(300px,88vw);background:white;z-index:15001;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:-6px 0 32px rgba(0,0,0,0.18)'
+  drawer.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:min(300px,88vw);background:#f4f7fb;z-index:15001;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:-8px 0 40px rgba(0,0,0,0.22)'
 
   drawer.innerHTML = `
-    <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:24px 20px 20px;position:relative;flex-shrink:0">
-      <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;line-height:1">✕</button>
-      <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:68px;height:68px;border-radius:50%;border:3px solid rgba(255,255,255,0.7);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:24px;color:white;margin-bottom:10px;flex-shrink:0">${avatarHtml}</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:white;line-height:1.2">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
-      <div style="font-size:10px;color:rgba(255,255,255,0.65);font-family:Montserrat,sans-serif;font-weight:600;margin-top:3px">${_maskEmail(_clienteEmail)}</div>
+    <!-- ── HEADER ── -->
+    <div style="background:linear-gradient(145deg,#0a2a6e 0%,#1E56C7 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
+      <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;z-index:1">✕</button>
+      <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;flex-shrink:0">${avatarHtml}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:white;line-height:1.2;margin-bottom:3px">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.58);font-family:Montserrat,sans-serif;font-weight:600;margin-bottom:10px">${_maskEmail(_clienteEmail)}</div>
+      <span style="display:inline-block;padding:3px 12px;background:${_vipBg[nivel]};color:white;border-radius:20px;font-size:10px;font-weight:900;font-family:Montserrat,sans-serif;border:1px solid rgba(255,255,255,0.3);backdrop-filter:blur(4px)">${_vipLabels[nivel]}</span>
     </div>
 
-    <div style="flex:1;overflow-y:auto;padding:16px">
+    <!-- ── BODY ── -->
+    <div style="flex:1;overflow-y:auto;padding:14px 12px 8px">
 
-      <div style="margin-bottom:18px">
-        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">👤 Datos<div style="flex:1;height:1px;background:#eef1f6"></div></div>
-        <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:5px"><span style="font-weight:700;color:#1a2740">Correo:</span> ${_maskEmail(_clienteEmail)}</div>
-        <div id="drawer-wa-row" style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:12px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</span>
-            ${_clienteWhatsappEditado
-              ? '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
-              : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'}
+      <div style="font-size:9px;font-weight:900;color:#a0aec0;letter-spacing:1.8px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:8px;padding:0 4px">Mi Cuenta</div>
+
+      <div style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.07)">
+
+        <!-- Mis datos -->
+        <div onclick="_drawerToggle('drawer-datos')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgPerfil}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mis datos</div>
+            <div style="font-size:10px;color:#a0aec0;font-weight:600">Correo y WhatsApp</div>
+          </div>
+          <div id="drawer-datos-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
+        </div>
+        <div id="drawer-datos" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;padding-top:10px;margin-bottom:5px">
+            <span style="font-weight:700;color:#1a2740">Correo:</span> ${_maskEmail(_clienteEmail)}
+          </div>
+          <div id="drawer-wa-row" style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</span>
+              ${_clienteWhatsappEditado
+                ? '<span style="font-size:10px;color:#a0aec0;font-weight:700">🔒 No modificable</span>'
+                : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'}
+            </div>
+          </div>
+          <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#1a4fa0">🔑 Cambiar contraseña</button>
+        </div>
+
+        <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
+
+        <!-- Mis direcciones -->
+        <div onclick="_drawerToggle('drawer-dirs');_cargarDireccionesDrawer()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgDir}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mis direcciones</div>
+            <div style="font-size:10px;color:#a0aec0;font-weight:600">Favoritas guardadas</div>
+          </div>
+          <div id="drawer-dirs-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
+        </div>
+        <div id="drawer-dirs" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          <div id="drawer-dirs-lista" style="padding-top:10px"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
+        </div>
+
+        <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
+
+        <!-- Referidos -->
+        <div onclick="_drawerToggle('drawer-refs')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#fff4ef;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgRef}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Referidos</span>
+              <span style="background:#f05a1a;color:white;font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;font-family:Montserrat,sans-serif;white-space:nowrap">Gana envíos gratis</span>
+            </div>
+            <div style="font-size:10px;color:#a0aec0;font-weight:600">Invita amigos</div>
+          </div>
+          <div id="drawer-refs-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
+        </div>
+        <div id="drawer-refs" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          <div style="padding-top:10px">
+            <div style="font-size:10px;color:#a0aec0;font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:6px">Tu código de referido</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:3px;line-height:1">${_clienteCodigoReferido || '...'}</div>
+              <button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>
+              <button onclick="_compartirCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">🔗 Compartir</button>
+            </div>
+            ${_clienteEnviosGratis > 0 ? `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;color:#16a34a;margin-bottom:10px">🎟️ ${_clienteEnviosGratis} envíos gratis disponibles</div>` : ''}
+            <div id="drawer-referidos-lista"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
           </div>
         </div>
-        <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#1a4fa0">🔑 Cambiar contraseña</button>
-      </div>
 
-      <div style="margin-bottom:18px">
-        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">🎁 Referidos<div style="flex:1;height:1px;background:#eef1f6"></div></div>
-        <div style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:6px">Tu código de referido</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:3px;line-height:1">${_clienteCodigoReferido || '...'}</div>
-          <button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:6px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>
-          <button onclick="_compartirCodigoReferido()" style="padding:6px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">🔗 Compartir</button>
-        </div>
-        ${_clienteEnviosGratis > 0 ? `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;color:#16a34a;margin-bottom:10px">🎟️ ${_clienteEnviosGratis} envíos gratis disponibles</div>` : ''}
-        <div id="drawer-referidos-lista"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
-      </div>
+        <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
 
-      <div style="margin-bottom:8px">
-        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">🏆 Nivel VIP<div style="flex:1;height:1px;background:#eef1f6"></div></div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
-          <div style="font-size:32px;line-height:1">${_vipIcons[nivel]}</div>
-          <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${_vipColors[nivel]};letter-spacing:1px;line-height:1">${_vipLabels[nivel]}</div>
-            <div style="font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;color:#8fa3c0">${total} envíos realizados</div>
+        <!-- Nivel VIP -->
+        <div onclick="_drawerToggle('drawer-vip')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#fffbeb;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgVip}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Nivel VIP</div>
+            <div style="font-size:10px;font-weight:700;color:${_vipColors[nivel]}">${_vipLabels[nivel]} · ${total} envíos</div>
           </div>
+          <div id="drawer-vip-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
         </div>
-        ${vipBarHtml}
+        <div id="drawer-vip" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          ${vipBarHtml}
+        </div>
+
+        ${_empresaUsuario ? `
+        <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
+        <div onclick="_drawerToggle('drawer-cred')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">💳</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mi crédito</div>
+            <div style="font-size:10px;color:#a0aec0;font-weight:600">Saldo disponible</div>
+          </div>
+          <div id="drawer-cred-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
+        </div>
+        <div id="drawer-cred" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          <div id="drawer-credito-content" style="padding-top:10px">
+            <div class="loader--4" style="margin:8px 0;width:24px"></div>
+          </div>
+        </div>` : ''}
+
       </div>
-
-      ${_empresaUsuario ? `
-      <div style="margin-top:18px;margin-bottom:8px">
-        <div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1.5px;text-transform:uppercase;font-family:Montserrat,sans-serif;margin-bottom:10px;display:flex;align-items:center;gap:6px">💳 Mi crédito<div style="flex:1;height:1px;background:#eef1f6"></div></div>
-        <div id="drawer-credito-content">
-          <div class="loader--4" style="margin:8px 0;width:24px"></div>
-        </div>
-      </div>` : ''}
-
     </div>
 
-    <div style="padding:16px;border-top:1px solid #eef1f6;flex-shrink:0">
-      <button onclick="cerrarSesion()" style="width:100%;padding:12px;background:rgba(240,90,26,0.08);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#f05a1a;letter-spacing:.5px">🚪 Cerrar sesión</button>
+    <!-- ── FOOTER ── -->
+    <div style="padding:12px 16px 14px;border-top:1px solid #e8edf5;flex-shrink:0;background:white">
+      <button onclick="cerrarSesion()" style="width:100%;padding:11px 16px;background:#fff5f5;border:1.5px solid #fecaca;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#ef4444;display:flex;align-items:center;justify-content:center;gap:8px">
+        ${svgSalir} Cerrar sesión
+      </button>
+      <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:10px">
+        ${svgApp}
+        <span style="font-size:9px;font-family:Montserrat,sans-serif;color:#b0bec5;font-weight:600">GUEPACK v1.0</span>
+      </div>
     </div>`
 
   document.body.appendChild(overlay)
@@ -5615,6 +5834,27 @@ function _cerrarDrawer() {
   overlay.style.opacity = '0'
   drawer.style.transform = 'translateX(100%)'
   setTimeout(() => { overlay.remove(); drawer.remove() }, 320)
+}
+
+async function _cargarDireccionesDrawer() {
+  const el = document.getElementById('drawer-dirs-lista')
+  if (!el || el.dataset.loaded) return
+  el.dataset.loaded = '1'
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) { el.innerHTML = '<div style="font-size:11px;color:#a0aec0;font-family:Montserrat,sans-serif">Inicia sesión para ver tus direcciones</div>'; return }
+  const { data } = await db.from('direcciones').select('*').eq('user_id', session.user.id).order('nombre')
+  if (!data || !data.length) {
+    el.innerHTML = '<div style="font-size:11px;color:#a0aec0;font-family:Montserrat,sans-serif;font-weight:600">Sin direcciones guardadas</div>'
+    return
+  }
+  el.innerHTML = data.map(d => `
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #f0f3fa">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a2740">${d.nombre}</div>
+        <div style="font-size:10px;color:#8fa3c0;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.direccion}</div>
+      </div>
+      <button onclick="borrarDireccion(${d.id},null);this.closest('[style*=border-bottom]').remove()" style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:15px;padding:2px;flex-shrink:0">🗑️</button>
+    </div>`).join('')
 }
 
 async function _cargarReferidosDrawer() {
