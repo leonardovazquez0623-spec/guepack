@@ -336,9 +336,9 @@
     box-shadow:0 0 0 5px rgba(20,24,31,0.15); cursor:default;
   }
 
-  /* Sube la atribución de Mapbox por encima del bottom-sheet para cumplir ToS.
-     El sheet en collapsed mide ~80px; 90px garantiza que sea siempre visible. */
-  .mapboxgl-ctrl-bottom-left { bottom: 90px !important; }
+  /* Atribución Mapbox en bottom-right, siempre por encima del sheet.
+     --sheet-h se actualiza en tiempo real desde ResizeObserver en JS. */
+  .mapboxgl-ctrl-bottom-right { bottom: calc(var(--sheet-h, 92px) + 10px) !important; }
 </style>
 </head>
 <body>
@@ -2208,9 +2208,23 @@ async function _initMapaRepartidor() {
     container: 'mapa-repartidor',
     style: 'mapbox://styles/mapbox/streets-v12',
     center: [-103.346, 20.659],
-    zoom: 12
+    zoom: 12,
+    attributionControl: false   // reposicionamos manualmente abajo
   })
   _mapboxMap.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+  // Atribución compacta en bottom-right (zoom va en top-right, sin conflicto)
+  _mapboxMap.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right')
+
+  // Sincroniza --sheet-h con la altura real del sheet para que la atribución
+  // siempre quede por encima, tanto en estado colapsado como expandido.
+  const _sheetEl = document.getElementById('mapa-sheet')
+  const _wrap    = document.getElementById('vista-mapa-wrap')
+  const _syncSheetH = () => {
+    const h = _sheetEl.getBoundingClientRect().height
+    if (h > 0) _wrap.style.setProperty('--sheet-h', h + 'px')
+  }
+  new ResizeObserver(_syncSheetH).observe(_sheetEl)
+  _syncSheetH()
 
   // Marcador del repartidor — punto oscuro con halo
   const driverEl = document.createElement('div')
