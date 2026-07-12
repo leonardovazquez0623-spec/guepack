@@ -28,7 +28,7 @@
   body { font-family: 'Montserrat', sans-serif; background: var(--gray-light); color: var(--text); min-height: 100vh; }
   .delivery-header {
     background: linear-gradient(135deg, #0e3070, #1a4fa0);
-    padding: 10px 16px;
+    padding: 14px 16px;
     color: white;
   }
   .delivery-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; }
@@ -2413,10 +2413,10 @@ function _setNavTab(tab) {
       vistaLista.style.display = ''
     }
   } else if (tab === 'chat') {
-    vistaChat.style.display = ''
+    vistaChat.style.display = 'block'
     _renderChatTab()
   } else if (tab === 'soporte') {
-    vistaSop.style.display = ''
+    vistaSop.style.display = 'block'
     _renderSoporteTab()
   }
 }
@@ -3100,12 +3100,24 @@ function _renderSheetOptimizado(ordered) {
 }
 </script>
 
-<button id="btn-activar-sonido" onclick="_activarSonido()" style="position:fixed;bottom:80px;right:16px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:11px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
+<button id="btn-activar-sonido" onclick="_activarSonido()" title="Activar sonido" style="position:fixed;bottom:80px;right:16px;z-index:9999;background:none;border:none;cursor:pointer;padding:0;box-shadow:0 4px 16px rgba(0,0,0,0.25);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9" fill="#1E56C7" stroke="#1E56C7"/>
+    <path d="M7.5 9.7v4.6h2l3.3 2.6V7.1l-3.3 2.6h-2Z" fill="white" stroke="white"/>
+    <path d="M15.3 9.3a4 4 0 0 1 0 5.4" stroke="white"/>
+    <path d="M17.3 7.3a7 7 0 0 1 0 9.4" stroke="white"/>
+  </svg>
+</button>
 
 <!-- ── BOTTOM NAV ── -->
 <nav id="bottom-nav">
   <button class="bnav-tab active" id="bnav-entregas" onclick="_setNavTab('entregas')">
-    <div class="bnav-tab-icon"><span class="guep-icon-inline" data-icon="repartidor" style="width:22px;height:22px"></span></div>
+    <div class="bnav-tab-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/>
+        <circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/>
+      </svg>
+    </div>
     Entregas
   </button>
   <button class="bnav-tab" id="bnav-chat" onclick="_setNavTab('chat')">
