@@ -662,7 +662,7 @@ async function toggleDisponible() {
   }
   const email = session.user.email
 
-  console.log('[toggleDisponible] Cambiando disponible a:', nuevo, '| email:', email)
+  console.log('[toggleDisponible] Cambiando disponible a:', nuevo)
 
   const { data, error } = await db.from('repartidores')
     .update({ disponible: nuevo })
@@ -1643,7 +1643,7 @@ async function paradaEnCamino(pedidoId, paradaId) {
   if (error) { console.error('[paradaEnCamino] Error Supabase:', error); alert('Error al actualizar parada'); return }
   console.log('[paradaEnCamino] Parada actualizada a en_camino OK')
   const { data: { session } } = await db.auth.getSession()
-  console.log('[paradaEnCamino] Session email:', session?.user?.email)
+  console.log('[paradaEnCamino] Session activa')
   if (!session) { window.location.href = 'login.html'; return }
   cargarPedidos(session.user.email)
 }
@@ -1655,7 +1655,7 @@ async function paradaEnDomicilio(pedidoId, paradaId) {
   console.log('[paradaEnDomicilio] Parada actualizada a en_domicilio OK')
   localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
   const { data: { session } } = await db.auth.getSession()
-  console.log('[paradaEnDomicilio] Session email:', session?.user?.email)
+  console.log('[paradaEnDomicilio] Session activa')
   if (!session) { window.location.href = 'login.html'; return }
   cargarPedidos(session.user.email)
 }
@@ -1974,7 +1974,7 @@ async function confirmarParada(pedidoId, paradaId, orden, total) {
   document.getElementById('modal-parada').remove()
 
   const { data: { session } } = await db.auth.getSession()
-  console.log('[confirmarParada] Session email:', session?.user?.email)
+  console.log('[confirmarParada] Session activa')
   if (!session) { window.location.href = 'login.html'; return }
   cargarPedidos(session.user.email)
 }
@@ -2153,7 +2153,7 @@ init()
 setInterval(async () => {
   console.log('Auto-refresh ejecutando...')
   const { data: { session } } = await db.auth.getSession()
-  console.log('Session:', session?.user?.email)
+  console.log('Session: activa')
   if (session) cargarPedidos(session.user.email)
 }, 10000)
 

@@ -3122,7 +3122,7 @@ async function cargarChats() {
     .eq('escalado', true)
     .order('created_at', { ascending: false })
   console.log('[Q1 escalados] count:', escalados?.length, '| error:', errEsc)
-  escalados?.forEach(m => console.log('  ↳ de:', m.de, '| email:', m.remitente_email, '| pedido_id:', m.pedido_id, '| leido:', m.leido))
+  escalados?.forEach(m => console.log('  ↳ de:', m.de, '| pedido_id:', m.pedido_id, '| leido:', m.leido))
 
   // ── Q2: TODA la conversación de soporte (sin filtro de leido — para contexto completo) ──
   const { data: todosSoporte, error: errSop } = await db.from('mensajes')
@@ -3189,7 +3189,7 @@ async function cargarChats() {
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]?.remitente_email
         }
         const displayEmail = emailReal || 'desconocido'
-        console.log('[card escalado] displayEmail:', displayEmail, '| pedidoId:', pedidoId)
+        console.log('[card escalado] pedidoId:', pedidoId)
         return `<div data-email="${escaparHTML(displayEmail)}" onclick="abrirChatSoporte(${JSON.stringify(displayEmail)},${JSON.stringify(displayEmail.split('@')[0] + pedidoLabel)})" style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid #ef4444;margin-bottom:8px">
           <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;display:flex;align-items:center;flex-wrap:wrap;gap:4px">🔴 ${escaparHTML(displayEmail)}${badge}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#666;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escaparHTML(ultimo?.de ?? '')}: ${escaparHTML(ultimo?.texto ?? '')}</div>
@@ -3378,7 +3378,7 @@ async function _cerrarTicketAdmin() {
     q = q.eq('de', 'cliente').is('remitente_email', null)
   }
   const { error } = await q
-  console.log('[cerrarTicket] email:', emailCerrado, '| tieneEmailReal:', tieneEmailReal, '| error:', error)
+  console.log('[cerrarTicket] tieneEmailReal:', tieneEmailReal, '| error:', error)
   cerrarChat()
   showToast('✅ Ticket cerrado')
   setTimeout(() => cargarChats(), 500)
@@ -3558,7 +3558,7 @@ async function enviarNotificacionTodos() {
   // Paso 2: obtener tokens desde usuarios_tokens (múltiples dispositivos por usuario)
   const { data: tokens } = await db.from('usuarios_tokens').select('user_id, fcm_token').in('user_id', clienteIds)
   console.log('[push masiva] tokens encontrados:', tokens?.length ?? 0)
-  tokens?.forEach(t => console.log('[push masiva] token:', t.user_id, t.fcm_token?.substring(0, 20)))
+  tokens?.forEach(t => console.log('[push masiva] user_id:', t.user_id, t.fcm_token ? t.fcm_token.substring(0,10) + '...' : 'sin token'))
 
   // Agrupar por user_id para usar modo user_id de enviar-push (evita duplicados)
   const userIds = [...new Set((tokens || []).map(t => t.user_id))]

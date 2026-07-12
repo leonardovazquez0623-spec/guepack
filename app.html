@@ -2517,7 +2517,7 @@ async function activarNotificaciones() {
     })
 
     if (token) {
-      console.log('Token FCM:', token)
+      console.log('Token FCM:', token.substring(0,10) + '...')
       _fcmToken = token
       const { data: { session } } = await db.auth.getSession()
       if (session) {
@@ -2891,6 +2891,21 @@ async function submitRequest() {
     document.body.appendChild(t)
     setTimeout(() => t.remove(), 3000)
     return
+  }
+  if (nombre.length > 100 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]+$/.test(nombre)) {
+    mostrarToast('⚠️ El nombre solo puede contener letras y espacios, máximo 100 caracteres', '#f59e0b'); return
+  }
+  if (!/^\d{10}$/.test(whatsapp)) {
+    mostrarToast('⚠️ El WhatsApp debe tener exactamente 10 dígitos numéricos', '#f59e0b'); return
+  }
+  if (dir_recoleccion.length > 300) {
+    mostrarToast('⚠️ La dirección de recolección es demasiado larga (máx. 300 caracteres)', '#f59e0b'); return
+  }
+  if (dir_entrega.length > 300) {
+    mostrarToast('⚠️ La dirección de entrega es demasiado larga (máx. 300 caracteres)', '#f59e0b'); return
+  }
+  if (instrucciones.length > 500) {
+    mostrarToast('⚠️ Las instrucciones son demasiado largas (máx. 500 caracteres)', '#f59e0b'); return
   }
   if (metodoPago === 'transferencia' && !document.getElementById('comprobante-input').files[0]) {
     alert('Debes subir tu comprobante de pago')
@@ -3745,12 +3760,12 @@ async function confirmarAgregarParada(pedidoId) {
 
 async function compartirRastreo(id) {
   let token = _pedidoTokens[id]
-  console.log('[GUEPACK] compartirRastreo id=' + id + ' token=' + token)
+  console.log('[GUEPACK] compartirRastreo id=' + id)
 
   if (!token) {
     // Intentar recuperar de Supabase
     const { data } = await db.from('pedidos').select('token_rastreo').eq('id', id).single()
-    console.log('[GUEPACK] token desde Supabase:', data?.token_rastreo)
+    console.log('[GUEPACK] token desde Supabase: [ok]')
     token = data?.token_rastreo || null
 
     if (!token) {
@@ -3762,7 +3777,7 @@ async function compartirRastreo(id) {
         mostrarToast('❌ Error al generar link de rastreo', '#ef4444')
         return
       }
-      console.log('[GUEPACK] token generado y guardado:', token)
+      console.log('[GUEPACK] token generado y guardado')
     }
     _pedidoTokens[id] = token
   }

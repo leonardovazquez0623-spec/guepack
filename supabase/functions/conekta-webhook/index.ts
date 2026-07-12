@@ -6,11 +6,21 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// IPs de los servidores de notificación de Conekta.
+// Actualizar desde: https://developers.conekta.com/reference/webhooks
 const IPS_CONEKTA = ["52.200.151.182", "52.72.53.105", "186.28.176.85"];
 
+function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    ""
+  )
+}
+
 serve(async (req) => {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim();
-  if (!IPS_CONEKTA.includes(ip ?? "")) {
+  const ip = getClientIp(req);
+  if (!IPS_CONEKTA.includes(ip)) {
     console.error("Webhook rechazado, IP no reconocida:", ip);
     return new Response("Unauthorized", { status: 401 });
   }

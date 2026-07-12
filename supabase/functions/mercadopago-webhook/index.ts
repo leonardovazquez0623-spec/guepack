@@ -15,7 +15,31 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// IPs de los servidores de notificación de Mercado Pago.
+// Actualizar desde: https://www.mercadopago.com.mx/developers/es/docs/your-integrations/notifications/webhooks
+const IPS_MERCADOPAGO = [
+  "52.167.227.189",
+  "52.67.32.36",
+  "54.88.30.24",
+  "18.231.104.113",
+  "200.29.160.73",
+]
+
+function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    ""
+  )
+}
+
 serve(async (req) => {
+  const ip = getClientIp(req)
+  if (!IPS_MERCADOPAGO.includes(ip)) {
+    console.error("Webhook MP rechazado, IP no reconocida:", ip)
+    return new Response("Unauthorized", { status: 401 })
+  }
+
   try {
     const body = await req.json().catch(() => null);
     if (!body) return new Response("ok", { status: 200 });

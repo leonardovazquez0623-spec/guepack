@@ -342,7 +342,7 @@ async function loginEmail() {
 
 async function redirigirSegunRol(email) {
   const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
-  console.log('Email:', email, 'Rol:', data, 'Error:', error)
+  console.log('Redirigiendo por rol:', data?.rol)
   
   if (error || !data) {
     window.location.href = 'app.html'
@@ -422,6 +422,7 @@ async function registrar() {
 
   if (!document.getElementById('acepto-terminos')?.checked) { showError('⚠️ Debes aceptar los términos y condiciones para continuar'); return; }
   if (!nombre || !email || !password || !whatsapp) { showError('Llena todos los campos'); return; }
+  if (nombre.length > 100 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]+$/.test(nombre)) { showError('El nombre solo puede contener letras y espacios, máximo 100 caracteres'); return; }
   if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) { showError('La contraseña no cumple los requisitos de seguridad'); return; }
   if (!/^\d{10}$/.test(whatsapp)) { showError('El WhatsApp debe tener exactamente 10 dígitos'); return; }
 
