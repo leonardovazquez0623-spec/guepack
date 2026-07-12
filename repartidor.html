@@ -28,7 +28,7 @@
   body { font-family: 'Montserrat', sans-serif; background: var(--gray-light); color: var(--text); min-height: 100vh; }
   .delivery-header {
     background: linear-gradient(135deg, #0e3070, #1a4fa0);
-    padding: 24px 20px 20px;
+    padding: 10px 16px;
     color: white;
   }
   .delivery-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; }
@@ -226,7 +226,7 @@
      El mapa (flex:1) puede crecer libremente sin que el sheet desaparezca. */
   #mapa-sheet {
     background:white; border-radius:20px 20px 0 0;
-    position:fixed; bottom:0; left:0; right:0;
+    position:fixed; bottom:56px; left:0; right:0;
     z-index:510;
     padding:14px 16px 18px;
     box-shadow:0 -6px 16px rgba(0,0,0,0.08);
@@ -301,7 +301,7 @@
      (el wrap tiene height:100dvh + top dinámico, así que position:absolute
       calcularía bottom desde fuera del viewport) */
   #btn-centrar-mapa {
-    position:fixed; bottom:152px; right:12px;
+    position:fixed; bottom:208px; right:12px;
     z-index:512;
     background:white; color:#14181f;
     border:none; border-radius:20px; padding:8px 14px;
@@ -338,22 +338,111 @@
 
   /* Atribución Mapbox en bottom-right, siempre por encima del sheet.
      --sheet-h se actualiza en tiempo real desde ResizeObserver en JS. */
-  .mapboxgl-ctrl-bottom-right { bottom: calc(var(--sheet-h, 92px) + 10px) !important; }
+  /* sheet ahora tiene bottom:56px (nav) + su altura; atribución queda encima del sheet */
+  .mapboxgl-ctrl-bottom-right { bottom: calc(var(--sheet-h, 92px) + 66px) !important; }
+
+  /* ── HEADER COMPACTO ── */
+  .header-row { display:flex; align-items:center; gap:10px; }
+  .header-avatar-sm {
+    width:36px; height:36px; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.5); cursor:pointer; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.2); font-family:'Montserrat',sans-serif;
+    font-weight:700; font-size:16px; color:white; flex-shrink:0;
+  }
+  .header-avatar-sm img { width:100%; height:100%; object-fit:cover; }
+  .btn-disponible-pill {
+    border:1.5px solid #22c55e; background:rgba(34,197,94,0.18);
+    color:white; font-family:Montserrat,sans-serif; font-weight:900;
+    font-size:10px; padding:4px 10px; border-radius:20px; cursor:pointer;
+    letter-spacing:.3px; transition:all .2s; white-space:nowrap; flex-shrink:0;
+  }
+  .btn-disponible-pill.offline { border-color:#ef4444; background:rgba(239,68,68,0.18); }
+
+  /* ── TARJETA PRÓXIMA PARADA ── */
+  #tarjeta-proxima-parada {
+    background:white; border-radius:16px; margin:12px 16px 0;
+    padding:14px 16px; box-shadow:0 2px 12px rgba(26,79,160,0.1);
+    border-left:4px solid var(--orange);
+  }
+  .tpp-label { font-size:10px; font-weight:900; letter-spacing:1px; color:var(--orange); text-transform:uppercase; margin-bottom:4px; }
+  .tpp-body { display:flex; align-items:flex-start; gap:10px; }
+  .tpp-tag { font-size:9px; font-weight:800; padding:3px 8px; border-radius:10px; flex-shrink:0; margin-top:2px; }
+  .tpp-tag.rec { background:#eaf0fd; color:#1a4fa0; }
+  .tpp-tag.ent { background:#fcefe9; color:#b03f10; }
+  .tpp-addr { font-size:13px; font-weight:700; color:#14181f; flex:1; line-height:1.35; }
+  .tpp-dist { font-size:11px; font-weight:700; color:#94a3b8; margin-top:3px; }
+  .tpp-cliente { font-size:11px; color:#8fa3c0; font-weight:600; margin-top:1px; }
+
+  /* ── BOTTOM NAV ── */
+  #bottom-nav {
+    position:fixed; bottom:0; left:0; right:0; z-index:520;
+    background:white; border-top:1px solid #e8edf5;
+    display:flex; height:56px;
+    box-shadow:0 -2px 12px rgba(26,79,160,0.08);
+  }
+  .bnav-tab {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; border:none; background:transparent;
+    font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700;
+    color:#8fa3c0; cursor:pointer; gap:3px; letter-spacing:.3px;
+    transition:color .15s; position:relative;
+  }
+  .bnav-tab.active { color:var(--blue); }
+  .bnav-tab-icon { width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+  .bnav-badge {
+    position:absolute; top:4px; right:calc(50% - 18px);
+    background:#ef4444; color:white; border-radius:50%;
+    width:16px; height:16px; font-size:9px; font-weight:900;
+    display:none; align-items:center; justify-content:center;
+    font-family:Montserrat,sans-serif;
+  }
+  .bnav-badge.visible { display:flex; }
+
+  /* ── VISTA CHAT ── */
+  #vista-chat { display:none; padding-bottom:56px; }
+  .chat-list-item {
+    background:white; border-radius:14px; padding:14px 16px;
+    margin-bottom:10px; box-shadow:0 2px 10px rgba(26,79,160,0.07);
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+    border:1.5px solid transparent; transition:border-color .15s;
+  }
+  .chat-list-item.unread { border-color:var(--blue); }
+  .chat-list-avatar {
+    width:42px; height:42px; border-radius:50%;
+    background:linear-gradient(135deg,#1a4fa0,#2563c4);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue',sans-serif; color:white; font-size:15px; flex-shrink:0;
+  }
+
+  /* ── VISTA SOPORTE ── */
+  #vista-soporte { display:none; padding-bottom:56px; }
+  .soporte-item {
+    background:white; border-radius:14px; padding:14px 16px;
+    margin-bottom:10px; box-shadow:0 2px 10px rgba(26,79,160,0.07);
+    display:flex; align-items:center; gap:12px; cursor:pointer;
+  }
+  .soporte-item-icon {
+    width:42px; height:42px; border-radius:12px;
+    background:linear-gradient(135deg,#f05a1a,#d04010);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue',sans-serif; color:white; font-size:11px;
+    flex-shrink:0; letter-spacing:.5px;
+  }
+
+  /* padding inferior para lista y que no quede bajo la nav */
+  #vista-lista { padding-bottom:56px; }
 </style>
 </head>
 <body>
 
 <div class="delivery-header">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div class="delivery-name" id="delivery-nombre">Hola </div>
-      <img src="/logo_principal.png" alt="GUEPACK" style="max-width:220px;height:auto;display:block;margin-top:4px">
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-      <button onclick="_abrirMenuLateral()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:22px;width:40px;height:40px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1" title="Menú">☰</button>
-      <button id="btn-disponible" onclick="toggleDisponible()" style="border:2px solid #22c55e;background:rgba(34,197,94,0.2);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;letter-spacing:.5px;transition:all .2s">🟢 Disponible</button>
-      <div id="repa-header-avatar" class="profile-avatar-btn" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
-    </div>
+  <div class="header-row">
+    <button onclick="_abrirMenuLateral()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:20px;width:36px;height:36px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0" title="Perfil">☰</button>
+    <img src="/logo_principal.png" alt="GUEPACK" style="height:26px;width:auto;flex-shrink:0">
+    <div id="delivery-nombre" style="flex:1;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:rgba(255,255,255,0.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Hola</div>
+    <button id="btn-disponible" onclick="toggleDisponible()" class="btn-disponible-pill">🟢 Disponible</button>
+    <div id="repa-header-avatar" class="header-avatar-sm" onclick="_abrirModalFotoRepartidor()" title="Mi foto de perfil"></div>
   </div>
 </div>
 
@@ -400,8 +489,18 @@
   <!-- Cuerpo del drawer -->
   <div style="flex:1;overflow-y:auto;padding-bottom:20px">
 
-    <!-- Sección: Mis ganancias -->
+    <!-- Sección: Tu desempeño -->
     <div style="padding:18px 16px 0">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">⭐ TU DESEMPEÑO</div>
+      <div id="drawer-desempeno-body" style="min-height:40px">
+        <div style="color:#bbb;font-size:12px;text-align:center;padding:10px 0">Cargando...</div>
+      </div>
+    </div>
+
+    <div style="height:1px;background:#f1f5f9;margin:16px 0"></div>
+
+    <!-- Sección: Mis ganancias -->
+    <div style="padding:0 16px">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💰 MIS GANANCIAS</div>
       <div id="ganancias-body" style="min-height:60px">
         <div style="color:#bbb;font-size:12px;text-align:center;padding:16px 0">Cargando...</div>
@@ -435,7 +534,9 @@
 </div>
 
 <div id="vista-lista">
-<div class="container" style="padding-top:16px">
+<!-- Tarjeta próxima parada — se oculta si no hay stops con coords -->
+<div id="tarjeta-proxima-parada" style="display:none"></div>
+<div class="container" style="padding-top:12px">
   <div class="card-title" style="display:flex;align-items:center;gap:5px"><span class="guep-icon-inline" data-icon="repartidor" style="width:20px;height:20px"></span> Mis entregas de hoy</div>
   <div id="lista-repartidor">
     <div class="empty-state">
@@ -465,6 +566,23 @@
   </div>
 </div>
 </div><!-- /#vista-lista -->
+
+<!-- ── VISTA CHAT ── -->
+<div id="vista-chat">
+  <div style="padding:16px 16px 0">
+    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💬 MIS CHATS</div>
+    <div id="chat-lista-nav"></div>
+  </div>
+</div>
+
+<!-- ── VISTA SOPORTE ── -->
+<div id="vista-soporte">
+  <div style="padding:16px 16px 0">
+    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#14181f;margin-bottom:4px">🆘 Soporte</div>
+    <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-bottom:16px">¿Con cuál pedido tienes problema?</div>
+    <div id="soporte-pedidos-lista"></div>
+  </div>
+</div>
 
 <script src="guepack-icons.js"></script>
 <script>
@@ -567,9 +685,8 @@ async function toggleDisponible() {
 function _actualizarBtnDisponible(disponible) {
   const btn = document.getElementById('btn-disponible')
   if (!btn) return
-  btn.textContent    = disponible ? '🟢 Disponible' : '🔴 No disponible'
-  btn.style.borderColor  = disponible ? '#22c55e' : '#ef4444'
-  btn.style.background   = disponible ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'
+  btn.textContent = disponible ? '🟢 Disponible' : '🔴 No disp.'
+  btn.classList.toggle('offline', !disponible)
 }
 
 // ── Realtime: nuevos pedidos disponibles ────────────────────────────────────
@@ -814,7 +931,24 @@ async function init() {
   if (data.rol !== 'repartidor') { window.location.href = 'app.html'; return; }
 
   _repaUserId = session.user.id
+  _repaEmail  = session.user.email
   _registrarTokenFCM(session.user.id)  // fire-and-forget
+
+  // GPS global para tarjeta próxima parada (fuera del mapa)
+  if (navigator.geolocation && !_gpsWatchId) {
+    _gpsWatchId = navigator.geolocation.watchPosition(pos => {
+      _currentGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+      _renderProximaParada()
+    }, null, { enableHighAccuracy: true, maximumAge: 8000 })
+  }
+
+  // Realtime calificaciones: actualiza "Tu desempeño" si el drawer está abierto
+  if (_calChannel) db.removeChannel(_calChannel)
+  _calChannel = db.channel('repa-calificaciones-rt')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'calificaciones' }, payload => {
+      if (payload.new.repartidor === _repaData?.nombre) _cargarCalificacion()
+    })
+    .subscribe()
 
   // Cargar foto_perfil y disponible en paralelo antes de cargarPedidos
   const [{ data: usuarioInit }, { data: repaInit }] = await Promise.all([
@@ -971,6 +1105,8 @@ localStorage.setItem('guepack_pedidos_count', data.length)
         _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)])
       })
     }
+    // Guardar para cálculo de proximidad en vista lista (sin re-query)
+    _todasParadas = porPedido
     // Pedidos sin paradas: inyectar los 4 botones normales
     data.forEach(pedido => {
       const tieneParadas = porPedido[pedido.id] !== undefined
@@ -978,12 +1114,50 @@ localStorage.setItem('guepack_pedidos_count', data.length)
       if (!tieneParadas) _renderBotonesNormales(pedido)
     })
   }
+  // Mostrar tarjeta de próxima parada si tenemos GPS
+  _renderProximaParada()
 
   // Suscribir realtime paradas INSERT para cada pedido activo
   data.forEach(pedido => _subscribirParadasRealtime(pedido))
 }
 
 // ── Panel lateral de ganancias ───────────────────────────────────────────────
+
+// ── Calificaciones del repartidor ────────────────────────────────────────────
+
+function _renderStarsLocal(val, size) {
+  // Stars con ★/☆ colored
+  const full  = Math.floor(val)
+  const empty = 5 - Math.ceil(val)
+  const half  = 5 - full - empty
+  const star = (filled) =>
+    `<span style="font-size:${size}px;color:${filled ? '#f59e0b' : '#d1d5db'};line-height:1">${filled ? '★' : '☆'}</span>`
+  return Array.from({length:full},()=>star(true)).join('') +
+    (half ? `<span style="font-size:${size}px;color:#f59e0b;line-height:1">½</span>` : '') +
+    Array.from({length:empty},()=>star(false)).join('')
+}
+
+async function _cargarCalificacion() {
+  const el = document.getElementById('drawer-desempeno-body')
+  if (!el || !_repaData) return
+  const { data } = await db.from('calificaciones')
+    .select('estrellas')
+    .eq('repartidor', _repaData.nombre)
+  const count = data?.length || 0
+  const avg   = count ? (data.reduce((s, c) => s + (Number(c.estrellas)||0), 0) / count) : 0
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:38px;color:#f59e0b;line-height:1">${count ? avg.toFixed(1) : '—'}</div>
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-top:1px">${count} calif.</div>
+      </div>
+      <div>${count ? _renderStarsLocal(avg, 20) : '<span style="font-size:12px;color:#94a3b8;font-weight:600">Sin calificaciones aún</span>'}</div>
+    </div>
+    <div style="background:#f1f5f9;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#64748b">Km recorridos</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#94a3b8">—</div>
+    </div>`
+}
 
 function _actualizarBadgeNivel() {
   const badge = document.getElementById('drawer-nivel-badge')
@@ -1018,6 +1192,7 @@ function _cargarMenuLateral() {
       dAvEl.textContent = (_repaData.nombre || 'R')[0].toUpperCase()
     }
   }
+  _cargarCalificacion()
   _cargarGanancias(_repaData.nombre)
   _renderEfectivoDrawer()
   _renderProgresoDrawer()
@@ -1900,10 +2075,20 @@ db.channel('repa-mensajes-global')
     if (msg.de === 'repartidor') return
     const pid = msg.pedido_id
     if (!pid) return
+
+    // Mensaje de soporte_repa contestado por admin
+    if (msg.tipo === 'soporte_repa') {
+      if (_soportePedidoId === pid && document.getElementById('modal-soporte-repa')) _agregarBurbujaS(msg)
+      return
+    }
+
     if (_chatPedidoId === pid && document.getElementById('modal-chat')) return // chat open
     _unread[pid] = (_unread[pid] || 0) + 1
     const badge = document.getElementById('chat-badge-' + pid)
     if (badge) { badge.textContent = _unread[pid]; badge.style.display = 'flex' }
+    _actualizarBadgeNavChat()
+    // Actualizar lista chat si el tab está abierto
+    if (document.getElementById('vista-chat')?.style.display !== 'none') _renderChatTab()
     if (Notification.permission === 'granted') {
       new Notification('💬 Nuevo mensaje', { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'chat-' + pid })
     }
@@ -2156,6 +2341,13 @@ let _mapaOptimizado  = false
 let _ultimaInteraccion  = 0       // timestamp del último gesto manual en el mapa
 let _autoCentrarInterval = null   // id del setInterval de auto-centrado
 
+// ── Estado global GPS + paradas (compartido entre vistas) ───────────────────
+let _currentGPS     = null   // { lat, lng } — actualizado por watchPosition
+let _gpsWatchId     = null   // watchId para vista lista (fuera del mapa)
+let _todasParadas   = {}     // pedidoId → paradas[] — para proximidad sin queries extra
+let _calChannel     = null   // realtime channel calificaciones
+let _repaEmail      = null   // email del repartidor autenticado
+
 // ── Tab toggle ───────────────────────────────────────────────────────────────
 async function _cambiarVista(vista) {
   const tabs  = document.querySelectorAll('.vista-tab')
@@ -2179,6 +2371,180 @@ async function _cambiarVista(vista) {
     lista.style.display = ''
     wrap.classList.remove('visible')
   }
+}
+
+// ── Bottom nav: switch entre Entregas / Chat / Soporte ──────────────────────
+function _setNavTab(tab) {
+  // Actualizar tabs del nav
+  document.querySelectorAll('.bnav-tab').forEach(b => b.classList.remove('active'))
+  document.getElementById('bnav-' + tab)?.classList.add('active')
+
+  const vistaLista  = document.getElementById('vista-lista')
+  const vistaTabsEl = document.getElementById('vista-tabs')
+  const vistaChat   = document.getElementById('vista-chat')
+  const vistaSop    = document.getElementById('vista-soporte')
+
+  // Ocultar todo
+  vistaLista.style.display  = 'none'
+  vistaTabsEl.style.display = 'none'
+  vistaChat.style.display   = 'none'
+  vistaSop.style.display    = 'none'
+
+  // También colapsar mapa si venimos de él
+  const wrap = document.getElementById('vista-mapa-wrap')
+  if (tab !== 'entregas') {
+    wrap.classList.remove('visible')
+    if (_autoCentrarInterval) { clearInterval(_autoCentrarInterval); _autoCentrarInterval = null }
+  }
+
+  if (tab === 'entregas') {
+    vistaTabsEl.style.display = ''
+    // Determinar si el sub-tab MAPA estaba activo (es el segundo .vista-tab)
+    const tabs = document.querySelectorAll('.vista-tab')
+    const mapaActivo = tabs[1]?.classList.contains('active')
+    if (mapaActivo) {
+      const tabsEl = document.getElementById('vista-tabs')
+      if (tabsEl) wrap.style.top = tabsEl.getBoundingClientRect().bottom + 'px'
+      wrap.classList.add('visible')
+      _mapboxMap?.resize()
+      if (!_autoCentrarInterval)
+        _autoCentrarInterval = setInterval(() => _centrarEnRepartidor(false), 15000)
+    } else {
+      vistaLista.style.display = ''
+    }
+  } else if (tab === 'chat') {
+    vistaChat.style.display = ''
+    _renderChatTab()
+  } else if (tab === 'soporte') {
+    vistaSop.style.display = ''
+    _renderSoporteTab()
+  }
+}
+
+// ── Chat tab: lista de pedidos activos como hilos ────────────────────────────
+function _renderChatTab() {
+  const el = document.getElementById('chat-lista-nav')
+  if (!el) return
+  const pedidos = Object.values(_pedidosRep)
+  if (!pedidos.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700">Sin chats activos</div>`
+    return
+  }
+  el.innerHTML = pedidos.map(p => {
+    const unread = _unread[p.id] || 0
+    const inicial = (p.nombre || '?')[0].toUpperCase()
+    return `
+      <div class="chat-list-item${unread ? ' unread' : ''}" onclick="abrirChat(${p.id},'repartidor','Chat GK-${p.id}');_actualizarBadgeNavChat()">
+        <div class="chat-list-avatar">${inicial}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#14181f">GK-${p.id}</div>
+          <div style="font-size:11px;color:#8fa3c0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre || '—'}</div>
+        </div>
+        ${unread ? `<div style="background:#ef4444;color:white;border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:Montserrat,sans-serif">${unread}</div>` : ''}
+      </div>`
+  }).join('')
+}
+
+// Suma total de no leídos y actualiza badge en bnav Chat
+function _actualizarBadgeNavChat() {
+  const total = Object.values(_unread).reduce((s, n) => s + n, 0)
+  const badge = document.getElementById('bnav-chat-badge')
+  if (!badge) return
+  if (total > 0) { badge.textContent = total; badge.classList.add('visible') }
+  else { badge.classList.remove('visible') }
+}
+
+// ── Soporte tab: selección de pedido activo ──────────────────────────────────
+function _renderSoporteTab() {
+  const el = document.getElementById('soporte-pedidos-lista')
+  if (!el) return
+  const ESTADOS_INACTIVOS = ['Cancelado', 'Entregado', 'Pago rechazado']
+  const pedidos = Object.values(_pedidosRep).filter(p => !ESTADOS_INACTIVOS.includes(p.estado))
+  if (!pedidos.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700">No tienes pedidos activos</div>`
+    return
+  }
+  el.innerHTML = pedidos.map(p => `
+    <div class="soporte-item" onclick="_abrirChatSoporte(${p.id},'${(p.nombre||'').replace(/'/g,"\\'")}')">
+      <div class="soporte-item-icon">GK</div>
+      <div style="flex:1">
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#14181f">GK-${p.id}</div>
+        <div style="font-size:11px;color:#8fa3c0;font-weight:600">${p.nombre || '—'} · ${p.estado}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8fa3c0" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+    </div>`).join('')
+}
+
+// ── Chat de soporte repartidor→admin (tipo='soporte_repa') ───────────────────
+let _soporteChannel = null, _soportePedidoId = null
+
+async function _abrirChatSoporte(pedidoId, clienteNombre) {
+  _soportePedidoId = pedidoId
+  if (document.getElementById('modal-soporte-repa')) document.getElementById('modal-soporte-repa').remove()
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-soporte-repa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
+      <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+        <div>
+          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">🆘 Soporte GK-${pedidoId}</span>
+          <div style="font-size:11px;color:#8fa3c0;font-weight:600;margin-top:1px">${clienteNombre || ''}</div>
+        </div>
+        <button onclick="document.getElementById('modal-soporte-repa').remove();if(_soporteChannel){db.removeChannel(_soporteChannel);_soporteChannel=null}" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+      </div>
+      <div id="soporte-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
+        <input id="soporte-input" type="text" placeholder="Describe el problema..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')_enviarMensajeSoporte()">
+        <button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  await _cargarMensajesSoporte(pedidoId)
+  if (_soporteChannel) db.removeChannel(_soporteChannel)
+  _soporteChannel = db.channel('soporte-repa-' + pedidoId)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes',
+      filter: 'pedido_id=eq.' + pedidoId }, payload => {
+      if (payload.new.tipo === 'soporte_repa') _agregarBurbujaS(payload.new)
+    })
+    .subscribe()
+}
+
+async function _cargarMensajesSoporte(pedidoId) {
+  const { data } = await db.from('mensajes').select('*')
+    .eq('pedido_id', pedidoId).eq('tipo', 'soporte_repa')
+    .order('created_at', { ascending: true })
+  const c = document.getElementById('soporte-messages')
+  if (!c) return
+  ;(data || []).forEach(m => _agregarBurbujaS(m, false))
+  c.scrollTop = c.scrollHeight
+}
+
+function _agregarBurbujaS(msg, scroll = true) {
+  const c = document.getElementById('soporte-messages')
+  if (!c) return
+  const esMio = msg.de === 'repartidor'
+  const label = document.createElement('div')
+  label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
+  label.textContent = esMio ? '🏍️ Tú' : '🛡️ Soporte'
+  const burbuja = document.createElement('div')
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#f05a1a' : '#f0f0f0'};color:${esMio ? 'white' : '#333'}`
+  burbuja.textContent = msg.texto
+  c.appendChild(label); c.appendChild(burbuja)
+  if (scroll) c.scrollTop = c.scrollHeight
+}
+
+async function _enviarMensajeSoporte() {
+  const input = document.getElementById('soporte-input')
+  const texto = input?.value.trim()
+  if (!texto || !_soportePedidoId) return
+  input.value = ''
+  await db.from('mensajes').insert({
+    texto, de: 'repartidor', tipo: 'soporte_repa',
+    pedido_id: _soportePedidoId,
+    remitente_email: _repaEmail || ''
+  })
 }
 
 // ── Sheet toggle (colapsa body, no mueve el sheet entero) ────────────────────
@@ -2235,6 +2601,7 @@ async function _initMapaRepartidor() {
   if (navigator.geolocation) {
     _driverWatchId = navigator.geolocation.watchPosition(pos => {
       const { latitude: lat, longitude: lng } = pos.coords
+      _currentGPS = { lat, lng }
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
       if (_firstFix) {
         _firstFix = false
@@ -2539,6 +2906,71 @@ function _suscribirMapaRealtime(nombreRepa) {
     .subscribe()
 }
 
+// ── Próxima parada sugerida (GPS client-side, sin llamadas extra a API) ────────
+
+// Devuelve el stop más cercano al GPS actual, priorizando recolecciones
+function _proximaParada() {
+  const recs = [], ents = []
+  Object.values(_pedidosRep).forEach(p => {
+    // Recolección del pedido (solo si no fue fotografiada = no recolectada aún)
+    if (!p.foto_recoleccion && p.lat_recoleccion != null && p.lng_recoleccion != null) {
+      recs.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
+        direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion })
+    }
+    const pars = _todasParadas[p.id] || []
+    if (pars.length) {
+      pars.forEach(par => {
+        if (par.completado) return
+        if (par.lat == null || par.lng == null) return
+        if (par.tipo === 'recoleccion') {
+          recs.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
+            direccion: par.direccion, lat: par.lat, lng: par.lng })
+        } else {
+          ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
+            direccion: par.direccion, lat: par.lat, lng: par.lng })
+        }
+      })
+    } else if (!p.foto_recoleccion && p.lat_entrega != null && p.lng_entrega != null) {
+      ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
+        direccion: p.direccion_entrega, lat: p.lat_entrega, lng: p.lng_entrega })
+    }
+  })
+  const candidates = recs.length ? recs : ents
+  if (!candidates.length) return null
+  if (!_currentGPS) return candidates[0]
+  let best = null, bestDist = Infinity
+  candidates.forEach(s => {
+    const d = _haversine(_currentGPS.lat, _currentGPS.lng, s.lat, s.lng)
+    if (d < bestDist) { bestDist = d; best = { ...s, distKm: d } }
+  })
+  return best
+}
+
+function _renderProximaParada() {
+  const el = document.getElementById('tarjeta-proxima-parada')
+  if (!el) return
+  const parada = _proximaParada()
+  if (!parada) { el.style.display = 'none'; return }
+  el.style.display = ''
+  const esRec = parada.tipo === 'rec'
+  let distStr = ''
+  if (parada.distKm != null) {
+    distStr = parada.distKm < 1
+      ? Math.round(parada.distKm * 1000) + ' m aprox.'
+      : parada.distKm.toFixed(1) + ' km aprox.'
+  }
+  el.innerHTML = `
+    <div class="tpp-label">Próxima parada sugerida</div>
+    <div class="tpp-body">
+      <span class="tpp-tag ${esRec ? 'rec' : 'ent'}">${esRec ? 'Recolección' : 'Entrega'}</span>
+      <div>
+        <div class="tpp-addr">${parada.direccion || '—'}</div>
+        <div class="tpp-cliente">GK-${parada.pedidoId} · ${parada.clienteNombre || '—'}</div>
+        ${distStr ? `<div class="tpp-dist">${distStr}</div>` : ''}
+      </div>
+    </div>`
+}
+
 // ── Optimización de ruta — vecino más cercano (Haversine, 100% client-side) ──
 
 function _haversine(lat1, lng1, lat2, lng2) {
@@ -2668,6 +3100,23 @@ function _renderSheetOptimizado(ordered) {
 }
 </script>
 
-<button id="btn-activar-sonido" onclick="_activarSonido()" style="position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:14px 20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
+<button id="btn-activar-sonido" onclick="_activarSonido()" style="position:fixed;bottom:80px;right:16px;z-index:9999;background:var(--blue);color:white;border:none;border-radius:50px;padding:11px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25)">🔊 Activar sonido</button>
+
+<!-- ── BOTTOM NAV ── -->
+<nav id="bottom-nav">
+  <button class="bnav-tab active" id="bnav-entregas" onclick="_setNavTab('entregas')">
+    <div class="bnav-tab-icon"><span class="guep-icon-inline" data-icon="repartidor" style="width:22px;height:22px"></span></div>
+    Entregas
+  </button>
+  <button class="bnav-tab" id="bnav-chat" onclick="_setNavTab('chat')">
+    <div class="bnav-tab-icon"><span class="guep-icon-inline" data-icon="chat" style="width:22px;height:22px"></span></div>
+    <span id="bnav-chat-badge" class="bnav-badge">0</span>
+    Chat
+  </button>
+  <button class="bnav-tab" id="bnav-soporte" onclick="_setNavTab('soporte')">
+    <div class="bnav-tab-icon" style="font-size:20px">🆘</div>
+    Soporte
+  </button>
+</nav>
 </body>
 </html>
