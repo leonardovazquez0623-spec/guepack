@@ -39,11 +39,11 @@
   /* ── NAV TABS ── */
   .nav-tabs {
     display: flex;
-    background: var(--blue-dark);
+    background: #ffffff;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
   }
   .nav-tab {
     flex: 1;
@@ -903,7 +903,7 @@
 
 <!-- NAV TABS PRINCIPAL -->
 <div class="nav-tabs">
-  <div class="nav-tab active" onclick="switchMainView('client')"><img src="/logo_principal.png" alt="GUEPACK" style="height:30px;width:auto;display:block;margin:auto"></div>
+  <div class="nav-tab active" onclick="switchMainView('client')"><img src="/logo_principal_original.png" alt="GUEPACK" style="height:30px;width:auto;display:block;margin:auto"></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════
@@ -2700,7 +2700,12 @@ function _actualizarMapaWizard() {
     if (card) card.style.display = 'none'
     return
   }
-  if (card) card.style.display = 'block'
+  if (card && card.style.display === 'none') {
+    card.style.display = 'block'
+    // El mapa puede haber sido inicializado con el card oculto (0×0).
+    // Forzar recálculo de dimensiones para que el polyline de la ruta se dibuje.
+    google.maps.event.trigger(_wizardMap, 'resize')
+  }
 
   if (dirRec && dirEnt && !_modoPaqueteria) {
     const ds = new google.maps.DirectionsService()
