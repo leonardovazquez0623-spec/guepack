@@ -195,20 +195,16 @@
   }
   .card-title {
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    font-weight: 900;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
-    color: #6b7280;
-    margin-bottom: 14px;
+    color: #1E56C7;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid #e8f0fe;
     display: flex;
     align-items: center;
     gap: 8px;
-  }
-  .card-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e5e7eb;
   }
 
   /* ── FORM ELEMENTS ── */
@@ -225,28 +221,29 @@
   .form-input, .form-select {
     width: 100%;
     padding: 12px 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
     font-family: 'Montserrat', sans-serif;
     font-size: 13px;
     font-weight: 600;
     color: var(--text);
     background: var(--white);
-    transition: border-color .2s;
+    transition: border-color .2s, box-shadow .2s;
     appearance: none;
   }
   .form-input:focus, .form-select:focus {
     outline: none;
-    border-color: var(--blue);
+    border-color: #1E56C7;
+    box-shadow: 0 0 0 3px rgba(30,86,199,0.08);
   }
   input, select, textarea { font-size: 16px !important; }
 
   /* ── SIZE SELECTOR ── */
   .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .size-option {
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 14px 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px 10px;
     text-align: center;
     cursor: pointer;
     transition: all .2s;
@@ -254,8 +251,8 @@
   }
   .size-option:hover { border-color: #9ca3af; }
   .size-option.selected {
-    border-color: var(--blue);
-    background: rgba(30,86,199,0.05);
+    border: 2px solid var(--blue);
+    background: rgba(30,86,199,0.08);
   }
   .mp-option {
     border: 1px solid #e5e7eb;
@@ -276,7 +273,7 @@
     background: var(--blue);
     color: white;
   }
-  .size-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+  .size-icon { display: flex; justify-content: center; align-items: center; margin-bottom: 8px; }
   .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
   .size-desc { font-size: 10px; color: var(--gray-mid); font-weight: 600; display: block; margin-top: 2px; }
 
@@ -308,6 +305,7 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   }
   .quote-label { color: #6b7280; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
   .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: #1E56C7; line-height: 1; }
@@ -316,23 +314,22 @@
   /* ── BUTTONS ── */
   .btn {
     width: 100%;
-    padding: 15px;
+    padding: 16px;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     font-family: 'Montserrat', sans-serif;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 900;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    letter-spacing: 0.3px;
     cursor: pointer;
     transition: all .2s;
   }
   .btn-primary {
-    background: linear-gradient(135deg, var(--orange), var(--orange-light));
+    background: linear-gradient(135deg, #f05a1a, #e04510);
     color: var(--white);
-    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+    box-shadow: 0 4px 20px rgba(240,90,26,0.4);
   }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,90,26,0.45); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(240,90,26,0.5); }
   .btn-secondary {
     background: var(--blue);
     color: var(--white);
@@ -1057,22 +1054,22 @@
             <div class="card-title">Datos del envío</div>
 
             <div class="form-group">
-              <label class="form-label">Nombre del destinatario</label>
-              <input type="text" id="nombre-destinatario" class="form-input" placeholder="Nombre de quien recibe el paquete">
+              <label class="form-label">Tu nombre</label>
+              <input type="text" id="nombre-remitente" class="form-input" placeholder="Así te identificará el repartidor">
             </div>
             <div class="form-group">
-              <label class="form-label">Nombre del remitente</label>
-              <input type="text" id="nombre-remitente" class="form-input" placeholder="Tu nombre (quien envía)">
+              <label class="form-label">Nombre de quien recibe</label>
+              <input type="text" id="nombre-destinatario" class="form-input" placeholder="Nombre de la persona que recibirá el paquete">
             </div>
             <div class="form-group">
-              <label class="form-label">WhatsApp</label>
-              <input type="tel" id="whatsapp" class="form-input" placeholder="10 dígitos ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <label class="form-label">WhatsApp de contacto</label>
+              <input type="tel" id="whatsapp" class="form-input" placeholder="Para coordinar la entrega contigo" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
             <div class="form-group">
-              <label class="form-label">Dirección de recolección</label>
+              <label class="form-label">¿Dónde recogemos?</label>
               <div style="display:flex;gap:8px;margin-bottom:6px">
-                <input type="text" id="dir-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+                <input type="text" id="dir-recoleccion" class="form-input" placeholder="Escribe tu calle, número y colonia" style="flex:1">
                 <button type="button" onclick="mostrarDirecciones('dir-recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:30px;height:30px;display:inline-flex"></span></button>
                 <button type="button" id="btn-nota-rec" class="btn-nota-dir" onclick="_abrirNotaDir('recoleccion')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:24px;height:24px" data-icon="nota_pedido"></span></button>
               </div>
@@ -1088,9 +1085,9 @@
             </div>
 
             <div id="dir-entrega-group" class="form-group">
-              <label class="form-label">Dirección de entrega</label>
+              <label class="form-label">¿A dónde lo enviamos?</label>
               <div style="display:flex;gap:8px;margin-bottom:6px">
-                <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
+                <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número y colonia del destinatario" style="flex:1">
                 <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:30px;height:30px;display:inline-flex"></span></button>
                 <button type="button" id="btn-nota-ent" class="btn-nota-dir" onclick="_abrirNotaDir('entrega')" title="Agregar nota para esta dirección"><span style="display:inline-flex;width:24px;height:24px" data-icon="nota_pedido"></span></button>
               </div>
@@ -1137,17 +1134,29 @@
         <div id="wizard-paso-2" style="display:none">
 
           <div class="card">
-            <div class="card-title">Tamaño del paquete</div>
+            <div class="card-title">¿Qué tan grande es tu paquete?</div>
             <div class="size-grid">
               <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
-                <span class="size-icon" data-icon="paquete"></span>
-                <span class="size-name">Sobre / Chico</span>
-                <span class="size-desc">Documentos o paquetes pequeños</span>
+                <span class="size-icon">
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="10" width="32" height="22" rx="3" fill="#e8f0fe" stroke="#1E56C7" stroke-width="2"/>
+                    <path d="M4 13l16 10 16-10" stroke="#1E56C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="size-name">Pequeño o sobre</span>
+                <span class="size-desc">Documentos, sobres o paquetes chicos</span>
               </div>
               <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
-                <span class="size-icon" data-icon="paquete"></span>
-                <span class="size-name">Grande</span>
-                <span class="size-desc">Cajas medianas a grandes</span>
+                <span class="size-icon">
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="15" width="30" height="19" rx="2" fill="#fff3ed" stroke="#f05a1a" stroke-width="2"/>
+                    <path d="M5 15l5-8h20l5 8" stroke="#f05a1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="20" y1="15" x2="20" y2="34" stroke="#f05a1a" stroke-width="1.5"/>
+                    <line x1="5" y1="22" x2="35" y2="22" stroke="#f05a1a" stroke-width="1" stroke-dasharray="3 2"/>
+                  </svg>
+                </span>
+                <span class="size-name">Caja grande</span>
+                <span class="size-desc">Cajas medianas, grandes o voluminosas</span>
               </div>
             </div>
           </div>
@@ -1161,11 +1170,11 @@
           </div>
 
           <div class="card">
-            <div class="card-title">Fecha de recolección</div>
+            <div class="card-title">¿Cuándo lo recogemos?</div>
             <div style="display:flex;gap:8px;margin-bottom:8px">
-              <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Hoy</button>
-              <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Día siguiente</button>
-              <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:6px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;color:var(--text);transition:all .2s">Otra fecha</button>
+              <button type="button" id="btn-hoy-fecha" onclick="seleccionarFecha('hoy')" style="flex:1;padding:8px 16px;border:1.5px solid #e5e7eb;border-radius:20px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:var(--text);transition:all .2s">Hoy</button>
+              <button type="button" id="btn-manana-fecha" onclick="seleccionarFecha('mañana')" style="flex:1;padding:8px 16px;border:1.5px solid #e5e7eb;border-radius:20px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:var(--text);transition:all .2s">Día siguiente</button>
+              <button type="button" id="btn-otra-fecha" onclick="seleccionarFecha('otra')" style="flex:1;padding:8px 16px;border:1.5px solid #e5e7eb;border-radius:20px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:var(--text);transition:all .2s">Otra fecha</button>
             </div>
             <input type="date" id="input-fecha-custom" class="form-input" style="display:none">
             <input type="hidden" id="fecha-seleccionada">
@@ -1173,8 +1182,8 @@
           </div>
 
           <div class="card">
-            <div class="card-title">Instrucciones de recolección (opcional)</div>
-            <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Recoger en recepción, dejar con portero, piso 3..."></textarea>
+            <div class="card-title">Instrucciones especiales (opcional)</div>
+            <textarea id="instrucciones-recoleccion" class="form-input" rows="3" placeholder="Ej. Tocar el timbre, dejar en recepción, llamar al llegar..."></textarea>
           </div>
 
           <div style="display:flex;gap:10px;margin-top:4px">
@@ -1211,7 +1220,7 @@
           </div>
 
           <div class="card" id="card-metodo-pago">
-            <div class="card-title">Método de pago</div>
+            <div class="card-title">¿Cómo vas a pagar?</div>
             <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
               <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
@@ -1654,7 +1663,6 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-const CLAUDE_API_KEY = 'TU_CLAVE_CLAUDE_AQUI'
 
 // Definida aquí — antes de cualquier código que pueda fallar — para que el
 // callback de Maps (línea ~6861) siempre encuentre la función, aunque ocurra
@@ -2681,7 +2689,9 @@ function _wizardPinIcon(color) {
 }
 
 function _actualizarMapaWizard() {
-  if (!window.google?.maps || !_wizardMap) return
+  if (!window.google?.maps) return
+  if (!_wizardMap) _iniciarMapaWizard()
+  if (!_wizardMap) return
   const dirRec = document.getElementById('dir-recoleccion')?.value?.trim()
   const dirEnt = document.getElementById('dir-entrega')?.value?.trim()
   const card = document.getElementById('mapa-wizard-card')
@@ -2697,11 +2707,14 @@ function _actualizarMapaWizard() {
     const paradasDirs = (_paradasList || [])
       .filter(p => p.direccion?.trim())
       .map(p => p.direccion)
-    // Orden: recolección → entrega → parada2 → parada3 → ...
     const allStops   = [dirEnt, ...paradasDirs]
     const destination = allStops[allStops.length - 1]
     const waypoints  = allStops.slice(0, -1).map(loc => ({ location: loc, stopover: true }))
-    ds.route({ origin: dirRec, destination, waypoints, optimizeWaypoints: false, travelMode: google.maps.TravelMode.DRIVING },
+    // Preferir LatLng guardados para la recolección (más precisos y sin límite de geocodificación)
+    const origin = (_latRecoleccion != null && _lngRecoleccion != null)
+      ? new google.maps.LatLng(_latRecoleccion, _lngRecoleccion)
+      : dirRec
+    ds.route({ origin, destination, waypoints, optimizeWaypoints: false, travelMode: google.maps.TravelMode.DRIVING },
       (result, status) => {
         if (status !== 'OK') return
         _wizardDirRenderer.setDirections(result)
@@ -2712,7 +2725,6 @@ function _actualizarMapaWizard() {
         if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('#f05a1a') })
         _wizardPinRec.setPosition(orig)
         _wizardPinEnt.setPosition(dest)
-        // Limpiar intermedios anteriores y dibujar los nuevos
         _wizardPinsIntermedios.forEach(m => m.setMap(null))
         _wizardPinsIntermedios = []
         legs.slice(0, -1).forEach(leg => {
@@ -2725,15 +2737,24 @@ function _actualizarMapaWizard() {
       }
     )
   } else if (dirRec) {
-    if (_wizardDirRenderer) _wizardDirRenderer.setDirections({ routes: [] })
-    new google.maps.Geocoder().geocode({ address: dirRec }, (res, status) => {
-      if (status !== 'OK' || !res[0]) return
-      const loc = res[0].geometry.location
+    try { if (_wizardDirRenderer) _wizardDirRenderer.setDirections({ routes: [] }) } catch(e) {}
+    // Usar coordenadas guardadas directamente si están disponibles (evita re-geocodificación)
+    if (_latRecoleccion != null && _lngRecoleccion != null) {
+      const loc = new google.maps.LatLng(_latRecoleccion, _lngRecoleccion)
       _wizardMap.setCenter(loc)
       _wizardMap.setZoom(15)
       if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
       _wizardPinRec.setPosition(loc)
-    })
+    } else {
+      new google.maps.Geocoder().geocode({ address: dirRec }, (res, status) => {
+        if (status !== 'OK' || !res[0]) return
+        const loc = res[0].geometry.location
+        _wizardMap.setCenter(loc)
+        _wizardMap.setZoom(15)
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
+        _wizardPinRec.setPosition(loc)
+      })
+    }
   }
 }
 var CARGO_POR_PARADA = 30    // pesos extra por parada adicional (cuando la zona no tiene precio_por_km)
@@ -3330,7 +3351,7 @@ async function mostrarDirecciones(inputId) {
 
   const div = document.createElement('div')
   div.id = 'modal-direcciones'
-  div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:flex-end;justify-content:center;padding:20px'
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:flex-end;justify-content:center;padding:20px'
 
   const lista = data && data.length > 0
     ? data.map(d => `
@@ -3371,16 +3392,32 @@ function usarDireccion(inputId, direccion, lat, lng) {
   if (el) el.value = direccion
   document.getElementById('modal-direcciones').remove()
 
+  // Asegurar que el mapa esté inicializado antes de actualizar
+  if (window.google?.maps) _iniciarMapaWizard()
+
   if (inputId === 'dir-entrega') {
-    // Entrega necesita _entregaPlace para detección de zona — siempre geocodificar
-    if (window.google?.maps) {
+    if (lat != null && lng != null) {
+      // Coordenadas guardadas disponibles: actualizar mapa de inmediato
+      _latEntrega = lat
+      _lngEntrega = lng
+      setTimeout(_actualizarMapaWizard, 50)
+      // Geocodificar en segundo plano solo para detección de zona
+      if (window.google?.maps) {
+        new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
+          if (status === 'OK' && results[0]) {
+            _entregaPlace = results[0]
+            _detectarZonaEntrega(results[0])
+          }
+        })
+      }
+    } else if (window.google?.maps) {
+      // Sin coords guardadas: geocodificar y luego actualizar mapa
       new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
         if (status !== 'OK' || !results[0]) return
         const place = results[0]
         _entregaPlace = place
-        // Si la dirección tenía coords guardadas, usarlas (más precisas que el Geocoder)
-        _latEntrega = (lat != null) ? lat : place.geometry.location.lat()
-        _lngEntrega = (lng != null) ? lng : place.geometry.location.lng()
+        _latEntrega = place.geometry.location.lat()
+        _lngEntrega = place.geometry.location.lng()
         _detectarZonaEntrega(place)
         setTimeout(_actualizarMapaWizard, 50)
       })
@@ -3390,7 +3427,6 @@ function usarDireccion(inputId, direccion, lat, lng) {
       _latRecoleccion = lat
       _lngRecoleccion = lng
     } else if (window.google?.maps) {
-      // dirección guardada sin coords → geocodificar
       new google.maps.Geocoder().geocode({ address: direccion }, (res, st) => {
         if (st === 'OK' && res[0]?.geometry) {
           _latRecoleccion = res[0].geometry.location.lat()
