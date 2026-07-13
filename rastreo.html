@@ -263,6 +263,24 @@
   @keyframes guep-puff { 0%{opacity:0;transform:translateY(0) scale(.6)} 30%{opacity:.6} 100%{opacity:0;transform:translateY(12px) scale(1.4)} }
   .guep-loader-wrap { text-align:center; padding:24px 20px; }
   .guep-loader-caption { font-size:12px; color:var(--gray-mid); font-weight:700; margin-top:10px; }
+
+  /* ── GATITO DE ESTADO ── */
+  @keyframes catEntrada {
+    from { opacity: 0; transform: translateY(-10px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  #r-cat-img-wrap { text-align: center; margin: 14px 0 10px; }
+  #r-cat-img { animation: catEntrada .45s ease; display: block; margin: 0 auto; }
+
+  /* ── TIMELINE CON HORA ── */
+  .tl-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .tl-time { font-size: 10px; color: var(--gray-mid); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+
+  /* ── CARD REPARTIDOR ── */
+  .repa-card-inner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .repa-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid var(--blue); flex-shrink: 0; }
+  .repa-avatar-ph { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--blue-light)); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: white; border: 3px solid var(--blue); flex-shrink: 0; }
+  .btn-wa-repa { display: inline-flex; align-items: center; gap: 6px; background: #25D366; color: white; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: .3px; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -319,32 +337,59 @@
         <div class="status-badge badge-transit" id="r-badge">—</div>
       </div>
       <div class="estado-texto" id="r-estado-texto">—</div>
+      <div id="r-cat-img-wrap" style="display:none">
+        <img id="r-cat-img" src="/encamino_g.png" alt="" style="width:150px;height:auto">
+      </div>
       <div class="timeline">
         <div class="tl-item" id="rtl-encamino-rec">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> Guepartidor en camino a recolección</div>
+          <div class="tl-row">
+            <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> Guepartidor en camino a recolección</div>
+            <span class="tl-time" id="tlt-0"></span>
+          </div>
         </div>
         <div class="tl-item" id="rtl-llegamos-rec">
           <div class="tl-dot"></div>
-          <div class="tl-title">Llegamos a recolectar</div>
+          <div class="tl-row">
+            <div class="tl-title">Llegamos a recolectar</div>
+            <span class="tl-time" id="tlt-1"></span>
+          </div>
         </div>
         <div class="tl-item" id="rtl-recolectado">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span> Paquete recolectado</div>
+          <div class="tl-row">
+            <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span> Paquete recolectado</div>
+            <span class="tl-time" id="tlt-2"></span>
+          </div>
         </div>
         <div class="tl-item" id="rtl-camino">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino a entrega</div>
+          <div class="tl-row">
+            <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="repartidor"></span> En camino a entrega</div>
+            <span class="tl-time" id="tlt-3"></span>
+          </div>
         </div>
         <div class="tl-item" id="rtl-llegamos-dest">
           <div class="tl-dot"></div>
-          <div class="tl-title">Llegamos al destino</div>
+          <div class="tl-row">
+            <div class="tl-title">Llegamos al destino</div>
+            <span class="tl-time" id="tlt-4"></span>
+          </div>
         </div>
         <div class="tl-item" id="rtl-entregado">
           <div class="tl-dot"></div>
-          <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="entregado"></span> ¡Entregado!</div>
+          <div class="tl-row">
+            <div class="tl-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="entregado"></span> ¡Entregado!</div>
+            <span class="tl-time" id="tlt-5"></span>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- CARD REPARTIDOR -->
+    <div class="card" id="r-repartidor-card" style="display:none">
+      <div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-bottom:12px;letter-spacing:.5px;text-transform:uppercase">Tu mensajero</div>
+      <div id="r-repa-info"></div>
     </div>
 
     <div class="card" id="mapa-tracking-card" style="display:none">
@@ -403,17 +448,45 @@ const ESTADO_MAP = {
 const ESTADO_TEXTO = {
   'Pendiente':                             'Estamos llamando al Guepartidor más cercano.',
   'Pendiente verificación de pago':        'Revisando el comprobante con lupa y bigotes.',
-  'En camino a recoleccion':               '🏍️ Guepartidor en camino a recolectar',
-  'Repartidor en domicilio recoleccion':   '📍 Tu Guepartidor llegó a recolectar',
-  'Recolectado':                           '📦 Paquete recolectado, ¡vamos en camino!',
-  'En camino a entrega':                   '🚚 Tu paquete va en camino a entregarse',
-  'Repartidor en domicilio':               '📍 Tu GuePartidor está en tu domicilio',
-  'Entregado':                             '¡Listo! El GuePartidor cumplió la misión.',
-  'Cancelado':                             'El paquete se escabulló por decisión tuya, no por accidente.'
+  'En camino a recoleccion':               'Tu mensajero va en camino a recolectar tu paquete',
+  'Repartidor en domicilio recoleccion':   'Tu mensajero está en tu domicilio',
+  'Recolectado':                           '¡Tu paquete está en manos de tu mensajero!',
+  'En camino a entrega':                   'Tu paquete va en camino al destino',
+  'Repartidor en domicilio':               'Tu mensajero llegó al domicilio de entrega',
+  'Entregado':                             '¡Tu paquete fue entregado exitosamente!',
+  'Cancelado':                             'El envío fue cancelado.'
+}
+
+const ESTADO_CAT = {
+  'Pendiente':                             'encamino_g.png',
+  'Pendiente verificación de pago':        'encamino_g.png',
+  'En camino a recoleccion':               'encamino_g.png',
+  'Repartidor en domicilio recoleccion':   'encamino_g.png',
+  'Recolectado':                           'recolectado_g.png',
+  'En camino a entrega':                   'transito_g.png',
+  'Repartidor en domicilio':               'transito_g.png',
+  'Entregado':                             'entregado_g.png'
+}
+
+// Timestamps por estado — guardados en localStorage por pedido
+let _tiemposEstado = {}
+
+function _fmtHora(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
 function actualizarUI(data) {
   const estado = data.estado
+
+  // Guardar timestamp del estado actual
+  if (ESTADO_MAP[estado] != null && !_tiemposEstado[ESTADO_MAP[estado]]) {
+    _tiemposEstado[ESTADO_MAP[estado]] = Date.now()
+    if (_pedidoId) {
+      try { localStorage.setItem('guepack_t_' + _pedidoId, JSON.stringify(_tiemposEstado)) } catch(e) {}
+    }
+  }
 
   // Badge
   const badge = document.getElementById('r-badge')
@@ -429,6 +502,23 @@ function actualizarUI(data) {
   textoEl.textContent = ESTADO_TEXTO[estado] || estado
   textoEl.className = 'estado-texto' + (estado === 'Entregado' ? ' entregado' : estado === 'Cancelado' ? ' cancelado' : '')
 
+  // Imagen del gatito
+  const catWrap = document.getElementById('r-cat-img-wrap')
+  const catImg  = document.getElementById('r-cat-img')
+  const catFile = ESTADO_CAT[estado]
+  if (catWrap && catImg && catFile && estado !== 'Cancelado') {
+    const src = '/' + catFile
+    if (catImg.getAttribute('src') !== src) {
+      catImg.style.animation = 'none'
+      catImg.offsetHeight  // reflow para reiniciar animación
+      catImg.style.animation = ''
+      catImg.src = src
+    }
+    catWrap.style.display = ''
+  } else if (catWrap) {
+    catWrap.style.display = 'none'
+  }
+
   // Repartidor
   const repaEl = document.getElementById('r-repartidor')
   if (data.repartidor) {
@@ -436,15 +526,59 @@ function actualizarUI(data) {
     repaEl.style.display = 'block'
   }
 
-  // Timeline
+  // Timeline + horas
   let idx = ESTADO_MAP[estado] ?? -1
-  // Repartidor asignado pero estado aún fuera del mapa (Pendiente): mostrar primer paso como activo
   if (idx === -1 && data.repartidor && estado !== 'Cancelado') idx = 0
   ;['rtl-encamino-rec','rtl-llegamos-rec','rtl-recolectado','rtl-camino','rtl-llegamos-dest','rtl-entregado'].forEach((elId, i) => {
     const el = document.getElementById(elId)
     if (!el) return
     el.className = 'tl-item ' + (idx < 0 ? 'pending' : i < idx ? 'done' : i === idx ? 'current' : i === idx + 1 ? 'next' : 'pending')
+    const timeEl = document.getElementById('tlt-' + i)
+    if (timeEl) timeEl.textContent = (i <= idx && _tiemposEstado[i]) ? _fmtHora(_tiemposEstado[i]) : ''
   })
+}
+
+async function _cargarDatosRepartidor(nombreRepartidor) {
+  const [{ data: repa }, { data: cals }] = await Promise.all([
+    db.from('repartidores').select('nombre, foto_perfil, placas, whatsapp').eq('nombre', nombreRepartidor).maybeSingle(),
+    db.from('calificaciones').select('estrellas').eq('repartidor', nombreRepartidor)
+  ])
+
+  const card = document.getElementById('r-repartidor-card')
+  const info = document.getElementById('r-repa-info')
+  if (!card || !info || card.dataset.loaded) return
+  card.dataset.loaded = '1'
+
+  const nombre = repa?.nombre || nombreRepartidor
+  const fotoHtml = repa?.foto_perfil
+    ? `<img src="${repa.foto_perfil}" class="repa-avatar" alt="${nombre}">`
+    : `<div class="repa-avatar-ph">${nombre[0].toUpperCase()}</div>`
+
+  const count = cals?.length || 0
+  const avg   = count ? Math.round(cals.reduce((s, c) => s + (c.estrellas || 0), 0) / count * 10) / 10 : null
+  const starsHtml = avg !== null
+    ? `<span style="color:#f59e0b">${'⭐'.repeat(Math.min(5, Math.round(avg)))}</span> <span style="font-size:11px;color:var(--gray-mid);font-weight:600">${avg.toFixed(1)} (${count})</span>`
+    : '<span style="font-size:11px;color:var(--gray-mid);font-weight:600">Sin calificaciones aún</span>'
+
+  const waBtn = repa?.whatsapp
+    ? `<a href="https://wa.me/52${repa.whatsapp}" target="_blank" rel="noopener" class="btn-wa-repa">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.113.552 4.094 1.52 5.81L0 24l6.336-1.5A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.008-1.373l-.359-.213-3.762.892.906-3.655-.234-.374A9.821 9.821 0 0 1 2.182 12C2.182 6.574 6.574 2.182 12 2.182S21.818 6.574 21.818 12 17.426 21.818 12 21.818z"/></svg>
+        WhatsApp
+      </a>`
+    : ''
+
+  info.innerHTML = `
+    <div class="repa-card-inner">
+      ${fotoHtml}
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--blue);letter-spacing:1px;line-height:1.1">${nombre}</div>
+        ${repa?.placas ? `<div style="font-size:11px;font-weight:700;color:var(--gray-mid);margin-top:2px">🔖 ${repa.placas}</div>` : ''}
+        <div style="margin-top:6px">${starsHtml}</div>
+      </div>
+    </div>
+    ${waBtn}
+  `
+  card.style.display = 'block'
 }
 
 async function init() {
@@ -461,12 +595,21 @@ async function init() {
   _pedidoId = data.id
   _estadoActual = data.estado
 
+  // Restaurar timestamps guardados en esta sesión/dispositivo
+  try {
+    const saved = localStorage.getItem('guepack_t_' + data.id)
+    if (saved) _tiemposEstado = JSON.parse(saved)
+  } catch(e) {}
+
   document.getElementById('r-folio').textContent = 'GK-' + data.id
   document.getElementById('r-detalle').textContent =
     [data.nombre, data.tamanio, data.zona].filter(Boolean).join(' · ')
 
   actualizarUI(data)
   document.getElementById('pedido-state').style.display = 'block'
+
+  // Cargar datos del repartidor si ya está asignado
+  if (data.repartidor) _cargarDatosRepartidor(data.repartidor)
 
   // Mapa de tracking — solo cuando hay repartidor asignado y el estado es activo
   const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']
@@ -499,6 +642,8 @@ async function init() {
       _estadoActual = nuevo.estado
       actualizarUI(nuevo)
       await _enviarPushRastreo(data.id, nuevo.estado)
+      // Cargar card del repartidor si acaba de asignarse
+      if (nuevo.repartidor) _cargarDatosRepartidor(nuevo.repartidor)
 
       // Iniciar mapa si el nuevo estado requiere tracking y aún no está activo
       const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']

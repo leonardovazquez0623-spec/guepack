@@ -2849,6 +2849,19 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
   body.innerHTML = html
 }
 
+// ── Geocodificación Mapbox — obtiene lat/lng para una dirección de texto ─────
+async function _geocodirDireccion(addr) {
+  if (!addr || !mapboxgl.accessToken) return null
+  const q = encodeURIComponent(addr + ', Guadalajara, Jalisco, México')
+  try {
+    const r = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${mapboxgl.accessToken}&limit=1&country=MX&language=es`)
+    const j = await r.json()
+    const f = j.features?.[0]
+    if (!f) return null
+    return { lat: f.center[1], lng: f.center[0] }
+  } catch(e) { return null }
+}
+
 // ── Cargar pedidos activos del repartidor ────────────────────────────────────
 async function _cargarPedidosEnMapa() {
   if (!_repaData?.nombre) return
@@ -2893,6 +2906,33 @@ async function _cargarPedidosEnMapa() {
         paradasPorPedido[par.pedido_id].push(par)
       })
     }
+  }
+
+  // Geocodificar coords faltantes (pedidos sin lat_recoleccion y paradas sin lat/lng)
+  // Se actualiza la BD para que la próxima carga ya tenga las coords cacheadas
+  if (mapboxgl.accessToken) {
+    const _geoTasks = []
+    pedidosMapeados.forEach(p => {
+      if (p.lat_recoleccion == null && p.direccion_recoleccion) {
+        _geoTasks.push(_geocodirDireccion(p.direccion_recoleccion).then(c => {
+          if (!c) return
+          p.lat_recoleccion = c.lat; p.lng_recoleccion = c.lng
+          db.from('pedidos').update({ lat_recoleccion: c.lat, lng_recoleccion: c.lng }).eq('id', p.id).then(() => {})
+        }))
+      }
+    })
+    Object.values(paradasPorPedido).forEach(pars => {
+      pars.forEach(par => {
+        if (par.lat == null && par.direccion) {
+          _geoTasks.push(_geocodirDireccion(par.direccion).then(c => {
+            if (!c) return
+            par.lat = c.lat; par.lng = c.lng
+            db.from('paradas').update({ lat: c.lat, lng: c.lng }).eq('id', par.id).then(() => {})
+          }))
+        }
+      })
+    })
+    if (_geoTasks.length) await Promise.all(_geoTasks)
   }
 
   _mapaLastPedidos = pedidosMapeados
