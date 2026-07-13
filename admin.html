@@ -250,6 +250,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')">👥 Clientes</button>
     <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')">📊 Tráfico</button>
+    <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px">📩 Contactos<span id="sidebar-contactos-badge" style="display:none;background:#f05a1a;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
@@ -294,6 +295,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="tab" onclick="showTab('clientes')">👥 Clientes</button>
     <button class="tab" onclick="showTab('trafico')">📊 Tráfico</button>
+    <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px">📩 Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:#f05a1a;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -1261,6 +1263,33 @@ function initMapsAdmin() {
     </div>
   </div>
 
+</div>
+
+<!-- TAB CONTACTOS LANDING -->
+<div id="tab-contactos" class="tab-content">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a2740">📩 Contactos desde la Landing</div>
+      <div style="font-size:11px;color:#8fa3c0;margin-top:2px">Empresas y repartidores que enviaron formulario en guepack.com</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="filtro-contactos-tipo" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:#1a4fa0;cursor:pointer;outline:none">
+        <option value="">Todos</option>
+        <option value="empresa">Empresas</option>
+        <option value="repartidor">Repartidores</option>
+        <option value="otro">Otros</option>
+      </select>
+      <select id="filtro-contactos-leido" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:#1a4fa0;cursor:pointer;outline:none">
+        <option value="">Todos</option>
+        <option value="false">No leídos</option>
+        <option value="true">Leídos</option>
+      </select>
+      <button onclick="cargarContactos()" class="btn btn-secondary" style="font-size:11px;padding:7px 14px">🔄 Actualizar</button>
+    </div>
+  </div>
+  <div id="contactos-lista" style="display:flex;flex-direction:column;gap:10px">
+    <div style="text-align:center;padding:40px;color:#8fa3c0;font-size:13px">Cargando contactos…</div>
+  </div>
 </div>
 
 <script src="guepack-icons.js"></script>
@@ -2363,6 +2392,7 @@ function showTab(tab, btn) {
   if (tab === 'referidos') cargarReferidos()
   if (tab === 'clientes') cargarClientes()
   if (tab === 'trafico') cargarTrafico()
+  if (tab === 'contactos') cargarContactos()
 }
 
 function _moverIndicador(tabEl) {
@@ -5518,6 +5548,82 @@ async function guardarConfigGuias() {
   const result = await res.json()
   showToast(res.ok ? '✅ Configuración guardada' : '❌ ' + (result.error || 'Error al guardar'))
 }
+
+// ── CONTACTOS LANDING ──────────────────────────────────────
+async function cargarContactos() {
+  const lista = document.getElementById('contactos-lista')
+  if (!lista) return
+  lista.innerHTML = '<div style="text-align:center;padding:40px;color:#8fa3c0;font-size:13px">Cargando…</div>'
+
+  const tipo  = document.getElementById('filtro-contactos-tipo')?.value || ''
+  const leido = document.getElementById('filtro-contactos-leido')?.value || ''
+
+  let q = db.from('contactos_landing').select('*').order('created_at', { ascending: false })
+  if (tipo)  q = q.eq('tipo', tipo)
+  if (leido !== '') q = q.eq('leido', leido === 'true')
+
+  const { data, error } = await q
+  if (error || !data) {
+    lista.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;font-size:13px">Error al cargar contactos.</div>'
+    return
+  }
+
+  // Badge con no leídos
+  const noLeidos = data.filter(c => !c.leido).length
+  ;['tab-contactos-badge','sidebar-contactos-badge'].forEach(id => {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (noLeidos > 0) { el.textContent = noLeidos; el.style.display = 'flex' }
+    else { el.style.display = 'none' }
+  })
+
+  if (!data.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:40px;color:#8fa3c0;font-size:13px">Sin contactos todavía.</div>'
+    return
+  }
+
+  const tipoLabel = { empresa: '🏢 Empresa', repartidor: '🏍️ Repartidor', otro: '💬 Otro' }
+  lista.innerHTML = data.map(c => {
+    const fecha = new Date(c.created_at).toLocaleString('es-MX', { dateStyle:'short', timeStyle:'short' })
+    const chip  = tipoLabel[c.tipo] || c.tipo || '—'
+    const bg    = c.leido ? '#f4f6fb' : '#fff'
+    const borde = c.leido ? '#e0e6f0' : '#1a4fa0'
+    return `
+    <div id="contacto-${c.id}" style="background:${bg};border:1.5px solid ${borde};border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;transition:background .2s">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a2740">${c.nombre || '—'}</span>
+          <span style="font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;background:${c.tipo==='empresa'?'#eff6ff':'#f0fdf4'};color:${c.tipo==='empresa'?'#1a4fa0':'#15803d'};border-radius:20px;padding:3px 10px">${chip}</span>
+          ${!c.leido ? '<span style="font-size:9px;font-weight:900;font-family:Montserrat,sans-serif;background:#fff3cd;color:#b45309;border-radius:20px;padding:3px 8px">NUEVO</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif">${fecha}</span>
+          ${!c.leido ? `<button onclick="marcarContactoLeido('${c.id}')" style="font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;background:#f0fdf4;border:1.5px solid #22c55e;color:#15803d;border-radius:8px;padding:5px 10px;cursor:pointer">✓ Marcar leído</button>` : ''}
+        </div>
+      </div>
+      <div style="font-size:12px;color:#4b5e78"><a href="mailto:${c.email}" style="color:#1a4fa0;text-decoration:none;font-weight:700">${c.email || '—'}</a></div>
+      <div style="font-size:12px;color:#4b5e78;line-height:1.6;background:#f8fafc;border-radius:8px;padding:10px 12px;white-space:pre-wrap">${c.mensaje || '—'}</div>
+    </div>`
+  }).join('')
+}
+
+async function marcarContactoLeido(id) {
+  await db.from('contactos_landing').update({ leido: true }).eq('id', id)
+  cargarContactos()
+}
+
+// Cargar badge de contactos al iniciar
+;(async () => {
+  await new Promise(r => setTimeout(r, 1800))
+  const { data } = await db.from('contactos_landing').select('id').eq('leido', false)
+  const n = data?.length || 0
+  if (n > 0) {
+    ;['tab-contactos-badge','sidebar-contactos-badge'].forEach(id => {
+      const el = document.getElementById(id)
+      if (el) { el.textContent = n; el.style.display = 'flex' }
+    })
+  }
+})()
 </script>
 </div><!-- /#main-wrapper -->
 </body>

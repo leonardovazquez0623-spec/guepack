@@ -493,6 +493,131 @@
     }
     .reveal.visible { opacity: 1; transform: none; }
 
+    /* CONTACT SECTION */
+    .contact-section {
+      padding: 7rem 2.5rem;
+      background: var(--off-black);
+      position: relative;
+      overflow: hidden;
+    }
+    .contact-section::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at top left, rgba(26,111,212,0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .contact-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: start;
+    }
+    .contact-form { display: flex; flex-direction: column; gap: 1rem; }
+    .contact-field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .contact-field label {
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gray);
+    }
+    .contact-field input,
+    .contact-field select,
+    .contact-field textarea {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(26,111,212,0.25);
+      color: var(--white);
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.95rem;
+      padding: 0.85rem 1rem;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .contact-field input::placeholder,
+    .contact-field textarea::placeholder { color: rgba(245,243,238,0.25); }
+    .contact-field input:focus,
+    .contact-field select:focus,
+    .contact-field textarea:focus { border-color: var(--blue-light); }
+    .contact-field select option { background: #071628; color: var(--white); }
+    .contact-field textarea { resize: vertical; min-height: 110px; }
+    .contact-submit {
+      background: var(--orange);
+      color: var(--white);
+      border: none;
+      font-family: "Barlow Condensed", sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1rem 2rem;
+      cursor: pointer;
+      clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+      transition: background 0.2s, transform 0.15s;
+      margin-top: 0.5rem;
+    }
+    .contact-submit:hover { background: var(--orange-hot); transform: scale(1.02); }
+    .contact-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .contact-msg {
+      font-size: 0.85rem;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      margin-top: 0.25rem;
+      display: none;
+    }
+    .contact-msg.ok { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); display: block; }
+    .contact-msg.err { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); display: block; }
+    .contact-benefits { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.5rem; }
+    .contact-benefit { display: flex; align-items: flex-start; gap: 0.9rem; }
+    .contact-benefit-icon {
+      width: 38px; height: 38px;
+      background: rgba(255,107,26,0.1);
+      border: 1px solid rgba(255,107,26,0.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+    .contact-benefit-text { font-size: 0.88rem; color: var(--gray); line-height: 1.55; }
+    .contact-benefit-text strong { color: var(--white); display: block; margin-bottom: 0.15rem; font-weight: 500; }
+
+    /* LEGAL + SOCIAL BAR */
+    .legal-bar {
+      padding: 1.2rem 2.5rem;
+      background: #030c18;
+      border-top: 1px solid rgba(26,111,212,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .legal-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .legal-links a {
+      color: rgba(245,243,238,0.35);
+      text-decoration: none;
+      font-size: 0.73rem;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+    .legal-links a:hover { color: var(--white); }
+    .social-links { display: flex; align-items: center; gap: 0.6rem; }
+    .social-link {
+      display: flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(26,111,212,0.2);
+      color: var(--gray);
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .social-link:hover { background: #1877F2; border-color: #1877F2; color: white; }
+
     /* RESPONSIVE */
     @media (max-width: 768px) {
       .hero {
@@ -516,6 +641,9 @@
       .how { padding: 4rem 1.2rem; }
       .cta-section { padding: 5rem 1.2rem; }
       footer { padding: 1.5rem 1.2rem; flex-direction: column; text-align: center; }
+      .contact-section { padding: 4rem 1.2rem; }
+      .contact-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+      .legal-bar { padding: 1rem 1.2rem; flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
@@ -728,10 +856,89 @@
     </a>
   </section>
 
+  <!-- CONTACTO -->
+  <section class="contact-section" id="contacto">
+    <div class="contact-inner">
+      <!-- Info -->
+      <div class="reveal">
+        <p class="section-label" style="margin-bottom:0.8rem">Trabaja con nosotros</p>
+        <h2 class="section-title" style="margin-bottom:1rem">¿Empresa o<br><span style="color:var(--orange)">Repartidor?</span></h2>
+        <p style="color:var(--gray);font-size:0.95rem;line-height:1.7;font-weight:300;margin-bottom:1.5rem">
+          Si representas a una empresa y quieres integrar nuestra plataforma de envíos, o si deseas unirte a nuestra red de repartidores, escríbenos y te contactamos.
+        </p>
+        <div class="contact-benefits">
+          <div class="contact-benefit">
+            <div class="contact-benefit-icon">🏢</div>
+            <div class="contact-benefit-text">
+              <strong>Para empresas</strong>
+              Tarifas especiales, API de integración y gestor de cuenta dedicado.
+            </div>
+          </div>
+          <div class="contact-benefit">
+            <div class="contact-benefit-icon">🏍️</div>
+            <div class="contact-benefit-text">
+              <strong>Para repartidores</strong>
+              Horarios flexibles, pagos semanales y rutas optimizadas.
+            </div>
+          </div>
+          <div class="contact-benefit">
+            <div class="contact-benefit-icon">⚡</div>
+            <div class="contact-benefit-text">
+              <strong>Respuesta rápida</strong>
+              Nos ponemos en contacto contigo en menos de 24 horas.
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Formulario -->
+      <div class="reveal">
+        <form class="contact-form" id="form-contacto" onsubmit="enviarContacto(event)">
+          <div class="contact-field">
+            <label for="ct-nombre">Nombre completo</label>
+            <input type="text" id="ct-nombre" placeholder="Tu nombre" required maxlength="100">
+          </div>
+          <div class="contact-field">
+            <label for="ct-email">Correo electrónico</label>
+            <input type="email" id="ct-email" placeholder="correo@empresa.com" required maxlength="150">
+          </div>
+          <div class="contact-field">
+            <label for="ct-tipo">Soy…</label>
+            <select id="ct-tipo" required>
+              <option value="" disabled selected>Selecciona una opción</option>
+              <option value="empresa">Empresa / Negocio</option>
+              <option value="repartidor">Quiero ser repartidor</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="contact-field">
+            <label for="ct-mensaje">Mensaje</label>
+            <textarea id="ct-mensaje" placeholder="Cuéntanos más sobre tu necesidad…" required maxlength="600"></textarea>
+          </div>
+          <button type="submit" class="contact-submit" id="btn-contacto-submit">Enviar mensaje</button>
+          <div class="contact-msg" id="contacto-msg"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <footer>
     <img src="/logo_principal.png" alt="GUEPACK" style="max-width:180px;height:auto;display:block;opacity:0.85">
     <p class="footer-copy">© 2026 GUEPACK · Guadalajara, México</p>
   </footer>
+
+  <!-- BARRA LEGAL + REDES -->
+  <div class="legal-bar">
+    <div class="legal-links">
+      <a href="https://www.guepack.com/privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a>
+      <a href="https://www.guepack.com/condiciones.html" target="_blank" rel="noopener">Términos y Condiciones</a>
+    </div>
+    <div class="social-links">
+      <span style="font-size:0.72rem;color:rgba(245,243,238,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-right:0.4rem">Síguenos</span>
+      <a href="https://www.facebook.com/GuepackMx/" target="_blank" rel="noopener" class="social-link" aria-label="Facebook GUEPACK">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+      </a>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
@@ -773,6 +980,43 @@
       });
     }, { threshold: 0.12 });
     reveals.forEach(el => observer.observe(el));
+  </script>
+
+  <script>
+    async function enviarContacto(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-contacto-submit');
+      const msg = document.getElementById('contacto-msg');
+      const nombre  = document.getElementById('ct-nombre').value.trim();
+      const email   = document.getElementById('ct-email').value.trim();
+      const tipo    = document.getElementById('ct-tipo').value;
+      const mensaje = document.getElementById('ct-mensaje').value.trim();
+
+      if (!nombre || !email || !tipo || !mensaje) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+      msg.className = 'contact-msg';
+      msg.textContent = '';
+
+      try {
+        const db = window.supabase.createClient(
+          'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
+          'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+        );
+        const { error } = await db.from('contactos_landing').insert({ nombre, email, tipo, mensaje });
+        if (error) throw error;
+        msg.textContent = '¡Mensaje enviado! Te contactaremos pronto.';
+        msg.className = 'contact-msg ok';
+        document.getElementById('form-contacto').reset();
+      } catch (err) {
+        msg.textContent = 'Ocurrió un error al enviar. Intenta de nuevo.';
+        msg.className = 'contact-msg err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar mensaje';
+      }
+    }
   </script>
 
 </body>
