@@ -407,6 +407,21 @@
   .badge-pending { background: rgba(240,90,26,0.12); color: var(--orange); }
   .badge-transit { background: rgba(26,79,160,0.12); color: var(--blue); }
   .badge-done { background: rgba(34,197,94,0.12); color: var(--success); }
+
+  /* ── HISTORIAL REDISEÑO ── */
+  .hist-pill { padding:6px 18px; border-radius:20px; font-family:'Montserrat',sans-serif; font-weight:700; font-size:12px; border:1.5px solid #e0e4ef; cursor:pointer; white-space:nowrap; background:#f0f2f7; color:var(--gray-mid); transition:background .15s,color .15s,border-color .15s; }
+  .hist-pill.active { background:var(--blue); color:white; border-color:var(--blue); }
+  .hist-card { background:white; border-radius:12px; box-shadow:0 2px 10px rgba(26,79,160,0.08); padding:14px; margin-bottom:8px; }
+  .hist-card:last-child { margin-bottom:0; }
+  .hist-cat-icon { width:30px; height:30px; object-fit:contain; flex-shrink:0; }
+  .hist-badge-done { background:rgba(34,197,94,0.12); color:#16a34a; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:900; letter-spacing:.4px; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+  .hist-badge-cancel { background:rgba(239,68,68,0.12); color:#dc2626; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:900; letter-spacing:.4px; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+  .hist-badge-transit { background:rgba(245,158,11,0.12); color:#d97706; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:900; letter-spacing:.4px; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+  .hist-empty { display:flex; flex-direction:column; align-items:center; gap:14px; padding:40px 20px; }
+  .hist-empty img { width:90px; opacity:.75; }
+  .hist-empty p { font-size:13px; font-weight:700; color:var(--gray-mid); text-align:center; margin:0; }
+  .btn-evidencias { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border:1.5px solid #e0e4ef; border-radius:20px; background:transparent; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; color:var(--gray-mid); cursor:pointer; margin-top:8px; }
+  .btn-calificar { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; border:1.5px solid #f59e0b; border-radius:10px; background:rgba(245,158,11,0.08); color:#b45309; font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; cursor:pointer; width:100%; margin-top:10px; box-sizing:border-box; }
   .order-client { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
   .order-details { font-size: 11px; color: var(--gray-mid); font-weight: 600; margin-bottom: 10px; }
   .order-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1639,17 +1654,20 @@
 
 <!-- ── HISTORIAL ── -->
     <div id="client-history" class="client-section">
-      <div class="card">
-        <div class="card-title">📋 Mis envíos</div>
-        <div id="lista-historial">
-          <div class="guep-loader-wrap">
-            <div class="guep-spinner">
-              <svg class="cat-head" width="38" height="34" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="#1E56C7" stroke-width="2.5" fill="#f4f6fb"/><path d="M11 10 L6 1 L16 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="#1E56C7"/><circle cx="27" cy="19" r="1.6" fill="#1E56C7"/><path d="M17 25 Q22 29 27 25" stroke="#F05A1A" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
-              <svg class="paw-ring" width="60" height="60" viewBox="-30 -30 60 60"><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g></svg>
-              <div class="puff"></div><div class="puff"></div><div class="puff"></div>
-            </div>
-            <div class="guep-loader-caption">El Guepartidor está calentando motores...</div>
+      <!-- Filter pills -->
+      <div style="display:flex;gap:8px;padding:0 0 12px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+        <button class="hist-pill active" id="hpill-todos" onclick="_setHistFiltro('todos')">Todos</button>
+        <button class="hist-pill" id="hpill-entregados" onclick="_setHistFiltro('entregados')">Entregados</button>
+        <button class="hist-pill" id="hpill-cancelados" onclick="_setHistFiltro('cancelados')">Cancelados</button>
+      </div>
+      <div id="lista-historial">
+        <div class="guep-loader-wrap">
+          <div class="guep-spinner">
+            <svg class="cat-head" width="38" height="34" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="#1E56C7" stroke-width="2.5" fill="#f4f6fb"/><path d="M11 10 L6 1 L16 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="#1E56C7"/><circle cx="27" cy="19" r="1.6" fill="#1E56C7"/><path d="M17 25 Q22 29 27 25" stroke="#F05A1A" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+            <svg class="paw-ring" width="60" height="60" viewBox="-30 -30 60 60"><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g></svg>
+            <div class="puff"></div><div class="puff"></div><div class="puff"></div>
           </div>
+          <div class="guep-loader-caption">El Guepartidor está calentando motores...</div>
         </div>
       </div>
     </div>
@@ -1703,6 +1721,7 @@ var _limiteCiudadCoords = undefined, _cargoCancelacionPendiente = 0
 var _modoPaqueteria = null, _rangosPaqueteria = null, _paqueteriaPrecio = null, _tarifaDiariaYaCubierta = false
 // Pedidos / historial / paradas
 var _pedidos = {}, _pedidoTokens = {}, _historialPedidosMap = {}, _historialParadasMap = {}
+var _historialFiltro = 'todos', _historialDataAll = [], _historialCalificadosSet = new Set()
 var _paradasList = [], _debounceMultiParada = null
 // Chat / soporte
 var _chatChannel = null, _chatPedidoId = null, _chatRol = null
@@ -4921,29 +4940,17 @@ async function cargarHistorial() {
 
   if (error) { console.error(error); return }
 
-  const contenedor = document.getElementById('lista-historial')
-  if (!contenedor) return
-  contenedor.innerHTML = ''
-
-  if (!data.length) {
-    contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon" data-icon="esperando"></span><div class="empty-text">Aquí no hay nada que oler todavía.</div></div>'
-    window._initGuepIcons && _initGuepIcons(contenedor)
-    return
-  }
-
-  // Guardar en mapa para calificar sin strings en onclick
+  _historialDataAll = data || []
   _historialPedidosMap = {}
-  data.forEach(p => { _historialPedidosMap[p.id] = p })
+  _historialDataAll.forEach(p => { _historialPedidosMap[p.id] = p })
 
-  // Consultar qué pedidos Entregados ya tienen calificación (una sola query)
-  const idsEntregados = data.filter(p => p.estado === 'Entregado').map(p => p.id)
-  const calificadosSet = new Set()
+  const idsEntregados = _historialDataAll.filter(p => p.estado === 'Entregado').map(p => p.id)
+  _historialCalificadosSet = new Set()
   if (idsEntregados.length) {
     const { data: cals } = await db.from('calificaciones').select('pedido_id').in('pedido_id', idsEntregados)
-    cals?.forEach(c => calificadosSet.add(c.pedido_id))
+    cals?.forEach(c => _historialCalificadosSet.add(c.pedido_id))
   }
 
-  // Cargar paradas de pedidos entregados para mostrar evidencias completas
   _historialParadasMap = {}
   if (idsEntregados.length) {
     const { data: paradasHist } = await db.from('paradas').select('*').in('pedido_id', idsEntregados).order('orden')
@@ -4953,31 +4960,85 @@ async function cargarHistorial() {
     })
   }
 
-  data.forEach(pedido => {
-    const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX')
-    const badgeClass = pedido.estado === 'Entregado' ? 'badge-done' : pedido.estado === 'Pendiente' ? 'badge-pending' : 'badge-transit'
-    const yaCalificado = calificadosSet.has(pedido.id)
-    const mostrarCalificar = pedido.estado === 'Entregado' && !yaCalificado
+  _renderHistorial()
+}
 
-    contenedor.innerHTML += `
-      <div style="border-bottom:1px solid var(--gray);padding-bottom:14px;margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:13px;font-weight:700">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
-            <div style="font-size:11px;color:var(--gray-mid);font-weight:600">${fecha} · ${pedido.tamanio} · ${pedido.zona}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            ${pedido.estado === 'Entregado' ? `<button onclick="verTodasEvidencias(${pedido.id})" style="padding:6px 12px;border:none;border-radius:8px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">📸 Ver evidencias</button>` : ''}
-            <div class="status-badge ${badgeClass}">${pedido.estado}</div>
+function _setHistFiltro(f) {
+  _historialFiltro = f
+  document.querySelectorAll('.hist-pill').forEach(p => p.classList.toggle('active', p.id === 'hpill-' + f))
+  _renderHistorial()
+}
+
+function _renderHistorial() {
+  const contenedor = document.getElementById('lista-historial')
+  if (!contenedor) return
+
+  const filtered = _historialDataAll.filter(p => {
+    if (_historialFiltro === 'entregados') return p.estado === 'Entregado'
+    if (_historialFiltro === 'cancelados') return p.estado === 'Cancelado'
+    return true
+  })
+
+  if (!filtered.length) {
+    const textoFiltro = _historialFiltro === 'entregados' ? 'entregados' : _historialFiltro === 'cancelados' ? 'cancelados' : 'envíos'
+    const catEmpty = _historialFiltro === 'entregados' ? 'entregado_g.png' : _historialFiltro === 'cancelados' ? 'transito_g.png' : 'encamino_g.png'
+    contenedor.innerHTML = `<div class="hist-empty"><img src="/${catEmpty}" alt=""><p>No tienes envíos ${textoFiltro} aún</p></div>`
+    return
+  }
+
+  const _DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const _MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const _CAT_MAP = {
+    'Entregado':'entregado_g.png','En camino a recoleccion':'encamino_g.png',
+    'Repartidor en domicilio recoleccion':'encamino_g.png','Recolectado':'recolectado_g.png',
+    'En camino a entrega':'transito_g.png','Repartidor en domicilio':'transito_g.png'
+  }
+
+  contenedor.innerHTML = filtered.map(pedido => {
+    const esCancelado = pedido.estado === 'Cancelado'
+    const catFile = _CAT_MAP[pedido.estado] || 'encamino_g.png'
+    const iconHTML = esCancelado
+      ? `<div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:15px;font-weight:900;color:#dc2626;line-height:1">✕</span></div>`
+      : `<img src="/${catFile}" alt="" class="hist-cat-icon">`
+
+    const badgeHTML = pedido.estado === 'Entregado'
+      ? `<span class="hist-badge-done">Entregado</span>`
+      : esCancelado
+      ? `<span class="hist-badge-cancel">Cancelado</span>`
+      : `<span class="hist-badge-transit">${pedido.estado}</span>`
+
+    const d = new Date(pedido.created_at)
+    const fechaFmt = `${_DAYS[d.getDay()]} ${d.getDate()} ${_MONTHS[d.getMonth()]}`
+    const distKm = pedido.km_recorridos ? ` · ${pedido.km_recorridos} km` : ''
+
+    const destinatario = pedido.nombre || ''
+    const yaCalificado = _historialCalificadosSet.has(pedido.id)
+    const mostrarCalificar = pedido.estado === 'Entregado' && !yaCalificado
+    const mostrarEvidencias = pedido.estado === 'Entregado'
+
+    return `
+      <div class="hist-card">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          ${iconHTML}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:900;color:var(--blue);line-height:1.2">GK-${pedido.id}</div>
+                ${destinatario ? `<div style="font-size:12px;font-weight:600;color:var(--dark);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${destinatario}</div>` : ''}
+                <div style="font-size:11px;color:var(--gray-mid);font-weight:600;margin-top:3px">${fechaFmt}${distKm}</div>
+              </div>
+              ${badgeHTML}
+            </div>
+            ${mostrarEvidencias ? `<button class="btn-evidencias" onclick="verTodasEvidencias(${pedido.id})">📸 Ver evidencias</button>` : ''}
           </div>
         </div>
         ${mostrarCalificar ? `
-        <button id="cal-btn-${pedido.id}" onclick="_calificarPedidoHistorial(${pedido.id})" style="margin-top:10px;width:100%;padding:9px 14px;border:1.5px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,0.08);color:#b45309;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+        <button id="cal-btn-${pedido.id}" class="btn-calificar" onclick="_calificarPedidoHistorial(${pedido.id})">
           <span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.favoritos}</span> Calificar este envío
         </button>` : ''}
       </div>
     `
-  })
+  }).join('')
 }
 
 function _calificarPedidoHistorial(id) {
