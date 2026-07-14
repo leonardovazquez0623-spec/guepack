@@ -1593,9 +1593,12 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       } else if (p.estado === 'pendiente') {
         btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.repartidor}</span> En camino</button>`
       } else if (p.estado === 'en_camino') {
-        btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#22c55e;color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.entregado}</span> Ya llegué</button>`
+        btnHtml = `<button onclick="paradaEnDomicilioMulti(${pedidoId}, ${p.id}, ${p.orden})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> YA LLEGUÉ</button>`
       } else if (p.estado === 'en_domicilio') {
-        btnHtml = `<button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>`
+        btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 5:00</span>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 ENTREGAR</button>
+        </div>`
       }
 
       return `<div style="display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
@@ -1610,6 +1613,8 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
     }).join('')}
     <a href="${_mapsUrlM}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
   `
+  // Iniciar timer de 5 min (repartidor) para paradas en_domicilio
+  paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id, 5))
 }
 
 async function iniciarRutaMulti(pedidoId, telefono, nombre) {
@@ -1620,7 +1625,7 @@ async function completarRutaMulti(pedidoId, telefono, nombre) {
   await cambiarEstado(pedidoId, 'Entregado', telefono, nombre)
 }
 
-function _iniciarTimerParada(paradaId) {
+function _iniciarTimerParada(paradaId, minutos = 7) {
   const key = 'guepack_timer_p_' + paradaId
   if (!localStorage.getItem(key)) localStorage.setItem(key, Date.now().toString())
 
@@ -1631,7 +1636,7 @@ function _iniciarTimerParada(paradaId) {
     if (!el) { clearInterval(_timerParadaIntervals[paradaId]); return }
     const inicio = parseInt(localStorage.getItem(key) || Date.now())
     const segsTranscurridos = Math.floor((Date.now() - inicio) / 1000)
-    const restantes = Math.max(0, 7 * 60 - segsTranscurridos)
+    const restantes = Math.max(0, minutos * 60 - segsTranscurridos)
     const mins = Math.floor(restantes / 60)
     const segs = restantes % 60
     el.textContent = `⏱ ${mins}:${segs.toString().padStart(2, '0')}`
@@ -1679,6 +1684,26 @@ async function paradaEnDomicilio(pedidoId, paradaId) {
   if (!session) { window.location.href = 'login.html'; return }
   cargarPedidos(session.user.email)
 }
+async function paradaEnDomicilioMulti(pedidoId, paradaId, orden) {
+  const { error } = await db.from('paradas').update({ estado: 'en_domicilio' }).eq('id', paradaId)
+  if (error) { console.error('[paradaEnDomicilioMulti] Error:', error); alert('Error al actualizar parada'); return }
+
+  localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
+
+  // Push al cliente
+  const { data: pedido } = await db.from('pedidos').select('user_id, nombre').eq('id', pedidoId).single()
+  if (pedido?.user_id) {
+    await _enviarPushAUsuarioRepa(pedido.user_id,
+      '📍 GUEPACK Express',
+      `Tu mensajero llegó a la parada #${orden}${pedido.nombre ? ' · ' + pedido.nombre.split(' ')[0] : ''}`
+    )
+  }
+
+  const { data: { session } } = await db.auth.getSession()
+  if (!session) { window.location.href = 'login.html'; return }
+  cargarPedidos(session.user.email)
+}
+
 async function _yaLlegueEnDomicilio(id, telefono, nombre, metodoPago, precio) {
   await cambiarEstado(id, 'Repartidor en domicilio', telefono, nombre)
   if (metodoPago === 'efectivo') _mostrarToastCobrar(id, precio)
@@ -1832,6 +1857,11 @@ function limpiarFirma() {
 }
 
 async function confirmarEntrega(id) {
+  const fotoInput = document.getElementById('entrega-foto')
+  if (!fotoInput.files[0]) {
+    _toastRepa('📸 Toma una foto de evidencia antes de confirmar', '#f59e0b')
+    return
+  }
   const { whatsapp: telefono, nombre } = _pedidosRep[id] || {}
   const btn = document.getElementById('btn-confirmar-entrega')
   btn.textContent = 'Subiendo...'
@@ -1842,7 +1872,6 @@ async function confirmarEntrega(id) {
   let firmaUrl = null
 
   // ── 1. Subir foto ──
-  const fotoInput = document.getElementById('entrega-foto')
   if (fotoInput.files[0]) {
     const foto = fotoInput.files[0]
     const rutaFoto = `GK-${id}/foto.jpg`
@@ -1951,6 +1980,11 @@ function limpiarFirmaParada() {
 }
 
 async function confirmarParada(pedidoId, paradaId, orden, total) {
+  const _fotoInputP = document.getElementById('parada-foto')
+  if (!_fotoInputP.files[0]) {
+    _toastRepa('📸 Toma una foto antes de confirmar la parada', '#f59e0b')
+    return
+  }
   const btn = document.getElementById('btn-confirmar-parada')
   btn.textContent = 'Subiendo...'; btn.disabled = true
 
@@ -2706,21 +2740,25 @@ function _mkPinDelivery(color, label) {
 function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
   if (!_mapboxMap) return
   const idsVistos = new Set()
+  const GREEN = '#22c55e'
+  const _ESTADOS_POST_REC = ['Recolectado', 'En camino a entrega', 'Repartidor en domicilio', 'Entregado']
 
   pedidos.forEach(p => {
     const color  = _colorGrupo(p.nombre_mostrar || p.nombre)
     const keyRec = 'rec-' + p.id
     const keyEnt = 'ent-' + p.id
+    const estaEntregado = p.estado === 'Entregado'
+    const yaRecolectado = _ESTADOS_POST_REC.includes(p.estado)
 
-    // Pin recolección (cuadrado con "R")
-    if (p.lat_recoleccion != null && p.lng_recoleccion != null) {
+    // Pin recolección — ocultar cuando pedido entregado
+    if (!estaEntregado && p.lat_recoleccion != null && p.lng_recoleccion != null) {
       idsVistos.add(keyRec)
+      const pinColor = yaRecolectado ? GREEN : color
       if (_markersMap.has(keyRec)) {
         _markersMap.get(keyRec).setLngLat([p.lng_recoleccion, p.lat_recoleccion])
-        const _numR = _markersMap.get(keyRec).getElement().querySelector('.mapa-pin-num')
-        if (_numR) _numR.textContent = 'R'
+        _markersMap.get(keyRec).getElement().style.background = pinColor
       } else {
-        const m = new mapboxgl.Marker({ element: _mkPinPickup(color), anchor: 'center' })
+        const m = new mapboxgl.Marker({ element: _mkPinPickup(pinColor), anchor: 'center' })
           .setLngLat([p.lng_recoleccion, p.lat_recoleccion])
           .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
             `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id}</b><br>📦 ${p.direccion_recoleccion || ''}</div>`
@@ -2734,29 +2772,33 @@ function _actualizarMarcadoresMapa(pedidos, paradasPorPedido) {
     const paradas = paradasPorPedido[p.id]
     const paradasConCoords = paradas?.filter(par => par.lat != null && par.lng != null)
     if (paradasConCoords?.length) {
-      paradasConCoords.forEach(par => {
-        const kp = 'par-' + par.id
-        idsVistos.add(kp)
-        if (_markersMap.has(kp)) {
-          _markersMap.get(kp).setLngLat([par.lng, par.lat])
-          const _numP = _markersMap.get(kp).getElement().querySelector('.mapa-pin-num')
-          if (_numP) _numP.textContent = par.orden
-        } else {
-          const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, par.orden), anchor: 'bottom' })
-            .setLngLat([par.lng, par.lat])
-            .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
-              `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id} · Parada ${par.orden}</b><br>📍 ${par.direccion || ''}</div>`
-            ))
-            .addTo(_mapboxMap)
-          _markersMap.set(kp, m)
-        }
-      })
-    } else if (p.lat_entrega != null && p.lng_entrega != null) {  // fallback: paradas sin coords o sin multi-stop
+      const todasCompletadas = paradasConCoords.every(par => par.estado === 'completada')
+      // Quitar todos los pines cuando la ruta completa fue entregada
+      if (!(todasCompletadas && estaEntregado)) {
+        paradasConCoords.forEach(par => {
+          const kp = 'par-' + par.id
+          idsVistos.add(kp)
+          const parColor = par.estado === 'completada' ? GREEN : color
+          if (_markersMap.has(kp)) {
+            _markersMap.get(kp).setLngLat([par.lng, par.lat])
+            _markersMap.get(kp).getElement().style.background = parColor
+            const _numP = _markersMap.get(kp).getElement().querySelector('.mapa-pin-num')
+            if (_numP) _numP.textContent = par.orden
+          } else {
+            const m = new mapboxgl.Marker({ element: _mkPinDelivery(parColor, par.orden), anchor: 'bottom' })
+              .setLngLat([par.lng, par.lat])
+              .setPopup(new mapboxgl.Popup({ offset: 14 }).setHTML(
+                `<div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><b>GK-${p.id} · Parada ${par.orden}</b><br>📍 ${par.direccion || ''}</div>`
+              ))
+              .addTo(_mapboxMap)
+            _markersMap.set(kp, m)
+          }
+        })
+      }
+    } else if (!estaEntregado && p.lat_entrega != null && p.lng_entrega != null) {
       idsVistos.add(keyEnt)
       if (_markersMap.has(keyEnt)) {
         _markersMap.get(keyEnt).setLngLat([p.lng_entrega, p.lat_entrega])
-        const _numE = _markersMap.get(keyEnt).getElement().querySelector('.mapa-pin-num')
-        if (_numE) _numE.textContent = 1
       } else {
         const m = new mapboxgl.Marker({ element: _mkPinDelivery(color, 1), anchor: 'bottom' })
           .setLngLat([p.lng_entrega, p.lat_entrega])
@@ -2975,29 +3017,26 @@ function _suscribirMapaRealtime(nombreRepa) {
 
 // ── Próxima parada sugerida (GPS client-side, sin llamadas extra a API) ────────
 
-// Devuelve el stop más cercano al GPS actual, priorizando recolecciones
+// Devuelve el siguiente stop pendiente, priorizando recolecciones no completadas
 function _proximaParada() {
+  const _ESTADOS_POST_REC = ['Recolectado', 'En camino a entrega', 'Repartidor en domicilio', 'Entregado']
   const recs = [], ents = []
   Object.values(_pedidosRep).forEach(p => {
-    // Recolección del pedido (solo si no fue fotografiada = no recolectada aún)
-    if (!p.foto_recoleccion && p.lat_recoleccion != null && p.lng_recoleccion != null) {
+    // Recolección del pedido — excluir si ya fue recolectada (foto o estado posterior)
+    const yaRecolectado = _ESTADOS_POST_REC.includes(p.estado)
+    if (!yaRecolectado && p.lat_recoleccion != null && p.lng_recoleccion != null) {
       recs.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
         direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion })
     }
     const pars = _todasParadas[p.id] || []
     if (pars.length) {
       pars.forEach(par => {
-        if (par.completado) return
+        if (par.estado === 'completada') return  // excluir completadas
         if (par.lat == null || par.lng == null) return
-        if (par.tipo === 'recoleccion') {
-          recs.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
-            direccion: par.direccion, lat: par.lat, lng: par.lng })
-        } else {
-          ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
-            direccion: par.direccion, lat: par.lat, lng: par.lng })
-        }
+        ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
+          direccion: par.direccion, lat: par.lat, lng: par.lng, orden: par.orden })
       })
-    } else if (!p.foto_recoleccion && p.lat_entrega != null && p.lng_entrega != null) {
+    } else if (!yaRecolectado && p.lat_entrega != null && p.lng_entrega != null) {
       ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
         direccion: p.direccion_entrega, lat: p.lat_entrega, lng: p.lng_entrega })
     }
