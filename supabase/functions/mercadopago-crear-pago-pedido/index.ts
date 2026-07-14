@@ -1,6 +1,7 @@
-// supabase/functions/mercadopago-crear-pago/index.ts
-// Crea una preferencia de pago en Mercado Pago para que el cliente pague su envío nacional.
-// Interfaz idéntica a conekta-crear-pago: recibe { envio_id } y devuelve { checkout_url }.
+// supabase/functions/mercadopago-crear-pago-pedido/index.ts
+// Crea una preferencia de pago en Mercado Pago para un pedido local.
+// Solo aplica a clientes generales (sin empresa_codigo).
+// Interfaz: recibe { pedido_id } y devuelve { checkout_url }.
 
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -24,8 +25,6 @@ function jsonRes(hdrs: Record<string, string>, body: unknown, status = 200): Res
 }
 
 serve(async (req) => {
-  // corsHeaders necesita el request, así que va dentro del handler pero
-  // antes del try/catch para que OPTIONS responda aunque falle otra cosa.
   let hdrs: Record<string, string> = {};
   try {
     hdrs = getCorsHeaders(req);
@@ -51,33 +50,42 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
     if (userErr || !user) return jsonRes(hdrs, { error: "No autorizado" }, 401);
 
-    // 2. Parsea y valida el cuerpo
-    let body: { envio_id?: unknown };
+    // 2. Parsea el cuerpo
+    let body: { pedido_id?: unknown };
     try {
       body = await req.json();
     } catch (_) {
       return jsonRes(hdrs, { error: "Cuerpo de solicitud inválido" }, 400);
     }
-    const { envio_id } = body;
-    if (!envio_id) return jsonRes(hdrs, { error: "Falta envio_id" }, 400);
+    const { pedido_id } = body;
+    if (!pedido_id) return jsonRes(hdrs, { error: "Falta pedido_id" }, 400);
 
-    // 3. Carga el envío con el service role
+    // 3. Carga el pedido con el service role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: envio, error: fetchErr } = await supabaseAdmin
-      .from("envios_nacionales")
-      .select("id, user_id, estado, paqueteria, costo_total, destino_nombre, origen_nombre, origen_email, origen_telefono")
-      .eq("id", envio_id)
+    const { data: pedido, error: fetchErr } = await supabaseAdmin
+      .from("pedidos")
+      .select("id, user_id, empresa_codigo, precio, nombre, whatsapp, estado")
+      .eq("id", pedido_id)
       .single();
 
-    if (fetchErr || !envio) return jsonRes(hdrs, { error: "Envío no encontrado" }, 404);
-    if (envio.user_id !== user.id) return jsonRes(hdrs, { error: "No autorizado" }, 403);
-    if (envio.estado !== "pendiente_pago") return jsonRes(hdrs, { error: "Este envío ya fue procesado" }, 400);
+    if (fetchErr || !pedido) return jsonRes(hdrs, { error: "Pedido no encontrado" }, 404);
+    if (pedido.user_id !== user.id) return jsonRes(hdrs, { error: "No autorizado" }, 403);
 
-    // 4. Crea la preferencia en Mercado Pago
+    // 4. Bloquea cuentas empresariales
+    if (pedido.empresa_codigo) {
+      return jsonRes(hdrs, { error: "Este método de pago no aplica para cuentas empresariales" }, 403);
+    }
+
+    // 5. Solo procesa pedidos en estado de pago pendiente
+    if (pedido.estado !== "Pendiente pago MP") {
+      return jsonRes(hdrs, { error: "Este pedido ya fue procesado o no requiere pago por este medio" }, 400);
+    }
+
+    // 6. Crea la preferencia en Mercado Pago
     const mpToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
     if (!mpToken) return jsonRes(hdrs, { error: "MERCADOPAGO_ACCESS_TOKEN no configurado" }, 500);
 
@@ -92,23 +100,23 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         items: [{
-          title:       `Guia GUEPACK ${envio_id}`,
+          title:       `Pedido GUEPACK ${pedido_id}`,
           quantity:    1,
           currency_id: "MXN",
-          unit_price:  parseFloat(envio.costo_total) || 0,
+          unit_price:  parseFloat(pedido.precio) || 0,
         }],
         payer: {
-          name:  envio.destino_nombre || "Cliente GUEPACK",
-          email: envio.origen_email   || "cliente@guepack.com",
+          name:  pedido.nombre || "Cliente GUEPACK",
+          phone: pedido.whatsapp ? { number: pedido.whatsapp } : undefined,
         },
         payment_methods: {
           excluded_payment_types: [{ id: "bank_transfer" }],
         },
-        external_reference: String(envio_id),
+        external_reference: `pedido_${pedido_id}`,
         back_urls: {
-          success: `https://guepack.com/app.html?pago=exitoso&envio_id=${envio_id}`,
-          failure: `https://guepack.com/app.html?pago=fallido&envio_id=${envio_id}`,
-          pending: `https://guepack.com/app.html?pago=pendiente&envio_id=${envio_id}`,
+          success: `https://guepack.com/app.html?pago=exitoso&pedido_id=${pedido_id}`,
+          failure: `https://guepack.com/app.html?pago=fallido&pedido_id=${pedido_id}`,
+          pending: `https://guepack.com/app.html?pago=pendiente&pedido_id=${pedido_id}`,
         },
         auto_return:      "approved",
         notification_url: "https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/mercadopago-webhook",
@@ -124,7 +132,6 @@ serve(async (req) => {
     const mpJson = await mpRes.json();
     const preferenceId = mpJson.id;
 
-    // Usa sandbox_init_point cuando el token es de pruebas
     const isSandbox   = mpToken.startsWith("TEST-");
     const checkoutUrl = isSandbox ? mpJson.sandbox_init_point : mpJson.init_point;
 
@@ -133,11 +140,11 @@ serve(async (req) => {
       return jsonRes(hdrs, { error: "Mercado Pago no devolvió el link de pago" }, 502);
     }
 
-    // 5. Persiste preference_id y URL en BD
+    // 7. Persiste preference_id y checkout_url en el pedido
     const { error: updateErr } = await supabaseAdmin
-      .from("envios_nacionales")
+      .from("pedidos")
       .update({ mercadopago_preference_id: preferenceId, checkout_url: checkoutUrl })
-      .eq("id", envio_id);
+      .eq("id", pedido_id);
 
     if (updateErr) console.error("Error guardando preference en BD:", updateErr.message);
 
@@ -145,7 +152,7 @@ serve(async (req) => {
 
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("Error no controlado en mercadopago-crear-pago:", msg);
+    console.error("Error no controlado en mercadopago-crear-pago-pedido:", msg);
     return jsonRes(hdrs, { error: msg }, 500);
   }
 });

@@ -1,9 +1,10 @@
 // supabase/functions/mercadopago-webhook/index.ts
 // Recibe notificaciones de pago de Mercado Pago.
 //
-// Seguridad: "pull verification" — extraemos el payment_id del evento y lo
-// consultamos directamente a la API de MP con nuestro token. Si alguien envía
-// un webhook falso, la consulta a MP devolverá datos que no coincidirán.
+// Seguridad: verificación de firma oficial x-signature (HMAC-SHA256).
+// El secreto se configura en el panel de desarrollador de MP:
+//   Tus integraciones → selecciona la app → Webhooks → [Editar webhook] → "Secreto"
+// Guárdalo en Supabase como MERCADOPAGO_WEBHOOK_SECRET.
 //
 // Formatos soportados:
 //   Webhooks 2.0: { type:"payment", data:{ id:"123" }, action:"payment.created" }
@@ -15,36 +16,71 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// IPs de los servidores de notificación de Mercado Pago.
-// Actualizar desde: https://www.mercadopago.com.mx/developers/es/docs/your-integrations/notifications/webhooks
-const IPS_MERCADOPAGO = [
-  "52.167.227.189",
-  "52.67.32.36",
-  "54.88.30.24",
-  "18.231.104.113",
-  "200.29.160.73",
-]
+// Verifica la firma x-signature enviada por Mercado Pago.
+// Referencia oficial: https://www.mercadopago.com.mx/developers/es/docs/your-integrations/notifications/webhooks#bookmark_validacion_de_firma
+async function verificarFirmaMP(req: Request, dataId: string | null): Promise<boolean> {
+  const secret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("MERCADOPAGO_WEBHOOK_SECRET no configurado — rechazando");
+    return false;
+  }
 
-function getClientIp(req: Request): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    req.headers.get("x-real-ip") ??
-    ""
-  )
+  const xSignature = req.headers.get("x-signature");
+  const xRequestId = req.headers.get("x-request-id");
+
+  if (!xSignature) {
+    console.error("Webhook MP sin x-signature");
+    return false;
+  }
+
+  // x-signature tiene formato: ts=<timestamp>,v1=<hmac>
+  const parts = Object.fromEntries(
+    xSignature.split(",").map(part => {
+      const [k, ...v] = part.split("=");
+      return [k.trim(), v.join("=").trim()];
+    })
+  );
+  const ts = parts["ts"];
+  const v1 = parts["v1"];
+
+  if (!ts || !v1) {
+    console.error("x-signature mal formado:", xSignature);
+    return false;
+  }
+
+  // Construye el mensaje a firmar según la spec de MP
+  let mensaje = "";
+  if (dataId) mensaje += `id:${dataId};`;
+  if (xRequestId) mensaje += `request-id:${xRequestId};`;
+  mensaje += `ts:${ts};`;
+
+  // HMAC-SHA256
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signatureBuffer = await crypto.subtle.sign("HMAC", keyMaterial, encoder.encode(mensaje));
+  const hmacHex = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  if (hmacHex !== v1) {
+    console.error("Firma MP inválida. Esperado:", hmacHex, "| Recibido:", v1, "| Mensaje:", mensaje);
+    return false;
+  }
+
+  return true;
 }
 
 serve(async (req) => {
-  const ip = getClientIp(req)
-  if (!IPS_MERCADOPAGO.includes(ip)) {
-    console.error("Webhook MP rechazado, IP no reconocida:", ip)
-    return new Response("Unauthorized", { status: 401 })
-  }
-
   try {
     const body = await req.json().catch(() => null);
     if (!body) return new Response("ok", { status: 200 });
 
-    // Log completo del primer evento para confirmar el shape real
     console.log("MP WEBHOOK body:", JSON.stringify(body));
 
     // Extrae el payment_id según el formato recibido
@@ -58,9 +94,15 @@ serve(async (req) => {
     if (isPaymentEvent && body.data?.id) {
       paymentId = String(body.data.id);
     } else if (body.topic === "payment" && body.resource) {
-      // IPN legacy: la URL termina en /payments/{id}
       const match = String(body.resource).match(/\/payments\/(\d+)/);
       if (match) paymentId = match[1];
+    }
+
+    // Verifica firma HMAC usando el data.id extraído (o null para IPN legacy)
+    const firmaValida = await verificarFirmaMP(req, isPaymentEvent ? (body.data?.id ? String(body.data.id) : null) : null);
+    if (!firmaValida) {
+      console.error("Webhook MP rechazado por firma inválida");
+      return new Response("Unauthorized", { status: 401 });
     }
 
     if (!paymentId) {
@@ -92,8 +134,8 @@ serve(async (req) => {
       return new Response("ok", { status: 200 });
     }
 
-    const envioId = pago.external_reference;
-    if (!envioId) {
+    const ref = pago.external_reference;
+    if (!ref) {
       console.error("Pago aprobado sin external_reference, payment_id:", paymentId);
       return new Response("ok", { status: 200 });
     }
@@ -103,66 +145,134 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Idempotencia: no procesar dos veces el mismo pago
-    const { data: envio } = await supabaseAdmin
-      .from("envios_nacionales")
-      .select("id, pago_verificado")
-      .eq("id", envioId)
-      .maybeSingle();
+    const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!envio) {
-      console.error("Envío no encontrado para external_reference:", envioId);
-      return new Response("ok", { status: 200 });
-    }
-    if (envio.pago_verificado) {
-      console.log("Pago ya verificado previamente, envio_id:", envioId);
-      return new Response("ok", { status: 200 });
-    }
+    // Determina si es pago de pedido local ("pedido_123") o envío nacional ("45")
+    const esPedido = ref.startsWith("pedido_");
+    const rawId    = esPedido ? ref.slice("pedido_".length) : ref;
 
-    // Marca pago verificado
-    const { error: updateErr } = await supabaseAdmin
-      .from("envios_nacionales")
-      .update({
-        pago_verificado:         true,
-        pago_verificado_at:      new Date().toISOString(),
-        mercadopago_payment_id:  String(paymentId),
-      })
-      .eq("id", envioId);
+    console.log("external_reference:", ref, "| esPedido:", esPedido, "| id:", rawId);
 
-    if (updateErr) {
-      console.error("Error actualizando pago_verificado:", updateErr.message);
-      return new Response("ok", { status: 200 });
-    }
+    if (esPedido) {
+      // ── Flujo pedido local ────────────────────────────────────────────────────
 
-    // Dispara generación de guía — mismo patrón que conekta-webhook
-    const guiaRes = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/skydropx-generar-guia`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-secret": Deno.env.get("INTERNAL_FUNCTIONS_SECRET") ?? "",
-        },
-        body: JSON.stringify({ envio_id: envioId }),
+      const { data: pedido } = await supabaseAdmin
+        .from("pedidos")
+        .select("id, pago_verificado")
+        .eq("id", rawId)
+        .maybeSingle();
+
+      if (!pedido) {
+        console.error("Pedido no encontrado para external_reference:", ref);
+        return new Response("ok", { status: 200 });
       }
-    );
+      if (pedido.pago_verificado) {
+        console.log("Pago ya verificado previamente, pedido_id:", rawId);
+        return new Response("ok", { status: 200 });
+      }
 
-    if (!guiaRes.ok) {
-      const errText = await guiaRes.text();
-      console.error("Error generando guía para envio_id", envioId, ":", errText);
-      await supabaseAdmin
+      // Marca pagado y cambia estado a Pendiente para entrar al flujo de asignación
+      const { error: updateErr } = await supabaseAdmin
+        .from("pedidos")
+        .update({
+          pago_verificado:        true,
+          pago_verificado_at:     new Date().toISOString(),
+          mercadopago_payment_id: String(paymentId),
+          metodo_pago:            "tarjeta",
+          estado:                 "Pendiente",
+        })
+        .eq("id", rawId);
+
+      if (updateErr) {
+        console.error("Error actualizando pedido:", updateErr.message);
+        return new Response("ok", { status: 200 });
+      }
+
+      // Dispara ronda 1 de asignación automática (mismo mecanismo que el frontend)
+      try {
+        const asigRes = await fetch(
+          `${supabaseUrl}/functions/v1/procesar-asignacion`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":  "application/json",
+              "Authorization": `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({ pedido_id: Number(rawId), ronda: 1 }),
+          }
+        );
+        const asigJson = await asigRes.json();
+        console.log("procesar-asignacion respuesta:", JSON.stringify(asigJson));
+      } catch (e: any) {
+        console.error("Error llamando procesar-asignacion:", e.message);
+      }
+
+      return new Response("ok", { status: 200 });
+
+    } else {
+      // ── Flujo envío nacional ─────────────────────────────────────────────────
+
+      const envioId = rawId;
+
+      const { data: envio } = await supabaseAdmin
+        .from("envios_nacionales")
+        .select("id, pago_verificado")
+        .eq("id", envioId)
+        .maybeSingle();
+
+      if (!envio) {
+        console.error("Envío no encontrado para external_reference:", ref);
+        return new Response("ok", { status: 200 });
+      }
+      if (envio.pago_verificado) {
+        console.log("Pago ya verificado previamente, envio_id:", envioId);
+        return new Response("ok", { status: 200 });
+      }
+
+      const { error: updateErr } = await supabaseAdmin
         .from("envios_nacionales")
         .update({
-          estado:                "pago_recibido_guia_pendiente",
-          error_generacion_guia: errText,
+          pago_verificado:         true,
+          pago_verificado_at:      new Date().toISOString(),
+          mercadopago_payment_id:  String(paymentId),
         })
         .eq("id", envioId);
-    } else {
-      const guiaJson = await guiaRes.json();
-      console.log("Guía generada automáticamente:", JSON.stringify(guiaJson));
-    }
 
-    return new Response("ok", { status: 200 });
+      if (updateErr) {
+        console.error("Error actualizando pago_verificado:", updateErr.message);
+        return new Response("ok", { status: 200 });
+      }
+
+      const guiaRes = await fetch(
+        `${supabaseUrl}/functions/v1/skydropx-generar-guia`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":      "application/json",
+            "x-internal-secret": Deno.env.get("INTERNAL_FUNCTIONS_SECRET") ?? "",
+          },
+          body: JSON.stringify({ envio_id: envioId }),
+        }
+      );
+
+      if (!guiaRes.ok) {
+        const errText = await guiaRes.text();
+        console.error("Error generando guía para envio_id", envioId, ":", errText);
+        await supabaseAdmin
+          .from("envios_nacionales")
+          .update({
+            estado:                "pago_recibido_guia_pendiente",
+            error_generacion_guia: errText,
+          })
+          .eq("id", envioId);
+      } else {
+        const guiaJson = await guiaRes.json();
+        console.log("Guía generada automáticamente:", JSON.stringify(guiaJson));
+      }
+
+      return new Response("ok", { status: 200 });
+    }
 
   } catch (e: any) {
     console.error("Error inesperado en webhook MP:", e.message);

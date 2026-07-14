@@ -275,6 +275,11 @@
     background: var(--blue);
     color: white;
   }
+  #mp-tarjeta { flex-direction:column; align-items:center; justify-content:center; gap:4px; display:none; }
+  #mp-tarjeta.selected { border-color:#009ee3; background:#009ee3; color:white; }
+  #mp-tarjeta.selected svg { stroke: white; }
+  #mp-tarjeta.selected svg rect[fill="#F05A1A"] { fill:white; stroke:white; }
+  .btn-completar-pago { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border:1.5px solid #009ee3;border-radius:10px;background:rgba(0,158,227,0.08);color:#007bbf;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;box-sizing:border-box; }
   .size-icon { display: flex; justify-content: center; align-items: center; margin-bottom: 8px; }
   .size-name { font-size: 12px; font-weight: 900; color: var(--blue); display: block; }
   .size-desc { font-size: 10px; color: var(--gray-mid); font-weight: 600; display: block; margin-top: 2px; }
@@ -1241,6 +1246,10 @@
             <div id="mp-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div class="mp-option" id="mp-efectivo" onclick="selectMetodoPago('efectivo')">Efectivo</div>
               <div class="mp-option" id="mp-transferencia" onclick="selectMetodoPago('transferencia')">Transferencia</div>
+              <div class="mp-option" id="mp-tarjeta" onclick="selectMetodoPago('tarjeta')">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#009ee3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19"/><rect x="5" y="13.5" width="5" height="2.2" rx="0.5" fill="#F05A1A" stroke="#F05A1A"/></svg>
+                <span style="font-size:10px;line-height:1.3">Mercado<br>Pago</span>
+              </div>
             </div>
             <div id="datos-transferencia" style="display:none;margin-top:14px;background:#e8f0fc;border-radius:14px;padding:16px;border-left:4px solid var(--blue)">
               <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);margin-bottom:12px">Datos para transferencia</div>
@@ -1971,7 +1980,7 @@ async function _cargarEmpresaUsuario(user) {
     empresaCodigo = usuarioDB?.empresa_codigo || null
   }
   console.log('[empresa] empresa_codigo del usuario:', empresaCodigo)
-  if (!empresaCodigo) return
+  if (!empresaCodigo) { _mostrarBtnMercadoPago(); return }
   const { data: empresa, error } = await db.from('empresas_afiliadas').select('*').eq('codigo', empresaCodigo).eq('activa', true).single()
   console.log('[empresa] resultado consulta:', empresa, error)
   if (!empresa) return
@@ -2847,6 +2856,21 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarToast('⚠️ El pago no fue completado. Puedes intentarlo de nuevo.', 'var(--orange)')
     }
   }
+  // ── Retorno desde checkout de Mercado Pago (pedidos locales) ────────────
+  const _pedidoIdMP = _params.get('pedido_id')
+  if (_pago && _pedidoIdMP) {
+    history.replaceState({}, '', window.location.pathname)
+    if (_pago === 'exitoso') {
+      mostrarToast('✅ ¡Pago recibido! Tu pedido está siendo procesado.', '#22c55e')
+      setTimeout(() => showClientSection('history'), 1200)
+    } else if (_pago === 'fallido') {
+      mostrarToast('⚠️ El pago no fue completado. Puedes reintentarlo desde tu historial.', 'var(--orange)')
+      setTimeout(() => showClientSection('history'), 1200)
+    } else if (_pago === 'pendiente') {
+      mostrarToast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', '#f59e0b')
+      setTimeout(() => showClientSection('history'), 1200)
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────
 
   document.getElementById('comprobante-input').addEventListener('change', function() {
@@ -2996,7 +3020,7 @@ if (comprobanteFile) {
   else comprobanteUrl = `https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias/comprobantes/${tmpId}.${ext}`
 }
 
-const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : 'Pendiente'
+const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : metodoPago === 'tarjeta' ? 'Pendiente pago MP' : 'Pendiente'
 const tokenRastreo = crypto.randomUUID()
 
 const _kmRecorridos = _modoPaqueteria ? 0
@@ -3051,6 +3075,12 @@ const { data, error } = await db.from('pedidos').insert({
 
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo
+
+  if (metodoPago === 'tarjeta') {
+    // La asignación la dispara el webhook tras confirmar el pago — no iniciar aquí
+    await _pagarConMP(folioReal)
+    return
+  }
 
   // Asignación automática — fire-and-forget, no bloquea el flujo del cliente
   console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
@@ -4679,6 +4709,57 @@ async function _enviarPushAEmail(email, titulo, cuerpo) {
 
 // ── Asignación automática ─────────────────────────────────────────────────────
 
+function _mostrarBtnMercadoPago() {
+  const mpOpciones = document.getElementById('mp-opciones')
+  const mpTarjeta  = document.getElementById('mp-tarjeta')
+  if (!mpOpciones || !mpTarjeta) return
+  mpTarjeta.style.display = 'flex'
+  mpOpciones.style.gridTemplateColumns = '1fr 1fr 1fr'
+}
+
+async function _pagarConMP(pedidoId) {
+  const btnSubmit = document.querySelector('#wizard-paso-3 .btn.btn-primary')
+  if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = '⏳ Procesando pago...' }
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    const jwt = session?.access_token ?? SUPABASE_KEY
+    const res = await fetch(SUPABASE_URL + '/functions/v1/mercadopago-crear-pago-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ pedido_id: pedidoId })
+    })
+    const json = await res.json()
+    if (!res.ok || !json.checkout_url) throw new Error(json.error || 'No se pudo crear el link de pago')
+    window.location.href = json.checkout_url
+  } catch (e) {
+    console.error('[_pagarConMP] error:', e)
+    mostrarToast('❌ ' + (e.message || 'Error al procesar el pago con Mercado Pago'), '#ef4444')
+    setTimeout(() => mostrarToast('💡 Tu pedido fue guardado. Ve a Historial para reintentar el pago.', '#f59e0b'), 1800)
+    if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Solicitar Recolección →' }
+  }
+}
+
+async function _pagarConMPHistorial(pedidoId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Procesando...' }
+  const btnSubmit = null  // flujo desde historial, no hay wizard
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    const jwt = session?.access_token ?? SUPABASE_KEY
+    const res = await fetch(SUPABASE_URL + '/functions/v1/mercadopago-crear-pago-pedido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ pedido_id: pedidoId })
+    })
+    const json = await res.json()
+    if (!res.ok || !json.checkout_url) throw new Error(json.error || 'No se pudo crear el link de pago')
+    window.location.href = json.checkout_url
+  } catch (e) {
+    console.error('[_pagarConMPHistorial] error:', e)
+    mostrarToast('❌ ' + (e.message || 'Error al procesar el pago'), '#ef4444')
+    if (btn) { btn.disabled = false; btn.textContent = '💳 Completar pago' }
+  }
+}
+
 async function _iniciarAsignacionAutomatica(pedido) {
   const pedidoId = pedido.id
   if (!window._asignacionEnCurso) window._asignacionEnCurso = new Set()
@@ -5038,15 +5119,20 @@ function _renderHistorial() {
 
   contenedor.innerHTML = filtered.map(pedido => {
     const esCancelado = pedido.estado === 'Cancelado'
+    const esPagoMP    = pedido.estado === 'Pendiente pago MP'
     const catFile = _CAT_MAP[pedido.estado] || 'encamino_g.png'
     const iconHTML = esCancelado
       ? `<div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:15px;font-weight:900;color:#dc2626;line-height:1">✕</span></div>`
+      : esPagoMP
+      ? `<div style="width:30px;height:30px;border-radius:50%;background:rgba(0,158,227,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#009ee3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19"/></svg></div>`
       : `<img src="/${catFile}" alt="" class="hist-cat-icon">`
 
     const badgeHTML = pedido.estado === 'Entregado'
       ? `<span class="hist-badge-done">Entregado</span>`
       : esCancelado
       ? `<span class="hist-badge-cancel">Cancelado</span>`
+      : esPagoMP
+      ? `<span style="background:rgba(0,158,227,0.12);color:#007bbf;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:900;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;flex-shrink:0">Pago pendiente</span>`
       : `<span class="hist-badge-transit">${pedido.estado}</span>`
 
     const d = new Date(pedido.created_at)
@@ -5057,6 +5143,7 @@ function _renderHistorial() {
     const yaCalificado = _historialCalificadosSet.has(pedido.id)
     const mostrarCalificar = pedido.estado === 'Entregado' && !yaCalificado
     const mostrarEvidencias = pedido.estado === 'Entregado'
+    const mostrarCompletarPago = esPagoMP
 
     return `
       <div class="hist-card">
@@ -5074,6 +5161,10 @@ function _renderHistorial() {
             ${mostrarEvidencias ? `<button class="btn-evidencias" onclick="verTodasEvidencias(${pedido.id})">📸 Ver evidencias</button>` : ''}
           </div>
         </div>
+        ${mostrarCompletarPago ? `
+        <button id="retry-mp-${pedido.id}" class="btn-completar-pago" onclick="_pagarConMPHistorial(${pedido.id}, this)">
+          💳 Completar pago con Mercado Pago
+        </button>` : ''}
         ${mostrarCalificar ? `
         <button id="cal-btn-${pedido.id}" class="btn-calificar" onclick="_calificarPedidoHistorial(${pedido.id})">
           <span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.favoritos}</span> Calificar este envío
