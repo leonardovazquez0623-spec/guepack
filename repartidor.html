@@ -917,18 +917,38 @@ async function _cancelarAsignacion(pedidoId) {
   _toastRepa('✅ Pedido liberado — buscando otro repartidor', '#22c55e')
 }
 
-async function init() {
-  let { data: { session } } = await db.auth.getSession()
-  if (!session) {
-    const { data: refreshData } = await db.auth.refreshSession()
-    session = refreshData?.session
-  }
-  if (!session) { window.location.href = 'login.html'; return; }
+async function verificarRolRepartidor(intentos = 0) {
+  const { data: { session } } = await db.auth.getSession()
 
-  const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
-  if (!data) { window.location.href = 'login.html'; return; }
-  if (data.rol === 'admin') { window.location.href = 'admin.html'; return; }
-  if (data.rol !== 'repartidor') { window.location.href = 'app.html'; return; }
+  if (!session) {
+    if (intentos < 3) {
+      await new Promise(r => setTimeout(r, 500))
+      return verificarRolRepartidor(intentos + 1)
+    }
+    window.location.href = 'login.html'
+    return null
+  }
+
+  const { data: usuario } = await db.from('usuarios')
+    .select('rol')
+    .eq('user_id', session.user.id)
+    .single()
+
+  if (usuario?.rol !== 'repartidor') {
+    if (intentos < 3) {
+      await new Promise(r => setTimeout(r, 500))
+      return verificarRolRepartidor(intentos + 1)
+    }
+    window.location.href = usuario?.rol === 'admin' ? 'admin.html' : 'login.html'
+    return null
+  }
+
+  return session
+}
+
+async function init() {
+  const session = await verificarRolRepartidor()
+  if (!session) return
 
   _repaUserId = session.user.id
   _repaEmail  = session.user.email
