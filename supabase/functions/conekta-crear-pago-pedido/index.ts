@@ -79,6 +79,9 @@ serve(async (req) => {
     if (pedido.estado !== "Pendiente pago MP") {
       return jsonRes(hdrs, { error: "Este pedido ya fue procesado o no requiere pago por este medio" }, 400);
     }
+    if (Number(pedido.precio) < 10) {
+      return jsonRes(hdrs, { error: "El monto es menor al mínimo permitido para pago con tarjeta ($10 MXN). Por favor selecciona otro método de pago." }, 400);
+    }
 
     // 4. Crea el PaymentLink en Conekta
     const conektaKey = Deno.env.get("CONEKTA_PRIVATE_KEY");
@@ -86,6 +89,9 @@ serve(async (req) => {
 
     const basicAuth  = btoa(conektaKey + ":");
     const expiresAt  = Math.floor(Date.now() / 1000) + 86400;
+
+    console.log("pedido.precio:", pedido.precio, "typeof:", typeof pedido.precio);
+    console.log("unit_price calculado:", Math.round(pedido.precio * 100));
 
     const conektaRes = await fetch("https://api.conekta.io/checkouts", {
       method: "POST",

@@ -4734,7 +4734,9 @@ async function _pagarConTarjeta(pedidoId) {
   } catch (e) {
     console.error('[_pagarConTarjeta] error:', e)
     mostrarToast('❌ ' + (e.message || 'Error al generar el link de pago'), '#ef4444')
-    setTimeout(() => mostrarToast('💡 Tu pedido fue guardado. Ve a Historial para reintentar el pago.', '#f59e0b'), 1800)
+    if (!e.message?.includes('mínimo permitido')) {
+      setTimeout(() => mostrarToast('💡 Tu pedido fue guardado. Ve a Historial para reintentar el pago.', '#f59e0b'), 1800)
+    }
     if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Solicitar Recolección →' }
   }
 }
