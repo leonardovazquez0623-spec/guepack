@@ -3780,8 +3780,7 @@ function agregarParada() {
     </div>
   `
   const handle = div.querySelector('.parada-drag-handle')
-  handle.addEventListener('pointerdown',   e => _paradaDragStart(e, idx))
-  handle.addEventListener('pointercancel', _paradaDragEnd)
+  handle.addEventListener('pointerdown', e => _paradaDragStart(e, idx))
   cont.appendChild(div)
   if (window.google?.maps?.places?.AutocompleteSuggestion) {
     _attachAutocompletePararadas()
@@ -3826,90 +3825,112 @@ function eliminarParada(idx) {
 let _dragState = null
 
 function _paradaDragStart(e, idx) {
-  e.preventDefault()
   const handle = e.currentTarget
   handle.setPointerCapture(e.pointerId)
+  console.log('[drag] START idx=%d pointerId=%d', idx, e.pointerId)
 
-  const originalEl = document.getElementById('parada-item-' + idx)
+  const cont = document.getElementById('paradas-container')
+  const items = Array.from(cont.children)
+  const originalEl = items[idx]
   const rect = originalEl.getBoundingClientRect()
 
+  // Snapshot de rects ANTES de modificar el DOM — los translateY posteriores no lo afectan
+  const itemRects = items.map(item => item.getBoundingClientRect())
+
   const ghostEl = originalEl.cloneNode(true)
-  ghostEl.style.cssText = `
-    position:fixed; z-index:9000; left:${rect.left}px; top:${rect.top}px;
-    width:${rect.width}px; margin:0; opacity:.92;
-    box-shadow:0 8px 30px rgba(14,32,85,.22);
-    border-radius:12px; pointer-events:none;
-    background:var(--gray-light); border:1.5px solid var(--blue);
-  `
+  ghostEl.style.cssText = [
+    'position:fixed',
+    `left:${rect.left}px`, `top:${rect.top}px`, `width:${rect.width}px`,
+    'margin:0', 'opacity:.92', 'z-index:9000', 'pointer-events:none',
+    'border-radius:12px', 'background:var(--gray-light)', 'border:1.5px solid var(--blue)',
+    'box-shadow:0 8px 30px rgba(14,32,85,.22)', 'box-sizing:border-box',
+  ].join(';')
   document.body.appendChild(ghostEl)
 
-  originalEl.style.opacity = '0.3'
+  originalEl.style.opacity = '0'        // invisible, conserva espacio como placeholder
   originalEl.style.pointerEvents = 'none'
 
   _dragState = {
-    currentIdx: idx,
+    dragIdx: idx,
+    insertIdx: idx,
     originalEl,
     ghostEl,
+    handle,
+    pointerId: e.pointerId,
     offsetY: e.clientY - rect.top,
+    itemRects,
+    dragItemHeight: rect.height,
   }
 
-  handle.addEventListener('pointermove', _paradaDragMove)
-  handle.addEventListener('pointerup',   _paradaDragEnd)
+  handle.addEventListener('pointermove',   _paradaDragMove)
+  handle.addEventListener('pointerup',     _paradaDragEnd)
+  handle.addEventListener('pointercancel', _paradaDragEnd)
 }
 
 function _paradaDragMove(e) {
   if (!_dragState) return
-  const { ghostEl, offsetY, currentIdx } = _dragState
+  const { ghostEl, offsetY, dragIdx, itemRects, dragItemHeight } = _dragState
 
-  const newTop = e.clientY - offsetY
-  ghostEl.style.top = newTop + 'px'
+  ghostEl.style.top = (e.clientY - offsetY) + 'px'
+  const ghostCenterY = e.clientY - offsetY + ghostEl.offsetHeight / 2
 
-  const ghostCenterY = newTop + ghostEl.offsetHeight / 2
-
-  const cont = document.getElementById('paradas-container')
-  const items = Array.from(cont.children)
-
-  for (let i = 0; i < items.length; i++) {
-    if (i === currentIdx) continue
-    const r = items[i].getBoundingClientRect()
-    const midY = r.top + r.height / 2
-
-    const crossedUp   = i < currentIdx && ghostCenterY < midY
-    const crossedDown = i > currentIdx && ghostCenterY > midY
-    if (!crossedUp && !crossedDown) continue
-
-    // Intercambia en memoria
-    const tmp = _paradasList[currentIdx]
-    _paradasList[currentIdx] = _paradasList[i]
-    _paradasList[i] = tmp
-
-    // Intercambia nodos DOM sin re-render
-    if (i < currentIdx) {
-      cont.insertBefore(_dragState.originalEl, items[i])
-    } else {
-      items[i].after(_dragState.originalEl)
-    }
-
-    _dragState.currentIdx = i
-    break
+  // Calcula insertIdx con los rects originales (inmune a transforms posteriores)
+  // Subiendo: break en el primer cruce (el más alto que superamos)
+  // Bajando: sin break — itera hasta el último cruce (más lejano que ya pasamos)
+  let newInsertIdx = dragIdx
+  for (let i = 0; i < itemRects.length; i++) {
+    if (i === dragIdx) continue
+    const midY = itemRects[i].top + itemRects[i].height / 2
+    if (i < dragIdx && ghostCenterY < midY) { newInsertIdx = i; break }
+    if (i > dragIdx && ghostCenterY > midY)   newInsertIdx = i
   }
+
+  if (newInsertIdx === _dragState.insertIdx) return
+  _dragState.insertIdx = newInsertIdx
+  console.log('[drag] insertIdx → %d', newInsertIdx)
+
+  // Solo translateY — cero insertBefore/after, cero MutationObserver
+  const cont = document.getElementById('paradas-container')
+  Array.from(cont.children).forEach((item, i) => {
+    if (i === dragIdx) return
+    let shift = 0
+    if (newInsertIdx < dragIdx && i >= newInsertIdx && i < dragIdx) shift =  dragItemHeight
+    if (newInsertIdx > dragIdx && i >  dragIdx      && i <= newInsertIdx) shift = -dragItemHeight
+    item.style.transform  = shift ? `translateY(${shift}px)` : ''
+    item.style.transition = 'transform 0.15s ease'
+  })
 }
 
 function _paradaDragEnd(e) {
+  console.log('[drag] END type=%s _dragState=%s', e?.type, _dragState ? 'set' : 'null')
   if (!_dragState) return
 
-  const { ghostEl, originalEl } = _dragState
-  _dragState = null
+  const { ghostEl, originalEl, handle, pointerId, dragIdx, insertIdx } = _dragState
+
+  // Limpia transforms antes del rebuild
+  const cont = document.getElementById('paradas-container')
+  Array.from(cont.children).forEach(item => { item.style.transform = ''; item.style.transition = '' })
 
   ghostEl.remove()
-  originalEl.style.opacity = ''
+  originalEl.style.opacity       = ''
   originalEl.style.pointerEvents = ''
 
-  // Full rebuild: corrige labels "Parada N" e idx en todos los handlers
-  _paradaReordenarDOM()
-  if (_paradasList.filter(p => p.direccion.trim()).length > 0) {
-    _calcularCotizacionMultiParada()
+  handle.removeEventListener('pointermove',   _paradaDragMove)
+  handle.removeEventListener('pointerup',     _paradaDragEnd)
+  handle.removeEventListener('pointercancel', _paradaDragEnd)
+  try { handle.releasePointerCapture(pointerId) } catch (_) {}
+
+  // Reorden en memoria
+  if (insertIdx !== dragIdx) {
+    const moved = _paradasList.splice(dragIdx, 1)[0]
+    _paradasList.splice(insertIdx, 0, moved)
   }
+
+  _dragState = null
+
+  // Rebuild único — aquí sí se reinicializa el autocomplete, una sola vez
+  _paradaReordenarDOM()
+  if (_paradasList.filter(p => p.direccion.trim()).length > 0) _calcularCotizacionMultiParada()
   _actualizarMapaWizard()
 }
 
