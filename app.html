@@ -809,6 +809,11 @@
   .btn-nota-dir { padding:9px 11px; border:2px solid var(--gray); border-radius:10px; background:white; color:var(--gray-mid); font-size:14px; cursor:pointer; line-height:1; transition:border-color .2s,color .2s; flex-shrink:0; }
   .btn-nota-dir.has-nota { border-color:var(--orange); color:var(--orange); }
   #mapa-ruta-wizard { width:100%; height:230px; border-radius:10px; overflow:hidden; }
+  .parada-drag-handle { cursor:grab; color:var(--blue); padding:4px 6px 4px 2px; touch-action:none; flex-shrink:0; -webkit-user-select:none; user-select:none; opacity:.6; }
+  .parada-drag-handle:active { cursor:grabbing; opacity:1; }
+  @keyframes paradaWiggle { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 75%{transform:translateY(4px)} }
+  .parada-handle-wiggle { animation:paradaWiggle .55s ease 3; }
+  #parada-drag-tip { position:fixed; background:#1a4fa0; color:#fff; font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; padding:9px 13px; border-radius:10px; z-index:9100; pointer-events:none; box-shadow:0 4px 16px rgba(14,32,85,.25); max-width:240px; line-height:1.4; }
 
   /* ── COMPARADOR NACIONAL ── */
   .comparador-titulo { font-family:Montserrat,sans-serif; font-size:13px; font-weight:900; color:var(--blue); margin:0 0 12px; }
@@ -3761,8 +3766,11 @@ function agregarParada() {
   div.id = 'parada-item-' + idx
   div.style.cssText = 'background:var(--gray-light);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1.5px solid var(--gray)'
   div.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);display:inline-flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Parada ${idx + 2}</span>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <div class="parada-drag-handle" data-drag-idx="${idx}" title="Arrastra para reordenar">
+        <svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect y="0" width="16" height="2.5" rx="1.25"/><rect y="5.75" width="16" height="2.5" rx="1.25"/><rect y="11.5" width="16" height="2.5" rx="1.25"/></svg>
+      </div>
+      <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:var(--blue);display:inline-flex;align-items:center;gap:4px;flex:1"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Parada ${idx + 2}</span>
       <button type="button" onclick="eliminarParada(${idx})" style="background:rgba(239,68,68,0.1);color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✕</button>
     </div>
     <div style="display:flex;gap:8px">
@@ -3771,15 +3779,18 @@ function agregarParada() {
       <button type="button" id="btn-nota-parada-${idx}" class="btn-nota-dir" onclick="_abrirNotaDir('parada',${idx})" title="Agregar nota para esta parada"><span data-icon="nota_pedido" data-icon-done="1" style="display:inline-flex;width:24px;height:24px">${GUEPACK_ICONS.nota_pedido}</span></button>
     </div>
   `
+  const handle = div.querySelector('.parada-drag-handle')
+  handle.addEventListener('pointerdown',   e => _paradaDragStart(e, idx))
+  handle.addEventListener('pointercancel', _paradaDragEnd)
   cont.appendChild(div)
   if (window.google?.maps?.places?.AutocompleteSuggestion) {
     _attachAutocompletePararadas()
   }
   _actualizarMapaWizard()
+  if (_paradasList.length >= 2) _paradaTutorialCheck()
 }
 
-function eliminarParada(idx) {
-  _paradasList.splice(idx, 1)
+function _paradaReordenarDOM() {
   const cont = document.getElementById('paradas-container')
   cont.innerHTML = ''
   const tmp = _paradasList.slice()
@@ -3792,7 +3803,11 @@ function eliminarParada(idx) {
     const btnNota = document.getElementById('btn-nota-parada-' + i)
     if (btnNota) btnNota.classList.toggle('has-nota', !!(p.instrucciones?.trim()))
   })
-  // Recalcular cotización tras eliminar parada
+}
+
+function eliminarParada(idx) {
+  _paradasList.splice(idx, 1)
+  _paradaReordenarDOM()
   if (_paradasList.filter(p => p.direccion.trim()).length === 0) {
     _multiParadaPrecio = null; _multiParadaKm = null; _multiParadaZonaData = null
     if (_zonaData) {
@@ -3804,6 +3819,121 @@ function eliminarParada(idx) {
     _calcularCotizacionMultiParada()
   }
   _actualizarMapaWizard()
+}
+
+// ── Drag & drop reordenamiento de paradas ───────────────────────────────────
+
+let _dragState = null
+
+function _paradaDragStart(e, idx) {
+  e.preventDefault()
+  const handle = e.currentTarget
+  handle.setPointerCapture(e.pointerId)
+
+  const originalEl = document.getElementById('parada-item-' + idx)
+  const rect = originalEl.getBoundingClientRect()
+
+  const ghostEl = originalEl.cloneNode(true)
+  ghostEl.style.cssText = `
+    position:fixed; z-index:9000; left:${rect.left}px; top:${rect.top}px;
+    width:${rect.width}px; margin:0; opacity:.92;
+    box-shadow:0 8px 30px rgba(14,32,85,.22);
+    border-radius:12px; pointer-events:none;
+    background:var(--gray-light); border:1.5px solid var(--blue);
+  `
+  document.body.appendChild(ghostEl)
+
+  originalEl.style.opacity = '0.3'
+  originalEl.style.pointerEvents = 'none'
+
+  _dragState = {
+    currentIdx: idx,
+    originalEl,
+    ghostEl,
+    offsetY: e.clientY - rect.top,
+  }
+
+  handle.addEventListener('pointermove', _paradaDragMove)
+  handle.addEventListener('pointerup',   _paradaDragEnd)
+}
+
+function _paradaDragMove(e) {
+  if (!_dragState) return
+  const { ghostEl, offsetY, currentIdx } = _dragState
+
+  const newTop = e.clientY - offsetY
+  ghostEl.style.top = newTop + 'px'
+
+  const ghostCenterY = newTop + ghostEl.offsetHeight / 2
+
+  const cont = document.getElementById('paradas-container')
+  const items = Array.from(cont.children)
+
+  for (let i = 0; i < items.length; i++) {
+    if (i === currentIdx) continue
+    const r = items[i].getBoundingClientRect()
+    const midY = r.top + r.height / 2
+
+    const crossedUp   = i < currentIdx && ghostCenterY < midY
+    const crossedDown = i > currentIdx && ghostCenterY > midY
+    if (!crossedUp && !crossedDown) continue
+
+    // Intercambia en memoria
+    const tmp = _paradasList[currentIdx]
+    _paradasList[currentIdx] = _paradasList[i]
+    _paradasList[i] = tmp
+
+    // Intercambia nodos DOM sin re-render
+    if (i < currentIdx) {
+      cont.insertBefore(_dragState.originalEl, items[i])
+    } else {
+      items[i].after(_dragState.originalEl)
+    }
+
+    _dragState.currentIdx = i
+    break
+  }
+}
+
+function _paradaDragEnd(e) {
+  if (!_dragState) return
+
+  const { ghostEl, originalEl } = _dragState
+  _dragState = null
+
+  ghostEl.remove()
+  originalEl.style.opacity = ''
+  originalEl.style.pointerEvents = ''
+
+  // Full rebuild: corrige labels "Parada N" e idx en todos los handlers
+  _paradaReordenarDOM()
+  if (_paradasList.filter(p => p.direccion.trim()).length > 0) {
+    _calcularCotizacionMultiParada()
+  }
+  _actualizarMapaWizard()
+}
+
+function _paradaTutorialCheck() {
+  if (localStorage.getItem('paradas_tutorial_visto')) return
+  localStorage.setItem('paradas_tutorial_visto', '1')
+
+  const firstHandle = document.querySelector('.parada-drag-handle')
+  if (!firstHandle) return
+
+  firstHandle.classList.add('parada-handle-wiggle')
+  firstHandle.addEventListener('animationend', () => firstHandle.classList.remove('parada-handle-wiggle'), { once: true })
+
+  const handleRect = firstHandle.getBoundingClientRect()
+  const tip = document.createElement('div')
+  tip.id = 'parada-drag-tip'
+  tip.textContent = '☝️ Mantén presionado y arrastra para cambiar el orden'
+  tip.style.top  = (handleRect.bottom + 8) + 'px'
+  tip.style.left = Math.max(8, handleRect.left - 4) + 'px'
+  document.body.appendChild(tip)
+
+  const cerrar = () => { tip.remove(); document.removeEventListener('pointerdown', cerrar) }
+  setTimeout(cerrar, 4000)
+  document.addEventListener('pointerdown', cerrar, { once: true })
 }
 
 async function _cargarParadasPedido(pedidoId) {
