@@ -94,7 +94,7 @@ serve(async (req) => {
           currency: "MXN",
           customer_info: {
             name: envio.destino_nombre || "Cliente GUEPACK",
-            email: envio.origen_email || "cliente@guepack.com",
+            email: user.email || envio.origen_email || "cliente@guepack.com",
             phone: envio.origen_telefono || "0000000000",
           },
           metadata: { envio_id: String(envio_id) },
