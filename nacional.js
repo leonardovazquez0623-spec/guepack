@@ -19,6 +19,14 @@ let _nacLargoCm      = 0
 let _nacAnchoCm      = 0
 let _nacAltoCm       = 0
 
+let _nacColoniaOrigen    = null
+let _nacEstadoOrigen     = null
+let _nacMunicipioOrigen  = null
+let _nacColoniaDestino   = null
+let _nacEstadoDestino    = null
+let _nacMunicipioDestino = null
+const _nacCpCache        = { origen: null, destino: null }
+
 // ── Navegación ───────────────────────────────────────────────────────────────
 
 function nacShowStep(n) {
@@ -74,6 +82,14 @@ async function nacCotizarRapido() {
     mostrarToast('⚠️ El CP de destino debe ser exactamente 5 dígitos numéricos', 'var(--orange)')
     return
   }
+  if (!_nacColoniaOrigen) {
+    mostrarToast('⚠️ Selecciona la colonia de origen para cotizar', 'var(--orange)')
+    return
+  }
+  if (!_nacColoniaDestino) {
+    mostrarToast('⚠️ Selecciona la colonia de destino para cotizar', 'var(--orange)')
+    return
+  }
   if (!peso || peso <= 0) {
     mostrarToast('⚠️ El peso debe ser mayor a 0 kg', 'var(--orange)')
     return
@@ -110,9 +126,8 @@ async function nacCotizarRapido() {
   opcionSeleccionada  = null
   extrasSeleccionados = new Set()
 
-  // Skydropx solo necesita CP para cotizar; ciudad/estado/colonia pueden ser vacíos
-  const origen  = { cp: cpOri, estado: '', ciudad: '', colonia: '' }
-  const destino = { cp: cpDst, estado: '', ciudad: '', colonia: '' }
+  const origen  = { cp: cpOri, colonia: _nacColoniaOrigen,  estado: _nacEstadoOrigen,  ciudad: _nacMunicipioOrigen }
+  const destino = { cp: cpDst, colonia: _nacColoniaDestino, estado: _nacEstadoDestino, ciudad: _nacMunicipioDestino }
   const paquete = { peso_kg: peso, largo_cm: largo, ancho_cm: ancho, alto_cm: alto, contenido: 'Paquete' }
 
   try {
@@ -202,6 +217,11 @@ function _nacAplicarSeleccion(idx) {
   if (oriCpEl) oriCpEl.value = _nacCpOrigen
   if (dstCpEl) dstCpEl.value = _nacCpDestino
 
+  // Pre-rellena colonia/ciudad/estado bloqueados desde el Paso 1
+  const _f = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || '' }
+  _f('nac-ori-colonia', _nacColoniaOrigen);  _f('nac-ori-ciudad', _nacMunicipioOrigen);  _f('nac-ori-estado', _nacEstadoOrigen)
+  _f('nac-dst-colonia', _nacColoniaDestino); _f('nac-dst-ciudad', _nacMunicipioDestino); _f('nac-dst-estado', _nacEstadoDestino)
+
   nacShowStep(2)
 }
 
@@ -209,18 +229,12 @@ function _nacAplicarSeleccion(idx) {
 
 function _nacValidarPaso2() {
   const required = [
-    ['nac-ori-nombre',  'el nombre de origen'],
-    ['nac-ori-tel',     'el teléfono de origen'],
-    ['nac-ori-calle',   'la calle de origen'],
-    ['nac-ori-colonia', 'la colonia de origen'],
-    ['nac-ori-ciudad',  'la ciudad de origen'],
-    ['nac-ori-estado',  'el estado de origen'],
-    ['nac-dst-nombre',  'el nombre del destinatario'],
-    ['nac-dst-tel',     'el teléfono de destino'],
-    ['nac-dst-calle',   'la calle de destino'],
-    ['nac-dst-colonia', 'la colonia de destino'],
-    ['nac-dst-ciudad',  'la ciudad de destino'],
-    ['nac-dst-estado',  'el estado de destino'],
+    ['nac-ori-nombre', 'el nombre de origen'],
+    ['nac-ori-tel',    'el teléfono de origen'],
+    ['nac-ori-calle',  'la calle de origen'],
+    ['nac-dst-nombre', 'el nombre del destinatario'],
+    ['nac-dst-tel',    'el teléfono de destino'],
+    ['nac-dst-calle',  'la calle de destino'],
   ]
   for (const [id, label] of required) {
     const el = document.getElementById(id)
@@ -400,6 +414,144 @@ async function nacConfirmarEnvioFinal() {
   }
 }
 
+// ── Selector de colonias por CP ──────────────────────────────────────────────
+
+let _nacCpDrop     = null  // div singleton (reutilizado entre los dos CP)
+let _nacCpDropTipo = null  // 'origen' | 'destino' — cuál está activo
+
+function _nacStatusEl(tipo) {
+  return document.getElementById('nac-' + tipo + '-cp-status')
+}
+
+function _nacCerrarDrop() {
+  if (_nacCpDrop) _nacCpDrop.style.display = 'none'
+  _nacCpDropTipo = null
+}
+
+function _nacPosicionarDrop(inputEl) {
+  if (!_nacCpDrop) {
+    _nacCpDrop = document.createElement('div')
+    _nacCpDrop.className = 'guep-ac-dropdown'
+    document.body.appendChild(_nacCpDrop)
+  }
+  const r = inputEl.getBoundingClientRect()
+  _nacCpDrop.style.top   = (r.bottom + window.scrollY + 2) + 'px'
+  _nacCpDrop.style.left  = (r.left   + window.scrollX)     + 'px'
+  _nacCpDrop.style.width = r.width + 'px'
+}
+
+function _nacMostrarColonias(tipo, colonias, estado, municipio, inputEl) {
+  _nacCpDropTipo = tipo
+  _nacPosicionarDrop(inputEl)
+  _nacCpDrop.innerHTML = colonias.map((c, i) =>
+    `<div class="guep-ac-item" data-idx="${i}">
+      <div class="guep-ac-item-main">${c}</div>
+      <div class="guep-ac-item-sub">${municipio}, ${estado}</div>
+    </div>`
+  ).join('')
+  _nacCpDrop.querySelectorAll('.guep-ac-item').forEach(el => {
+    el.addEventListener('mouseenter', () => el.classList.add('activo'))
+    el.addEventListener('mouseleave', () => el.classList.remove('activo'))
+    el.addEventListener('mousedown',  e => { e.preventDefault(); _nacElegirColonia(tipo, colonias[+el.dataset.idx], estado, municipio) })
+    el.addEventListener('touchend',   e => { e.preventDefault(); _nacElegirColonia(tipo, colonias[+el.dataset.idx], estado, municipio) })
+  })
+  _nacCpDrop.style.display = 'block'
+}
+
+function _nacElegirColonia(tipo, colonia, estado, municipio) {
+  _nacCerrarDrop()
+  if (tipo === 'origen') {
+    _nacColoniaOrigen   = colonia
+    _nacEstadoOrigen    = estado
+    _nacMunicipioOrigen = municipio
+  } else {
+    _nacColoniaDestino   = colonia
+    _nacEstadoDestino    = estado
+    _nacMunicipioDestino = municipio
+  }
+  const statusEl = _nacStatusEl(tipo)
+  if (!statusEl) return
+  statusEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:7px 10px;
+                background:rgba(26,79,160,0.06);border-radius:8px;border:1px solid rgba(26,79,160,0.15)">
+      <span style="font-size:12px;font-weight:700;color:var(--blue);flex:1;font-family:Montserrat,sans-serif">🏘 ${colonia}</span>
+      <button type="button"
+        onclick="_nacRestablecerColonia('${tipo}')"
+        style="font-size:10px;font-weight:700;color:var(--blue);background:none;border:none;
+               cursor:pointer;padding:0;text-decoration:underline;flex-shrink:0;font-family:Montserrat,sans-serif">
+        cambiar
+      </button>
+    </div>`
+}
+
+function _nacRestablecerColonia(tipo) {
+  if (tipo === 'origen') {
+    _nacColoniaOrigen = null; _nacEstadoOrigen = null; _nacMunicipioOrigen = null
+  } else {
+    _nacColoniaDestino = null; _nacEstadoDestino = null; _nacMunicipioDestino = null
+  }
+  const statusEl = _nacStatusEl(tipo)
+  if (statusEl) statusEl.innerHTML = ''
+  const cached  = _nacCpCache[tipo]
+  const inputEl = document.getElementById(tipo === 'origen' ? 'nac-cp-origen' : 'nac-cp-destino')
+  if (cached && inputEl) {
+    _nacMostrarColonias(tipo, cached.colonias, cached.estado, cached.municipio, inputEl)
+  }
+}
+
+async function _nacConsultarColonias(cp, tipo) {
+  const statusEl = _nacStatusEl(tipo)
+  const inputEl  = document.getElementById(tipo === 'origen' ? 'nac-cp-origen' : 'nac-cp-destino')
+  if (!inputEl) return
+
+  if (statusEl) statusEl.innerHTML = `<div style="font-size:11px;color:var(--gray-mid);font-weight:600;margin-top:5px;font-family:Montserrat,sans-serif">⏳ Buscando colonias...</div>`
+
+  try {
+    const res  = await fetch(`${SUPABASE_URL}/functions/v1/postalia-colonias`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body:    JSON.stringify({ cp }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data.colonias?.length) {
+      if (statusEl) statusEl.innerHTML = `<div style="font-size:11px;color:#ef4444;font-weight:600;margin-top:5px;font-family:Montserrat,sans-serif">CP no encontrado, verifica que esté bien escrito</div>`
+      return
+    }
+    if (statusEl) statusEl.innerHTML = ''
+    _nacCpCache[tipo] = { colonias: data.colonias, estado: data.estado, municipio: data.municipio }
+    _nacMostrarColonias(tipo, data.colonias, data.estado, data.municipio, inputEl)
+  } catch {
+    if (statusEl) statusEl.innerHTML = `<div style="font-size:11px;color:#ef4444;font-weight:600;margin-top:5px;font-family:Montserrat,sans-serif">Error al consultar el CP, intenta de nuevo</div>`
+  }
+}
+
+function nacIniciarCpListeners() {
+  ;[['nac-cp-origen', 'origen'], ['nac-cp-destino', 'destino']].forEach(([inputId, tipo]) => {
+    const input = document.getElementById(inputId)
+    if (!input || input.dataset.cpListenerAttached) return
+    input.dataset.cpListenerAttached = '1'
+    let _timer = null
+    input.addEventListener('input', () => {
+      const val = input.value.trim()
+      clearTimeout(_timer)
+      // Resetea inmediatamente al editar — invalida colonia previa y borra el pill
+      if (tipo === 'origen') {
+        _nacColoniaOrigen = null; _nacEstadoOrigen = null; _nacMunicipioOrigen = null
+      } else {
+        _nacColoniaDestino = null; _nacEstadoDestino = null; _nacMunicipioDestino = null
+      }
+      _nacCpCache[tipo] = null
+      _nacCerrarDrop()
+      const statusEl = _nacStatusEl(tipo)
+      if (statusEl) statusEl.innerHTML = ''
+      if (/^\d{5}$/.test(val)) {
+        _timer = setTimeout(() => _nacConsultarColonias(val, tipo), 400)
+      }
+    })
+    input.addEventListener('blur', () => setTimeout(_nacCerrarDrop, 150))
+  })
+}
+
 // ── Reset ────────────────────────────────────────────────────────────────────
 
 function nacReset() {
@@ -435,6 +587,15 @@ function nacReset() {
 
   _nacEnvioId = _nacCpOrigen = _nacCpDestino = _nacCotizacionTs = null
   _nacPesoKg  = _nacLargoCm = _nacAnchoCm   = _nacAltoCm       = 0
+
+  _nacColoniaOrigen = _nacEstadoOrigen = _nacMunicipioOrigen = null
+  _nacColoniaDestino = _nacEstadoDestino = _nacMunicipioDestino = null
+  _nacCpCache.origen = _nacCpCache.destino = null
+  _nacCerrarDrop()
+  const _s1 = document.getElementById('nac-origen-cp-status')
+  const _s2 = document.getElementById('nac-destino-cp-status')
+  if (_s1) _s1.innerHTML = ''
+  if (_s2) _s2.innerHTML = ''
 
   nacShowStep(1)
 }

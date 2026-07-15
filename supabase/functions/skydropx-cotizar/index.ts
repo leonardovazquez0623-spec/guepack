@@ -58,13 +58,13 @@ serve(async (req) => {
     // Resuelve CP → estado/municipio/colonia antes de cotizar
     let origenResuelto, destinoResuelto;
     try {
-      origenResuelto = await resolverCP(origen.cp);
+      origenResuelto = await resolverCP(origen.cp, origen.colonia || undefined);
     } catch (e: any) {
       const status = e.message.includes("no existe") ? 400 : 503;
       return json({ error: e.message }, status);
     }
     try {
-      destinoResuelto = await resolverCP(destino.cp);
+      destinoResuelto = await resolverCP(destino.cp, destino.colonia || undefined);
     } catch (e: any) {
       const status = e.message.includes("no existe") ? 400 : 503;
       return json({ error: e.message }, status);
@@ -178,7 +178,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function resolverCP(cp: string) {
+async function resolverCP(cp: string, coloniaSeleccionada?: string) {
   const res = await fetch(
     `https://postalia.com.mx/api/codigos-postales/${cp}`,
     { headers: { Authorization: `Bearer ${Deno.env.get("POSTALIA_TOKEN")}` } }
@@ -203,6 +203,6 @@ async function resolverCP(cp: string) {
   return {
     estado:    json.estado,
     municipio: json.municipio,
-    colonia:   json.colonias?.[0]?.nombre ?? json.municipio,
+    colonia:   coloniaSeleccionada || (json.colonias?.[0]?.nombre ?? json.municipio),
   };
 }

@@ -1319,10 +1319,12 @@
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">CP origen *</label>
               <input id="nac-cp-origen" type="text" class="form-input" placeholder="Ej. 64000" maxlength="5" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <div id="nac-origen-cp-status"></div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">CP destino *</label>
               <input id="nac-cp-destino" type="text" class="form-input" placeholder="Ej. 06600" maxlength="5" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <div id="nac-destino-cp-status"></div>
             </div>
           </div>
 
@@ -1413,17 +1415,30 @@
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
-            <label class="form-label">Colonia *</label>
-            <input id="nac-ori-colonia" type="text" class="form-input" placeholder="Colonia o fraccionamiento">
+            <label class="form-label">Colonia</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="nac-ori-colonia" type="text" class="form-input" readonly
+                style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+              <span style="font-size:16px">🔒</span>
+            </div>
+            <div class="nac-cp-lock">Confirmado en tu cotización</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Ciudad *</label>
-              <input id="nac-ori-ciudad" type="text" class="form-input" placeholder="Ciudad">
+              <label class="form-label">Ciudad</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="nac-ori-ciudad" type="text" class="form-input" readonly
+                  style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+                <span style="font-size:16px">🔒</span>
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Estado *</label>
-              <input id="nac-ori-estado" type="text" class="form-input" placeholder="Estado">
+              <label class="form-label">Estado</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="nac-ori-estado" type="text" class="form-input" readonly
+                  style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+                <span style="font-size:16px">🔒</span>
+              </div>
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
@@ -1470,17 +1485,30 @@
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
-            <label class="form-label">Colonia *</label>
-            <input id="nac-dst-colonia" type="text" class="form-input" placeholder="Colonia o fraccionamiento">
+            <label class="form-label">Colonia</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="nac-dst-colonia" type="text" class="form-input" readonly
+                style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+              <span style="font-size:16px">🔒</span>
+            </div>
+            <div class="nac-cp-lock">Confirmado en tu cotización</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Ciudad *</label>
-              <input id="nac-dst-ciudad" type="text" class="form-input" placeholder="Ciudad">
+              <label class="form-label">Ciudad</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="nac-dst-ciudad" type="text" class="form-input" readonly
+                  style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+                <span style="font-size:16px">🔒</span>
+              </div>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Estado *</label>
-              <input id="nac-dst-estado" type="text" class="form-input" placeholder="Estado">
+              <label class="form-label">Estado</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input id="nac-dst-estado" type="text" class="form-input" readonly
+                  style="background:rgba(26,79,160,0.06);color:var(--blue);font-weight:700;flex:1">
+                <span style="font-size:16px">🔒</span>
+              </div>
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
@@ -5249,6 +5277,7 @@ function showClientSection(section) {
   clientBtns[idx].classList.add('active');
   if (section === 'history') cargarHistorial();
   if (section === 'tracking') _cargarNacionalesRastreo()
+  if (section === 'nacional') nacIniciarCpListeners()
 }
 
 // ── Cargar pedidos en Admin ──
