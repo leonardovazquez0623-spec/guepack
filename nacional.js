@@ -375,16 +375,8 @@ async function nacConfirmarEnvioFinal() {
 
     _nacEnvioId = result.envio_id
 
-    // Lee el proveedor de pago activo en config_app
     btn.textContent = '⏳ Generando link de pago...'
-    const { data: cfgPago } = await db.from('config_app')
-      .select('value')
-      .eq('key', 'proveedor_pago_activo')
-      .maybeSingle()
-    const proveedor = cfgPago?.value || 'conekta'
-    const fnPago = proveedor === 'mercadopago' ? 'mercadopago-crear-pago' : 'conekta-crear-pago'
-
-    const pagoRes = await fetch(`${SUPABASE_URL}/functions/v1/${fnPago}`, {
+    const pagoRes = await fetch(`${SUPABASE_URL}/functions/v1/conekta-crear-pago`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
