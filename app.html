@@ -1134,7 +1134,7 @@
             </div>
 
             <div id="paradas-container"></div>
-            <button id="btn-agregar-parada-form" type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px dashed var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:0;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
+            <button id="btn-agregar-parada-form" type="button" onclick="agregarParada()" style="width:100%;padding:10px;background:rgba(26,79,160,0.07);color:var(--blue);border:2px solid var(--blue);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;margin-bottom:0;transition:background .15s" onmouseover="this.style.background='rgba(26,79,160,0.13)'" onmouseout="this.style.background='rgba(26,79,160,0.07)'">
               ➕ Agregar parada
             </button>
           </div>
@@ -1771,7 +1771,7 @@ const _VIP_NIVELES = [
   { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
   { min: 20, nivel: 'plata',  icono: '🥈', label: 'Plata',   bg: '#555555' },
   { min: 10, nivel: 'bronce', icono: '🥉', label: 'Bronce',  bg: '#8B4513' },
-  { min:  0, nivel: 'normal', icono: '',   label: '',         bg: ''        }
+  { min:  0, nivel: 'normal', icono: '',   label: 'GuepAmigo', bg: ''        }
 ]
 const _VIP_TEMAS = {
   normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
@@ -4075,7 +4075,7 @@ function _crearCardHTML(id, nombreRemitente = null) {
         <div id="pac-${id}-paradas" style="display:none;margin-bottom:8px;padding:8px 10px;background:#f4f7fb;border-radius:10px;font-family:Montserrat,sans-serif"></div>
         <div id="pac-${id}-timer-domicilio" style="display:none;margin-bottom:8px;background:rgba(239,68,68,0.1);border:1.5px solid #ef4444;border-radius:10px;padding:8px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-align:center"></div>
         <div id="pac-${id}-agregar-parada-wrap" style="display:none;margin-bottom:8px">
-          <button onclick="abrirModalAgregarParada(${id})" style="width:100%;padding:9px;background:rgba(26,79,160,0.07);border:1.5px dashed var(--blue);border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--blue)">➕ Agregar parada</button>
+          <button onclick="abrirModalAgregarParada(${id})" style="width:100%;padding:9px;background:rgba(26,79,160,0.07);border:1.5px solid var(--blue);border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--blue)">➕ Agregar parada</button>
         </div>
         <div id="pac-${id}-cancelar-container">
           <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="width:100%;padding:10px;background:rgba(240,90,26,0.08);color:var(--orange);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">
@@ -5983,7 +5983,7 @@ async function _abrirDrawer() {
 
   const nivel  = _clienteNivelVip || 'normal'
   const total  = _clienteTotalPedidos || 0
-  const _vipLabels = { normal:'Normal', bronce:'Bronce', plata:'Plata', oro:'Oro VIP' }
+  const _vipLabels = { normal:'GuepAmigo', bronce:'Bronce', plata:'Plata', oro:'Oro VIP' }
   const _vipColors = { normal:'#8fa3c0', bronce:'#CD7F32', plata:'#808080', oro:'#DAA520' }
   const _vipBg     = { normal:'rgba(255,255,255,0.15)', bronce:'rgba(205,127,50,0.2)', plata:'rgba(128,128,128,0.2)', oro:'rgba(218,165,32,0.25)' }
 
