@@ -547,6 +547,11 @@ function initMapsAdmin() {
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">Usos por usuario</label>
+        <input type="number" id="cupon-usos-por-usuario" min="1" value="1" placeholder="Ej. 1" style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;box-sizing:border-box;font-family:inherit;font-size:14px">
+        <small style="color:#6b7280;font-size:11px">Máx. veces que un cliente puede usar este cupón</small>
+      </div>
+      <div class="form-group">
         <label class="form-label">Fecha de expiración</label>
         <input type="date" id="cupon-expiracion" class="form-input">
       </div>
@@ -3639,7 +3644,7 @@ async function cargarCupones() {
         <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--blue)">${c.codigo}</span>
         <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--orange)">${descLabel}</span>
       </div>
-      <div style="font-size:10px;font-weight:700;color:#999;margin-bottom:10px">Vence: ${exp} · ${c.usos_actuales || 0}/${c.usos_maximos || '∞'} usos · ${estado}</div>
+      <div style="font-size:10px;font-weight:700;color:#999;margin-bottom:10px">Vence: ${exp} · ${c.usos_actuales || 0}/${c.usos_maximos || '∞'} usos globales · ${c.usos_por_usuario ? c.usos_por_usuario + ' por usuario' : 'sin límite por usuario'} · ${estado}</div>
       <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
         <button onclick="editarCupon(${c.id})" style="padding:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
         <button onclick="eliminarCupon(${c.id})" style="padding:8px 12px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
@@ -3653,10 +3658,11 @@ async function guardarCupon() {
   const descuento = parseFloat(document.getElementById('cupon-descuento').value)
   const tipo = document.getElementById('cupon-tipo').value
   const usos = parseInt(document.getElementById('cupon-usos').value) || null
+  const usosPorUsuario = parseInt(document.getElementById('cupon-usos-por-usuario').value) || null
   const expiracion = document.getElementById('cupon-expiracion').value || null
   const id = document.getElementById('cupon-id').value
   if (!codigo || !descuento) return showToast('⚠️ Ingresa código y descuento')
-  const payload = { codigo, descuento, tipo, usos_maximos: usos, fecha_expiracion: expiracion }
+  const payload = { codigo, descuento, tipo, usos_maximos: usos, usos_por_usuario: usosPorUsuario, fecha_expiracion: expiracion }
   let error
   if (id) {
     ;({ error } = await db.from('cupones').update(payload).eq('id', id))
@@ -3677,6 +3683,7 @@ async function editarCupon(id) {
   document.getElementById('cupon-descuento').value = data.descuento
   document.getElementById('cupon-tipo').value = data.tipo || 'porcentaje'
   document.getElementById('cupon-usos').value = data.usos_maximos || ''
+  document.getElementById('cupon-usos-por-usuario').value = data.usos_por_usuario || ''
   document.getElementById('cupon-expiracion').value = data.fecha_expiracion || ''
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -3695,6 +3702,7 @@ function _resetFormCupon() {
   document.getElementById('cupon-descuento').value = ''
   document.getElementById('cupon-tipo').value = 'porcentaje'
   document.getElementById('cupon-usos').value = ''
+  document.getElementById('cupon-usos-por-usuario').value = ''
   document.getElementById('cupon-expiracion').value = ''
 }
 

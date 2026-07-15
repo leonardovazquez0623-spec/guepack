@@ -3104,6 +3104,12 @@ const { data, error } = await db.from('pedidos').insert({
 
   if (_cuponActivo) {
     db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
+    if (userId) {
+      db.from('cupones_usos').upsert(
+        { cupon_id: _cuponActivo.id, user_id: userId, usos: (_cuponActivo._usosUsuario || 0) + 1 },
+        { onConflict: 'cupon_id,user_id' }
+      ).then(() => {})
+    }
   }
   if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId }).then(() => {})
 
@@ -4875,7 +4881,22 @@ async function aplicarCupon() {
     resultado.textContent = '❌ Este cupón ya no tiene usos disponibles'
     _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
+  let _cuponUsosUsuario = 0
+  if (data.usos_por_usuario) {
+    const { data: { session } } = await db.auth.getSession()
+    if (session) {
+      const { data: usosData } = await db.from('cupones_usos')
+        .select('usos').eq('cupon_id', data.id).eq('user_id', session.user.id).single()
+      _cuponUsosUsuario = usosData?.usos || 0
+      if (_cuponUsosUsuario >= data.usos_por_usuario) {
+        mostrarToast('⚠️ Ya alcanzaste el límite de uso de este cupón', '#f05a1a')
+        resultado.style.display = 'none'
+        return
+      }
+    }
+  }
   _cuponActivo = data
+  _cuponActivo._usosUsuario = _cuponUsosUsuario
   updateQuote()
   const descLabel = data.tipo === 'porcentaje' ? data.descuento + '%' : '$' + data.descuento
   resultado.style.display = 'none'
