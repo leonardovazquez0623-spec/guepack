@@ -2854,11 +2854,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (_pago === 'exitoso') {
       nacReset()
       document.getElementById('nac-step-1').style.display = 'none'
-      document.getElementById('nac-success').style.display = ''
-      document.getElementById('nac-folio').textContent = 'GKN-' + String(_envioId).padStart(5, '0')
-      document.querySelector('#nac-success .success-title').textContent = '¡Pago recibido!'
-      document.querySelector('#nac-success .success-sub').textContent =
-        'Recibimos tu pago. Estamos generando tu guía y te avisaremos cuando esté lista.'
+      document.getElementById('nac-folio').textContent = 'GKN-' + String(_envioId).padStart(5, '0');
+
+      (async () => {
+        let _pagoVerificado = false
+        try {
+          const { data: _ed } = await db
+            .from('envios_nacionales')
+            .select('pago_verificado')
+            .eq('id', _envioId)
+            .single()
+          _pagoVerificado = _ed?.pago_verificado === true
+        } catch {}
+
+        const _iconEl  = document.querySelector('#nac-success .success-icon')
+        const _titleEl = document.querySelector('#nac-success .success-title')
+        const _subEl   = document.querySelector('#nac-success .success-sub')
+        if (_pagoVerificado) {
+          if (_iconEl)  _iconEl.textContent  = '✅'
+          if (_titleEl) _titleEl.textContent = '¡Pago recibido!'
+          if (_subEl)   _subEl.innerHTML     = 'Recibimos tu pago. Estamos generando tu guía y te avisaremos cuando esté lista.'
+        } else {
+          if (_iconEl)  _iconEl.textContent  = '📧'
+          if (_titleEl) _titleEl.textContent = '¡Ya casi!'
+          if (_subEl)   _subEl.innerHTML     = 'Revisa tu correo para completar tu pago en efectivo/OXXO.<br>En cuanto se confirme, generaremos tu guía automáticamente y te avisaremos.'
+        }
+        document.getElementById('nac-success').style.display = ''
+      })()
     } else if (_pago === 'fallido') {
       mostrarToast('⚠️ El pago no fue completado. Puedes intentarlo de nuevo.', 'var(--orange)')
     }
@@ -3259,48 +3281,92 @@ async function _cargarNacionalesRastreo() {
 
   const { data } = await db
     .from('envios_nacionales')
-    .select('id, paqueteria, servicio, numero_guia, tracking_url, label_url, estado, destino_ciudad, destino_estado')
+    .select('id, paqueteria, servicio, numero_guia, tracking_url, label_url, estado, pago_verificado, created_at, destino_ciudad, destino_estado')
     .eq('user_id', session.user.id)
-    .not('numero_guia', 'is', null)
+    .not('metodo_pago', 'is', null)
+    .neq('estado', 'cancelado')
     .order('created_at', { ascending: false })
 
   const wrap = document.getElementById('nacionales-rastreo-wrap')
   const list = document.getElementById('nacionales-rastreo-list')
   if (!wrap || !list) return
-  if (!data?.length) { wrap.style.display = 'none'; return }
 
   wrap.style.display = 'block'
-  list.innerHTML = data.map((e, i) => {
-    const badgeClass = e.estado === 'guia_generada'   ? 'badge-done'
-                     : e.estado === 'pago_verificado' ? 'badge-transit'
-                     :                                  'badge-pending'
-    const estadoLabel = e.estado === 'guia_generada'   ? 'Guía generada'
-                      : e.estado === 'pago_verificado' ? 'Pago verificado'
-                      :                                  e.estado
+
+  if (!data?.length) {
+    list.innerHTML = `<div style="font-family:Montserrat,sans-serif;font-size:13px;color:var(--gray-mid);font-weight:600;text-align:center;padding:8px 0">Aún no tienes envíos nacionales realizados</div>`
+    return
+  }
+
+  list.innerHTML = data.map(e => {
     const destino = [e.destino_ciudad, e.destino_estado].filter(Boolean).join(', ')
-    const btnRastreo = e.tracking_url
-      ? `<a href="${e.tracking_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:var(--blue);color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">Ver rastreo</a>`
-      : ''
-    const btnGuia = e.label_url
-      ? `<a href="${e.label_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:#059669;color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">📄 Descargar guía</a>`
-      : ''
-    const accion = (btnRastreo || btnGuia)
-      ? btnRastreo + btnGuia
-      : `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600">Consulta el estado directo con la paquetería</span>`
+    const folio   = 'GKN-' + String(e.id).padStart(5, '0')
+    let badge = '', nota = '', acciones = '', cancelBtn = ''
+
+    if (e.numero_guia) {
+      badge = `<span class="status-badge badge-done">Guía generada</span>`
+      const btnRastreo = e.tracking_url
+        ? `<a href="${e.tracking_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:var(--blue);color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">Ver rastreo</a>`
+        : ''
+      const btnGuia = e.label_url
+        ? `<a href="${e.label_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:#059669;color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">📄 Descargar guía</a>`
+        : ''
+      acciones = (btnRastreo || btnGuia)
+        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${btnRastreo}${btnGuia}</div>`
+        : `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600">Consulta directo con la paquetería</span>`
+    } else if (e.pago_verificado) {
+      badge = `<span class="status-badge badge-transit">Generando guía...</span>`
+      nota  = `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:6px">Esto puede tardar unos minutos</div>`
+    } else {
+      badge = `<span class="status-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a">⏳ Pendiente de pago</span>`
+      nota  = `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:6px">Revisa tu correo para completar el pago</div>`
+      const horasTranscurridas = (Date.now() - new Date(e.created_at).getTime()) / (1000 * 60 * 60)
+      if (horasTranscurridas >= 12) {
+        cancelBtn = `
+          <button onclick="_nacCancelarEnvio(${e.id})" title="Cancelar envío"
+            style="background:none;border:none;cursor:pointer;padding:2px 0 0;color:#ef4444;flex-shrink:0;line-height:1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>`
+      }
+    }
+
     return `
-      ${i > 0 ? '<hr style="border:none;border-top:1px solid var(--gray);margin:10px 0">' : ''}
-      <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between">
-        <div style="min-width:0">
-          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--blue)">${e.paqueteria || '—'}${e.servicio ? ' · ' + e.servicio : ''}</div>
-          <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:2px;word-break:break-all">${e.numero_guia}</div>
-          ${destino ? `<div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:1px">→ ${destino}</div>` : ''}
+      <div id="nac-card-${e.id}" style="padding:14px 0;border-bottom:1px solid var(--gray)">
+        <div style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between">
+          <div style="min-width:0;flex:1">
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--blue)">${e.paqueteria || '—'}${e.servicio ? ' · ' + e.servicio : ''}</div>
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:2px;word-break:break-all">${e.numero_guia || folio}</div>
+            ${destino ? `<div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-top:1px">→ ${destino}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+            ${badge}
+            ${acciones}
+            ${cancelBtn}
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-          <span class="status-badge ${badgeClass}">${estadoLabel}</span>
-          ${accion}
-        </div>
+        ${nota}
       </div>`
   }).join('')
+
+  const lastCard = list.lastElementChild
+  if (lastCard) lastCard.style.borderBottom = 'none'
+}
+
+async function _nacCancelarEnvio(id) {
+  if (!confirm('¿Cancelar este envío pendiente de pago?')) return
+  const { error } = await db
+    .from('envios_nacionales')
+    .update({ estado: 'cancelado' })
+    .eq('id', id)
+  if (error) { mostrarToast('Error al cancelar el envío', '#ef4444'); return }
+  document.getElementById('nac-card-' + id)?.remove()
+  const list = document.getElementById('nacionales-rastreo-list')
+  if (list && !list.children.length) {
+    list.innerHTML = `<div style="font-family:Montserrat,sans-serif;font-size:13px;color:var(--gray-mid);font-weight:600;text-align:center;padding:8px 0">Aún no tienes envíos nacionales realizados</div>`
+  }
+  mostrarToast('Envío cancelado', '#22c55e')
 }
 
 // ── Repartidor card en rastreo ─────────────────────────────────────────────
