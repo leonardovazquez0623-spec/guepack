@@ -56,8 +56,13 @@ serve(async (req) => {
     if (fetchErr || !envio) return json({ error: "Envío no encontrado" }, 404);
     if (envio.user_id !== user.id) return json({ error: "No autorizado" }, 403);
     if (envio.estado !== "pendiente_pago") return json({ error: "Este envío ya fue procesado" }, 400);
-    if (Number(envio.costo_total) < 10) {
-      return json({ error: "El monto es menor al mínimo permitido para pago con tarjeta ($10 MXN). Por favor selecciona otro método de pago." }, 400);
+    const MONTO_MINIMO_CONEKTA = 20; // MXN — mínimo real confirmado por pruebas con la API
+    const MONTO_MAXIMO_CONEKTA = 1000; // MXN — límite documentado por Conekta para tarjeta
+    if (Number(envio.costo_total) < MONTO_MINIMO_CONEKTA) {
+      return json({ error: `El monto mínimo para pago con tarjeta es de $${MONTO_MINIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
+    }
+    if (Number(envio.costo_total) > MONTO_MAXIMO_CONEKTA) {
+      return json({ error: `El monto máximo para pago con tarjeta es de $${MONTO_MAXIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
     }
 
     // 3. Crea el PaymentLink en Conekta

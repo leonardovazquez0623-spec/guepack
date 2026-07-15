@@ -2894,6 +2894,7 @@ async function cargarPedidos() {
 }
 
 let realtimeChannel = null
+let _cargosChannel = null
 function iniciarRealtime() {
   if (realtimeChannel) db.removeChannel(realtimeChannel)
   realtimeChannel = db.channel('admin-pedidos')
@@ -4093,6 +4094,16 @@ async function cargarCargosConcelacion() {
     .eq('estado', 'Cancelado')
     .gt('cargo_cancelacion', 0)
     .order('created_at', { ascending: false })
+
+  // Suscripción Realtime: se inicia una sola vez, independientemente de si hay datos.
+  if (!_cargosChannel) {
+    _cargosChannel = db.channel('admin-cargos-cancelacion')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, (payload) => {
+        if (!document.getElementById('tab-finanzas')?.classList.contains('active')) return
+        if (payload.new?.estado === 'Cancelado') cargarCargosConcelacion()
+      })
+      .subscribe()
+  }
 
   if (error || !data?.length) {
     cont.innerHTML = '<div style="color:#8fa3c0;font-size:12px;font-weight:600;padding:12px 0;text-align:center">✅ Sin cargos por cancelación pendientes</div>'

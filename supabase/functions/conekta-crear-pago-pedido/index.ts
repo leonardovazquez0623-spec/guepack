@@ -79,8 +79,13 @@ serve(async (req) => {
     if (pedido.estado !== "Pendiente pago MP") {
       return jsonRes(hdrs, { error: "Este pedido ya fue procesado o no requiere pago por este medio" }, 400);
     }
-    if (Number(pedido.precio) < 10) {
-      return jsonRes(hdrs, { error: "El monto es menor al mínimo permitido para pago con tarjeta ($10 MXN). Por favor selecciona otro método de pago." }, 400);
+    const MONTO_MINIMO_CONEKTA = 20; // MXN — mínimo real confirmado por pruebas con la API
+    const MONTO_MAXIMO_CONEKTA = 1000; // MXN — límite documentado por Conekta para tarjeta
+    if (Number(pedido.precio) < MONTO_MINIMO_CONEKTA) {
+      return jsonRes(hdrs, { error: `El monto mínimo para pago con tarjeta es de $${MONTO_MINIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
+    }
+    if (Number(pedido.precio) > MONTO_MAXIMO_CONEKTA) {
+      return jsonRes(hdrs, { error: `El monto máximo para pago con tarjeta es de $${MONTO_MAXIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
     }
 
     // 4. Crea el PaymentLink en Conekta
@@ -118,7 +123,7 @@ serve(async (req) => {
           currency: "MXN",
           customer_info: {
             name:  pedido.nombre  || "Cliente GUEPACK",
-            email: "cliente@guepack.com",
+            email: user.email     || "cliente@guepack.com",
             phone: pedido.whatsapp || "0000000000",
           },
           metadata: { pedido_id: String(pedido_id) },

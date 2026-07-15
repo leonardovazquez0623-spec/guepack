@@ -4733,8 +4733,9 @@ async function _pagarConTarjeta(pedidoId) {
     window.location.href = json.checkout_url
   } catch (e) {
     console.error('[_pagarConTarjeta] error:', e)
+    const esMontoBloqueado = e.message?.includes('monto mínimo') || e.message?.includes('monto máximo')
     mostrarToast('❌ ' + (e.message || 'Error al generar el link de pago'), '#ef4444')
-    if (!e.message?.includes('mínimo permitido')) {
+    if (!esMontoBloqueado) {
       setTimeout(() => mostrarToast('💡 Tu pedido fue guardado. Ve a Historial para reintentar el pago.', '#f59e0b'), 1800)
     }
     if (btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = 'Solicitar Recolección →' }
@@ -4757,7 +4758,8 @@ async function _pagarConTarjetaHistorial(pedidoId, btn) {
   } catch (e) {
     console.error('[_pagarConTarjetaHistorial] error:', e)
     mostrarToast('❌ ' + (e.message || 'Error al generar el link de pago'), '#ef4444')
-    if (btn) { btn.disabled = false; btn.textContent = '💳 Completar pago' }
+    const esMontoBloqueado = e.message?.includes('monto mínimo') || e.message?.includes('monto máximo')
+    if (btn) { btn.disabled = esMontoBloqueado; btn.textContent = esMontoBloqueado ? '🚫 Monto no permitido' : '💳 Completar pago' }
   }
 }
 
