@@ -2191,8 +2191,17 @@ async function _registrarTokenFCM(userId) {
   }
 }
 
+if (!window._notificacionEnviada) window._notificacionEnviada = new Set()
+
 async function _enviarPushAUsuarioRepa(userId, titulo, cuerpo) {
   if (!userId) return
+  const key = `${userId}-${titulo}`
+  if (window._notificacionEnviada.has(key)) {
+    console.log('[push] notificación duplicada ignorada:', key)
+    return
+  }
+  window._notificacionEnviada.add(key)
+  setTimeout(() => window._notificacionEnviada.delete(key), 5000)
   try {
     await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
       method: 'POST',
