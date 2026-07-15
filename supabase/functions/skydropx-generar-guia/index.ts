@@ -166,6 +166,24 @@ serve(async (req) => {
 
     if (updateErr) return json({ error: "Guía creada pero falló guardar en BD", detail: updateErr.message }, 500);
 
+    const numeroGuia = data.tracking_number ?? data.attributes?.tracking_number;
+    if (envio.user_id) {
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-push`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({
+            user_id: envio.user_id,
+            title: "📦 ¡Tu guía está lista!",
+            body: `Tu envío con ${envio.paqueteria || "la paquetería"} ya tiene número de guía: ${numeroGuia}. Descarga tu guía desde la app.`,
+            tipo: "envio",
+          }),
+        });
+      } catch (e: any) {
+        console.error("[skydropx-generar-guia] Error enviando push guía lista:", e.message);
+      }
+    }
+
     return json({
       ok: true,
       numero_guia: data.tracking_number,

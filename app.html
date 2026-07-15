@@ -3252,7 +3252,7 @@ async function _cargarNacionalesRastreo() {
 
   const { data } = await db
     .from('envios_nacionales')
-    .select('id, paqueteria, servicio, numero_guia, tracking_url, estado, destino_ciudad, destino_estado')
+    .select('id, paqueteria, servicio, numero_guia, tracking_url, label_url, estado, destino_ciudad, destino_estado')
     .eq('user_id', session.user.id)
     .not('numero_guia', 'is', null)
     .order('created_at', { ascending: false })
@@ -3271,8 +3271,14 @@ async function _cargarNacionalesRastreo() {
                       : e.estado === 'pago_verificado' ? 'Pago verificado'
                       :                                  e.estado
     const destino = [e.destino_ciudad, e.destino_estado].filter(Boolean).join(', ')
-    const accion = e.tracking_url
+    const btnRastreo = e.tracking_url
       ? `<a href="${e.tracking_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:var(--blue);color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">Ver rastreo</a>`
+      : ''
+    const btnGuia = e.label_url
+      ? `<a href="${e.label_url}" target="_blank" rel="noopener" style="display:inline-block;padding:6px 12px;background:#059669;color:white;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;text-decoration:none">📄 Descargar guía</a>`
+      : ''
+    const accion = (btnRastreo || btnGuia)
+      ? btnRastreo + btnGuia
       : `<span style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600">Consulta el estado directo con la paquetería</span>`
     return `
       ${i > 0 ? '<hr style="border:none;border-top:1px solid var(--gray);margin:10px 0">' : ''}

@@ -217,7 +217,7 @@ serve(async (req) => {
 
       const { data: envio } = await supabaseAdmin
         .from("envios_nacionales")
-        .select("id, pago_verificado")
+        .select("id, pago_verificado, user_id, paqueteria")
         .eq("id", envioId)
         .maybeSingle();
 
@@ -242,6 +242,23 @@ serve(async (req) => {
       if (updateErr) {
         console.error("Error actualizando pago_verificado:", updateErr.message);
         return new Response("ok", { status: 200 });
+      }
+
+      if (envio.user_id) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}` },
+            body: JSON.stringify({
+              user_id: envio.user_id,
+              title: "✅ Pago confirmado",
+              body: `Estamos generando tu guía de ${envio.paqueteria || "paquetería"}, te avisaremos en cuanto esté lista`,
+              tipo: "envio",
+            }),
+          });
+        } catch (e: any) {
+          console.error("Error enviando push pago confirmado:", e.message);
+        }
       }
 
       const guiaRes = await fetch(
