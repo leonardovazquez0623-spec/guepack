@@ -636,6 +636,7 @@ function rugidoGuepack() {
 
 let _repaUserId  = null
 let _repaData    = null
+let _appCargada  = false
 let _pedidosRechazados            = new Set()
 let _pedidosCancelacionNotificados = new Set()
 let _modalCountdownTimer = null
@@ -918,15 +919,26 @@ async function _cancelarAsignacion(pedidoId) {
 }
 
 async function verificarRolRepartidor(intentos = 0) {
-  const { data: { session } } = await db.auth.getSession()
+  let session = null
+  try {
+    const { data } = await db.auth.getSession()
+    session = data?.session
+  } catch (_) {}
+
+  // En el primer intento fallido, forzar un refresh de token antes de reintentar
+  if (!session && intentos === 0) {
+    try {
+      const { data } = await db.auth.refreshSession()
+      session = data?.session
+    } catch (_) {}
+  }
 
   if (!session) {
-    if (intentos < 3) {
-      await new Promise(r => setTimeout(r, 500))
+    if (intentos < 5) {
+      await new Promise(r => setTimeout(r, 800))
       return verificarRolRepartidor(intentos + 1)
     }
-    window.location.href = 'login.html'
-    return null
+    return null  // No redirigir aquí — onAuthStateChange puede rescatar la sesión
   }
 
   const { data: usuario } = await db.from('usuarios')
@@ -935,8 +947,8 @@ async function verificarRolRepartidor(intentos = 0) {
     .single()
 
   if (usuario?.rol !== 'repartidor') {
-    if (intentos < 3) {
-      await new Promise(r => setTimeout(r, 500))
+    if (intentos < 5) {
+      await new Promise(r => setTimeout(r, 800))
       return verificarRolRepartidor(intentos + 1)
     }
     window.location.href = usuario?.rol === 'admin' ? 'admin.html' : 'login.html'
@@ -946,9 +958,9 @@ async function verificarRolRepartidor(intentos = 0) {
   return session
 }
 
-async function init() {
-  const session = await verificarRolRepartidor()
-  if (!session) return
+async function _continuarCargaApp(session) {
+  if (_appCargada) return
+  _appCargada = true
 
   _repaUserId = session.user.id
   _repaEmail  = session.user.email
@@ -1025,6 +1037,34 @@ async function init() {
       _mostrarModalNuevoPedido(pendientes[0])
     }
   }
+}
+
+async function init() {
+  // Listener de cambio de estado — detecta restauración de sesión aunque el retry loop ya terminó
+  db.auth.onAuthStateChange(async (event, session) => {
+    if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session && !_appCargada) {
+      const { data: usuario } = await db.from('usuarios')
+        .select('rol')
+        .eq('user_id', session.user.id)
+        .single()
+      if (usuario?.rol === 'repartidor') {
+        await _continuarCargaApp(session)
+      } else if (usuario?.rol) {
+        window.location.href = usuario.rol === 'admin' ? 'admin.html' : 'login.html'
+      }
+    }
+  })
+
+  const session = await verificarRolRepartidor()
+
+  if (!session) {
+    // El retry loop se agotó — onAuthStateChange sigue escuchando.
+    // Si en 10s tampoco llega la sesión, redirigir a login.
+    setTimeout(() => { if (!_appCargada) window.location.href = 'login.html' }, 10000)
+    return
+  }
+
+  await _continuarCargaApp(session)
 }
 
 async function cargarPedidos(email) {

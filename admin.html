@@ -133,7 +133,9 @@
   }
   .sidebar-item:hover { background: rgba(255,255,255,.12); color: white; }
   .sidebar-item.active { background: var(--orange); color: white; }
-  .sidebar-item.active .guep-icon-inline { filter: brightness(0) invert(1); }
+  .sidebar-item .guep-icon-inline { filter: brightness(0) invert(1); opacity: .72; transition: opacity .15s; }
+  .sidebar-item:hover .guep-icon-inline { opacity: 1; }
+  .sidebar-item.active .guep-icon-inline { filter: brightness(0) invert(1); opacity: 1; }
 
   @media (min-width: 768px) {
     body { display: flex; flex-direction: row; align-items: flex-start; }
