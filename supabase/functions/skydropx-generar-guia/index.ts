@@ -166,6 +166,67 @@ serve(async (req) => {
 
     if (updateErr) return json({ error: "Guía creada pero falló guardar en BD", detail: updateErr.message }, 500);
 
+    // Si el envío incluye recolección a domicilio, crear pedido de moto y disparar asignación
+    if (envio.recoleccion_domicilio === true) {
+      try {
+        const { data: configRows } = await supabaseAdmin
+          .from("config_app")
+          .select("key, value")
+          .in("key", ["direccion_base_guepack", "lat_base_guepack", "lng_base_guepack"]);
+        const cfg: Record<string, string> = {};
+        (configRows ?? []).forEach((r: any) => { cfg[r.key] = r.value });
+
+        const dirOrigen = [
+          envio.origen_calle,
+          envio.origen_numero,
+          envio.origen_colonia,
+          envio.origen_ciudad,
+          envio.origen_estado,
+        ].filter(Boolean).join(", ");
+
+        const { data: nuevoPedido, error: pedidoErr } = await supabaseAdmin
+          .from("pedidos")
+          .insert({
+            user_id:               envio.user_id,
+            direccion_recoleccion: dirOrigen,
+            direccion_entrega:     cfg.direccion_base_guepack ?? "",
+            lat_entrega:           cfg.lat_base_guepack  ? parseFloat(cfg.lat_base_guepack)  : null,
+            lng_entrega:           cfg.lng_base_guepack  ? parseFloat(cfg.lng_base_guepack)  : null,
+            estado:                "Pendiente",
+            precio:                60,
+            envio_nacional_id:     envio_id,
+            instrucciones:         `Recolección para guía nacional ${envio.paqueteria ?? ""} — folio ${envio_id}`,
+            metodo_pago:           "pagado",
+          })
+          .select("id")
+          .single();
+
+        if (pedidoErr) {
+          console.error("[skydropx-generar-guia] Error insertando pedido recolección:", pedidoErr.message);
+        } else {
+          try {
+            const asigRes = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/procesar-asignacion`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":  "application/json",
+                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                },
+                body: JSON.stringify({ pedido_id: Number(nuevoPedido.id), ronda: 1 }),
+              }
+            );
+            const asigJson = await asigRes.json();
+            console.log("[skydropx-generar-guia] procesar-asignacion recolección:", JSON.stringify(asigJson));
+          } catch (e: any) {
+            console.error("[skydropx-generar-guia] Error llamando procesar-asignacion:", e.message);
+          }
+        }
+      } catch (e: any) {
+        console.error("[skydropx-generar-guia] Error en flujo recolección:", e.message);
+      }
+    }
+
     const numeroGuia = data.tracking_number ?? data.attributes?.tracking_number;
     if (envio.user_id) {
       try {

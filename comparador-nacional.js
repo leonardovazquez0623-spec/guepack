@@ -21,10 +21,9 @@ function badgeCarrier(providerName) {
 }
 
 const EXTRAS = {
-  recoleccion: { label: "Recolección a domicilio con GuePack", icon: "repartidor", costo: 60 },
-  cajas:       { label: "Venta de cajas y sobres",             icon: "paquete",    costo: 35 },
-  seguro:      { label: "🛡️ Seguro adicional",                                     costo: 45 },
-  prioritario: { label: "Envío prioritario",                   icon: "entrega_rapida", costo: 80 },
+  recoleccion: { label: "Recolección a domicilio con GuePack",  icon: "repartidor", costo: 60 },
+  // cajas:    { label: "Venta de cajas y sobres",              icon: "paquete",    costo: 35 },
+  seguro:      { label: "🛡️ Protección GUEPACK (hasta $2,500)",                     costo: 45 },
 };
 
 let cotizacionActual    = null; // { quotation_id, opciones }
@@ -90,17 +89,23 @@ function formatearDias(min, max) {
 }
 
 function renderUpsell() {
+  // Seguro activo por default
+  extrasSeleccionados.add("seguro");
+
   const contenedor = document.getElementById("upsell-envios");
   contenedor.innerHTML = `
     <h3 class="upsell-titulo">Servicios adicionales</h3>
     <div class="upsell-lista">
       ${Object.entries(EXTRAS).map(([key, extra]) => {
-        const iconHtml = extra.icon && typeof GUEPACK_ICONS !== 'undefined'
+        // Recolección solo dentro del polígono GDL-ZPN
+        if (key === "recoleccion" && _nacOrigenEnZonaGDL !== true) return "";
+        const iconHtml = extra.icon && typeof GUEPACK_ICONS !== "undefined"
           ? `<span style="display:inline-flex;width:16px;height:16px;vertical-align:middle">${GUEPACK_ICONS[extra.icon]}</span> `
-          : '';
+          : "";
+        const checked = key === "seguro" ? "checked" : "";
         return `
         <label class="upsell-item">
-          <input type="checkbox" data-extra="${key}" />
+          <input type="checkbox" data-extra="${key}" ${checked}/>
           <span class="upsell-label">${iconHtml}${extra.label}</span>
           <span class="upsell-precio">+$${extra.costo}</span>
         </label>`;
@@ -109,7 +114,6 @@ function renderUpsell() {
     <div class="upsell-total">
       Total: <span id="total-envio">$${opcionSeleccionada.costo.toFixed(0)}</span>
     </div>
-    <button id="btn-confirmar-envio" class="btn-primario">Actualizar resumen ✓</button>
   `;
 
   contenedor.querySelectorAll("input[data-extra]").forEach(input => {
@@ -118,11 +122,12 @@ function renderUpsell() {
       if (e.target.checked) extrasSeleccionados.add(key);
       else extrasSeleccionados.delete(key);
       actualizarTotal();
+      _nacRenderResumen();
     });
   });
 
-  document.getElementById("btn-confirmar-envio")
-    .addEventListener("click", () => _nacActualizarResumenConExtras());
+  // Refleja el seguro marcado desde el primer render
+  actualizarTotal();
 }
 
 function actualizarTotal() {

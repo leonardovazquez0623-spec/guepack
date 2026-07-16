@@ -27,6 +27,11 @@ let _nacEstadoDestino    = null
 let _nacMunicipioDestino = null
 const _nacCpCache        = { origen: null, destino: null }
 
+// Polígono GDL-ZPN: null=pendiente, true/false=resultado
+let _nacOrigenEnZonaGDL = null
+let _nacOrigenLat       = null
+let _nacOrigenLng       = null
+
 // ── Navegación ───────────────────────────────────────────────────────────────
 
 function nacShowStep(n) {
@@ -203,6 +208,34 @@ function _nacConfirmarOpcion(idx) {
   })
 }
 
+async function _nacVerificarZonaGDL() {
+  _nacOrigenEnZonaGDL = null
+  _nacOrigenLat       = null
+  _nacOrigenLng       = null
+  try {
+    const address = `${_nacColoniaOrigen}, ${_nacMunicipioOrigen}, ${_nacEstadoOrigen}, México`
+    const geo = await new Promise(resolve => {
+      new google.maps.Geocoder().geocode({ address }, (results, status) => {
+        resolve(status === 'OK' ? results[0] : null)
+      })
+    })
+    if (!geo) { _nacOrigenEnZonaGDL = false; return }
+    const lat = geo.geometry.location.lat()
+    const lng = geo.geometry.location.lng()
+    _nacOrigenLat = lat
+    _nacOrigenLng = lng
+    const { data: zona } = await db.from('zonas_cobertura')
+      .select('coordenadas')
+      .eq('nombre', 'GDL-ZPN')
+      .maybeSingle()
+    _nacOrigenEnZonaGDL = (zona?.coordenadas?.length >= 3)
+      ? _pointInPolygon(lat, lng, zona.coordenadas)
+      : false
+  } catch (_) {
+    _nacOrigenEnZonaGDL = false
+  }
+}
+
 function _nacAplicarSeleccion(idx) {
   opcionSeleccionada = cotizacionActual.opciones[idx]
   _nacCpOrigen       = document.getElementById('nac-cp-origen').value.trim()
@@ -222,6 +255,7 @@ function _nacAplicarSeleccion(idx) {
   _f('nac-ori-colonia', _nacColoniaOrigen);  _f('nac-ori-ciudad', _nacMunicipioOrigen);  _f('nac-ori-estado', _nacEstadoOrigen)
   _f('nac-dst-colonia', _nacColoniaDestino); _f('nac-dst-ciudad', _nacMunicipioDestino); _f('nac-dst-estado', _nacEstadoDestino)
 
+  _nacVerificarZonaGDL()  // fire-and-forget: geocodifica mientras el usuario llena paso 2
   nacShowStep(2)
 }
 
@@ -251,10 +285,17 @@ function _nacValidarPaso2() {
   return true
 }
 
-function nacSiguiente(desde) {
+async function nacSiguiente(desde) {
   if (desde === 2) {
     if (!_nacValidarPaso2()) return
     if (!_nacVerificarExpiracion()) return
+    // Esperar hasta 3 s a que el geocoding de zona GDL-ZPN termine
+    if (_nacOrigenEnZonaGDL === null) {
+      const t0 = Date.now()
+      while (_nacOrigenEnZonaGDL === null && Date.now() - t0 < 3000) {
+        await new Promise(r => setTimeout(r, 200))
+      }
+    }
     nacShowStep(3)
     renderUpsell()
     _nacRenderResumen()
@@ -381,6 +422,8 @@ async function nacConfirmarEnvioFinal() {
           contenido: tipoContenido,
         },
         extras_seleccionados: Array.from(extrasSeleccionados),
+        origen_lat: _nacOrigenLat,
+        origen_lng: _nacOrigenLng,
       }),
     })
 

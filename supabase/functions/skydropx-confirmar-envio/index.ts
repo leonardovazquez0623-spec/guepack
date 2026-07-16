@@ -18,11 +18,22 @@ const corsHeaders = (req: Request) => {
   }
 }
 
+// Ray-casting idéntico al _pointInPolygon de app.html
+function pointInPolygon(lat: number, lng: number, polygon: { lat: number; lng: number }[]): boolean {
+  let inside = false
+  const x = lng, y = lat
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat
+    const xj = polygon[j].lng, yj = polygon[j].lat
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside
+  }
+  return inside
+}
+
 const EXTRAS_PRECIOS: Record<string, number> = {
   recoleccion: 60,
   cajas:       35,
   seguro:      45,
-  prioritario: 80,
 };
 
 serve(async (req) => {
@@ -54,7 +65,7 @@ serve(async (req) => {
     if (userErr || !user) return json({ error: "No autorizado" }, 401);
 
     // 2. Parsea body
-    const { quotation_id, rate_id, direcciones, paquete, extras_seleccionados, comprobante_pago_url } = await req.json();
+    const { quotation_id, rate_id, direcciones, paquete, extras_seleccionados, comprobante_pago_url, origen_lat, origen_lng } = await req.json();
 
     if (!quotation_id || !rate_id || !direcciones || !paquete) {
       return json({ error: "Faltan datos requeridos (quotation_id, rate_id, direcciones, paquete)" }, 400);
@@ -95,9 +106,22 @@ serve(async (req) => {
     const margenAplicado = costoEnvio - costoReal;
 
     // 5. Mapea extras a columnas individuales (precios fijos del servidor)
-    const extrasValidos: string[] = Array.isArray(extras_seleccionados)
+    let extrasValidos: string[] = Array.isArray(extras_seleccionados)
       ? extras_seleccionados.filter((k: string) => k in EXTRAS_PRECIOS)
       : [];
+
+    // Validación server-side: recolección solo dentro del polígono GDL-ZPN
+    if (extrasValidos.includes("recoleccion") && origen_lat != null && origen_lng != null) {
+      const { data: zonaGDL } = await supabaseAdmin
+        .from("zonas_cobertura")
+        .select("coordenadas")
+        .eq("nombre", "GDL-ZPN")
+        .maybeSingle();
+      if (!zonaGDL?.coordenadas?.length || !pointInPolygon(Number(origen_lat), Number(origen_lng), zonaGDL.coordenadas)) {
+        extrasValidos = extrasValidos.filter(k => k !== "recoleccion");
+      }
+    }
+
     const costoExtras = extrasValidos.reduce((sum, k) => sum + EXTRAS_PRECIOS[k], 0);
 
     const extrasColumnas = {
@@ -105,8 +129,6 @@ serve(async (req) => {
       recoleccion_costo:     extrasValidos.includes("recoleccion") ? EXTRAS_PRECIOS.recoleccion : 0,
       seguro_adicional:      extrasValidos.includes("seguro"),
       seguro_costo:          extrasValidos.includes("seguro")      ? EXTRAS_PRECIOS.seguro      : 0,
-      envio_prioritario:     extrasValidos.includes("prioritario"),
-      prioritario_costo:     extrasValidos.includes("prioritario") ? EXTRAS_PRECIOS.prioritario : 0,
       costo_cajas_sobres:    extrasValidos.includes("cajas")       ? EXTRAS_PRECIOS.cajas       : 0,
     };
 
