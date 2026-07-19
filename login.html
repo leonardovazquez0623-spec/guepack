@@ -469,6 +469,29 @@ function _mostrarModalCuentaCreada() {
   `
   document.body.appendChild(overlay)
 }
+
+async function resendConfirmationEmail() {
+  const email = document.getElementById('login-email').value.trim()
+  if (!email) { showError('Ingresa tu correo para reenviar la confirmación'); return }
+  const { error } = await db.auth.resend({ type: 'signup', email })
+  if (error) { showError('Error al reenviar: ' + error.message); return }
+  showSuccess('✅ Correo de confirmación reenviado. Revisa tu bandeja de entrada.')
+}
+
+;(function checkUrlParams() {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('error') === 'email_no_verificado') {
+    const el = document.getElementById('error-msg')
+    el.innerHTML = '📧 Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.'
+    el.style.display = 'block'
+    document.getElementById('success-msg').style.display = 'none'
+    const btn = document.createElement('button')
+    btn.textContent = 'Reenviar correo de confirmación'
+    btn.style.cssText = 'display:block;margin-top:10px;width:100%;padding:10px 0;border:none;border-radius:10px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px'
+    btn.onclick = resendConfirmationEmail
+    el.appendChild(btn)
+  }
+})()
 </script>
 </body>
 </html>

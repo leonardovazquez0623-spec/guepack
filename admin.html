@@ -2364,6 +2364,11 @@ async function init() {
     session = refreshData?.session
   }
   if (!session) { window.location.href = 'login.html'; return; }
+  if (!session.user.email_confirmed_at) {
+    await db.auth.signOut()
+    window.location.href = 'login.html?error=email_no_verificado'
+    return
+  }
   const { data } = await db.from('usuarios').select('rol').eq('user_id', session.user.id).single()
   if (!data || data.rol !== 'admin') { window.location.href = 'login.html'; return; }
   cargarPedidos()

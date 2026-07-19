@@ -941,6 +941,12 @@ async function verificarRolRepartidor(intentos = 0) {
     return null  // No redirigir aquí — onAuthStateChange puede rescatar la sesión
   }
 
+  if (!session.user.email_confirmed_at) {
+    await db.auth.signOut()
+    window.location.href = 'login.html?error=email_no_verificado'
+    return null
+  }
+
   const { data: usuario } = await db.from('usuarios')
     .select('rol')
     .eq('user_id', session.user.id)
@@ -1043,6 +1049,11 @@ async function init() {
   // Listener de cambio de estado — detecta restauración de sesión aunque el retry loop ya terminó
   db.auth.onAuthStateChange(async (event, session) => {
     if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session && !_appCargada) {
+      if (!session.user.email_confirmed_at) {
+        await db.auth.signOut()
+        window.location.href = 'login.html?error=email_no_verificado'
+        return
+      }
       const { data: usuario } = await db.from('usuarios')
         .select('rol')
         .eq('user_id', session.user.id)

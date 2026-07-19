@@ -1967,6 +1967,12 @@ async function verificarSesion() {
     return
   }
 
+  if (!session.user.email_confirmed_at) {
+    await db.auth.signOut()
+    window.location.href = 'login.html?error=email_no_verificado'
+    return
+  }
+
   const { data: usuario } = await db.from('usuarios')
     .select('rol, whatsapp')
     .eq('user_id', session.user.id)
