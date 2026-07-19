@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -946,7 +946,7 @@
     ;(async () => {
       const db = window.supabase.createClient(
         'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
-        'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+        'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
       )
       const { data } = await db.from('clientes_aliados').select('*').eq('activo', true).order('created_at')
       const grid = document.getElementById('aliados-grid')
@@ -1002,7 +1002,7 @@
       try {
         const db = window.supabase.createClient(
           'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
-          'sb_publishable_OjSM3JPqRsP87pru1Q1Yzw_9vGG7EFb'
+          'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
         );
         const { error } = await db.from('contactos_landing').insert({ nombre, email, tipo, mensaje });
         if (error) throw error;
