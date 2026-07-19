@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUEPACK SaaS · Panel de Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="/Icono_gp.png">
+<meta name="theme-color" content="#1E56C7">
+<style>
+  :root {
+    --azul: #1E56C7;
+    --azul-oscuro: #123778;
+    --naranja: #F05A1A;
+    --texto: #1a2740;
+    --gris: #f2f5fa;
+    --gris-medio: #8fa3c0;
+    --verde: #16a34a;
+    --rojo: #dc2626;
+    --sombra: 0 5px 20px rgba(22, 53, 104, .1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #f4f6fb;
+    color: var(--texto);
+    font-family: 'Montserrat', sans-serif;
+  }
+  header {
+    min-height: 78px;
+    padding: 12px clamp(18px, 4vw, 54px);
+    background: linear-gradient(135deg, var(--azul-oscuro), var(--azul));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    box-shadow: 0 4px 18px rgba(18, 55, 120, .25);
+  }
+  .marca { display: flex; align-items: center; gap: 16px; }
+  .marca img {
+    width: 54px;
+    height: 54px;
+    object-fit: contain;
+    background: white;
+    border-radius: 15px;
+    padding: 5px;
+  }
+  .marca-titulo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(22px, 4vw, 32px);
+    letter-spacing: 1.5px;
+    line-height: 1;
+  }
+  .marca-subtitulo { font-size: 10px; font-weight: 700; opacity: .75; margin-top: 5px; letter-spacing: 1px; }
+  main { width: min(1400px, calc(100% - 32px)); margin: 30px auto 60px; }
+  .boton {
+    border: 0;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform .2s, opacity .2s;
+  }
+  .boton:hover { transform: translateY(-1px); }
+  .boton:disabled { cursor: not-allowed; opacity: .55; transform: none; }
+  .boton-salir { color: white; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+  .boton-primario { color: white; background: linear-gradient(135deg, var(--naranja), #ff7a3d); }
+  .boton-secundario { color: var(--texto); background: #e8edf5; }
+  .boton-editar { color: var(--azul); background: rgba(30, 86, 199, .1); padding: 8px 10px; }
+  .boton-eliminar { color: var(--rojo); background: rgba(220, 38, 38, .1); padding: 8px 10px; }
+  .estadisticas {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .estadistica {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--sombra);
+    border-top: 4px solid var(--azul);
+  }
+  .estadistica:nth-child(2) { border-color: var(--verde); }
+  .estadistica:nth-child(3) { border-color: var(--naranja); }
+  .estadistica:nth-child(4) { border-color: #8b5cf6; }
+  .estadistica-valor { font-family: 'Bebas Neue', sans-serif; font-size: 34px; color: var(--azul); letter-spacing: 1px; }
+  .estadistica-etiqueta { font-size: 11px; color: var(--gris-medio); font-weight: 900; text-transform: uppercase; letter-spacing: .7px; }
+  .panel { background: white; border-radius: 18px; box-shadow: var(--sombra); overflow: hidden; }
+  .panel-cabecera {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border-bottom: 1px solid #e8edf5;
+  }
+  .titulo-seccion { font-family: 'Bebas Neue', sans-serif; color: var(--azul); font-size: 27px; letter-spacing: 1.5px; }
+  .tabla-contenedor { overflow-x: auto; }
+  table { width: 100%; min-width: 1050px; border-collapse: collapse; }
+  th {
+    padding: 12px 14px;
+    color: var(--gris-medio);
+    background: #f8faff;
+    font-size: 10px;
+    font-weight: 900;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+  }
+  td { padding: 14px; border-top: 1px solid #edf1f7; font-size: 12px; font-weight: 600; vertical-align: middle; }
+  tbody tr:hover { background: #fafbfe; }
+  .acciones { display: flex; gap: 7px; white-space: nowrap; }
+  .etiqueta-plan {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 4px 9px;
+    color: var(--azul);
+    background: rgba(30, 86, 199, .1);
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .interruptor { position: relative; display: inline-block; width: 42px; height: 24px; }
+  .interruptor input { width: 0; height: 0; opacity: 0; }
+  .deslizador { position: absolute; inset: 0; cursor: pointer; border-radius: 24px; background: #cbd5e1; transition: .2s; }
+  .deslizador::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: white; transition: .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .interruptor input:checked + .deslizador { background: var(--verde); }
+  .interruptor input:checked + .deslizador::before { transform: translateX(18px); }
+  .estado-vacio { padding: 48px 20px; text-align: center; color: var(--gris-medio); font-size: 13px; font-weight: 700; }
+  .modal-fondo {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    padding: 20px;
+    background: rgba(10, 25, 55, .68);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+  }
+  .modal {
+    width: min(610px, 100%);
+    max-height: 92vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 25px 70px rgba(0,0,0,.28);
+  }
+  .modal-titulo { font-family: 'Bebas Neue', sans-serif; color: var(--azul); font-size: 27px; letter-spacing: 1px; margin-bottom: 18px; }
+  .formulario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .campo-completo { grid-column: 1 / -1; }
+  label { display: block; margin-bottom: 6px; color: var(--gris-medio); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .7px; }
+  input, select, textarea {
+    width: 100%;
+    min-height: 45px;
+    padding: 11px 13px;
+    border: 2px solid #e0e6f0;
+    border-radius: 10px;
+    outline: none;
+    background: var(--gris);
+    color: var(--texto);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--azul); background: white; }
+  input[type="color"] { padding: 5px; cursor: pointer; }
+  textarea { min-height: 90px; resize: vertical; }
+  .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 25px;
+    z-index: 20000;
+    padding: 13px 22px;
+    border-radius: 12px;
+    background: var(--texto);
+    color: white;
+    font-size: 12px;
+    font-weight: 900;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 70px);
+    transition: .3s;
+    box-shadow: 0 8px 25px rgba(0,0,0,.25);
+  }
+  #toast.visible { opacity: 1; transform: translate(-50%, 0); }
+  #cargando { position: fixed; inset: 0; z-index: 30000; display: flex; align-items: center; justify-content: center; background: #f4f6fb; color: var(--azul); font-weight: 900; }
+  @media (max-width: 800px) {
+    .estadisticas { grid-template-columns: 1fr 1fr; }
+    .formulario-grid { grid-template-columns: 1fr; }
+    .campo-completo { grid-column: auto; }
+    .panel-cabecera { align-items: stretch; flex-direction: column; }
+  }
+  @media (max-width: 480px) {
+    .estadisticas { grid-template-columns: 1fr; }
+    .marca-subtitulo { display: none; }
+    header { padding: 12px 16px; }
+    main { width: calc(100% - 20px); margin-top: 18px; }
+  }
+</style>
+</head>
+<body>
+<div id="cargando">Verificando acceso...</div>
+
+<header>
+  <div class="marca">
+    <img src="/Icono_gp.png" alt="GUEPACK">
+    <div>
+      <div class="marca-titulo">GUEPACK SaaS · Panel de Control</div>
+      <div class="marca-subtitulo">Administración general de tenants</div>
+    </div>
+  </div>
+  <button class="boton boton-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+</header>
+
+<main>
+  <section class="estadisticas" aria-label="Resumen de tenants">
+    <article class="estadistica"><div class="estadistica-valor" id="stat-total">0</div><div class="estadistica-etiqueta">Total tenants</div></article>
+    <article class="estadistica"><div class="estadistica-valor" id="stat-activos">0</div><div class="estadistica-etiqueta">Tenants activos</div></article>
+    <article class="estadistica"><div class="estadistica-valor" id="stat-mrr">$0</div><div class="estadistica-etiqueta">MRR</div></article>
+    <article class="estadistica"><div class="estadistica-valor" id="stat-prueba">0</div><div class="estadistica-etiqueta">Tenants en prueba</div></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-cabecera">
+      <div>
+        <h1 class="titulo-seccion">Tenants</h1>
+        <div style="font-size:11px;color:var(--gris-medio);font-weight:700;margin-top:2px">Gestiona las cuentas de la plataforma SaaS</div>
+      </div>
+      <button class="boton boton-primario" onclick="abrirModalTenant()">+ Nuevo Tenant</button>
+    </div>
+    <div class="tabla-contenedor">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Nombre</th><th>Slug</th><th>Dominio</th><th>Plan</th>
+            <th>Precio mensual</th><th>Activo</th><th>Creado</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-tenants">
+          <tr><td colspan="9" class="estado-vacio">Cargando tenants...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+})
+
+let tenants = []
+let tenantEditandoId = null
+
+db.auth.onAuthStateChange((evento) => {
+  if (evento === 'SIGNED_OUT') window.location.href = 'login.html'
+})
+
+async function iniciarPanel() {
+  let { data: { session } } = await db.auth.getSession()
+  if (!session) {
+    const { data } = await db.auth.refreshSession()
+    session = data?.session
+  }
+  if (!session) {
+    window.location.replace('login.html')
+    return
+  }
+
+  const { data: usuario, error } = await db.from('usuarios')
+    .select('rol')
+    .eq('user_id', session.user.id)
+    .single()
+
+  if (error || usuario?.rol !== 'admin') {
+    window.location.replace('login.html')
+    return
+  }
+
+  document.getElementById('cargando').style.display = 'none'
+  await cargarTenants()
+}
+
+async function cargarTenants() {
+  const cuerpo = document.getElementById('tabla-tenants')
+  cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">Cargando tenants...</td></tr>'
+  const { data, error } = await db.from('tenants').select('*').order('created_at', { ascending: false })
+  if (error) {
+    console.error('Error al cargar tenants:', error)
+    cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">No se pudieron cargar los tenants</td></tr>'
+    mostrarToast('❌ Error al cargar tenants')
+    return
+  }
+  tenants = data || []
+  renderizarEstadisticas()
+  renderizarTenants()
+}
+
+function renderizarEstadisticas() {
+  const activos = tenants.filter(tenant => tenant.activo === true)
+  const enPrueba = tenants.filter(tenant => tenant.trial === true || String(tenant.plan).toLowerCase() === 'trial')
+  const mrr = activos.reduce((total, tenant) => total + (Number(tenant.precio_mensual) || 0), 0)
+  document.getElementById('stat-total').textContent = tenants.length
+  document.getElementById('stat-activos').textContent = activos.length
+  document.getElementById('stat-mrr').textContent = formatearMoneda(mrr)
+  document.getElementById('stat-prueba').textContent = enPrueba.length
+}
+
+function renderizarTenants() {
+  const cuerpo = document.getElementById('tabla-tenants')
+  if (!tenants.length) {
+    cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">Aún no hay tenants registrados</td></tr>'
+    return
+  }
+  cuerpo.innerHTML = tenants.map(tenant => `
+    <tr>
+      <td>${escaparHtml(tenant.id)}</td>
+      <td style="font-weight:900">${escaparHtml(tenant.nombre)}</td>
+      <td>${escaparHtml(tenant.slug)}</td>
+      <td>${escaparHtml(tenant.dominio || '—')}</td>
+      <td><span class="etiqueta-plan">${escaparHtml(tenant.plan || '—')}</span></td>
+      <td>${formatearMoneda(tenant.precio_mensual)}</td>
+      <td>
+        <label class="interruptor" title="${tenant.activo ? 'Desactivar tenant' : 'Activar tenant'}">
+          <input type="checkbox" ${tenant.activo ? 'checked' : ''} data-accion="activo" data-id="${escaparAtributo(tenant.id)}">
+          <span class="deslizador"></span>
+        </label>
+      </td>
+      <td>${formatearFecha(tenant.created_at)}</td>
+      <td><div class="acciones">
+        <button class="boton boton-editar" data-accion="editar" data-id="${escaparAtributo(tenant.id)}">✏️ Editar</button>
+        <button class="boton boton-eliminar" data-accion="eliminar" data-id="${escaparAtributo(tenant.id)}">🗑️ Eliminar</button>
+      </div></td>
+    </tr>
+  `).join('')
+}
+
+document.getElementById('tabla-tenants').addEventListener('click', evento => {
+  const boton = evento.target.closest('button[data-accion]')
+  if (!boton) return
+  if (boton.dataset.accion === 'editar') abrirModalTenant(boton.dataset.id)
+  if (boton.dataset.accion === 'eliminar') confirmarEliminarTenant(boton.dataset.id)
+})
+
+document.getElementById('tabla-tenants').addEventListener('change', evento => {
+  const control = evento.target.closest('input[data-accion="activo"]')
+  if (control) cambiarEstadoTenant(control.dataset.id, control.checked, control)
+})
+
+function abrirModalTenant(id = null) {
+  tenantEditandoId = id
+  const tenant = id == null ? null : tenants.find(item => String(item.id) === String(id))
+  const fondo = document.createElement('div')
+  fondo.id = 'modal-tenant'
+  fondo.className = 'modal-fondo'
+  fondo.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-tenant">
+      <h2 class="modal-titulo" id="titulo-modal-tenant">${tenant ? 'Editar Tenant' : 'Nuevo Tenant'}</h2>
+      <form id="form-tenant">
+        <div class="formulario-grid">
+          <div><label for="tenant-nombre">Nombre *</label><input id="tenant-nombre" required maxlength="120" value="${escaparAtributo(tenant?.nombre || '')}"></div>
+          <div><label for="tenant-slug">Slug *</label><input id="tenant-slug" required maxlength="80" pattern="[a-z0-9-]+" placeholder="mi-empresa" value="${escaparAtributo(tenant?.slug || '')}"></div>
+          <div class="campo-completo"><label for="tenant-dominio">Dominio</label><input id="tenant-dominio" maxlength="180" placeholder="empresa.com" value="${escaparAtributo(tenant?.dominio || '')}"></div>
+          <div><label for="tenant-color-primario">Color primario</label><input type="color" id="tenant-color-primario" value="${colorValido(tenant?.color_primario, '#1E56C7')}"></div>
+          <div><label for="tenant-color-secundario">Color secundario</label><input type="color" id="tenant-color-secundario" value="${colorValido(tenant?.color_secundario, '#F05A1A')}"></div>
+          <div><label for="tenant-whatsapp">WhatsApp soporte</label><input type="tel" id="tenant-whatsapp" maxlength="20" value="${escaparAtributo(tenant?.whatsapp_soporte || '')}"></div>
+          <div><label for="tenant-plan">Plan</label><select id="tenant-plan">
+            ${['basico', 'pro', 'enterprise'].map(plan => `<option value="${plan}" ${tenant?.plan === plan ? 'selected' : ''}>${plan}</option>`).join('')}
+          </select></div>
+          <div><label for="tenant-precio">Precio mensual</label><input type="number" id="tenant-precio" min="0" step="0.01" value="${Number(tenant?.precio_mensual) || 0}"></div>
+          <div class="campo-completo"><label for="tenant-notas">Notas</label><textarea id="tenant-notas" maxlength="1000">${escaparHtml(tenant?.notas || '')}</textarea></div>
+        </div>
+        <div class="modal-acciones">
+          <button type="button" class="boton boton-secundario" onclick="cerrarModalTenant()">Cancelar</button>
+          <button type="submit" id="boton-guardar-tenant" class="boton boton-primario">${tenant ? 'Guardar cambios' : 'Crear tenant'}</button>
+        </div>
+      </form>
+    </div>`
+  fondo.addEventListener('click', evento => { if (evento.target === fondo) cerrarModalTenant() })
+  document.body.appendChild(fondo)
+  const campoSlug = document.getElementById('tenant-slug')
+  campoSlug.addEventListener('input', () => {
+    campoSlug.value = campoSlug.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  })
+  document.getElementById('form-tenant').addEventListener('submit', guardarTenant)
+  document.getElementById('tenant-nombre').focus()
+}
+
+function cerrarModalTenant() {
+  document.getElementById('modal-tenant')?.remove()
+  tenantEditandoId = null
+}
+
+async function guardarTenant(evento) {
+  evento.preventDefault()
+  const boton = document.getElementById('boton-guardar-tenant')
+  const slug = document.getElementById('tenant-slug').value.trim().toLowerCase()
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    mostrarToast('❌ El slug solo puede contener minúsculas, números y guiones')
+    return
+  }
+  const datos = {
+    nombre: document.getElementById('tenant-nombre').value.trim(),
+    slug,
+    dominio: document.getElementById('tenant-dominio').value.trim() || null,
+    color_primario: document.getElementById('tenant-color-primario').value,
+    color_secundario: document.getElementById('tenant-color-secundario').value,
+    whatsapp_soporte: document.getElementById('tenant-whatsapp').value.trim() || null,
+    plan: document.getElementById('tenant-plan').value,
+    precio_mensual: Number(document.getElementById('tenant-precio').value) || 0,
+    notas: document.getElementById('tenant-notas').value.trim() || null
+  }
+  boton.disabled = true
+  boton.textContent = 'Guardando...'
+  const consulta = tenantEditandoId == null
+    ? db.from('tenants').insert(datos)
+    : db.from('tenants').update(datos).eq('id', tenantEditandoId)
+  const { error } = await consulta
+  if (error) {
+    console.error('Error al guardar tenant:', error)
+    mostrarToast('❌ No se pudo guardar el tenant')
+    boton.disabled = false
+    boton.textContent = tenantEditandoId == null ? 'Crear tenant' : 'Guardar cambios'
+    return
+  }
+  mostrarToast(tenantEditandoId == null ? '✅ Tenant creado' : '✅ Tenant actualizado')
+  cerrarModalTenant()
+  await cargarTenants()
+}
+
+async function cambiarEstadoTenant(id, activo, control) {
+  control.disabled = true
+  const { error } = await db.from('tenants').update({ activo }).eq('id', id)
+  control.disabled = false
+  if (error) {
+    console.error('Error al cambiar estado del tenant:', error)
+    control.checked = !activo
+    mostrarToast('❌ No se pudo cambiar el estado')
+    return
+  }
+  const tenant = tenants.find(item => String(item.id) === String(id))
+  if (tenant) tenant.activo = activo
+  renderizarEstadisticas()
+  mostrarToast(activo ? '✅ Tenant activado' : 'Tenant desactivado')
+}
+
+function confirmarEliminarTenant(id) {
+  const tenant = tenants.find(item => String(item.id) === String(id))
+  if (!tenant) return
+  const fondo = document.createElement('div')
+  fondo.id = 'modal-eliminar-tenant'
+  fondo.className = 'modal-fondo'
+  fondo.innerHTML = `
+    <div class="modal" style="max-width:420px" role="dialog" aria-modal="true">
+      <h2 class="modal-titulo" style="color:var(--rojo)">Eliminar tenant</h2>
+      <p style="font-size:13px;font-weight:700;line-height:1.6">¿Eliminar el tenant <strong>${escaparHtml(tenant.nombre)}</strong>? Esta acción no se puede deshacer.</p>
+      <div class="modal-acciones">
+        <button class="boton boton-secundario" id="cancelar-eliminacion">Cancelar</button>
+        <button class="boton boton-eliminar" id="confirmar-eliminacion">🗑️ Eliminar</button>
+      </div>
+    </div>`
+  fondo.querySelector('#cancelar-eliminacion').onclick = () => fondo.remove()
+  fondo.querySelector('#confirmar-eliminacion').onclick = () => eliminarTenant(id, fondo)
+  fondo.addEventListener('click', evento => { if (evento.target === fondo) fondo.remove() })
+  document.body.appendChild(fondo)
+}
+
+async function eliminarTenant(id, modal) {
+  const boton = modal.querySelector('#confirmar-eliminacion')
+  boton.disabled = true
+  boton.textContent = 'Eliminando...'
+  const { error } = await db.from('tenants').delete().eq('id', id)
+  if (error) {
+    console.error('Error al eliminar tenant:', error)
+    mostrarToast('❌ No se pudo eliminar el tenant')
+    boton.disabled = false
+    boton.textContent = '🗑️ Eliminar'
+    return
+  }
+  modal.remove()
+  tenants = tenants.filter(item => String(item.id) !== String(id))
+  renderizarEstadisticas()
+  renderizarTenants()
+  mostrarToast('✅ Tenant eliminado')
+}
+
+async function cerrarSesion() {
+  await db.auth.signOut()
+  window.location.replace('login.html')
+}
+
+function escaparHtml(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  })[caracter])
+}
+
+function escaparAtributo(valor) {
+  return escaparHtml(valor).replace(/`/g, '&#096;')
+}
+
+function colorValido(valor, predeterminado) {
+  return /^#[0-9a-f]{6}$/i.test(String(valor || '')) ? valor : predeterminado
+}
+
+function formatearMoneda(valor) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(valor) || 0)
+}
+
+function formatearFecha(valor) {
+  if (!valor) return '—'
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(valor))
+}
+
+let temporizadorToast
+function mostrarToast(mensaje) {
+  const toast = document.getElementById('toast')
+  toast.textContent = mensaje
+  toast.classList.add('visible')
+  clearTimeout(temporizadorToast)
+  temporizadorToast = setTimeout(() => toast.classList.remove('visible'), 3000)
+}
+
+iniciarPanel()
+</script>
+</body>
+</html>
