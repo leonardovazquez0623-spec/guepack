@@ -2977,15 +2977,19 @@ function updateQuote() {
 }
 
 async function submitRequest() {
-  const nombre = document.getElementById('nombre-destinatario').value.trim()
-  const nombreRemitente = document.getElementById('nombre-remitente').value.trim()
-  const whatsapp = document.getElementById('whatsapp').value.trim()
-  const dir_recoleccion = document.getElementById('dir-recoleccion').value.trim()
-  const dir_entrega = document.getElementById('dir-entrega').value.trim()
-  const fecha = document.getElementById('fecha-seleccionada').value
+  const sanitize = (str) => str ? String(str).trim().replace(/<[^>]*>/g, '') : ''
+  const nombre = sanitize(document.getElementById('nombre-destinatario').value)
+  const nombreRemitente = sanitize(document.getElementById('nombre-remitente').value)
+  const whatsapp = sanitize(document.getElementById('whatsapp').value)
+  const dir_recoleccion = sanitize(document.getElementById('dir-recoleccion').value)
+  const dir_entrega = sanitize(document.getElementById('dir-entrega').value)
+  const fecha = sanitize(document.getElementById('fecha-seleccionada').value)
   console.log('[submitRequest] fecha guardada en pedido:', fecha)
-  const instrucciones = document.getElementById('instrucciones-recoleccion').value
-  const metodoPago = selMetodoPago
+  const instrucciones = sanitize(document.getElementById('instrucciones-recoleccion').value)
+  const metodoPago = sanitize(selMetodoPago)
+  const direccionEntregaGuardada = sanitize(_modoPaqueteria
+    ? (_modoPaqueteria === 'paqueteria' ? 'Paquetería DHL/FedEx/Estafeta' : 'Mercado Libre')
+    : dir_entrega)
   const _pv = _paradasList.filter(p => p.direccion.trim())
   const _esMultiParada = _pv.length > 0
 
@@ -3012,16 +3016,22 @@ async function submitRequest() {
     setTimeout(() => t.remove(), 3000)
     return
   }
-  if (nombre.length > 100 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]+$/.test(nombre)) {
+  if (!/^[a-zA-ZÀ-ÿ\s]{1,100}$/.test(nombre)) {
     mostrarToast('⚠️ El nombre solo puede contener letras y espacios, máximo 100 caracteres', '#f59e0b'); return
   }
   if (!/^\d{10}$/.test(whatsapp)) {
     mostrarToast('⚠️ El WhatsApp debe tener exactamente 10 dígitos numéricos', '#f59e0b'); return
   }
+  if (!dir_recoleccion) {
+    mostrarToast('⚠️ Ingresa la dirección de recolección', '#f59e0b'); return
+  }
   if (dir_recoleccion.length > 300) {
     mostrarToast('⚠️ La dirección de recolección es demasiado larga (máx. 300 caracteres)', '#f59e0b'); return
   }
-  if (dir_entrega.length > 300) {
+  if (!direccionEntregaGuardada) {
+    mostrarToast('⚠️ Ingresa la dirección de entrega', '#f59e0b'); return
+  }
+  if (direccionEntregaGuardada.length > 300) {
     mostrarToast('⚠️ La dirección de entrega es demasiado larga (máx. 300 caracteres)', '#f59e0b'); return
   }
   if (instrucciones.length > 500) {
@@ -3067,32 +3077,32 @@ const _kmRecorridos = _modoPaqueteria ? 0
   : _esMultiParada ? (_multiParadaKm || 0)
   : (_precioGeneralKm || 0)
 
+const zonaPedido = sanitize(_modoPaqueteria
+  ? (_modoPaqueteria === 'paqueteria' ? 'Recolección paquetería' : 'Recolección Mercado Libre')
+  : _empresaData
+    ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
+    : _esMultiParada
+      ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
+      : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km')
+
 const { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
     direccion_recoleccion: dir_recoleccion,
-    direccion_entrega: _modoPaqueteria
-      ? (_modoPaqueteria === 'paqueteria' ? 'Paquetería DHL/FedEx/Estafeta' : 'Mercado Libre')
-      : dir_entrega,
-    fecha: fecha,
-    tamanio: selSize,
-    zona: _modoPaqueteria
-      ? (_modoPaqueteria === 'paqueteria' ? 'Recolección paquetería' : 'Recolección Mercado Libre')
-      : _empresaData
-        ? (_empresaData.tipo_tarifa === 'diaria' ? 'Corporativo · Tarifa diaria' : ('Corporativo · ' + _corporativoKm + ' km'))
-        : _esMultiParada
-          ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
-          : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km',
+    direccion_entrega: direccionEntregaGuardada,
+    fecha: sanitize(fecha),
+    tamanio: sanitize(selSize),
+    zona: zonaPedido,
     precio: Math.round(Number(precio) || 0),
-    estado: estadoInicial,
+    estado: sanitize(estadoInicial),
     user_id: userId,
     instrucciones: instrucciones,
-    metodo_pago: metodoPago,
-    comprobante_pago: comprobanteUrl,
+    metodo_pago: sanitize(metodoPago),
+    comprobante_pago: sanitize(comprobanteUrl) || null,
     nombre_remitente: nombreRemitente || null,
-    cupon_codigo: _cuponActivo?.codigo || null,
-    token_rastreo: tokenRastreo,
-    empresa_codigo: _empresaData?.codigo || null,
+    cupon_codigo: sanitize(_cuponActivo?.codigo) || null,
+    token_rastreo: sanitize(tokenRastreo),
+    empresa_codigo: sanitize(_empresaData?.codigo) || null,
     es_tarifa_adicional: (_empresaData?.tipo_tarifa === 'diaria' && _tarifaDiariaYaCubierta) ? true : false,
     km_recorridos: _kmRecorridos,
     lat_entrega: _latEntrega ?? null,
