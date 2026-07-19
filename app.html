@@ -1023,12 +1023,12 @@
         </div>
 
         <!-- SOPORTE -->
-        <div class="support-card" onclick="abrirSoporte()">
+        <div class="support-card" onclick="abrirSoporteWhatsApp()">
           <img src="/soporte_g.png" alt="Soporte" class="support-img">
           <div class="support-content">
             <div class="support-title">¿Necesitas ayuda?</div>
             <div class="support-sub">Nuestro equipo está listo para ayudarte</div>
-            <button class="support-btn" onclick="event.stopPropagation();abrirSoporte()">Chatear ahora</button>
+            <button class="support-btn" onclick="event.stopPropagation();abrirSoporteWhatsApp()">Abrir WhatsApp</button>
           </div>
         </div>
 
@@ -1763,10 +1763,9 @@ var _modoPaqueteria = null, _rangosPaqueteria = null, _paqueteriaPrecio = null, 
 var _pedidos = {}, _pedidoTokens = {}, _historialPedidosMap = {}, _historialParadasMap = {}
 var _historialFiltro = 'todos', _historialDataAll = [], _historialCalificadosSet = new Set()
 var _paradasList = [], _debounceMultiParada = null
-// Chat / soporte
+// Chat de pedidos
 var _chatChannel = null, _chatPedidoId = null, _chatRol = null
 var _rastreoChannel = null
-var _soporteEmail = null, _soportePedidoId = null, _soporteHistorial = [], _soporteEscalado = false
 // Push / cupón
 var _unreadChat = {}, _fcmToken = null, _cuponActivo = null, _cuponDescuento = 0
 // Modal bienvenida
@@ -4568,23 +4567,19 @@ async function abrirChat(pedidoId, rol, titulo) {
   document.body.appendChild(modal)
   await _cargarMensajesChat()
   if (_chatChannel) db.removeChannel(_chatChannel)
-  const filter = pedidoId ? 'pedido_id=eq.' + pedidoId : 'tipo=eq.soporte'
-  _chatChannel = db.channel('chat-' + (pedidoId || 'soporte'))
+  const filter = 'pedido_id=eq.' + pedidoId
+  _chatChannel = db.channel('chat-' + pedidoId)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes', filter }, payload => _agregarBurbuja(payload.new))
     .subscribe()
 }
 
 async function _cargarMensajesChat() {
-  let q = db.from('mensajes').select('*').order('created_at', { ascending: true })
-  q = _chatPedidoId ? q.eq('pedido_id', _chatPedidoId) : q.is('pedido_id', null).eq('tipo', 'soporte')
-  const { data } = await q
+  const { data } = await db.from('mensajes').select('*').eq('pedido_id', _chatPedidoId).eq('tipo', 'chat').order('created_at', { ascending: true })
   const c = document.getElementById('chat-messages')
   if (!c) return
   ;(data || []).forEach(m => _agregarBurbuja(m, false))
   c.scrollTop = c.scrollHeight
-  if (_chatPedidoId) {
-    db.from('mensajes').update({ leido: true }).eq('pedido_id', _chatPedidoId).eq('leido', false).then(() => {})
-  }
+  db.from('mensajes').update({ leido: true }).eq('pedido_id', _chatPedidoId).eq('leido', false).then(() => {})
 }
 
 function _agregarBurbuja(msg, scroll = true) {
@@ -4607,8 +4602,7 @@ async function enviarMensajeChat() {
   const texto = input.value.trim()
   if (!texto) return
   input.value = ''
-  const msg = { texto, de: _chatRol, tipo: _chatPedidoId ? 'chat' : 'soporte' }
-  if (_chatPedidoId) msg.pedido_id = _chatPedidoId
+  const msg = { texto, de: _chatRol, tipo: 'chat', pedido_id: _chatPedidoId }
   await db.from('mensajes').insert(msg)
 }
 
@@ -4617,246 +4611,9 @@ function cerrarChat() {
   const m = document.getElementById('modal-chat'); if (m) m.remove()
 }
 
-// ── Soporte IA ──
-async function responderConIA(mensajeUsuario, historial) {
-  const { data: { session } } = await db.auth.getSession()
-  const response = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/chat-soporte-ia', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + (session?.access_token ?? SUPABASE_KEY)
-    },
-    body: JSON.stringify({ messages: historial })
-  })
-  const data = await response.json()
-  if (!response.ok || !data.respuesta) {
-    console.error('Edge Function error:', data)
-    throw new Error(data.error || 'Error al conectar con el asistente')
-  }
-  return data.respuesta
-}
-
-function abrirSoporte() {
-  if (document.getElementById('modal-soporte')) return
-  const modal = document.createElement('div')
-  modal.id = 'modal-soporte'
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
-  modal.innerHTML = `
-    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column;overflow:hidden">
-      <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#f05a1a">🎧 Soporte GUEPACK</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button id="btn-finalizar-soporte" onclick="_confirmarFinalizarSoporte()" style="display:none;background:#f0fdf4;border:1.5px solid #22c55e;border-radius:20px;padding:6px 12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#22c55e;cursor:pointer">✅ Finalizar</button>
-          <button onclick="cerrarSoporte()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
-        </div>
-      </div>
-      <div id="soporte-step1" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;overflow:auto">
-        <div style="font-size:42px">🎧</div>
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;text-align:center">¿En qué te podemos ayudar?</div>
-        <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#666;text-align:center;max-width:280px">¿Tu consulta está relacionada con un pedido específico?</div>
-        <button onclick="_soporteElegirPedido()" style="width:100%;padding:14px;background:#1a4fa0;color:white;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;margin-top:8px">📦 Sí, es sobre un pedido</button>
-        <button onclick="_soporteIniciarChat(null)" style="width:100%;padding:14px;background:#f0f4fb;color:#1a4fa0;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer">💬 No, es una consulta general</button>
-      </div>
-      <div id="soporte-step2" style="display:none;flex-direction:column;flex:1;min-height:0">
-        <div id="soporte-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
-        <div id="soporte-input-area" style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
-          <input id="soporte-input" type="text" placeholder="Escribe tu mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')_enviarMensajeSoporte()">
-          <button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
-        </div>
-      </div>
-    </div>`
-  document.body.appendChild(modal)
-  modal.addEventListener('click', e => { if (e.target === modal) cerrarSoporte() })
-  _soporteHistorial = []; _soporteEscalado = false; _soportePedidoId = null; _soporteEmail = null
-}
-
-async function _soporteElegirPedido() {
-  const { data: { session } } = await db.auth.getSession()
-  _soporteEmail = session?.user?.email || 'anonimo@guepack.mx'
-  const { data: pedidos } = await db.from('pedidos').select('id,estado').eq('cliente_email', _soporteEmail).in('estado', ['Pendiente','En camino','Recibido']).order('created_at', { ascending: false }).limit(5)
-  if (!pedidos || pedidos.length === 0) { _soporteIniciarChat(null); return }
-  const step1 = document.getElementById('soporte-step1')
-  if (!step1) return
-  step1.innerHTML = `
-    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2740;margin-bottom:4px;align-self:flex-start">Selecciona tu pedido:</div>
-    ${pedidos.map(p => `<button onclick="_soporteIniciarChat(${p.id})" style="width:100%;padding:12px 16px;background:#f0f4fb;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#1a4fa0;text-align:left;margin-bottom:6px">📦 GK-${p.id} <span style="font-weight:600;color:#888;font-size:12px">· ${p.estado}</span></button>`).join('')}
-    <button onclick="_soporteIniciarChat(null)" style="width:100%;padding:10px;border:none;background:none;font-family:Montserrat,sans-serif;font-size:12px;color:#aaa;cursor:pointer;margin-top:4px">No es sobre ninguno de estos</button>`
-}
-
-async function _soporteIniciarChat(pedidoId) {
-  _soportePedidoId = pedidoId
-  if (!_soporteEmail) {
-    const { data: { session } } = await db.auth.getSession()
-    _soporteEmail = session?.user?.email || 'anonimo@guepack.mx'
-  }
-  const _lsKey = 'guepack_chat_finalizado_' + (pedidoId || 'general')
-  const step1 = document.getElementById('soporte-step1')
-  const step2 = document.getElementById('soporte-step2')
-  if (step1) step1.style.display = 'none'
-  if (step2) step2.style.display = 'flex'
-
-  if (localStorage.getItem(_lsKey)) {
-    const _btnFin = document.getElementById('btn-finalizar-soporte')
-    if (_btnFin) _btnFin.style.display = 'none'
-    const cont = document.getElementById('soporte-messages')
-    if (cont) cont.innerHTML = '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:12px;height:100%"><div style="font-size:36px">✅</div><div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2740">Esta conversación fue cerrada</div><div style="font-family:Montserrat,sans-serif;font-size:12px;color:#666;max-width:240px">¿Tienes otra duda? Puedes abrir una nueva conversación.</div></div>'
-    const inputArea = document.getElementById('soporte-input-area')
-    if (inputArea) inputArea.innerHTML = '<button onclick="_iniciarNuevaConversacion(' + (pedidoId || 'null') + ')" style="width:100%;padding:12px;background:#f05a1a;color:white;border:none;border-radius:20px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">💬 Nueva conversación</button>'
-    return
-  }
-
-  const _btnFin = document.getElementById('btn-finalizar-soporte')
-  if (_btnFin) _btnFin.style.display = 'inline-block'
-
-  let q = db.from('mensajes').select('*').eq('tipo', 'soporte').eq('remitente_email', _soporteEmail).order('created_at', { ascending: true })
-  if (pedidoId) q = q.eq('pedido_id', pedidoId); else q = q.is('pedido_id', null)
-  const { data: msgs } = await q
-
-  _soporteHistorial = []; _soporteEscalado = false
-  const cont = document.getElementById('soporte-messages')
-  if (!cont) return
-
-  if (!msgs || msgs.length === 0) {
-    _soporteAgBurbuja({ de: 'ia', texto: '¡Hola! Soy el asistente virtual de GUEPACK. ¿En qué te puedo ayudar hoy?' + (pedidoId ? ` Veo que es sobre el pedido GK-${pedidoId}.` : '') }, false)
-  } else {
-    msgs.forEach(m => _soporteAgBurbuja(m, false))
-    _soporteHistorial = msgs.filter(m => m.de === 'cliente' || m.de === 'ia').map(m => ({ role: m.de === 'cliente' ? 'user' : 'assistant', content: m.texto }))
-    _soporteEscalado = msgs.some(m => m.escalado)
-    if (_soporteEscalado) _soporteBloquearInput()
-  }
-  cont.scrollTop = cont.scrollHeight
-  const inp = document.getElementById('soporte-input')
-  if (inp && !_soporteEscalado) inp.focus()
-}
-
-function _soporteAgBurbuja(msg, scroll = true) {
-  const c = document.getElementById('soporte-messages')
-  if (!c) return
-  const esMio = msg.de === 'cliente'
-  const esAdmin = msg.de === 'admin'
-  const label = document.createElement('div')
-  label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
-  label.textContent = esMio ? '👤 Tú' : esAdmin ? '🛡️ Soporte humano' : '🤖 Asistente GUEPACK'
-  const burbuja = document.createElement('div')
-  burbuja.style.cssText = `max-width:78%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#1a4fa0' : esAdmin ? '#f59e0b' : '#f0f4fb'};color:${esMio || esAdmin ? 'white' : '#1a2740'};word-break:break-word`
-  burbuja.textContent = msg.texto
-  c.appendChild(label); c.appendChild(burbuja)
-  if (scroll) c.scrollTop = c.scrollHeight
-}
-
-function _soporteBloquearInput() {
-  const area = document.getElementById('soporte-input-area')
-  if (area) area.innerHTML = '<div style="padding:12px 16px;font-family:Montserrat,sans-serif;font-size:12px;color:#f59e0b;font-weight:700;text-align:center;width:100%">⏳ Un agente humano te responderá pronto</div>'
-}
-
-async function _enviarMensajeSoporte() {
-  const input = document.getElementById('soporte-input')
-  if (!input) return
-  const texto = input.value.trim()
-  if (!texto || _soporteEscalado) return
-  input.value = ''; input.disabled = true
-
-  _soporteAgBurbuja({ de: 'cliente', texto })
-
-  const msgCliente = { texto, de: 'cliente', tipo: 'soporte', remitente_email: _soporteEmail, escalado: false }
-  if (_soportePedidoId) msgCliente.pedido_id = _soportePedidoId
-  await db.from('mensajes').insert(msgCliente)
-
-  _soporteHistorial.push({ role: 'user', content: texto })
-
-  const c = document.getElementById('soporte-messages')
-  const tid = 'typing-' + Date.now()
-  if (c) {
-    const t = document.createElement('div')
-    t.id = tid; t.style.cssText = 'align-self:flex-start;background:#f0f4fb;border-radius:18px;padding:10px 16px;display:flex;align-items:center;justify-content:center;min-width:56px'
-    t.innerHTML = '<div class="loader--4" style="width:28px"></div>'; c.appendChild(t); c.scrollTop = c.scrollHeight
-  }
-
-  let respIA = ''
-  try {
-    respIA = await responderConIA(texto, _soporteHistorial)
-  } catch (e) {
-    console.error('Claude API error:', e)
-    respIA = 'Hubo un error al conectar con el asistente. Por favor intenta de nuevo.'
-  }
-
-  document.getElementById(tid)?.remove()
-
-  if (respIA.includes('[ESCALAR]')) {
-    _soporteEscalado = true
-    const textoEsc = 'Te estoy conectando con nuestro equipo de soporte 👨‍💼. Un agente te responderá a la brevedad. ¡Gracias por tu paciencia!'
-    _soporteAgBurbuja({ de: 'ia', texto: textoEsc })
-    _soporteHistorial.push({ role: 'assistant', content: textoEsc })
-    const msgEsc = { texto: textoEsc, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: true }
-    if (_soportePedidoId) msgEsc.pedido_id = _soportePedidoId
-    await db.from('mensajes').insert(msgEsc)
-    _soporteBloquearInput()
-    return
-  }
-
-  _soporteAgBurbuja({ de: 'ia', texto: respIA })
-  _soporteHistorial.push({ role: 'assistant', content: respIA })
-
-  const msgIA = { texto: respIA, de: 'ia', tipo: 'soporte', remitente_email: _soporteEmail, escalado: false }
-  if (_soportePedidoId) msgIA.pedido_id = _soportePedidoId
-  await db.from('mensajes').insert(msgIA)
-
-  input.disabled = false; input.focus()
-}
-
-function cerrarSoporte() {
-  const m = document.getElementById('modal-soporte'); if (m) m.remove()
-  _soporteHistorial = []; _soporteEscalado = false; _soportePedidoId = null; _soporteEmail = null
-}
-
-function _confirmarFinalizarSoporte() {
-  document.getElementById('modal-confirmar-finalizar')?.remove()
-  const overlay = document.createElement('div')
-  overlay.id = 'modal-confirmar-finalizar'
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px'
-  overlay.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:24px 20px;max-width:300px;width:100%;text-align:center">
-      <div style="font-size:28px;margin-bottom:10px">✅</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#1a2740;margin-bottom:8px">¿Cerrar conversación?</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:12px;color:#666;margin-bottom:20px">¿Deseas cerrar esta conversación? Se marcará como resuelta.</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="document.getElementById('modal-confirmar-finalizar').remove()" style="flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>
-        <button onclick="_finalizarConversacionSoporte()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Sí, cerrar</button>
-      </div>
-    </div>
-  `
-  document.body.appendChild(overlay)
-}
-
-async function _finalizarConversacionSoporte() {
-  document.getElementById('modal-confirmar-finalizar')?.remove()
-  if (_soporteEmail) {
-    await db.from('mensajes')
-      .update({ leido: true })
-      .eq('tipo', 'soporte')
-      .eq('remitente_email', _soporteEmail)
-    localStorage.setItem('guepack_chat_finalizado_' + (_soportePedidoId || 'general'), 'true')
-  }
-  cerrarSoporte()
-  mostrarToast('✅ Conversación finalizada', '#22c55e')
-}
-
-function _iniciarNuevaConversacion(pedidoId) {
-  localStorage.removeItem('guepack_chat_finalizado_' + (pedidoId || 'general'))
-  _soporteHistorial = []
-  _soporteEscalado = false
-  _soportePedidoId = pedidoId
-  const cont = document.getElementById('soporte-messages')
-  if (cont) {
-    cont.innerHTML = ''
-    _soporteAgBurbuja({ de: 'ia', texto: '¡Hola! Soy el asistente virtual de GUEPACK. ¿En qué te puedo ayudar hoy?' + (pedidoId ? ` Veo que es sobre el pedido GK-${pedidoId}.` : '') }, false)
-  }
-  const inputArea = document.getElementById('soporte-input-area')
-  if (inputArea) inputArea.innerHTML = '<input id="soporte-input" type="text" placeholder="Escribe tu mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key===\'Enter\')_enviarMensajeSoporte()"><button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>'
-  const btnFin = document.getElementById('btn-finalizar-soporte')
-  if (btnFin) btnFin.style.display = 'inline-block'
-  const inp = document.getElementById('soporte-input')
-  if (inp) inp.focus()
+// ── Soporte por WhatsApp ──
+function abrirSoporteWhatsApp() {
+  window.open('https://wa.me/523351911592?text=Hola%20GUEPACK%2C%20necesito%20soporte%20con%20mi%20pedido', '_blank')
 }
 
 async function aplicarCupon() {
