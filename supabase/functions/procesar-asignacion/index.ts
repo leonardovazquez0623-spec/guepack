@@ -17,6 +17,30 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders(req) })
   }
 
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'No autorizado' }), {
+      status: 401,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
+    })
+  }
+
+  const tokenJwt = authHeader.replace(/^Bearer\s+/i, '')
+  const claveServicio = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY')
+  if (tokenJwt !== claveServicio) {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    )
+    const { data: { user }, error } = await supabaseClient.auth.getUser(tokenJwt)
+    if (error || !user) {
+      return new Response(JSON.stringify({ error: 'Token inválido' }), {
+        status: 401,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
+      })
+    }
+  }
+
   try {
     let pedido_id: number, ronda: number
     try {
