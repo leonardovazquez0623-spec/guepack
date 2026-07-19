@@ -79,12 +79,34 @@ serve(async (req) => {
     if (pedido.estado !== "Pendiente pago MP") {
       return jsonRes(hdrs, { error: "Este pedido ya fue procesado o no requiere pago por este medio" }, 400);
     }
+
+    const monto = Number(pedido.precio);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      return jsonRes(hdrs, { error: "El pedido no tiene un monto válido para pagar" }, 400);
+    }
+
+    const { error: errorBitacora } = await supabaseAdmin
+      .from("admin_log")
+      .insert({
+        admin_email: user.email || "usuario-sin-correo@guepack.mx",
+        accion: "pago_iniciado",
+        detalle: {
+          pedido_id: pedido.id,
+          monto,
+          user_id: user.id,
+        },
+      });
+
+    if (errorBitacora) {
+      console.error("[conekta-crear-pago-pedido] No se pudo registrar el intento de pago:", errorBitacora.message);
+    }
+
     const MONTO_MINIMO_CONEKTA = 20; // MXN — mínimo real confirmado por pruebas con la API
     const MONTO_MAXIMO_CONEKTA = 1000; // MXN — límite documentado por Conekta para tarjeta
-    if (Number(pedido.precio) < MONTO_MINIMO_CONEKTA) {
+    if (monto < MONTO_MINIMO_CONEKTA) {
       return jsonRes(hdrs, { error: `El monto mínimo para pago con tarjeta es de $${MONTO_MINIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
     }
-    if (Number(pedido.precio) > MONTO_MAXIMO_CONEKTA) {
+    if (monto > MONTO_MAXIMO_CONEKTA) {
       return jsonRes(hdrs, { error: `El monto máximo para pago con tarjeta es de $${MONTO_MAXIMO_CONEKTA} MXN. Por favor selecciona Efectivo o Transferencia para este pedido.` }, 400);
     }
 
@@ -95,8 +117,8 @@ serve(async (req) => {
     const basicAuth  = btoa(conektaKey + ":");
     const expiresAt  = Math.floor(Date.now() / 1000) + 86400;
 
-    console.log("pedido.precio:", pedido.precio, "typeof:", typeof pedido.precio);
-    console.log("unit_price calculado:", Math.round(pedido.precio * 100));
+    console.log("[conekta-crear-pago-pedido] Monto obtenido del pedido:", monto);
+    console.log("[conekta-crear-pago-pedido] Monto en centavos:", Math.round(monto * 100));
 
     const conektaRes = await fetch("https://api.conekta.io/checkouts", {
       method: "POST",
@@ -117,7 +139,7 @@ serve(async (req) => {
         order_template: {
           line_items: [{
             name:       `Pedido GUEPACK ${pedido_id}`,
-            unit_price: Math.round(Number(pedido.precio) * 100),
+            unit_price: Math.round(monto * 100),
             quantity:   1,
           }],
           currency: "MXN",
