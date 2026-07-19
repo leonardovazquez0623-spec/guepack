@@ -18,23 +18,36 @@ const corsHeaders = (req: Request) => {
   }
 }
 
-// Ray-casting idéntico al _pointInPolygon de app.html
-function pointInPolygon(lat: number, lng: number, polygon: { lat: number; lng: number }[]): boolean {
-  let inside = false
-  const x = lng, y = lat
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].lng, yi = polygon[i].lat
-    const xj = polygon[j].lng, yj = polygon[j].lat
-    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside
-  }
-  return inside
-}
-
 const EXTRAS_PRECIOS: Record<string, number> = {
-  recoleccion: 60,
   cajas:       35,
   seguro:      45,
 };
+
+const EXTRAS_PERMITIDOS = new Set(["recoleccion", ...Object.keys(EXTRAS_PRECIOS)]);
+const PAQUETERIAS_RECOLECCION_APROXIMADA = new Set(["dhl", "fedex", "estafeta", "ups", "quiken"]);
+
+function normalizarPaqueteria(valor: unknown): string {
+  return String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function recoleccionAproximadaDisponible(paqueteria: unknown): boolean {
+  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(normalizarPaqueteria(paqueteria))) return false;
+
+  const partes = new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    weekday: "long",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+  const dia = normalizarPaqueteria(valores.weekday);
+  const hora = Number(valores.hour);
+  return dia !== "sabado" && dia !== "domingo" && hora < 12;
+}
 
 serve(async (req) => {
   const hdrs = corsHeaders(req)
@@ -65,7 +78,7 @@ serve(async (req) => {
     if (userErr || !user) return json({ error: "No autorizado" }, 401);
 
     // 2. Parsea body
-    const { quotation_id, rate_id, direcciones, paquete, extras_seleccionados, comprobante_pago_url, origen_lat, origen_lng } = await req.json();
+    const { quotation_id, rate_id, direcciones, paquete, extras_seleccionados, comprobante_pago_url } = await req.json();
 
     if (!quotation_id || !rate_id || !direcciones || !paquete) {
       return json({ error: "Faltan datos requeridos (quotation_id, rate_id, direcciones, paquete)" }, 400);
@@ -97,36 +110,39 @@ serve(async (req) => {
     // 4. Lee config_guias y aplica margen (misma fórmula que skydropx-cotizar)
     const { data: config } = await supabaseAdmin
       .from("config_guias")
-      .select("margen_porcentaje, margen_fijo")
+      .select("margen_porcentaje, margen_fijo, costo_recoleccion")
       .single();
 
     const margenPct  = config?.margen_porcentaje ?? 0;
     const margenFijo = config?.margen_fijo ?? 0;
+    const costoRecoleccionConfigurado = Number(config?.costo_recoleccion);
+    const costoRecoleccion = Number.isFinite(costoRecoleccionConfigurado) && costoRecoleccionConfigurado > 0
+      ? costoRecoleccionConfigurado
+      : 0;
     const costoEnvio     = Math.ceil(costoReal * (1 + margenPct / 100) + margenFijo);
     const margenAplicado = costoEnvio - costoReal;
 
-    // 5. Mapea extras a columnas individuales (precios fijos del servidor)
+    // 5. Mapea servicios adicionales a columnas individuales con precios del servidor.
     let extrasValidos: string[] = Array.isArray(extras_seleccionados)
-      ? extras_seleccionados.filter((k: string) => k in EXTRAS_PRECIOS)
+      ? extras_seleccionados.filter((k: string) => EXTRAS_PERMITIDOS.has(k))
       : [];
 
-    // Validación server-side: recolección solo dentro del polígono GDL-ZPN
-    if (extrasValidos.includes("recoleccion") && origen_lat != null && origen_lng != null) {
-      const { data: zonaGDL } = await supabaseAdmin
-        .from("zonas_cobertura")
-        .select("coordenadas")
-        .eq("nombre", "GDL-ZPN")
-        .maybeSingle();
-      if (!zonaGDL?.coordenadas?.length || !pointInPolygon(Number(origen_lat), Number(origen_lng), zonaGDL.coordenadas)) {
-        extrasValidos = extrasValidos.filter(k => k !== "recoleccion");
-      }
+    // La regla del wizard es aproximada; Skydropx confirma la cobertura después de crear la guía.
+    if (
+      extrasValidos.includes("recoleccion") &&
+      (!recoleccionAproximadaDisponible(rate.carrier_name ?? rate.provider_name) || costoRecoleccion <= 0)
+    ) {
+      extrasValidos = extrasValidos.filter(k => k !== "recoleccion");
     }
 
-    const costoExtras = extrasValidos.reduce((sum, k) => sum + EXTRAS_PRECIOS[k], 0);
+    const costoExtras = extrasValidos.reduce(
+      (suma, clave) => suma + (clave === "recoleccion" ? costoRecoleccion : EXTRAS_PRECIOS[clave]),
+      0,
+    );
 
     const extrasColumnas = {
       recoleccion_domicilio: extrasValidos.includes("recoleccion"),
-      recoleccion_costo:     extrasValidos.includes("recoleccion") ? EXTRAS_PRECIOS.recoleccion : 0,
+      recoleccion_costo:     extrasValidos.includes("recoleccion") ? costoRecoleccion : 0,
       seguro_adicional:      extrasValidos.includes("seguro"),
       seguro_costo:          extrasValidos.includes("seguro")      ? EXTRAS_PRECIOS.seguro      : 0,
       costo_cajas_sobres:    extrasValidos.includes("cajas")       ? EXTRAS_PRECIOS.cajas       : 0,
@@ -185,4 +201,3 @@ serve(async (req) => {
     return json({ error: e.message }, 500);
   }
 });
-

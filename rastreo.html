@@ -430,11 +430,13 @@
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+const RASTREO_PUBLICO_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/rastreo-publico'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const _token = new URLSearchParams(window.location.search).get('token') || ''
 let _pedidoId = null
 let _estadoActual = null
+let _repartidorActual = null
 
 const ESTADO_MAP = {
   'En camino a recoleccion':             0,
@@ -581,19 +583,33 @@ async function _cargarDatosRepartidor(nombreRepartidor) {
   card.style.display = 'block'
 }
 
+async function _consultarRastreoPublico() {
+  const respuesta = await fetch(RASTREO_PUBLICO_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: _token }),
+  })
+  const datos = await respuesta.json()
+  if (!respuesta.ok) throw new Error(datos.error || 'No se pudo consultar el pedido')
+  return datos
+}
+
 async function init() {
   if (!_token) { mostrarError(); return }
 
-  const { data, error } = await db.from('pedidos')
-    .select('id, nombre, tamanio, zona, estado, repartidor, lat_entrega, lng_entrega')
-    .eq('token_rastreo', _token)
-    .single()
+  let data
+  try {
+    data = await _consultarRastreoPublico()
+  } catch (error) {
+    console.error('[rastreo] No se pudo cargar el pedido:', error.message)
+  }
 
   document.getElementById('loading-state').style.display = 'none'
-  if (error || !data) { mostrarError(); return }
+  if (!data) { mostrarError(); return }
 
   _pedidoId = data.id
   _estadoActual = data.estado
+  _repartidorActual = data.repartidor
 
   // Restaurar timestamps guardados en esta sesión/dispositivo
   try {
@@ -601,21 +617,15 @@ async function init() {
     if (saved) _tiemposEstado = JSON.parse(saved)
   } catch(e) {}
 
-  document.getElementById('r-folio').textContent = 'GK-' + data.id
+  document.getElementById('r-folio').textContent = data.folio
   document.getElementById('r-detalle').textContent =
-    [data.nombre, data.tamanio, data.zona].filter(Boolean).join(' · ')
+    [data.tamanio, data.zona].filter(Boolean).join(' · ')
 
   actualizarUI(data)
   document.getElementById('pedido-state').style.display = 'block'
 
   // Cargar datos del repartidor si ya está asignado
   if (data.repartidor) _cargarDatosRepartidor(data.repartidor)
-
-  // Mapa de tracking — solo cuando hay repartidor asignado y el estado es activo
-  const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']
-  if (data.repartidor && estadosConMapa.includes(data.estado)) {
-    iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
-  }
 
   // Cargar paradas
   const { data: paradas } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
@@ -629,29 +639,24 @@ async function init() {
     })
     .subscribe()
 
-  // Realtime — actualizaciones en vivo
-  db.channel('rastreo-pedido-' + data.id)
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'pedidos',
-      filter: 'id=eq.' + data.id
-    }, async payload => {
-      const nuevo = payload.new
-      if (!nuevo || nuevo.estado === _estadoActual) return
-      _estadoActual = nuevo.estado
-      actualizarUI(nuevo)
-      await _enviarPushRastreo(data.id, nuevo.estado)
-      // Cargar card del repartidor si acaba de asignarse
-      if (nuevo.repartidor) _cargarDatosRepartidor(nuevo.repartidor)
+  // Actualización segura mediante la función pública, sin leer directamente la tabla pedidos.
+  setInterval(async () => {
+    try {
+      const nuevo = await _consultarRastreoPublico()
+      const cambioEstado = nuevo.estado !== _estadoActual
+      const cambioRepartidor = nuevo.repartidor !== _repartidorActual
+      if (!cambioEstado && !cambioRepartidor) return
 
-      // Iniciar mapa si el nuevo estado requiere tracking y aún no está activo
-      const estadosConMapa = ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio']
-      if (nuevo.repartidor && estadosConMapa.includes(nuevo.estado) && !_mapa) {
-        iniciarMapaTracking(_pedidoId, data.lat_entrega, data.lng_entrega)
-      }
-    })
-    .subscribe()
+      _estadoActual = nuevo.estado
+      _repartidorActual = nuevo.repartidor
+      actualizarUI(nuevo)
+
+      if (cambioEstado) await _enviarPushRastreo(nuevo.id, nuevo.estado)
+      if (cambioRepartidor && nuevo.repartidor) _cargarDatosRepartidor(nuevo.repartidor)
+    } catch (error) {
+      console.warn('[rastreo] No se pudo actualizar el estado:', error.message)
+    }
+  }, 15000)
 }
 
 function _renderParadasRastreo(paradas) {

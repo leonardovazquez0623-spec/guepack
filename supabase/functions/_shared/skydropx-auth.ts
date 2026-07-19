@@ -2,8 +2,6 @@
 // Helper compartido: obtiene y cachea el bearer token de Skydropx.
 // Se reusa en cualquier Edge Function que necesite llamar a la API de Skydropx.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const SKYDROPX_HOST = Deno.env.get("SKYDROPX_ENV") === "production"
   ? "https://pro.skydropx.com"
   : "https://sb-pro.skydropx.com";
@@ -15,7 +13,7 @@ export function skydropxHost() {
   return SKYDROPX_HOST;
 }
 
-export async function getSkydropxToken(supabaseAdmin: ReturnType<typeof createClient>) {
+export async function getSkydropxToken(supabaseAdmin: any) {
   // 1. Revisa cache en config_app
   const { data: cached } = await supabaseAdmin
     .from("config_app")

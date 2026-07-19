@@ -141,11 +141,15 @@ serve(async (req) => {
     // 3. Lee margen configurado
     const { data: config } = await supabaseAdmin
       .from("config_guias")
-      .select("margen_porcentaje, margen_fijo")
+      .select("margen_porcentaje, margen_fijo, costo_recoleccion")
       .single();
 
     const margenPct  = config?.margen_porcentaje ?? 0;
     const margenFijo = config?.margen_fijo ?? 0;
+    const costoRecoleccionConfigurado = Number(config?.costo_recoleccion);
+    const costoRecoleccion = Number.isFinite(costoRecoleccionConfigurado) && costoRecoleccionConfigurado > 0
+      ? costoRecoleccionConfigurado
+      : 0;
 
     // 4. Formatea para el comparador (ordenado por precio con margen aplicado)
     console.log("SKYDROPX RATE RAW:", JSON.stringify(rates[0]));
@@ -167,8 +171,8 @@ serve(async (req) => {
       .sort((a, b) => a.costo - b.costo)
       .map((o, i) => ({ ...o, medalla: ["🥇", "🥈", "🥉"][i] ?? "" }));
 
-    return json({ quotation_id: quotationId, opciones });
-  } catch (e) {
+    return json({ quotation_id: quotationId, opciones, costo_recoleccion: costoRecoleccion });
+  } catch (e: any) {
     return json({ error: e.message }, 500);
   }
 });

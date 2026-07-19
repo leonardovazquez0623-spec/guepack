@@ -14,6 +14,50 @@ const CONSIGNMENT_NOTES: Record<string, string> = {
 };
 
 const PACKAGE_TYPE_DEFAULT = "4G"; // Caja de cartón
+const MARCA_RECOLECCION_MANUAL = "PENDIENTE_MANUAL";
+
+function obtenerVentanasRecoleccion(respuesta: any) {
+  const fechas = respuesta?.pickupDates ?? respuesta?.data?.pickupDates ?? [];
+  if (!Array.isArray(fechas)) return [];
+  return fechas
+    .filter((fecha: any) => fecha?.date && fecha?.startHour && fecha?.endHour)
+    .sort((a: any, b: any) =>
+      `${a.date}T${a.startHour}`.localeCompare(`${b.date}T${b.startHour}`)
+    );
+}
+
+async function marcarRecoleccionManual(
+  supabaseAdmin: any,
+  envio: any,
+  idEnvioSkydropx: string,
+  motivo: string,
+) {
+  const { error: errorMarca } = await supabaseAdmin
+    .from("envios_nacionales")
+    .update({ recoleccion_request_number: MARCA_RECOLECCION_MANUAL })
+    .eq("id", envio.id);
+
+  if (errorMarca) {
+    console.error("[skydropx-generar-guia] No se pudo marcar la recolección manual:", errorMarca.message);
+  }
+
+  const { error: errorBitacora } = await supabaseAdmin
+    .from("admin_log")
+    .insert({
+      admin_email: "sistema@guepack.mx",
+      accion: "recoleccion_skydropx_pendiente_manual",
+      detalle: {
+        envio_nacional_id: envio.id,
+        skydropx_shipment_id: idEnvioSkydropx,
+        paqueteria: envio.paqueteria,
+        motivo,
+      },
+    });
+
+  if (errorBitacora) {
+    console.error("[skydropx-generar-guia] No se pudo registrar el fallo de recolección:", errorBitacora.message);
+  }
+}
 
 const allowedOrigins = ["https://guepack.com", "https://www.guepack.com"]
 
@@ -166,64 +210,94 @@ serve(async (req) => {
 
     if (updateErr) return json({ error: "Guía creada pero falló guardar en BD", detail: updateErr.message }, 500);
 
-    // Si el envío incluye recolección a domicilio, crear pedido de moto y disparar asignación
+    let recoleccionPendienteManual = false;
+
+    // Skydropx es la autoridad final para la cobertura y las ventanas de recolección.
     if (envio.recoleccion_domicilio === true) {
       try {
-        const { data: configRows } = await supabaseAdmin
-          .from("config_app")
-          .select("key, value")
-          .in("key", ["direccion_base_guepack", "lat_base_guepack", "lng_base_guepack"]);
-        const cfg: Record<string, string> = {};
-        (configRows ?? []).forEach((r: any) => { cfg[r.key] = r.value });
+        const respuestaCobertura = await fetch(
+          `${host}/api/v1/pickups/coverage?shipment_id=${encodeURIComponent(data.id)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const cuerpoCobertura = await respuestaCobertura.json().catch(() => ({}));
 
-        const dirOrigen = [
-          envio.origen_calle,
-          envio.origen_numero,
-          envio.origen_colonia,
-          envio.origen_ciudad,
-          envio.origen_estado,
-        ].filter(Boolean).join(", ");
+        if (!respuestaCobertura.ok) {
+          throw new Error(
+            `Skydropx rechazó la consulta de cobertura (${respuestaCobertura.status}): ${
+              cuerpoCobertura?.message ?? JSON.stringify(cuerpoCobertura)
+            }`
+          );
+        }
 
-        const { data: nuevoPedido, error: pedidoErr } = await supabaseAdmin
-          .from("pedidos")
-          .insert({
-            user_id:               envio.user_id,
-            direccion_recoleccion: dirOrigen,
-            direccion_entrega:     cfg.direccion_base_guepack ?? "",
-            lat_entrega:           cfg.lat_base_guepack  ? parseFloat(cfg.lat_base_guepack)  : null,
-            lng_entrega:           cfg.lng_base_guepack  ? parseFloat(cfg.lng_base_guepack)  : null,
-            estado:                "Pendiente",
-            precio:                60,
-            envio_nacional_id:     envio_id,
-            instrucciones:         `Recolección para guía nacional ${envio.paqueteria ?? ""} — folio ${envio_id}`,
-            metodo_pago:           "pagado",
-          })
-          .select("id")
-          .single();
+        const ventanas = obtenerVentanasRecoleccion(cuerpoCobertura);
+        const coberturaExitosa = cuerpoCobertura?.success ?? cuerpoCobertura?.data?.success;
+        if (coberturaExitosa !== true || ventanas.length === 0) {
+          throw new Error(cuerpoCobertura?.message || "Skydropx no devolvió ventanas disponibles");
+        }
 
-        if (pedidoErr) {
-          console.error("[skydropx-generar-guia] Error insertando pedido recolección:", pedidoErr.message);
+        const ventana = ventanas[0];
+        const respuestaRecoleccion = await fetch(`${host}/api/v1/pickups/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            pickup: {
+              reference_shipment_id: data.id,
+              packages: 1,
+              total_weight: Number(envio.peso_kg),
+              scheduled_from: `${ventana.date} ${ventana.startHour}`,
+              scheduled_to: `${ventana.date} ${ventana.endHour}`,
+            },
+          }),
+        });
+        const cuerpoRecoleccion = await respuestaRecoleccion.json().catch(() => ({}));
+
+        if (!respuestaRecoleccion.ok) {
+          throw new Error(
+            `Skydropx rechazó la recolección (${respuestaRecoleccion.status}): ${
+              cuerpoRecoleccion?.message ?? JSON.stringify(cuerpoRecoleccion)
+            }`
+          );
+        }
+
+        const atributosRecoleccion = cuerpoRecoleccion?.data?.attributes ?? cuerpoRecoleccion?.attributes ?? {};
+        const numeroSolicitud = atributosRecoleccion.request_number;
+        if (!numeroSolicitud) {
+          throw new Error("Skydropx creó la recolección sin devolver request_number");
+        }
+
+        const { error: errorGuardarRecoleccion } = await supabaseAdmin
+          .from("envios_nacionales")
+          .update({ recoleccion_request_number: numeroSolicitud })
+          .eq("id", envio_id);
+
+        if (errorGuardarRecoleccion) {
+          console.error(
+            "[skydropx-generar-guia] La recolección se creó, pero no se guardó su folio:",
+            errorGuardarRecoleccion.message,
+          );
+          await supabaseAdmin.from("admin_log").insert({
+            admin_email: "sistema@guepack.mx",
+            accion: "recoleccion_skydropx_folio_no_guardado",
+            detalle: {
+              envio_nacional_id: envio_id,
+              skydropx_shipment_id: data.id,
+              recoleccion_request_number: numeroSolicitud,
+              motivo: errorGuardarRecoleccion.message,
+            },
+          });
         } else {
-          try {
-            const asigRes = await fetch(
-              `${Deno.env.get("SUPABASE_URL")}/functions/v1/procesar-asignacion`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type":  "application/json",
-                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-                },
-                body: JSON.stringify({ pedido_id: Number(nuevoPedido.id), ronda: 1 }),
-              }
-            );
-            const asigJson = await asigRes.json();
-            console.log("[skydropx-generar-guia] procesar-asignacion recolección:", JSON.stringify(asigJson));
-          } catch (e: any) {
-            console.error("[skydropx-generar-guia] Error llamando procesar-asignacion:", e.message);
-          }
+          console.log(
+            "[skydropx-generar-guia] Recolección programada correctamente:",
+            numeroSolicitud,
+          );
         }
       } catch (e: any) {
-        console.error("[skydropx-generar-guia] Error en flujo recolección:", e.message);
+        recoleccionPendienteManual = true;
+        console.error("[skydropx-generar-guia] La guía se generó, pero la recolección requiere agenda manual:", e.message);
+        await marcarRecoleccionManual(supabaseAdmin, envio, data.id, e.message);
       }
     }
 
@@ -236,7 +310,9 @@ serve(async (req) => {
           body: JSON.stringify({
             user_id: envio.user_id,
             title: "📦 ¡Tu guía está lista!",
-            body: `Tu envío con ${envio.paqueteria || "la paquetería"} ya tiene número de guía: ${numeroGuia}. Descarga tu guía desde la app.`,
+            body: recoleccionPendienteManual
+              ? `Tu guía ${numeroGuia} se generó correctamente, pero la recolección deberá agendarse manualmente. Nuestro equipo dará seguimiento.`
+              : `Tu envío con ${envio.paqueteria || "la paquetería"} ya tiene número de guía: ${numeroGuia}. Descarga tu guía desde la app.`,
             tipo: "envio",
           }),
         });
@@ -250,9 +326,12 @@ serve(async (req) => {
       numero_guia: data.tracking_number,
       label_url: data.label_url,
       tracking_url: data.tracking_url,
+      recoleccion_pendiente_manual: recoleccionPendienteManual,
+      aviso: recoleccionPendienteManual
+        ? "La guía se generó, pero la recolección debe agendarse manualmente."
+        : null,
     });
-  } catch (e) {
+  } catch (e: any) {
     return json({ error: e.message }, 500);
   }
 });
-

@@ -21,7 +21,7 @@ function badgeCarrier(providerName) {
 }
 
 const EXTRAS = {
-  recoleccion: { label: "Recolección a domicilio con GuePack",  icon: "repartidor", costo: 60 },
+  recoleccion: { label: "Solicitar recolección a domicilio", icon: "repartidor", costo: 0 },
   // cajas:    { label: "Venta de cajas y sobres",              icon: "paquete",    costo: 35 },
   seguro:      { label: "🛡️ Protección GUEPACK (hasta $2,500)",                     costo: 45 },
 };
@@ -29,6 +29,54 @@ const EXTRAS = {
 let cotizacionActual    = null; // { quotation_id, opciones }
 let opcionSeleccionada  = null;
 let extrasSeleccionados = new Set();
+
+const PAQUETERIAS_RECOLECCION_APROXIMADA = new Set([
+  "dhl",
+  "fedex",
+  "estafeta",
+  "ups",
+  "quiken",
+]);
+
+function normalizarPaqueteriaRecoleccion(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function obtenerHoraMexico() {
+  const partes = new Intl.DateTimeFormat("es-MX", {
+    timeZone: "America/Mexico_City",
+    weekday: "long",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const valores = Object.fromEntries(partes.map(parte => [parte.type, parte.value]));
+  return {
+    dia: valores.weekday,
+    hora: Number(valores.hour),
+  };
+}
+
+function recoleccionAproximadaDisponible(opcion) {
+  if (!opcion || EXTRAS.recoleccion.costo <= 0) return false;
+
+  const paqueteria = normalizarPaqueteriaRecoleccion(opcion.paqueteria);
+  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return false;
+
+  const servicio = normalizarPaqueteriaRecoleccion(opcion.servicio);
+  if (
+    (paqueteria === "paquetexpress" || paqueteria === "sendex") &&
+    servicio.includes("sinrecoleccion")
+  ) return false;
+
+  const horaMexico = obtenerHoraMexico();
+  const diaNormalizado = normalizarPaqueteriaRecoleccion(horaMexico.dia);
+  const esFinDeSemana = diaNormalizado === "sabado" || diaNormalizado === "domingo";
+  return !esFinDeSemana && horaMexico.hora < 12;
+}
 
 async function cotizarEnvio(origen, destino, paquete) {
   const { data: { session } } = await db.auth.getSession();
@@ -45,6 +93,10 @@ async function cotizarEnvio(origen, destino, paquete) {
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || "Error al cotizar");
 
+  const costoRecoleccion = Number(json.costo_recoleccion);
+  EXTRAS.recoleccion.costo = Number.isFinite(costoRecoleccion) && costoRecoleccion > 0
+    ? costoRecoleccion
+    : 0;
   cotizacionActual = json;
   renderComparador(json.opciones);
 }
@@ -97,8 +149,8 @@ function renderUpsell() {
     <h3 class="upsell-titulo">Servicios adicionales</h3>
     <div class="upsell-lista">
       ${Object.entries(EXTRAS).map(([key, extra]) => {
-        // Recolección solo dentro del polígono GDL-ZPN
-        if (key === "recoleccion" && _nacOrigenEnZonaGDL !== true) return "";
+        // La cobertura real se valida con Skydropx después de generar la guía.
+        if (key === "recoleccion" && !recoleccionAproximadaDisponible(opcionSeleccionada)) return "";
         const iconHtml = extra.icon && typeof GUEPACK_ICONS !== "undefined"
           ? `<span style="display:inline-flex;width:16px;height:16px;vertical-align:middle">${GUEPACK_ICONS[extra.icon]}</span> `
           : "";
@@ -106,8 +158,8 @@ function renderUpsell() {
         return `
         <label class="upsell-item">
           <input type="checkbox" data-extra="${key}" ${checked}/>
-          <span class="upsell-label">${iconHtml}${extra.label}</span>
-          <span class="upsell-precio">+$${extra.costo}</span>
+          <span class="upsell-label">${iconHtml}${extra.label}${key === "recoleccion" ? ` (+$${extra.costo.toFixed(0)})` : ""}</span>
+          ${key === "recoleccion" ? "" : `<span class="upsell-precio">+$${extra.costo}</span>`}
         </label>`;
       }).join("")}
     </div>
