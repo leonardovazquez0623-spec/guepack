@@ -261,6 +261,7 @@ function initMapsAdmin() {
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
+    <button id="sidebar-btn-superadmin" onclick="window.location.href='superadmin.html'" style="display:none;width:100%;padding:11px;border:none;border-radius:10px;background:#7C3AED;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center;box-shadow:0 4px 14px rgba(124,58,237,.35)">🌐 Super Admin</button>
     <div class="admin-user-menu" style="width:100%">
       <button onclick="_toggleAdminMenu(event,'menu-salir-sidebar')" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.65);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;text-align:center">🚪 Salir ▾</button>
       <div id="menu-salir-sidebar" class="admin-dropdown up">
@@ -2383,8 +2384,11 @@ async function init() {
     window.location.href = 'login.html?error=email_no_verificado'
     return
   }
-  const { data } = await db.from('usuarios').select('rol').eq('user_id', session.user.id).single()
+  const { data } = await db.from('usuarios').select('rol, es_superadmin').eq('user_id', session.user.id).single()
   if (!data || data.rol !== 'admin') { window.location.href = 'login.html'; return; }
+  if (data.es_superadmin) {
+    document.getElementById('sidebar-btn-superadmin').style.display = 'block'
+  }
   cargarPedidos()
   cargarChats()
 }
