@@ -1357,6 +1357,7 @@ async function toggleLluvia() {
   const nuevoEstado = !data.lluvia
   await db.from('configuracion').update({ lluvia: nuevoEstado }).eq('id', 1)
   actualizarBotonLluvia(nuevoEstado)
+  _adminLog('lluvia_toggled', { estado: nuevoEstado })
 
   const toast = document.createElement('div')
   toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
@@ -1552,6 +1553,7 @@ async function guardarEmpresa() {
     showToast('❌ ' + error.message)
     return
   }
+  _adminLog(id ? 'empresa_actualizada' : 'empresa_creada', { nombre, codigo, id: id || nuevaEmpresaId })
 
   if (nuevaEmpresaId && _empTipoTarifa === 'km') {
     console.log('[empresa] empresa creada con id:', nuevaEmpresaId)
@@ -1663,6 +1665,7 @@ function eliminarEmpresa(id, nombre) {
     await db.from('rangos_paqueteria').delete().eq('empresa_id', id)
     const { error } = await db.from('empresas_afiliadas').delete().eq('id', id)
     if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
+    _adminLog('empresa_eliminada', { id, nombre })
     showToast('🗑️ Empresa eliminada')
     cargarEmpresas()
   }
@@ -1884,6 +1887,7 @@ async function guardarConfigAsignacion() {
 async function _toggleAsignacionActiva(valor) {
   await db.from('config_app').upsert({ key: 'asignacion_activa', value: String(valor) }, { onConflict: 'key' })
   _asignacionActiva = valor
+  _adminLog('asignacion_toggled', { activa: valor })
   _iniciarEscalacion()
 }
 
@@ -2079,6 +2083,7 @@ async function guardarRepartidor() {
     : await db.from('repartidores').insert(payload)
   if (error) { showToast('❌ ' + error.message); return }
   showToast(id ? '✅ Repartidor actualizado' : '✅ Repartidor creado')
+  _adminLog(id ? 'repartidor_actualizado' : 'repartidor_creado', { nombre, email, id: id || null })
   _resetFormRepartidor()
   cargarRepartidores()
 }
@@ -2101,6 +2106,7 @@ async function eliminarRepartidor(id, nombre) {
   const { error } = await db.from('repartidores').delete().eq('id', id)
   if (error) { showToast('❌ Error al eliminar'); return }
   showToast('🗑️ Repartidor eliminado')
+  _adminLog('repartidor_eliminado', { id, nombre })
   cargarRepartidores()
 }
 
@@ -2109,6 +2115,7 @@ async function confirmarDeposito(id) {
   const { error } = await db.from('repartidores').update({ efectivo_acumulado: 0, bloqueado_efectivo: false }).eq('id', id)
   if (error) { showToast('❌ Error al confirmar depósito'); return }
   showToast('✅ Depósito confirmado — efectivo reseteado')
+  _adminLog('deposito_confirmado', { id })
   cargarRepartidores()
 }
 
@@ -2117,6 +2124,7 @@ async function cambiarNivelRepartidor(id, nivelActual) {
   const { error } = await db.from('repartidores').update({ nivel: nuevoNivel }).eq('id', id)
   if (error) { showToast('❌ Error al cambiar nivel'); return }
   showToast('✅ Nivel cambiado a ' + nuevoNivel)
+  _adminLog('nivel_repartidor_cambiado', { id, nivel_anterior: nivelActual, nivel_nuevo: nuevoNivel })
   cargarRepartidores()
 }
 
@@ -2217,6 +2225,7 @@ async function marcarCreditoPagado(empresaCodigo, pedidoIdsStr) {
     return
   }
   showToast('✅ Crédito marcado como pagado')
+  _adminLog('credito_marcado_pagado', { empresa: empresaCodigo, pedido_ids: ids })
   cargarCorteCreditoEmpresas()
 }
 
@@ -2330,12 +2339,14 @@ async function aprobarReferido(id, referidorUserId) {
   const { data: usr } = await db.from('usuarios').select('envios_gratis').eq('user_id', referidorUserId).single()
   await db.from('usuarios').update({ envios_gratis: (usr?.envios_gratis || 0) + val }).eq('user_id', referidorUserId)
   showToast('✅ Aprobado — +' + val + ' envíos gratis al referidor')
+  _adminLog('referido_aprobado', { id, referidor_user_id: referidorUserId, envios_gratis_otorgados: val })
   cargarReferidos()
 }
 
 async function rechazarReferido(id) {
   await db.from('referidos').update({ estado: 'rechazado' }).eq('id', id)
   showToast('❌ Referido rechazado')
+  _adminLog('referido_rechazado', { id })
   cargarReferidos()
 }
 
@@ -3459,6 +3470,18 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000)
 }
 
+async function _adminLog(accion, detalle = {}) {
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) return
+    db.from('admin_log').insert({
+      admin_email: session.user.email,
+      accion,
+      detalle,
+    }).then(() => {})
+  } catch (_) {}
+}
+
 // ── PUBLICIDAD ──
 let _pubImagenUrl = ''
 let _pubSubiendo = false
@@ -3672,6 +3695,7 @@ async function guardarCupon() {
     ;({ error } = await db.from('cupones').insert({ ...payload, usos_actuales: 0 }))
   }
   if (error) return showToast('❌ Error: ' + error.message)
+  _adminLog(id ? 'cupon_actualizado' : 'cupon_creado', { codigo, descuento, tipo, usos_maximos: usos, usos_por_usuario: usosPorUsuario, fecha_expiracion: expiracion, id: id || null })
   showToast('✅ Cupón guardado')
   _resetFormCupon()
   cargarCupones()
@@ -3694,6 +3718,7 @@ async function eliminarCupon(id) {
   if (!confirm('¿Eliminar este cupón?')) return
   const { error } = await db.from('cupones').delete().eq('id', id)
   if (error) return showToast('❌ Error al eliminar')
+  _adminLog('cupon_eliminado', { id })
   showToast('🗑️ Cupón eliminado')
   cargarCupones()
 }
@@ -5417,6 +5442,7 @@ async function eliminarCliente(userId) {
       delete _clientesMap[userId]
       document.getElementById('panel-cliente').style.display = 'none'
       showToast('✅ Cuenta eliminada correctamente')
+      _adminLog('cliente_eliminado', { user_id: userId, email: nombre })
       cargarClientes()
     } catch (err) {
       console.error('[eliminarCliente]', err)
