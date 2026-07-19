@@ -462,6 +462,10 @@ function initMapsAdmin() {
 
   <!-- TAB CHATS -->
   <div id="tab-chats" class="tab-content">
+    <div style="margin-bottom:20px">
+      <div class="card-title" style="padding:0;margin-bottom:12px;color:#ef4444">🔴 Pending support messages</div>
+      <div id="lista-chats-soporte-pendientes"></div>
+    </div>
     <div>
       <div class="card-title" style="padding:0;margin-bottom:12px">🏍️ Chats de pedidos</div>
       <div id="lista-chats-pedidos"></div>
@@ -2381,6 +2385,7 @@ async function init() {
   const { data } = await db.from('usuarios').select('rol').eq('user_id', session.user.id).single()
   if (!data || data.rol !== 'admin') { window.location.href = 'login.html'; return; }
   cargarPedidos()
+  cargarChats()
 }
 
 function showTab(tab, btn) {
@@ -2395,11 +2400,6 @@ function showTab(tab, btn) {
   if (snavBtn) snavBtn.classList.add('active')
   if (tab === 'chats') {
     cargarChats()
-    _adminUnreadCount = 0
-    const _ab = document.getElementById('admin-chat-badge')
-    if (_ab) _ab.style.display = 'none'
-    const _sb = document.getElementById('sidebar-chat-badge')
-    if (_sb) _sb.style.display = 'none'
   }
   if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
   if (tab === 'nuevo') {
@@ -3174,8 +3174,64 @@ function escaparHTML(str) {
 
 // ── Chats ──
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin'
+let _soporteAdminEmail = null, _soporteAdminChannel = null
+
+function _actualizarBadgeSoporte(cantidad) {
+  for (const id of ['admin-chat-badge', 'sidebar-chat-badge']) {
+    const badge = document.getElementById(id)
+    if (!badge) continue
+    badge.textContent = cantidad
+    badge.style.display = cantidad > 0 ? 'flex' : 'none'
+  }
+}
 
 async function cargarChats() {
+  const { data: soportePendiente, error: errorSoporte } = await db.from('mensajes')
+    .select('*')
+    .eq('tipo', 'soporte')
+    .eq('escalado', true)
+    .neq('leido', true)
+    .order('created_at', { ascending: false })
+
+  if (errorSoporte) console.error('[cargarChats] soporte pendiente:', errorSoporte)
+
+  const soportePorEmail = {}
+  ;(soportePendiente || []).forEach(m => {
+    if (!m.remitente_email) return
+    if (!soportePorEmail[m.remitente_email]) soportePorEmail[m.remitente_email] = []
+    soportePorEmail[m.remitente_email].push(m)
+  })
+
+  const emailsPendientes = Object.keys(soportePorEmail)
+  _actualizarBadgeSoporte(emailsPendientes.length)
+
+  const contSoporte = document.getElementById('lista-chats-soporte-pendientes')
+  if (contSoporte) {
+    if (emailsPendientes.length === 0) {
+      contSoporte.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">No pending support messages</div>'
+    } else {
+      contSoporte.innerHTML = emailsPendientes.map(email => {
+        const ultimo = soportePorEmail[email][0]
+        const texto = String(ultimo.texto || '')
+        const preview = texto.length > 80 ? texto.slice(0, 80) + '…' : texto
+        const fecha = ultimo.created_at
+          ? new Date(ultimo.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })
+          : ''
+        const emailArg = escaparHTML(JSON.stringify(email))
+        return `
+          <div style="background:white;border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);border-left:4px solid #ef4444;margin-bottom:8px">
+            <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#ef4444;word-break:break-word">${escaparHTML(email)}</div>
+            <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#555;margin-top:6px;line-height:1.4">${escaparHTML(preview)}</div>
+            <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;margin-top:5px">${escaparHTML(fecha)}</div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button onclick='abrirChatSoporte(${emailArg})' style="padding:8px 14px;border:none;border-radius:9px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">Open</button>
+              <button onclick='cerrarTicketSoporte(${emailArg})' style="padding:8px 14px;border:1.5px solid #22c55e;border-radius:9px;background:#f0fdf4;color:#15803d;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">Close ticket</button>
+            </div>
+          </div>`
+      }).join('')
+    }
+  }
+
   const { data: chatData } = await db.from('mensajes')
     .select('*')
     .eq('tipo', 'chat')
@@ -3204,11 +3260,122 @@ async function cargarChats() {
   }).join('')
 }
 
+async function abrirChatSoporte(email) {
+  _soporteAdminEmail = email
+  document.getElementById('modal-chat-soporte')?.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-chat-soporte'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
+      <div style="padding:14px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-shrink:0">
+        <div style="min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;color:#ef4444">🔴 Pending support</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:10px;color:#777;overflow:hidden;text-overflow:ellipsis">${escaparHTML(email)}</div>
+        </div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <button onclick="cerrarTicketSoporte(_soporteAdminEmail)" style="padding:7px 10px;border:1.5px solid #22c55e;border-radius:10px;background:#f0fdf4;color:#15803d;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer;white-space:nowrap">Close ticket</button>
+          <button onclick="cerrarChatSoporte()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
+        </div>
+      </div>
+      <div id="soporte-admin-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:7px"></div>
+      <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
+        <input id="soporte-admin-input" type="text" placeholder="Write a reply..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarRespuestaSoporte()">
+        <button onclick="enviarRespuestaSoporte()" style="background:#f59e0b;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Send</button>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) cerrarChatSoporte() })
+  await _cargarConversacionSoporte()
+
+  if (_soporteAdminChannel) db.removeChannel(_soporteAdminChannel)
+  _soporteAdminChannel = db.channel('admin-support-' + email.replace(/[^a-z0-9]/gi, '_'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes', filter: 'remitente_email=eq.' + email }, payload => {
+      if (payload.new.tipo === 'soporte') _agregarBurbujaSoporte(payload.new)
+    })
+    .subscribe()
+}
+
+async function _cargarConversacionSoporte() {
+  const { data, error } = await db.from('mensajes')
+    .select('*')
+    .eq('tipo', 'soporte')
+    .eq('remitente_email', _soporteAdminEmail)
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.error('[soporte] cargar conversación:', error)
+    return
+  }
+  const cont = document.getElementById('soporte-admin-messages')
+  if (!cont) return
+  cont.innerHTML = ''
+  ;(data || []).forEach(m => _agregarBurbujaSoporte(m, false))
+  cont.scrollTop = cont.scrollHeight
+}
+
+function _agregarBurbujaSoporte(msg, scroll = true) {
+  const cont = document.getElementById('soporte-admin-messages')
+  if (!cont) return
+  const esAdmin = msg.de === 'admin'
+  const burbuja = document.createElement('div')
+  burbuja.style.cssText = `max-width:80%;padding:10px 14px;border-radius:${esAdmin ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};align-self:${esAdmin ? 'flex-end' : 'flex-start'};background:${esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esAdmin ? 'white' : '#333'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;word-break:break-word`
+  burbuja.textContent = msg.texto || ''
+  const fecha = document.createElement('div')
+  fecha.style.cssText = `align-self:${esAdmin ? 'flex-end' : 'flex-start'};font-family:Montserrat,sans-serif;font-size:9px;color:#aaa;margin-top:-3px`
+  fecha.textContent = msg.created_at ? new Date(msg.created_at).toLocaleString('es-MX') : ''
+  cont.appendChild(burbuja)
+  cont.appendChild(fecha)
+  if (scroll) cont.scrollTop = cont.scrollHeight
+}
+
+async function enviarRespuestaSoporte() {
+  const input = document.getElementById('soporte-admin-input')
+  const texto = input?.value.trim()
+  if (!texto || !_soporteAdminEmail) return
+  input.value = ''
+  input.disabled = true
+  const { error } = await db.from('mensajes').insert({
+    tipo: 'soporte',
+    de: 'admin',
+    remitente_email: _soporteAdminEmail,
+    texto,
+    escalado: false
+  })
+  input.disabled = false
+  input.focus()
+  if (error) {
+    console.error('[soporte] enviar respuesta:', error)
+    showToast('No se pudo enviar la respuesta')
+  }
+}
+
+async function cerrarTicketSoporte(email) {
+  if (!email) return
+  const { error } = await db.from('mensajes')
+    .update({ leido: true })
+    .eq('tipo', 'soporte')
+    .eq('remitente_email', email)
+  if (error) {
+    console.error('[soporte] cerrar ticket:', error)
+    showToast('No se pudo cerrar el ticket')
+    return
+  }
+  if (_soporteAdminEmail === email) cerrarChatSoporte()
+  await cargarChats()
+  showToast('Ticket cerrado')
+}
+
+function cerrarChatSoporte() {
+  if (_soporteAdminChannel) {
+    db.removeChannel(_soporteAdminChannel)
+    _soporteAdminChannel = null
+  }
+  _soporteAdminEmail = null
+  document.getElementById('modal-chat-soporte')?.remove()
+}
+
 async function abrirChat(pedidoId, rol, titulo) {
   _chatPedidoId = pedidoId; _chatRol = rol
-  _adminUnreadCount = 0
-  const _ab = document.getElementById('admin-chat-badge')
-  if (_ab) _ab.style.display = 'none'
   if (document.getElementById('modal-chat')) cerrarChat()
   const modal = document.createElement('div')
   modal.id = 'modal-chat'
@@ -3271,21 +3438,18 @@ function cerrarChat() {
   const m = document.getElementById('modal-chat'); if (m) m.remove()
 }
 
-let _adminUnreadCount = 0
-
 if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
 
 db.channel('admin-mensajes-global')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, payload => {
     const msg = payload.new
-    if (msg.de === 'admin' || msg.tipo === 'soporte' || !msg.pedido_id) return
+    if (msg.tipo === 'soporte') {
+      if (msg.escalado === true && msg.leido !== true) cargarChats()
+      return
+    }
+    if (msg.de === 'admin' || !msg.pedido_id) return
     const esMismaConv = _chatPedidoId === msg.pedido_id
     if (esMismaConv && document.getElementById('modal-chat')) return
-    _adminUnreadCount++
-    const badge = document.getElementById('admin-chat-badge')
-    if (badge) { badge.textContent = _adminUnreadCount; badge.style.display = 'flex' }
-    const sbadge = document.getElementById('sidebar-chat-badge')
-    if (sbadge) { sbadge.textContent = _adminUnreadCount; sbadge.style.display = 'flex' }
     if (Notification.permission === 'granted') {
       new Notification('💬 Nuevo mensaje', { body: msg.texto || '...', icon: '/Icono_gp.png', tag: 'admin-' + msg.pedido_id })
     }
