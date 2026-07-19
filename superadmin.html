@@ -67,6 +67,8 @@
   .boton:hover { transform: translateY(-1px); }
   .boton:disabled { cursor: not-allowed; opacity: .55; transform: none; }
   .boton-salir { color: white; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+  .boton-volver { color: var(--azul); background: white; border: 2px solid var(--azul); }
+  .acciones-encabezado { display: flex; align-items: center; gap: 9px; }
   .boton-primario { color: white; background: linear-gradient(135deg, var(--naranja), #ff7a3d); }
   .boton-secundario { color: var(--texto); background: #e8edf5; }
   .boton-editar { color: var(--azul); background: rgba(30, 86, 199, .1); padding: 8px 10px; }
@@ -216,7 +218,10 @@
       <div class="marca-subtitulo">Administración general de tenants</div>
     </div>
   </div>
-  <button class="boton boton-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+  <div class="acciones-encabezado">
+    <button class="boton boton-volver" onclick="window.location.href='admin.html'">← Admin General</button>
+    <button class="boton boton-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
 </header>
 
 <main>
