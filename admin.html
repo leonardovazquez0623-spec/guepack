@@ -344,6 +344,7 @@ function initMapsAdmin() {
   </div>
 </div>
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
+  <button id="btn-limpiar-abandonados" onclick="confirmarLimpiarAbandonados()" disabled style="background:#dc2626;color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px;opacity:.55">🗑️ Limpiar abandonados (0)</button>
   <button id="btn-optimizar" onclick="optimizarRuta()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px">🗺️ Optimizar Ruta</button>
   <button onclick="exportarExcel()" style="background:var(--success);color:white;border:none;border-radius:8px;padding:8px 14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:0.5px">📊 Exportar Excel</button>
 </div>
@@ -2853,6 +2854,40 @@ function filtrarFecha(dias) {
 }
 
 let cargandoPedidos = false
+let pedidosAbandonados = []
+
+function esPedidoAbandonado(pedido) {
+  const metodosSinPago = ['tarjeta', 'transferencia']
+  const limite = Date.now() - (2 * 60 * 60 * 1000)
+  return pedido.estado === 'Pendiente'
+    && metodosSinPago.includes(String(pedido.metodo_pago || '').toLowerCase())
+    && pedido.pago_verificado == null
+    && new Date(pedido.created_at).getTime() < limite
+}
+
+async function cargarPedidosAbandonados() {
+  const limite = new Date(Date.now() - (2 * 60 * 60 * 1000)).toISOString()
+  const { data, error } = await db.from('pedidos')
+    .select('id, created_at, estado, metodo_pago, pago_verificado')
+    .eq('estado', 'Pendiente')
+    .in('metodo_pago', ['Tarjeta', 'transferencia'])
+    .is('pago_verificado', null)
+    .lt('created_at', limite)
+
+  if (error) {
+    console.error('Error al consultar pedidos abandonados:', error)
+    pedidosAbandonados = []
+  } else {
+    pedidosAbandonados = data || []
+  }
+
+  const boton = document.getElementById('btn-limpiar-abandonados')
+  if (boton) {
+    boton.textContent = `🗑️ Limpiar abandonados (${pedidosAbandonados.length})`
+    boton.disabled = pedidosAbandonados.length === 0
+    boton.style.opacity = pedidosAbandonados.length ? '1' : '.55'
+  }
+}
 
 async function cargarPedidos() {
   if (cargandoPedidos) return
@@ -2865,10 +2900,13 @@ async function cargarPedidos() {
     const inicio = new Date(fecha.setHours(0,0,0,0)).toISOString()
     const fin = new Date(fecha.setHours(23,59,59,999)).toISOString()
 
-    const { data, error } = await db.from('pedidos').select('*')
-      .gte('created_at', inicio)
-      .lte('created_at', fin)
-      .order('created_at', { ascending: false })
+    const [{ data, error }] = await Promise.all([
+      db.from('pedidos').select('*')
+        .gte('created_at', inicio)
+        .lte('created_at', fin)
+        .order('created_at', { ascending: false }),
+      cargarPedidosAbandonados()
+    ])
     if (error) { console.error(error); return }
 
     // Cargar conteos de paradas para todos los pedidos
@@ -3002,7 +3040,7 @@ function toggleAccordion(id) {
 
 function renderPedido(pedido) {
   return `
-    <div class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : pedido.estado === 'Pendiente verificación de pago' ? 'border-left:4px solid #f59e0b' : ''}">
+    <div id="pedido-card-${pedido.id}" class="order-card ${pedido.estado === 'Pendiente' ? 'urgent' : ''}" style="${pedido.estado === 'Entregado' ? 'border-left:4px solid var(--success)' : pedido.estado === 'Cancelado' ? 'border-left:4px solid #ef4444' : pedido.estado === 'Pendiente verificación de pago' ? 'border-left:4px solid #f59e0b' : ''}">
       <div class="order-header">
         <div>
           <div class="order-id">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''} · ${new Date(pedido.created_at).toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'})}</div>
@@ -3028,11 +3066,104 @@ function renderPedido(pedido) {
           <button class="btn" style="background:rgba(239,68,68,0.12);color:#ef4444" onclick="updateStatus(${pedido.id},\'Pago rechazado\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">❌ Rechazar pago</button>
         ` : ''}
         ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
+        ${esPedidoAbandonado(pedido) ? `<button class="btn" style="background:#dc2626;color:white" onclick="confirmarEliminarAbandonado(${pedido.id})">🗑️ Eliminar abandonado</button>` : ''}
         ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
         ${pedido.foto_evidencia ? '<button class="btn btn-secondary" onclick="verEvidencia(\'' + pedido.foto_evidencia + '\',\'' + (pedido.firma_evidencia || '') + '\')">📸 Ver evidencia</button>' : ''}
       </div>` : ''}
     </div>
   `
+}
+
+function mostrarConfirmacionEliminacion(mensaje, alConfirmar) {
+  document.getElementById('modal-eliminar-abandonado')?.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-eliminar-abandonado'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:17px;color:#dc2626;margin-bottom:10px">Eliminar pedido</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;line-height:1.55;color:var(--text);margin-bottom:22px">${mensaje}</div>
+      <div style="display:flex;gap:10px">
+        <button id="btn-cancelar-eliminacion" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--gray);color:var(--text);font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Cancelar</button>
+        <button id="btn-confirmar-eliminacion" style="flex:1;padding:12px;border:none;border-radius:10px;background:#dc2626;color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">🗑️ Eliminar</button>
+      </div>
+    </div>`
+  modal.querySelector('#btn-cancelar-eliminacion').onclick = () => modal.remove()
+  modal.querySelector('#btn-confirmar-eliminacion').onclick = async () => {
+    const boton = modal.querySelector('#btn-confirmar-eliminacion')
+    boton.disabled = true
+    boton.textContent = 'Eliminando...'
+    await alConfirmar()
+    modal.remove()
+  }
+  modal.addEventListener('click', evento => {
+    if (evento.target === modal) modal.remove()
+  })
+  document.body.appendChild(modal)
+}
+
+function confirmarEliminarAbandonado(id) {
+  mostrarConfirmacionEliminacion(
+    `¿Eliminar el pedido GK-${id}? El cliente no completó el pago.`,
+    () => eliminarPedidosAbandonados([id], false)
+  )
+}
+
+function confirmarLimpiarAbandonados() {
+  const ids = pedidosAbandonados.map(pedido => pedido.id)
+  if (!ids.length) {
+    showToast('No hay pedidos abandonados para eliminar')
+    return
+  }
+  mostrarConfirmacionEliminacion(
+    `¿Eliminar ${ids.length} pedido${ids.length === 1 ? '' : 's'} abandonado${ids.length === 1 ? '' : 's'}? Los clientes no completaron el pago.`,
+    () => eliminarPedidosAbandonados(ids, true)
+  )
+}
+
+async function eliminarPedidosAbandonados(ids, eliminacionMasiva) {
+  const limite = new Date(Date.now() - (2 * 60 * 60 * 1000)).toISOString()
+  const { data: pedidosVigentes, error: errorValidacion } = await db.from('pedidos')
+    .select('id')
+    .in('id', ids)
+    .eq('estado', 'Pendiente')
+    .in('metodo_pago', ['Tarjeta', 'transferencia'])
+    .is('pago_verificado', null)
+    .lt('created_at', limite)
+
+  if (errorValidacion) {
+    console.error('Error al validar los pedidos abandonados:', errorValidacion)
+    showToast('❌ No se pudieron validar los pedidos')
+    return
+  }
+
+  const idsVigentes = (pedidosVigentes || []).map(pedido => pedido.id)
+  if (!idsVigentes.length) {
+    await cargarPedidosAbandonados()
+    showToast('El pedido ya no cumple las condiciones para eliminarse')
+    return
+  }
+
+  const { error: errorParadas } = await db.from('paradas').delete().in('pedido_id', idsVigentes)
+  if (errorParadas) {
+    console.error('Error al eliminar las paradas de pedidos abandonados:', errorParadas)
+    showToast('❌ No se pudieron eliminar las paradas')
+    return
+  }
+
+  const { error: errorPedidos } = await db.from('pedidos').delete().in('id', idsVigentes)
+  if (errorPedidos) {
+    console.error('Error al eliminar los pedidos abandonados:', errorPedidos)
+    showToast('❌ No se pudieron eliminar los pedidos')
+    return
+  }
+
+  idsVigentes.forEach(id => document.getElementById(`pedido-card-${id}`)?.remove())
+  pedidosAbandonados = pedidosAbandonados.filter(pedido => !idsVigentes.includes(pedido.id))
+  await cargarPedidosAbandonados()
+  showToast(eliminacionMasiva
+    ? `✅ ${idsVigentes.length} pedido${idsVigentes.length === 1 ? '' : 's'} abandonado${idsVigentes.length === 1 ? '' : 's'} eliminado${idsVigentes.length === 1 ? '' : 's'}`
+    : '✅ Pedido abandonado eliminado')
 }
 
 function verComprobante(url) {
