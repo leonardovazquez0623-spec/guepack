@@ -279,13 +279,13 @@ async function iniciarPanel() {
     return
   }
 
-  const { data: usuario, error } = await db.from('usuarios')
-    .select('rol')
+  const { data: usuario } = await db.from('usuarios')
+    .select('es_superadmin')
     .eq('user_id', session.user.id)
     .single()
 
-  if (error || usuario?.rol !== 'admin') {
-    window.location.replace('login.html')
+  if (!usuario?.es_superadmin) {
+    window.location.href = 'login.html'
     return
   }
 
