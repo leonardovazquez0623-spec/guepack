@@ -75,42 +75,74 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 })
 
 async function init() {
-  await new Promise(r => setTimeout(r, 2000))
-
   const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
-  let { data: { session } } = await db.auth.getSession()
-  if (!session) {
-    const { data: refreshData } = await db.auth.refreshSession()
-    session = refreshData?.session
-  }
-  if (!session) {
-    const tenant = await promesaTenant
-    const slug = String(tenant?.slug || '').toLowerCase()
-    const plan = String(tenant?.plan || '').toLowerCase()
+  const promesaEsperaSplash = new Promise(resolve => setTimeout(resolve, 2000))
+  let session = null
 
-    if (slug === 'guepack') {
-      window.location.href = 'landing.html.html'
-    } else if (plan === 'basico') {
-      window.location.href = 'login.html'
+  // Primer intento con la sesión que ya pudiera estar almacenada.
+  const { data: { session: sesionInmediata }, error: errorSesion } = await db.auth.getSession()
+  if (errorSesion) {
+    console.warn('[auth] No fue posible comprobar la sesión inmediata:', errorSesion.message)
+  }
+  session = sesionInmediata
+
+  // Si el callback OAuth sigue procesándose, espera SIGNED_IN durante un máximo de dos segundos.
+  if (!session) {
+    let suscripcionAuth = null
+    await new Promise(resolve => {
+      const finalizarEspera = () => {
+        suscripcionAuth?.unsubscribe()
+        resolve()
+      }
+      const temporizador = setTimeout(finalizarEspera, 2000)
+      const { data } = db.auth.onAuthStateChange((evento, nuevaSesion) => {
+        console.log('[auth] evento en splash:', evento, 'sesión:', nuevaSesion?.user?.email)
+        if (evento === 'SIGNED_IN' && nuevaSesion) {
+          session = nuevaSesion
+          clearTimeout(temporizador)
+          finalizarEspera()
+        }
+      })
+      suscripcionAuth = data.subscription
+    })
+  }
+
+  await promesaEsperaSplash
+
+  if (session) {
+    const { data: usuario, error } = await db.from('usuarios')
+      .select('rol')
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (error) {
+      console.warn('[auth] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
+    }
+
+    if (usuario?.rol === 'admin') {
+      window.location.href = 'admin.html'
+    } else if (usuario?.rol === 'repartidor') {
+      window.location.href = 'repartidor.html'
     } else {
-      window.location.href = 'landing-tenant.html'
+      window.location.href = 'app.html'
     }
     return
   }
 
-  const { data } = await db.from('usuarios').select('rol').eq('email', session.user.email).single()
-  if (!data) { window.location.href = '/app.html'; return }
+  const tenant = await promesaTenant
+  const slug = String(tenant?.slug || '').toLowerCase()
+  const plan = String(tenant?.plan || '').toLowerCase()
 
-  if (data.rol === 'admin') {
-    window.location.href = '/admin.html'
-  } else if (data.rol === 'repartidor') {
-    window.location.href = '/repartidor.html'
+  if (slug === 'guepack') {
+    window.location.href = 'landing.html.html'
+  } else if (plan === 'basico') {
+    window.location.href = 'login.html'
   } else {
-    window.location.href = '/app.html'
+    window.location.href = 'landing-tenant.html'
   }
 }
 init()
