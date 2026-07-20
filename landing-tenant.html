@@ -697,6 +697,50 @@
 
     let tenantAplicadoId = null;
     let eventoInstalacion = null;
+    let redireccionSesionEnCurso = false;
+
+    async function redirigirSesionPorRol(session) {
+      if (!session?.user || redireccionSesionEnCurso) return false;
+      redireccionSesionEnCurso = true;
+
+      const { data: usuario, error } = await dbLanding
+        .from('usuarios')
+        .select('rol')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (error) {
+        console.warn('[sesión] No fue posible consultar el rol; se abrirá la aplicación:', error.message);
+      }
+
+      if (usuario?.rol === 'admin') {
+        window.location.href = '/admin.html';
+      } else if (usuario?.rol === 'repartidor') {
+        window.location.href = '/repartidor.html';
+      } else {
+        window.location.href = '/app.html';
+      }
+      return true;
+    }
+
+    async function verificarSesionActiva() {
+      const { data: { session }, error } = await dbLanding.auth.getSession();
+      if (error) {
+        console.warn('[sesión] No fue posible verificar la sesión activa:', error.message);
+        return false;
+      }
+      if (!session) return false;
+      return redirigirSesionPorRol(session);
+    }
+
+    const promesaVerificacionSesion = verificarSesionActiva();
+
+    dbLanding.auth.onAuthStateChange((evento, session) => {
+      if (evento === 'SIGNED_IN' && session) {
+        // Se difiere la consulta para evitar bloquear el cambio de estado de autenticación.
+        setTimeout(() => redirigirSesionPorRol(session), 0);
+      }
+    });
 
     function establecerTexto(id, texto) {
       const elemento = document.getElementById(id);
@@ -841,13 +885,15 @@
       }
     }
 
-    window.addEventListener('tenant-config-aplicada', (evento) => {
-      aplicarContenidoTenant(evento.detail);
+    window.addEventListener('tenant-config-aplicada', async (evento) => {
+      const tieneSesion = await promesaVerificacionSesion;
+      if (!tieneSesion) aplicarContenidoTenant(evento.detail);
     });
 
     if (window.tenantConfigReady) {
-      window.tenantConfigReady
-        .then((tenant) => {
+      Promise.all([promesaVerificacionSesion, window.tenantConfigReady])
+        .then(([tieneSesion, tenant]) => {
+          if (tieneSesion) return;
           aplicarContenidoTenant(tenant);
           if (!tenant) document.documentElement.classList.remove('esperando-plan');
         })
