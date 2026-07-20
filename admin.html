@@ -255,7 +255,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')">🏢 Empresas</button>
     <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
-    <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')">👥 Clientes</button>
+    <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')" style="position:relative;display:flex;align-items:center;gap:6px">👥 Clientes<span id="sidebar-clientes-sin-verificar-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto">0</span></button>
     <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')">📊 Tráfico</button>
     <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px">📩 Contactos<span id="sidebar-contactos-badge" style="display:none;background:#f05a1a;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
   </nav>
@@ -313,7 +313,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
     <button class="tab" onclick="showTab('repartidores')">🏍️ Repartidores</button>
     <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
-    <button class="tab" onclick="showTab('clientes')">👥 Clientes</button>
+    <button class="tab" onclick="showTab('clientes')" style="position:relative">👥 Clientes<span id="tab-clientes-sin-verificar-badge" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:white;border-radius:50%;min-width:16px;height:16px;padding:0 4px;font-size:8px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <button class="tab" onclick="showTab('trafico')">📊 Tráfico</button>
     <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px">📩 Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:#f05a1a;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <div id="tab-indicator"></div>
@@ -1245,6 +1245,16 @@ function initMapsAdmin() {
       <div id="clientes-lista-generales" style="display:none"></div>
     </div>
     <div id="panel-cliente" style="display:none;margin-top:12px"></div>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+        <div class="card-title" style="margin:0;display:flex;align-items:center;gap:8px">
+          <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="21" height="21">
+          Cuentas sin verificar
+        </div>
+        <span id="cuentas-sin-verificar-conteo" style="background:#fee2e2;color:#dc2626;border-radius:20px;padding:4px 9px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900">0</span>
+      </div>
+      <div id="lista-cuentas-sin-verificar"><div class="loader--4" style="margin:12px auto"></div></div>
+    </div>
   </div>
 
   <!-- TAB TRÁFICO -->
@@ -2389,6 +2399,8 @@ async function init() {
   if (data.es_superadmin) {
     document.getElementById('sidebar-btn-superadmin').style.display = 'block'
   }
+  cargarCuentasSinVerificar()
+  iniciarActualizacionCuentasSinVerificar()
   cargarPedidos()
   cargarChats()
 }
@@ -5376,6 +5388,127 @@ async function cargarClientes() {
 
   _clientesRenderData = { todos, empMap, countMap }
   _renderListasClientes(_clientesRenderData)
+  cargarCuentasSinVerificar()
+}
+
+let _intervaloCuentasSinVerificar = null
+
+function iniciarActualizacionCuentasSinVerificar() {
+  if (_intervaloCuentasSinVerificar) clearInterval(_intervaloCuentasSinVerificar)
+  _intervaloCuentasSinVerificar = setInterval(cargarCuentasSinVerificar, 5 * 60 * 1000)
+}
+
+async function cargarCuentasSinVerificar() {
+  const lista = document.getElementById('lista-cuentas-sin-verificar')
+  const { data, error } = await db.rpc('listar_cuentas_sin_verificar')
+  if (error) {
+    console.error('Error al cargar cuentas sin verificar:', error)
+    if (lista) {
+      lista.innerHTML = '<div style="color:#ef4444;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;padding:8px 0">No se pudieron cargar las cuentas sin verificar</div>'
+    }
+    actualizarConteoCuentasSinVerificar(0)
+    return
+  }
+
+  const cuentas = data || []
+  actualizarConteoCuentasSinVerificar(cuentas.length)
+  if (!lista) return
+  lista.innerHTML = cuentas.length ? cuentas.map(cuenta => {
+    const email = escaparHtmlAdmin(cuenta.email || 'Sin correo')
+    const fecha = cuenta.created_at
+      ? new Date(cuenta.created_at).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'Fecha no disponible'
+    return `
+      <div id="cuenta-sin-verificar-${cuenta.user_id}" style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8">
+        <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="28" height="28" style="flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:10px;color:#8fa3c0;margin-top:3px">${fecha}</div>
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#dc2626;border-radius:20px;padding:5px 9px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;white-space:nowrap">
+          <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="13" height="13"> Sin verificar
+        </span>
+        <button data-user-id="${cuenta.user_id}" data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="eliminarCuentaSinVerificar(this.dataset.userId, this.dataset.email)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#fee2e2;color:#dc2626;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+          <img src="guepack-icons/guepack-icons/svg/32-eliminar.svg" alt="" width="14" height="14"> Eliminar
+        </button>
+      </div>`
+  }).join('') : '<div style="color:#16a34a;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;padding:10px 0">✅ No hay cuentas pendientes de verificación</div>'
+}
+
+function actualizarConteoCuentasSinVerificar(total) {
+  const conteo = document.getElementById('cuentas-sin-verificar-conteo')
+  if (conteo) conteo.textContent = total
+  ;['sidebar-clientes-sin-verificar-badge', 'tab-clientes-sin-verificar-badge'].forEach(id => {
+    const badge = document.getElementById(id)
+    if (!badge) return
+    badge.textContent = total
+    badge.style.display = total > 0 ? 'inline-flex' : 'none'
+  })
+}
+
+function eliminarCuentaSinVerificar(userId, email) {
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    showToast('❌ Identificador de usuario inválido')
+    return
+  }
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-eliminar-sin-verificar'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:#dc2626;margin-bottom:9px">Eliminar cuenta sin verificar</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:#1a2740;line-height:1.6;margin-bottom:10px">¿Eliminar <strong>${escaparHtmlAdmin(email)}</strong> de la tabla de usuarios?</div>
+      <div style="background:#fff7ed;color:#9a3412;border-radius:9px;padding:10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;line-height:1.5;margin-bottom:18px">Después deberás eliminar también la cuenta desde Authentication → Users en Supabase.</div>
+      <div style="display:flex;gap:9px">
+        <button id="cancelar-cuenta-sin-verificar" style="flex:1;padding:11px;border:none;border-radius:9px;background:#f4f6fb;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Cancelar</button>
+        <button id="confirmar-cuenta-sin-verificar" style="flex:1;padding:11px;border:none;border-radius:9px;background:#dc2626;color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Eliminar</button>
+      </div>
+    </div>`
+  overlay.querySelector('#cancelar-cuenta-sin-verificar').onclick = () => overlay.remove()
+  overlay.querySelector('#confirmar-cuenta-sin-verificar').onclick = async () => {
+    const boton = overlay.querySelector('#confirmar-cuenta-sin-verificar')
+    boton.disabled = true
+    boton.textContent = 'Eliminando...'
+    const { error } = await db.from('usuarios').delete().eq('user_id', userId)
+    if (error) {
+      console.error('Error al eliminar cuenta sin verificar:', error)
+      showToast('❌ No se pudo eliminar la cuenta')
+      boton.disabled = false
+      boton.textContent = 'Eliminar'
+      return
+    }
+    overlay.remove()
+    document.getElementById(`cuenta-sin-verificar-${userId}`)?.remove()
+    showToast('✅ Cuenta eliminada de usuarios')
+    mostrarInstruccionEliminarAuth(email)
+    cargarCuentasSinVerificar()
+  }
+  overlay.addEventListener('click', evento => { if (evento.target === overlay) overlay.remove() })
+  document.body.appendChild(overlay)
+}
+
+function mostrarInstruccionEliminarAuth(email) {
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-instruccion-auth'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;text-align:center">
+      <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="42" height="42" style="margin-bottom:10px">
+      <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:#1a4fa0;margin-bottom:9px">Falta eliminarla de Authentication</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:#1a2740;line-height:1.6;margin-bottom:18px">En Supabase abre <strong>Authentication → Users</strong>, busca <strong>${escaparHtmlAdmin(email)}</strong> y elimina la cuenta manualmente.</div>
+      <button onclick="document.getElementById('modal-instruccion-auth').remove()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Entendido</button>
+    </div>`
+  document.body.appendChild(overlay)
+}
+
+function escaparHtmlAdmin(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  })[caracter])
+}
+
+function escaparAtributoAdmin(valor) {
+  return escaparHtmlAdmin(valor).replace(/`/g, '&#096;')
 }
 
 function _renderListasClientes({ todos, empMap, countMap }) {
