@@ -17,6 +17,15 @@
     justify-content: center;
     font-family: 'Montserrat', sans-serif;
   }
+  .estado {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+  }
   .loader {
     display: flex;
     gap: 8px;
@@ -36,10 +45,13 @@
 </style>
 </head>
 <body>
-<div class="loader">
-  <div class="dot"></div>
-  <div class="dot"></div>
-  <div class="dot"></div>
+<div class="estado" role="status" aria-live="polite">
+  <div class="loader" aria-hidden="true">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+  <div>Iniciando sesión...</div>
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -62,17 +74,18 @@ async function redirigirPorRol(session) {
     .single()
 
   if (error) {
-    console.warn('[auth] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
+    console.warn('[redirect] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
   }
+  console.log('[redirect] rol:', usuario?.rol)
 
-  if (usuario?.rol === 'admin') window.location.href = '/admin.html'
-  else if (usuario?.rol === 'repartidor') window.location.href = '/repartidor.html'
-  else window.location.href = '/app.html'
+  if (usuario?.rol === 'admin') window.location.replace('/admin.html')
+  else if (usuario?.rol === 'repartidor') window.location.replace('/repartidor.html')
+  else window.location.replace('/app.html')
 }
 
 db.auth.onAuthStateChange(async (evento, session) => {
-  console.log('[auth] evento:', evento, 'sesión:', session?.user?.email)
-  if ((evento === 'SIGNED_IN' || evento === 'TOKEN_REFRESHED') && session) {
+  console.log('[redirect] evento:', evento, 'correo:', session?.user?.email)
+  if (evento === 'SIGNED_IN' && session) {
     await redirigirPorRol(session)
   }
 })
@@ -80,7 +93,7 @@ db.auth.onAuthStateChange(async (evento, session) => {
 async function comprobarSesionInicial() {
   const { data: { session }, error } = await db.auth.getSession()
   if (error) {
-    console.warn('[auth] No fue posible comprobar la sesión inicial:', error.message)
+    console.warn('[redirect] No fue posible comprobar la sesión inicial:', error.message)
   }
   if (session) {
     await redirigirPorRol(session)
@@ -95,7 +108,7 @@ async function comprobarSesionInicial() {
     return
   }
 
-  window.location.href = '/login.html'
+  window.location.replace('/login.html')
 }
 
 comprobarSesionInicial()
