@@ -102,7 +102,7 @@
   }
   .titulo-seccion { font-family: 'Bebas Neue', sans-serif; color: var(--azul); font-size: 27px; letter-spacing: 1.5px; }
   .tabla-contenedor { overflow-x: auto; }
-  table { width: 100%; min-width: 1050px; border-collapse: collapse; }
+  table { width: 100%; min-width: 1250px; border-collapse: collapse; }
   th {
     padding: 12px 14px;
     color: var(--gris-medio);
@@ -126,6 +126,16 @@
     font-weight: 900;
     text-transform: uppercase;
   }
+  .checklist-tenant {
+    display: grid;
+    gap: 5px;
+    min-width: 190px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+  .checklist-cargando { color: var(--gris-medio); }
+  .checklist-error { color: var(--rojo); }
   .interruptor { position: relative; display: inline-block; width: 42px; height: 24px; }
   .interruptor input { width: 0; height: 0; opacity: 0; }
   .deslizador { position: absolute; inset: 0; cursor: pointer; border-radius: 24px; background: #cbd5e1; transition: .2s; }
@@ -256,11 +266,11 @@
         <thead>
           <tr>
             <th>ID</th><th>Nombre</th><th>Slug</th><th>Dominio</th><th>Plan</th>
-            <th>Precio mensual</th><th>Activo</th><th>Creado</th><th>Acciones</th>
+            <th>Precio mensual</th><th>Activo</th><th>Configuración</th><th>Creado</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody id="tabla-tenants">
-          <tr><td colspan="9" class="estado-vacio">Cargando tenants...</td></tr>
+          <tr><td colspan="10" class="estado-vacio">Cargando tenants...</td></tr>
         </tbody>
       </table>
     </div>
@@ -278,6 +288,7 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let tenants = []
+const estadosConfiguracionTenant = new Map()
 let tenantEditandoId = null
 let archivoLogoSeleccionado = null
 let urlTemporalLogo = null
@@ -324,17 +335,18 @@ async function iniciarPanel() {
 
 async function cargarTenants() {
   const cuerpo = document.getElementById('tabla-tenants')
-  cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">Cargando tenants...</td></tr>'
+  cuerpo.innerHTML = '<tr><td colspan="10" class="estado-vacio">Cargando tenants...</td></tr>'
   const { data, error } = await db.from('tenants').select('*').order('created_at', { ascending: false })
   if (error) {
     console.error('Error al cargar tenants:', error)
-    cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">No se pudieron cargar los tenants</td></tr>'
+    cuerpo.innerHTML = '<tr><td colspan="10" class="estado-vacio">No se pudieron cargar los tenants</td></tr>'
     mostrarToast('❌ Error al cargar tenants')
     return
   }
   tenants = data || []
   renderizarEstadisticas()
   renderizarTenants()
+  await cargarEstadosConfiguracion()
 }
 
 function renderizarEstadisticas() {
@@ -350,7 +362,7 @@ function renderizarEstadisticas() {
 function renderizarTenants() {
   const cuerpo = document.getElementById('tabla-tenants')
   if (!tenants.length) {
-    cuerpo.innerHTML = '<tr><td colspan="9" class="estado-vacio">Aún no hay tenants registrados</td></tr>'
+    cuerpo.innerHTML = '<tr><td colspan="10" class="estado-vacio">Aún no hay tenants registrados</td></tr>'
     return
   }
   cuerpo.innerHTML = tenants.map(tenant => `
@@ -367,6 +379,7 @@ function renderizarTenants() {
           <span class="deslizador"></span>
         </label>
       </td>
+      <td>${renderizarChecklistTenant(tenant.id)}</td>
       <td>${formatearFecha(tenant.created_at)}</td>
       <td><div class="acciones">
         <button class="boton boton-editar" data-accion="editar" data-id="${escaparAtributo(tenant.id)}">✏️ Editar</button>
@@ -374,6 +387,42 @@ function renderizarTenants() {
       </div></td>
     </tr>
   `).join('')
+}
+
+function renderizarChecklistTenant(tenantId) {
+  const estado = estadosConfiguracionTenant.get(String(tenantId))
+  if (!estado) return '<div class="checklist-tenant checklist-cargando">⏳ Consultando configuración...</div>'
+  if (estado.error) return '<div class="checklist-tenant checklist-error">⚠️ No fue posible consultar</div>'
+
+  const marca = valor => valor ? '✅' : '❌'
+  return `
+    <div class="checklist-tenant">
+      <div>${marca(estado.precios_configurados)} Precios configurados</div>
+      <div>${marca(estado.configuracion_base)} Configuración base</div>
+      <div>${marca(estado.tiene_repartidor)} Al menos 1 repartidor</div>
+      <div>${marca(estado.tiene_zona)} Al menos 1 zona de cobertura</div>
+    </div>
+  `
+}
+
+async function cargarEstadosConfiguracion() {
+  if (!tenants.length) return
+
+  await Promise.all(tenants.map(async tenant => {
+    const clave = String(tenant.id)
+    const { data, error } = await db.functions.invoke('onboarding-tenant', {
+      body: { tenant_id: tenant.id, solo_estado: true }
+    })
+
+    if (error || !data?.success) {
+      console.error(`Error al consultar la configuración del tenant ${clave}:`, error || data?.error)
+      estadosConfiguracionTenant.set(clave, { error: true })
+      return
+    }
+    estadosConfiguracionTenant.set(clave, data.estado)
+  }))
+
+  renderizarTenants()
 }
 
 document.getElementById('tabla-tenants').addEventListener('click', evento => {
@@ -618,10 +667,11 @@ async function guardarTenant(evento) {
     notas: document.getElementById('tenant-notas').value.trim() || null
   }
   boton.textContent = 'Guardando...'
-  const consulta = tenantEditandoId == null
-    ? db.from('tenants').insert(datos)
-    : db.from('tenants').update(datos).eq('id', tenantEditandoId)
-  const { error } = await consulta
+  const esNuevoTenant = tenantEditandoId == null
+  const resultado = esNuevoTenant
+    ? await db.from('tenants').insert(datos).select('id').single()
+    : await db.from('tenants').update(datos).eq('id', tenantEditandoId).select('id').single()
+  const { data: tenantGuardado, error } = resultado
   if (error) {
     console.error('Error al guardar tenant:', error)
     mostrarToast('❌ No se pudo guardar el tenant')
@@ -629,7 +679,29 @@ async function guardarTenant(evento) {
     boton.textContent = tenantEditandoId == null ? 'Crear tenant' : 'Guardar cambios'
     return
   }
-  mostrarToast(tenantEditandoId == null ? '✅ Tenant creado' : '✅ Tenant actualizado')
+
+  if (esNuevoTenant) {
+    boton.textContent = '⚙️ Configurando tenant...'
+    mostrarToast('⚙️ Configurando tenant...')
+
+    const { data: onboarding, error: errorOnboarding } = await db.functions.invoke('onboarding-tenant', {
+      body: { tenant_id: tenantGuardado.id }
+    })
+
+    if (errorOnboarding || !onboarding?.success) {
+      console.error('Error durante el onboarding del tenant:', errorOnboarding || onboarding?.error)
+      mostrarToast('⚠️ Tenant creado, pero no fue posible completar su configuración')
+      cerrarModalTenant()
+      await cargarTenants()
+      return
+    }
+
+    estadosConfiguracionTenant.set(String(tenantGuardado.id), onboarding.estado)
+    mostrarToast('✅ Tenant configurado y listo para usar')
+  } else {
+    mostrarToast('✅ Tenant actualizado')
+  }
+
   cerrarModalTenant()
   await cargarTenants()
 }
