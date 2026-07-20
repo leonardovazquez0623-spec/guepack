@@ -1386,7 +1386,7 @@
             </div>
           </div>
 
-          <button id="nac-btn-cotizar" onclick="nacCotizarRapido()"
+          <button id="nac-btn-cotizar" onclick="cotizarNacionalConLimite()"
             style="width:100%;background:var(--blue);color:#fff;font-weight:900;padding:14px;border-radius:12px;font-size:14px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-top:18px">
             🔍 Cotizar
           </button>
@@ -1742,6 +1742,56 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const _solicitudesPorAccion = {
+  cotizador: [],
+  rastreo: [],
+  subidas: []
+}
+
+function _checkRateLimit(accion, maximoSolicitudes = 10, ventanaMs = 60000) {
+  const ahora = Date.now()
+  const solicitudesRecientes = (_solicitudesPorAccion[accion] || [])
+    .filter(marcaDeTiempo => ahora - marcaDeTiempo < ventanaMs)
+
+  _solicitudesPorAccion[accion] = solicitudesRecientes
+  if (solicitudesRecientes.length >= maximoSolicitudes) return false
+
+  solicitudesRecientes.push(ahora)
+  return true
+}
+
+function _mostrarToastSeguridad(mensaje) {
+  const toast = document.createElement('div')
+  toast.setAttribute('role', 'status')
+  toast.setAttribute('aria-live', 'polite')
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;justify-content:center;gap:9px;min-width:200px;max-width:min(420px,calc(100vw - 32px));padding:12px 20px;border-radius:10px;background:#ef4444;color:#ffffff;box-shadow:0 4px 12px rgba(0,0,0,.3);font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;text-align:center'
+
+  const icono = document.createElement('img')
+  icono.src = '/guepack-icons/guepack-icons/svg/38-seguridad.svg'
+  icono.alt = ''
+  icono.setAttribute('aria-hidden', 'true')
+  icono.style.cssText = 'width:22px;height:22px;object-fit:contain;flex:0 0 auto'
+
+  const texto = document.createElement('span')
+  texto.textContent = mensaje
+  toast.append(icono, texto)
+  document.body.appendChild(toast)
+
+  setTimeout(() => {
+    toast.style.transition = 'opacity .3s ease'
+    toast.style.opacity = '0'
+    setTimeout(() => toast.remove(), 300)
+  }, 3500)
+}
+
+function cotizarNacionalConLimite() {
+  if (!_checkRateLimit('cotizador', 10, 60000)) {
+    _mostrarToastSeguridad('Demasiadas solicitudes. Espera un momento.')
+    return
+  }
+  return nacCotizarRapido()
+}
 
 function obtenerRutaEvidencia(valor) {
   if (!valor) return null
@@ -3112,6 +3162,10 @@ const precio = precioBase  // descuento de cupón ya está incluido en _precioGe
 let comprobanteUrl = null
 const comprobanteFile = document.getElementById('comprobante-input').files[0]
 if (comprobanteFile) {
+  if (!_checkRateLimit('subidas', 3, 60000)) {
+    _mostrarToastSeguridad('Demasiadas subidas. Espera un momento.')
+    return
+  }
   const ext = comprobanteFile.name.split('.').pop()
   const tmpId = Date.now()
   const rutaComprobante = `comprobantes/${tmpId}.${ext}`
@@ -3251,6 +3305,10 @@ setTimeout(() => {
 async function rastrearPedido() {
   const folioInput = document.getElementById('input-folio').value.trim()
   if (!folioInput) { alert('Escribe un folio'); return; }
+  if (!_checkRateLimit('rastreo', 5, 60000)) {
+    _mostrarToastSeguridad('Demasiadas búsquedas. Espera un momento.')
+    return
+  }
 
   const folio = folioInput.replace('GK-', '').replace('gk-', '')
 
@@ -5937,6 +5995,11 @@ function _abrirModalFotoCliente() {
 async function _subirFotoCliente(e) {
   const file = e.target.files[0]
   if (!file || !_clienteUserId) return
+  if (!_checkRateLimit('subidas', 3, 60000)) {
+    e.target.value = ''
+    _mostrarToastSeguridad('Demasiadas subidas. Espera un momento.')
+    return
+  }
   const status = document.getElementById('mfp-status')
   if (status) status.textContent = '⏳ Subiendo...'
   const ext = file.name.split('.').pop() || 'jpg'
@@ -6912,6 +6975,11 @@ async function _calcularPrecioGeneral() {
   }
   if (!destino) return
 
+  if (!_checkRateLimit('cotizador', 10, 60000)) {
+    _mostrarToastSeguridad('Demasiadas solicitudes. Espera un momento.')
+    return
+  }
+
   const [{ data: precios }, { data: rangos }] = await Promise.all([
     db.from('precios_generales').select('*').limit(1).maybeSingle(),
     db.from('rangos_precio_general').select('*').order('km_desde')
@@ -7049,6 +7117,11 @@ async function _calcularPrecioCorporativo() {
   }
   const destino = document.getElementById('dir-entrega').value.trim()
   if (!destino) return
+
+  if (!_checkRateLimit('cotizador', 10, 60000)) {
+    _mostrarToastSeguridad('Demasiadas solicitudes. Espera un momento.')
+    return
+  }
 
   try {
     const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
@@ -7239,6 +7312,10 @@ async function _calcularCotizacionMultiParada() {
   const paradasDirs = _paradasList.map(p => p.direccion.trim()).filter(Boolean)
   if (paradasDirs.length === 0) {
     console.log('[multiParada] No hay paradas con dirección — abortando')
+    return
+  }
+  if (!_checkRateLimit('cotizador', 10, 60000)) {
+    _mostrarToastSeguridad('Demasiadas solicitudes. Espera un momento.')
     return
   }
   console.log('[multiParada] Calculando ruta:', origen, '→', destPrincipal, '→', paradasDirs)
