@@ -89,10 +89,15 @@ async function init() {
   }
   if (!session) {
     const tenant = await promesaTenant
-    if (tenant?.plan === 'pro' || tenant?.plan === 'enterprise') {
-      window.location.replace('/landing-tenant.html')
+    const slug = String(tenant?.slug || '').toLowerCase()
+    const plan = String(tenant?.plan || '').toLowerCase()
+
+    if (slug === 'guepack') {
+      window.location.href = 'landing.html.html'
+    } else if (plan === 'basico') {
+      window.location.href = 'login.html'
     } else {
-      window.location.replace('/login.html')
+      window.location.href = 'landing-tenant.html'
     }
     return
   }
