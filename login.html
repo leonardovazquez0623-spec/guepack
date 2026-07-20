@@ -5,11 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GUEPACK – Iniciar Sesión</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="/tenant-config.js"></script>
 <style>
+  :root {
+    --color-primary: #1E56C7;
+    --color-secondary: #F05A1A;
+    --color-primary-dark: #0d3a8a;
+    --color-primary-light: #e8f0fe;
+    --color-secondary-dark: #c4440e;
+    --color-secondary-light: #fff0eb;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Montserrat', sans-serif;
-    background: linear-gradient(135deg, #0e3070 0%, #1a4fa0 60%, #2563c4 100%);
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 65%, var(--color-primary-light) 160%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -23,6 +32,7 @@
     width: 100%;
     max-width: 400px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    position: relative;
   }
   .brand {
     text-align: center;
@@ -31,11 +41,11 @@
   .brand-name {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 48px;
-    color: #1a4fa0;
+    color: var(--color-primary);
     letter-spacing: 4px;
     line-height: 1;
   }
-  .brand-name span { color: #f05a1a; }
+  .brand-name span { color: var(--color-secondary); }
   .brand-sub {
     font-size: 11px;
     color: #8fa3c0;
@@ -68,7 +78,7 @@
   }
   .form-input:focus {
     outline: none;
-    border-color: #1a4fa0;
+    border-color: var(--color-primary);
     background: white;
   }
   .btn {
@@ -86,9 +96,9 @@
     margin-bottom: 10px;
   }
   .btn-primary {
-    background: linear-gradient(135deg, #f05a1a, #ff7a3d);
+    background: var(--color-primary);
     color: white;
-    box-shadow: 0 4px 14px rgba(240,90,26,0.35);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
   .btn-google {
     background: white;
@@ -99,7 +109,7 @@
     justify-content: center;
     gap: 10px;
   }
-  .btn-google:hover { border-color: #1a4fa0; }
+  .btn-google:hover { border-color: var(--color-primary); }
   .divider {
     text-align: center;
     color: #8fa3c0;
@@ -127,14 +137,14 @@
     margin-top: 16px;
   }
   .toggle-text a {
-    color: #1a4fa0;
+    color: var(--color-primary);
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
   }
   .error-msg {
     background: rgba(240,90,26,0.1);
-    color: #f05a1a;
+    color: var(--color-secondary);
     padding: 10px 14px;
     border-radius: 8px;
     font-size: 12px;
@@ -152,19 +162,29 @@
     margin-bottom: 14px;
     display: none;
   }
+  .tenant-accent { color: var(--color-primary) !important; }
+  #login-tenant-mascot {
+    display: none;
+    width: auto;
+    max-width: 180px;
+    max-height: 135px;
+    object-fit: contain;
+    margin: -18px auto 12px;
+  }
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
-<meta name="theme-color" content="#1a4fa0">
+<meta name="theme-color" content="#1E56C7">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
 </head>
 <body>
 
 <div class="login-box">
   <div class="brand">
-    <img src="/logo_principal_original.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin:0 auto 4px">
-    <div class="brand-sub">Paquetería Local · Guadalajara</div>
+    <img id="login-tenant-logo" data-tenant-logo src="/logo_principal_original.png" alt="GUEPACK" style="max-width:240px;max-height:100px;height:auto;display:block;margin:0 auto 4px;object-fit:contain">
+    <div id="login-tenant-welcome" class="brand-sub">Bienvenido a GUEPACK Express</div>
   </div>
+  <img id="login-tenant-mascot" alt="Mascota de bienvenida">
 
   <div id="error-msg" class="error-msg"></div>
   <div id="success-msg" class="success-msg"></div>
@@ -181,7 +201,7 @@
     </div>
     <button class="btn btn-primary" onclick="loginEmail()">Iniciar Sesión</button>
     <div style="text-align:center;margin-bottom:10px">
-      <a onclick="showForgot()" style="font-size:12px;color:#8fa3c0;font-weight:700;cursor:pointer;text-decoration:none">¿Olvidaste tu contraseña?</a>
+      <a onclick="showForgot()" class="tenant-accent" style="font-size:12px;font-weight:700;cursor:pointer;text-decoration:none">¿Olvidaste tu contraseña?</a>
     </div>
     <div class="divider">O</div>
     <button class="btn btn-google" onclick="loginGoogle()">
@@ -195,7 +215,7 @@
   <!-- RECUPERAR CONTRASEÑA -->
   <div id="forgot-form" style="display:none">
     <div style="text-align:center;margin-bottom:24px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:2px">Recuperar contraseña</div>
+      <div class="tenant-accent" style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px">Recuperar contraseña</div>
       <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-top:4px">Te enviaremos un link a tu correo</div>
     </div>
     <div class="form-group">
@@ -204,7 +224,7 @@
     </div>
     <button class="btn btn-primary" onclick="enviarRecuperacion()">Enviar link de recuperación</button>
     <div class="toggle-text">
-      <a onclick="showLogin()" style="color:#1a4fa0;font-weight:700;cursor:pointer">← Volver al inicio de sesión</a>
+      <a onclick="showLogin()" class="tenant-accent" style="font-weight:700;cursor:pointer">← Volver al inicio de sesión</a>
     </div>
   </div>
 
@@ -243,8 +263,8 @@
       <input type="text" id="reg-referido" class="form-input" placeholder="Ej. GUEP-AXB72" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
     </div>
     <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:#374151;margin-bottom:16px">
-      <input type="checkbox" id="acepto-terminos" style="margin-top:3px;accent-color:#1E56C7;flex-shrink:0" onchange="_actualizarBtnRegistro()">
-      <span>He leído y acepto la <a href="/privacidad.html" target="_blank" style="color:#1E56C7;">Política de Privacidad</a> y los <a href="/condiciones.html" target="_blank" style="color:#1E56C7;">Términos y Condiciones</a> de GUEPACK Express.</span>
+      <input type="checkbox" id="acepto-terminos" style="margin-top:3px;accent-color:var(--color-primary);flex-shrink:0" onchange="_actualizarBtnRegistro()">
+      <span>He leído y acepto la <a href="/privacidad.html" target="_blank" class="tenant-accent">Política de Privacidad</a> y los <a href="/condiciones.html" target="_blank" class="tenant-accent">Términos y Condiciones</a> de GUEPACK Express.</span>
     </label>
     <button id="btn-crear-cuenta" class="btn btn-primary" onclick="registrar()" disabled style="opacity:0.5;cursor:not-allowed">Crear cuenta</button>
     <div class="divider">O</div>
@@ -262,6 +282,36 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+let tenantActualLogin = null
+
+function aplicarBrandingLogin(tenant) {
+  if (!tenant) return
+  tenantActualLogin = tenant
+  const nombreTenant = tenant.nombre_app || tenant.nombre || 'GUEPACK Express'
+  document.title = `${nombreTenant} – Iniciar Sesión`
+  document.getElementById('login-tenant-welcome').textContent = `Bienvenido a ${nombreTenant}`
+
+  if (tenant.logo_url) {
+    const logo = document.getElementById('login-tenant-logo')
+    logo.src = tenant.logo_url
+    logo.alt = nombreTenant
+  }
+
+  const mascota = document.getElementById('login-tenant-mascot')
+  if (tenant.img_bienvenida) {
+    mascota.src = tenant.img_bienvenida
+    mascota.style.display = 'block'
+  } else {
+    mascota.style.display = 'none'
+  }
+}
+
+window.addEventListener('tenant-config-aplicada', evento => aplicarBrandingLogin(evento.detail))
+window.tenantConfigReady?.then(aplicarBrandingLogin)
+
+function urlDelTenant(ruta) {
+  return new URL(ruta, window.location.origin).href
+}
 
 function _togglePasswordVis() {
   const inp = document.getElementById('reg-password')
@@ -363,7 +413,7 @@ async function loginGoogle() {
   const { error } = await db.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: 'https://guepack.com/redirect.html',
+      redirectTo: urlDelTenant('/redirect.html'),
       queryParams: { prompt: 'select_account' }
     }
   })
@@ -400,7 +450,7 @@ async function enviarRecuperacion() {
   btn.disabled = true
 
   const { error } = await db.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://guepack.com/cambiar-password.html'
+    redirectTo: urlDelTenant('/cambiar-password.html')
   })
 
   btn.textContent = 'Enviar link de recuperación'
@@ -413,6 +463,9 @@ async function enviarRecuperacion() {
 }
 
 async function registrar() {
+  if (!tenantActualLogin && window.tenantConfigReady) {
+    tenantActualLogin = await window.tenantConfigReady
+  }
   const nombre = document.getElementById('reg-nombre').value.trim()
   const email = document.getElementById('reg-email').value.trim()
   const password = document.getElementById('reg-password').value
@@ -446,10 +499,28 @@ async function registrar() {
   const { data: signUpData, error } = await db.auth.signUp({
     email,
     password,
-    options: { data: { nombre, whatsapp, empresa_codigo: empresaCodigo || null, referido_por: referidoPor } }
+    options: {
+      emailRedirectTo: urlDelTenant('/redirect.html'),
+      data: {
+        nombre,
+        whatsapp,
+        empresa_codigo: empresaCodigo || null,
+        referido_por: referidoPor,
+        tenant_id: tenantActualLogin?.id || null,
+        tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express'
+      }
+    }
   })
   if (error) { showError('Error al crear cuenta: ' + error.message); return; }
   if (signUpData?.user) {
+    if (tenantActualLogin?.id) {
+      const { error: errorTenant } = await db.from('usuarios')
+        .update({ tenant_id: tenantActualLogin.id })
+        .eq('user_id', signUpData.user.id)
+      if (errorTenant) {
+        console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
+      }
+    }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: signUpData.user.id }).then(() => {})
   }
   _mostrarModalCuentaCreada()
@@ -464,7 +535,7 @@ function _mostrarModalCuentaCreada() {
       <div style="font-size:48px;margin-bottom:12px">✅</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a2740;margin-bottom:10px">¡Cuenta creada!</div>
       <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.6;margin-bottom:24px">Revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.</div>
-      <button onclick="document.getElementById('modal-cuenta-creada').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px">Entendido</button>
+      <button onclick="document.getElementById('modal-cuenta-creada').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px">Entendido</button>
     </div>
   `
   document.body.appendChild(overlay)
@@ -487,7 +558,7 @@ async function resendConfirmationEmail() {
     document.getElementById('success-msg').style.display = 'none'
     const btn = document.createElement('button')
     btn.textContent = 'Reenviar correo de confirmación'
-    btn.style.cssText = 'display:block;margin-top:10px;width:100%;padding:10px 0;border:none;border-radius:10px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px'
+    btn.style.cssText = 'display:block;margin-top:10px;width:100%;padding:10px 0;border:none;border-radius:10px;background:var(--color-primary);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px'
     btn.onclick = resendConfirmationEmail
     el.appendChild(btn)
   }
