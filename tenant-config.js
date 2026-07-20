@@ -163,7 +163,7 @@
   async function consultarTenant(identificador) {
     const columna = identificador.tipo === 'dominio' ? 'dominio' : 'slug'
     const consulta = new URLSearchParams({
-      select: 'id,nombre,slug,dominio,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,datos_bancarios,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
+      select: 'id,nombre,slug,dominio,plan,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,datos_bancarios,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
       [columna]: `eq.${identificador.valor}`,
       activo: 'eq.true',
       limit: '1'

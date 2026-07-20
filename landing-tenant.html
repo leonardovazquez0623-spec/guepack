@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es" class="esperando-plan">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E56C7">
+  <meta name="description" content="Servicio de paquetería local rápido y seguro.">
+  <title>Paquetería local</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- La configuración del tenant debe cargarse antes que cualquier otro script. -->
+  <script src="/tenant-config.js"></script>
+
+  <style>
+    :root {
+      --color-primary: #1E56C7;
+      --color-secondary: #F05A1A;
+      --color-primary-dark: #0d3a8a;
+      --color-primary-light: #e8f0fe;
+      --color-secondary-dark: #c4440e;
+      --color-secondary-light: #fff0eb;
+      --color-texto: #17233b;
+      --color-texto-suave: #64748b;
+      --color-fondo: #f8fafc;
+      --sombra: 0 18px 45px rgba(15, 23, 42, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    html.esperando-plan body {
+      visibility: hidden;
+    }
+
+    body {
+      margin: 0;
+      color: var(--color-texto);
+      background: var(--color-fondo);
+      font-family: "Montserrat", sans-serif;
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    img {
+      max-width: 100%;
+    }
+
+    .contenedor {
+      width: min(1160px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .encabezado {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+      backdrop-filter: blur(14px);
+    }
+
+    .encabezado-contenido {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .marca {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      color: var(--color-primary);
+      text-decoration: none;
+      font-weight: 900;
+    }
+
+    .marca-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    .marca-nombre {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .navegacion {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .navegacion a {
+      color: var(--color-texto);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .boton {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 800;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .boton:hover {
+      transform: translateY(-2px);
+    }
+
+    .boton-primario {
+      color: #fff;
+      background: var(--color-primary);
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 28%, transparent);
+    }
+
+    .boton-secundario {
+      color: var(--color-primary);
+      background: #fff;
+      border: 2px solid var(--color-primary);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 82px 0 70px;
+      background:
+        radial-gradient(circle at 85% 18%, var(--color-secondary-light), transparent 30%),
+        linear-gradient(135deg, #fff 0%, var(--color-primary-light) 100%);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      width: 330px;
+      height: 330px;
+      left: -170px;
+      bottom: -190px;
+      border-radius: 50%;
+      background: var(--color-secondary);
+      opacity: 0.12;
+    }
+
+    .hero-contenido {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      align-items: center;
+      gap: 60px;
+    }
+
+    .distintivo {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 14px;
+      border-radius: 999px;
+      color: var(--color-primary-dark);
+      background: #fff;
+      box-shadow: 0 7px 24px rgba(15, 23, 42, 0.08);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    h1 {
+      max-width: 720px;
+      margin: 22px 0 18px;
+      color: var(--color-primary-dark);
+      font-size: clamp(2.35rem, 6vw, 4.8rem);
+      line-height: 1.03;
+      letter-spacing: -0.055em;
+    }
+
+    .hero-subtitulo {
+      max-width: 660px;
+      margin: 0;
+      color: var(--color-texto-suave);
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      line-height: 1.65;
+      font-weight: 600;
+    }
+
+    .hero-acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .hero-visual {
+      min-height: 390px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 36px;
+      background: rgba(255, 255, 255, 0.68);
+      box-shadow: var(--sombra);
+    }
+
+    .hero-imagen {
+      width: auto;
+      max-width: 100%;
+      max-height: 370px;
+      object-fit: contain;
+    }
+
+    .seccion {
+      padding: 88px 0;
+    }
+
+    .seccion-blanca {
+      background: #fff;
+    }
+
+    .titulo-seccion {
+      max-width: 760px;
+      margin: 0 auto 48px;
+      text-align: center;
+    }
+
+    .titulo-seccion span {
+      color: var(--color-secondary);
+      font-size: 0.8rem;
+      font-weight: 900;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .titulo-seccion h2 {
+      margin: 10px 0 12px;
+      color: var(--color-primary-dark);
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+    }
+
+    .titulo-seccion p {
+      margin: 0;
+      color: var(--color-texto-suave);
+      line-height: 1.7;
+    }
+
+    .rejilla-pasos,
+    .rejilla-beneficios {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+
+    .tarjeta {
+      position: relative;
+      padding: 30px;
+      border: 1px solid #e2e8f0;
+      border-radius: 22px;
+      background: #fff;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .numero-paso,
+    .icono-beneficio {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 20px;
+      border-radius: 16px;
+      color: #fff;
+      background: var(--color-primary);
+      font-size: 1.3rem;
+      font-weight: 900;
+    }
+
+    .rejilla-pasos .tarjeta:nth-child(2) .numero-paso,
+    .rejilla-beneficios .tarjeta:nth-child(2) .icono-beneficio {
+      background: var(--color-secondary);
+    }
+
+    .tarjeta h3 {
+      margin: 0 0 10px;
+      color: var(--color-primary-dark);
+      font-size: 1.08rem;
+    }
+
+    .tarjeta p {
+      margin: 0;
+      color: var(--color-texto-suave);
+      line-height: 1.65;
+      font-size: 0.92rem;
+    }
+
+    .seccion-clientes[hidden] {
+      display: none;
+    }
+
+    .logos-clientes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      align-items: center;
+      gap: 18px;
+    }
+
+    .cliente-logo {
+      min-height: 112px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      background: #fff;
+      color: var(--color-primary-dark);
+      text-align: center;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .cliente-logo img {
+      width: 100%;
+      height: 72px;
+      object-fit: contain;
+    }
+
+    .pwa {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.55fr);
+      align-items: center;
+      gap: 32px;
+      padding: 48px;
+      border-radius: 30px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+      box-shadow: var(--sombra);
+    }
+
+    .pwa h2 {
+      margin: 0 0 14px;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+    }
+
+    .pwa p {
+      margin: 0;
+      line-height: 1.7;
+      opacity: 0.9;
+    }
+
+    .pwa .boton {
+      color: var(--color-primary-dark);
+      background: #fff;
+    }
+
+    .soporte {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1fr);
+      align-items: center;
+      gap: 42px;
+      padding: 48px;
+      border-radius: 30px;
+      background: var(--color-secondary-light);
+    }
+
+    .soporte-imagen {
+      width: auto;
+      max-width: 100%;
+      max-height: 230px;
+      margin: auto;
+      object-fit: contain;
+    }
+
+    .soporte h2 {
+      margin: 0 0 12px;
+      color: var(--color-secondary-dark);
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+    }
+
+    .soporte p {
+      margin: 0 0 24px;
+      color: var(--color-texto);
+      line-height: 1.7;
+    }
+
+    .boton-whatsapp {
+      color: #fff;
+      background: var(--color-secondary);
+    }
+
+    footer {
+      padding: 54px 0 28px;
+      color: #fff;
+      background: var(--color-primary-dark);
+    }
+
+    .pie-contenido {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 30px;
+    }
+
+    .pie-titulo {
+      margin-bottom: 10px;
+      font-weight: 900;
+    }
+
+    .pie-texto,
+    .pie-enlace {
+      display: block;
+      margin: 7px 0;
+      color: var(--color-primary-light);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      text-decoration: none;
+    }
+
+    .derechos {
+      margin-top: 35px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      color: var(--color-primary-light);
+      text-align: center;
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 840px) {
+      .navegacion a:not(.boton) {
+        display: none;
+      }
+
+      .hero {
+        padding-top: 52px;
+      }
+
+      .hero-contenido,
+      .pwa,
+      .soporte {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-visual {
+        min-height: 300px;
+      }
+
+      .hero-imagen {
+        max-height: 280px;
+      }
+
+      .rejilla-pasos,
+      .rejilla-beneficios {
+        grid-template-columns: 1fr;
+      }
+
+      .pwa,
+      .soporte {
+        padding: 34px 26px;
+        text-align: center;
+      }
+
+      .pie-contenido {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .contenedor {
+        width: min(100% - 28px, 1160px);
+      }
+
+      .marca-nombre {
+        max-width: 125px;
+      }
+
+      .encabezado .boton {
+        min-height: 42px;
+        padding: 9px 13px;
+        font-size: 0.76rem;
+      }
+
+      .hero-acciones .boton {
+        width: 100%;
+      }
+
+      .seccion {
+        padding: 64px 0;
+      }
+
+      .hero-visual {
+        padding: 20px;
+        border-radius: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="encabezado">
+    <div class="contenedor encabezado-contenido">
+      <a class="marca" href="/" aria-label="Ir al inicio">
+        <img
+          id="logo-tenant"
+          class="marca-logo"
+          src="/logo_principal.png"
+          alt="Logo"
+          data-tenant-logo
+        >
+        <span id="nombre-encabezado" class="marca-nombre">Paquetería local</span>
+      </a>
+
+      <nav class="navegacion" aria-label="Navegación principal">
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#beneficios">Beneficios</a>
+        <a class="boton boton-primario" href="/app.html">Hacer un envío</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="contenedor hero-contenido">
+        <div>
+          <span id="distintivo-ciudad" class="distintivo">📍 Servicio local</span>
+          <h1 id="titulo-hero">Paquetería local en tu ciudad</h1>
+          <p id="subtitulo-hero" class="hero-subtitulo">
+            Envíos rápidos y seguros con tu servicio de paquetería.
+          </p>
+          <div class="hero-acciones">
+            <button class="boton boton-primario" type="button" onclick="window.location.href='/app.html'">
+              Cotizar un envío
+            </button>
+            <a class="boton boton-secundario" href="#como-funciona">Ver cómo funciona</a>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <img
+            id="imagen-bienvenida"
+            class="hero-imagen"
+            src="/enviar_g.png"
+            alt="Mascota de bienvenida"
+            data-tenant-image="bienvenida"
+          >
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="seccion seccion-blanca">
+      <div class="contenedor">
+        <div class="titulo-seccion">
+          <span>Así de fácil</span>
+          <h2>¿Cómo funciona?</h2>
+          <p>Solicita, entrega y da seguimiento a tu paquete desde un solo lugar.</p>
+        </div>
+
+        <div class="rejilla-pasos">
+          <article class="tarjeta">
+            <div class="numero-paso">1</div>
+            <h3>Solicita tu envío</h3>
+            <p>Captura los datos de recolección y entrega para recibir tu cotización.</p>
+          </article>
+          <article class="tarjeta">
+            <div class="numero-paso">2</div>
+            <h3>Preparamos la ruta</h3>
+            <p>Asignamos el servicio y mantenemos visible el avance de tu pedido.</p>
+          </article>
+          <article class="tarjeta">
+            <div class="numero-paso">3</div>
+            <h3>Recibe con seguridad</h3>
+            <p>Tu paquete llega a su destino con seguimiento durante todo el trayecto.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="beneficios" class="seccion">
+      <div class="contenedor">
+        <div class="titulo-seccion">
+          <span>Todo bajo control</span>
+          <h2>Envíos pensados para tu día a día</h2>
+          <p>Una experiencia sencilla para personas y negocios que necesitan moverse rápido.</p>
+        </div>
+
+        <div class="rejilla-beneficios">
+          <article class="tarjeta">
+            <div class="icono-beneficio">⚡</div>
+            <h3>Servicio ágil</h3>
+            <p>Cotiza y solicita tu envío en pocos pasos, sin procesos complicados.</p>
+          </article>
+          <article class="tarjeta">
+            <div class="icono-beneficio">📍</div>
+            <h3>Seguimiento en línea</h3>
+            <p>Consulta el estado de tus pedidos y comparte el rastreo cuando lo necesites.</p>
+          </article>
+          <article class="tarjeta">
+            <div class="icono-beneficio">🛡️</div>
+            <h3>Entrega confiable</h3>
+            <p>Cuidamos cada paquete desde la recolección hasta la entrega final.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="seccion-clientes" class="seccion seccion-blanca seccion-clientes" hidden>
+      <div class="contenedor">
+        <div class="titulo-seccion">
+          <span>Confían en nosotros</span>
+          <h2>Clientes aliados</h2>
+          <p id="texto-clientes">Negocios que realizan sus envíos con nosotros.</p>
+        </div>
+        <div id="logos-clientes" class="logos-clientes"></div>
+      </div>
+    </section>
+
+    <section class="seccion">
+      <div class="contenedor">
+        <div class="pwa">
+          <div>
+            <h2>Lleva tus envíos contigo</h2>
+            <p>
+              Instala la aplicación en tu dispositivo para entrar más rápido, sin descargarla
+              desde una tienda.
+            </p>
+          </div>
+          <button id="boton-instalar" class="boton" type="button">Abrir aplicación</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion seccion-blanca">
+      <div class="contenedor">
+        <div class="soporte">
+          <img
+            id="imagen-soporte"
+            class="soporte-imagen"
+            src="/soporte_g.png"
+            alt="Mascota de soporte"
+            data-tenant-image="soporte"
+          >
+          <div>
+            <h2>¿Necesitas ayuda?</h2>
+            <p id="texto-soporte">Nuestro equipo está listo para ayudarte con tus envíos.</p>
+            <a id="boton-whatsapp" class="boton boton-whatsapp" href="#" target="_blank" rel="noopener noreferrer">
+              💬 Hablar por WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="contenedor">
+      <div class="pie-contenido">
+        <div>
+          <div id="nombre-pie" class="pie-titulo">Paquetería local</div>
+          <span id="descripcion-pie" class="pie-texto">Envíos rápidos y seguros en tu ciudad.</span>
+        </div>
+        <div>
+          <div class="pie-titulo">Servicio</div>
+          <a class="pie-enlace" href="/app.html">Solicitar un envío</a>
+          <a class="pie-enlace" href="/rastreo.html">Rastrear un pedido</a>
+        </div>
+        <div>
+          <div class="pie-titulo">Atención</div>
+          <span id="ciudad-pie" class="pie-texto">Tu ciudad</span>
+          <span id="horario-pie" class="pie-texto">Consulta nuestros horarios por WhatsApp.</span>
+        </div>
+      </div>
+      <div id="derechos" class="derechos">Todos los derechos reservados.</div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const URL_SUPABASE = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co';
+    const CLAVE_PUBLICA_SUPABASE = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z';
+    const dbLanding = window.supabase.createClient(URL_SUPABASE, CLAVE_PUBLICA_SUPABASE);
+
+    let tenantAplicadoId = null;
+    let eventoInstalacion = null;
+
+    function establecerTexto(id, texto) {
+      const elemento = document.getElementById(id);
+      if (elemento) elemento.textContent = texto;
+    }
+
+    function urlSegura(valor, permitirWhatsapp = false) {
+      if (!valor) return '';
+      try {
+        const url = new URL(valor, window.location.origin);
+        const protocolosPermitidos = permitirWhatsapp
+          ? ['https:', 'http:']
+          : ['https:', 'http:'];
+        return protocolosPermitidos.includes(url.protocol) ? url.href : '';
+      } catch (error) {
+        console.warn('[tenant] URL inválida omitida:', valor);
+        return '';
+      }
+    }
+
+    function crearTarjetaCliente(cliente) {
+      const enlace = document.createElement('a');
+      enlace.className = 'cliente-logo';
+      enlace.setAttribute('aria-label', cliente.nombre || 'Cliente aliado');
+
+      const destino = urlSegura(cliente.link_url);
+      if (destino) {
+        enlace.href = destino;
+        enlace.target = '_blank';
+        enlace.rel = 'noopener noreferrer';
+      } else {
+        enlace.removeAttribute('href');
+      }
+
+      const logo = urlSegura(cliente.logo_url);
+      if (logo) {
+        const imagen = document.createElement('img');
+        imagen.src = logo;
+        imagen.alt = cliente.nombre ? `Logo de ${cliente.nombre}` : 'Logo de cliente aliado';
+        imagen.loading = 'lazy';
+        enlace.appendChild(imagen);
+      } else {
+        enlace.textContent = cliente.nombre || 'Cliente aliado';
+      }
+
+      return enlace;
+    }
+
+    async function cargarClientesAliados(tenant) {
+      const seccion = document.getElementById('seccion-clientes');
+      const contenedor = document.getElementById('logos-clientes');
+      contenedor.replaceChildren();
+      seccion.hidden = true;
+
+      if (!tenant?.id) return;
+
+      const { data: clientes, error } = await dbLanding
+        .from('clientes_aliados')
+        .select('nombre, logo_url, link_url')
+        .eq('tenant_id', tenant.id)
+        .eq('activo', true)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('[tenant] No fue posible cargar los clientes aliados:', error.message);
+        return;
+      }
+
+      if (!clientes?.length) return;
+
+      clientes.forEach((cliente) => contenedor.appendChild(crearTarjetaCliente(cliente)));
+      seccion.hidden = false;
+    }
+
+    function crearEnlaceWhatsapp(tenant, nombre) {
+      const telefono = String(tenant.whatsapp_soporte || '').replace(/\D/g, '');
+      if (!telefono) return '';
+
+      const mensaje = encodeURIComponent(`Hola ${nombre}, necesito información sobre sus envíos`);
+      return `https://wa.me/${telefono}?text=${mensaje}`;
+    }
+
+    function aplicarContenidoTenant(tenant) {
+      if (!tenant) return;
+
+      if (tenant.plan === 'basico') {
+        window.location.replace('/login.html');
+        return;
+      }
+
+      document.documentElement.classList.remove('esperando-plan');
+
+      const nombre = tenant.nombre_app || tenant.nombre || 'Paquetería local';
+      const ciudad = tenant.ciudad || 'tu ciudad';
+      const logo = urlSegura(tenant.logo_url);
+      const enlaceWhatsapp = crearEnlaceWhatsapp(tenant, nombre);
+      const botonWhatsapp = document.getElementById('boton-whatsapp');
+
+      document.title = `${nombre} · Paquetería local en ${ciudad}`;
+      establecerTexto('nombre-encabezado', nombre);
+      establecerTexto('distintivo-ciudad', `📍 Servicio local en ${ciudad}`);
+      establecerTexto('titulo-hero', `Paquetería local en ${ciudad}`);
+      establecerTexto('subtitulo-hero', `Envíos rápidos y seguros con ${nombre}`);
+      establecerTexto('texto-clientes', `Negocios que realizan sus envíos con ${nombre}.`);
+      establecerTexto('texto-soporte', `El equipo de ${nombre} está listo para ayudarte con tus envíos.`);
+      establecerTexto('nombre-pie', nombre);
+      establecerTexto('descripcion-pie', `Envíos rápidos y seguros en ${ciudad}.`);
+      establecerTexto('ciudad-pie', ciudad);
+      establecerTexto(
+        'horario-pie',
+        tenant.horario_atencion || 'Consulta nuestros horarios por WhatsApp.'
+      );
+      establecerTexto(
+        'derechos',
+        `© ${new Date().getFullYear()} ${nombre}. Todos los derechos reservados.`
+      );
+
+      if (logo) {
+        const imagenLogo = document.getElementById('logo-tenant');
+        imagenLogo.src = logo;
+        imagenLogo.alt = `Logo de ${nombre}`;
+      }
+
+      const imagenBienvenida = window.tenantImages?.bienvenida;
+      const imagenSoporte = window.tenantImages?.soporte;
+      if (imagenBienvenida) document.getElementById('imagen-bienvenida').src = imagenBienvenida;
+      if (imagenSoporte) document.getElementById('imagen-soporte').src = imagenSoporte;
+
+      if (enlaceWhatsapp) {
+        botonWhatsapp.href = enlaceWhatsapp;
+        botonWhatsapp.hidden = false;
+      } else {
+        botonWhatsapp.hidden = true;
+      }
+
+      const metaColor = document.querySelector('meta[name="theme-color"]');
+      if (metaColor && tenant.color_primario) metaColor.content = tenant.color_primario;
+
+      if (tenantAplicadoId !== tenant.id) {
+        tenantAplicadoId = tenant.id;
+        cargarClientesAliados(tenant);
+      }
+    }
+
+    window.addEventListener('tenant-config-aplicada', (evento) => {
+      aplicarContenidoTenant(evento.detail);
+    });
+
+    if (window.tenantConfigReady) {
+      window.tenantConfigReady
+        .then((tenant) => {
+          aplicarContenidoTenant(tenant);
+          if (!tenant) document.documentElement.classList.remove('esperando-plan');
+        })
+        .catch((error) => {
+          document.documentElement.classList.remove('esperando-plan');
+          console.error('[tenant] No fue posible preparar la landing:', error);
+        });
+    }
+
+    window.addEventListener('beforeinstallprompt', (evento) => {
+      evento.preventDefault();
+      eventoInstalacion = evento;
+      establecerTexto('boton-instalar', 'Instalar aplicación');
+    });
+
+    document.getElementById('boton-instalar').addEventListener('click', async () => {
+      if (!eventoInstalacion) {
+        window.location.href = '/app.html';
+        return;
+      }
+
+      eventoInstalacion.prompt();
+      await eventoInstalacion.userChoice;
+      eventoInstalacion = null;
+      establecerTexto('boton-instalar', 'Abrir aplicación');
+    });
+  </script>
+</body>
+</html>
