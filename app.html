@@ -3204,7 +3204,7 @@ const { data, error } = await db.from('pedidos').insert({
 resetForm()
 
 const toast = document.createElement('div')
-toast.style.cssText = 'position:fixed;bottom:80px;right:16px;background-color:#22c55e;color:#ffffff;padding:12px 20px;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;min-width:200px;max-width:min(360px,calc(100vw - 32px));animation:fadeIn .3s ease'
+toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background-color:#22c55e;color:#ffffff;padding:12px 20px;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;min-width:200px;max-width:min(360px,calc(100vw - 32px));animation:fadeIn .3s ease'
 const _esPrimerPedido = (_clienteTotalPedidos === 0)
 const _toastLine1 = _esPrimerPedido ? '¡Bienvenido a la manada!' : ('✅ <b>GK-' + folioReal + '</b> registrado!')
 toast.innerHTML = _toastLine1 + '<br><span style="font-size:11px;font-weight:600;opacity:0.85">Estamos llamando al Guepartidor más cercano.</span>'
@@ -4865,7 +4865,7 @@ function mostrarToast(texto, tipoOColor = 'default') {
   }
 
   const toast = document.createElement('div')
-  toast.style.cssText = `position:fixed;bottom:80px;right:16px;background-color:${fondo};color:#ffffff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:99999;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;min-width:200px;max-width:min(360px,calc(100vw - 32px));text-align:center`
+  toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background-color:${fondo};color:#ffffff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:99999;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;min-width:200px;max-width:min(360px,calc(100vw - 32px));text-align:center`
   toast.textContent = texto
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 3000)
