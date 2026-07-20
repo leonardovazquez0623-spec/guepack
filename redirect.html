@@ -50,31 +50,55 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 })
 
-async function redirigir() {
-  await new Promise(r => setTimeout(r, 1000))
+let redireccionEnCurso = false
 
-  let { data: { session } } = await db.auth.getSession()
-  if (!session) {
-    const { data: refreshData } = await db.auth.refreshSession()
-    session = refreshData?.session
+async function redirigirPorRol(session) {
+  if (!session?.user || redireccionEnCurso) return
+  redireccionEnCurso = true
+
+  const { data: usuario, error } = await db.from('usuarios')
+    .select('rol')
+    .eq('user_id', session.user.id)
+    .single()
+
+  if (error) {
+    console.warn('[auth] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
   }
-  if (!session) { window.location.href = 'login.html'; return }
 
-  const email = session.user.email
-  const { data, error } = await db.from('usuarios').select('rol').eq('email', email).single()
-
-  if (error || !data) { window.location.href = 'app.html'; return }
-
-  if (data.rol === 'admin') {
-    window.location.href = 'admin.html'
-  } else if (data.rol === 'repartidor') {
-    window.location.href = 'repartidor.html'
-  } else {
-    window.location.href = 'app.html'
-  }
+  if (usuario?.rol === 'admin') window.location.href = '/admin.html'
+  else if (usuario?.rol === 'repartidor') window.location.href = '/repartidor.html'
+  else window.location.href = '/app.html'
 }
 
-redirigir()
+db.auth.onAuthStateChange(async (evento, session) => {
+  console.log('[auth] evento:', evento, 'sesión:', session?.user?.email)
+  if ((evento === 'SIGNED_IN' || evento === 'TOKEN_REFRESHED') && session) {
+    await redirigirPorRol(session)
+  }
+})
+
+async function comprobarSesionInicial() {
+  const { data: { session }, error } = await db.auth.getSession()
+  if (error) {
+    console.warn('[auth] No fue posible comprobar la sesión inicial:', error.message)
+  }
+  if (session) {
+    await redirigirPorRol(session)
+    return
+  }
+
+  // Da tiempo al cliente de Supabase para procesar el callback de OAuth.
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  const { data: { session: sesionReintento } } = await db.auth.getSession()
+  if (sesionReintento) {
+    await redirigirPorRol(sesionReintento)
+    return
+  }
+
+  window.location.href = '/login.html'
+}
+
+comprobarSesionInicial()
 </script>
 </body>
 </html>
