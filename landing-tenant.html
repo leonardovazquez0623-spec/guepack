@@ -700,7 +700,8 @@
     let redireccionSesionEnCurso = false;
 
     async function redirigirSesionPorRol(session) {
-      if (!session?.user || redireccionSesionEnCurso) return false;
+      if (!session?.user) return false;
+      if (redireccionSesionEnCurso) return true;
       redireccionSesionEnCurso = true;
 
       const { data: usuario, error } = await dbLanding
@@ -726,17 +727,35 @@
     async function verificarSesionActiva() {
       const { data: { session }, error } = await dbLanding.auth.getSession();
       if (error) {
-        console.warn('[sesión] No fue posible verificar la sesión activa:', error.message);
-        return false;
+        console.warn('[auth] No fue posible verificar la sesión inicial:', error.message);
       }
-      if (!session) return false;
-      return redirigirSesionPorRol(session);
+
+      if (session) {
+        await redirigirSesionPorRol(session);
+        return true;
+      }
+
+      // Espera a que Supabase procese el token de OAuth recibido en el hash de la URL.
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: { session: sesionReintento }, error: errorReintento } =
+        await dbLanding.auth.getSession();
+
+      if (errorReintento) {
+        console.warn('[auth] No fue posible verificar la sesión después del callback OAuth:', errorReintento.message);
+      }
+      if (sesionReintento) {
+        await redirigirSesionPorRol(sesionReintento);
+        return true;
+      }
+
+      return false;
     }
 
     const promesaVerificacionSesion = verificarSesionActiva();
 
     dbLanding.auth.onAuthStateChange((evento, session) => {
-      if (evento === 'SIGNED_IN' && session) {
+      console.log('[auth] evento:', evento, 'sesión:', session?.user?.email);
+      if ((evento === 'SIGNED_IN' || evento === 'TOKEN_REFRESHED') && session) {
         // Se difiere la consulta para evitar bloquear el cambio de estado de autenticación.
         setTimeout(() => redirigirSesionPorRol(session), 0);
       }
