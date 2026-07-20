@@ -20,6 +20,7 @@ AS $$
     FROM public.usuarios AS administrador
     WHERE administrador.user_id::TEXT = auth.uid()::TEXT
       AND administrador.rol = 'admin'
+      AND administrador.tenant_id = usuario.tenant_id
   )
   AND au.email_confirmed_at IS NULL
   ORDER BY au.created_at DESC;
