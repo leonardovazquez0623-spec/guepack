@@ -942,13 +942,47 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
+    const URL_SUPABASE = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+    const CLAVE_PUBLICA_SUPABASE = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+    const dbLanding = window.supabase.createClient(URL_SUPABASE, CLAVE_PUBLICA_SUPABASE)
+    let redireccionSesionEnCurso = false
+
+    async function redirigirSesionPorRol(session) {
+      if (!session?.user || redireccionSesionEnCurso) return
+      redireccionSesionEnCurso = true
+
+      const { data: usuario, error } = await dbLanding
+        .from('usuarios')
+        .select('rol')
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (error) {
+        console.warn('[sesión] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
+      }
+
+      if (usuario?.rol === 'admin') window.location.href = '/admin.html'
+      else if (usuario?.rol === 'repartidor') window.location.href = '/repartidor.html'
+      else window.location.href = '/app.html'
+    }
+
+    ;(async () => {
+      const { data: { session }, error } = await dbLanding.auth.getSession()
+      if (error) {
+        console.warn('[sesión] No fue posible verificar la sesión activa:', error.message)
+      }
+      if (session) await redirigirSesionPorRol(session)
+    })()
+
+    dbLanding.auth.onAuthStateChange(async (evento, session) => {
+      if ((evento === 'SIGNED_IN' || evento === 'TOKEN_REFRESHED') && session) {
+        await redirigirSesionPorRol(session)
+      }
+    })
+
     // Cargar clientes aliados desde Supabase
     ;(async () => {
-      const db = window.supabase.createClient(
-        'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
-        'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
-      )
-      const { data } = await db.from('clientes_aliados').select('*').eq('activo', true).order('created_at')
+      const { data } = await dbLanding.from('clientes_aliados').select('*').eq('activo', true).order('created_at')
       const grid = document.getElementById('aliados-grid')
       if (!data || !data.length) { grid.innerHTML = ''; return }
       grid.innerHTML = data.map(c => {
@@ -1000,11 +1034,7 @@
       msg.textContent = '';
 
       try {
-        const db = window.supabase.createClient(
-          'https://zkrnjdsnuyjaxxnluzmn.supabase.co',
-          'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
-        );
-        const { error } = await db.from('contactos_landing').insert({ nombre, email, tipo, mensaje });
+        const { error } = await dbLanding.from('contactos_landing').insert({ nombre, email, tipo, mensaje });
         if (error) throw error;
         msg.textContent = '¡Mensaje enviado! Te contactaremos pronto.';
         msg.className = 'contact-msg ok';
