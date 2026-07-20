@@ -3186,7 +3186,7 @@ const { data, error } = await db.from('pedidos').insert({
 resetForm()
 
 const toast = document.createElement('div')
-toast.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:16px 24px;border-radius:16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center;min-width:220px;animation:fadeIn .3s ease'
+toast.style.cssText = 'position:fixed;bottom:80px;right:16px;background-color:#22c55e;color:#ffffff;padding:12px 20px;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;min-width:200px;max-width:min(360px,calc(100vw - 32px));animation:fadeIn .3s ease'
 const _esPrimerPedido = (_clienteTotalPedidos === 0)
 const _toastLine1 = _esPrimerPedido ? '¡Bienvenido a la manada!' : ('✅ <b>GK-' + folioReal + '</b> registrado!')
 toast.innerHTML = _toastLine1 + '<br><span style="font-size:11px;font-weight:600;opacity:0.85">Estamos llamando al Guepartidor más cercano.</span>'
@@ -3488,15 +3488,7 @@ async function cerrarSesion() {
     color = '#22c55e'
   }
 
-  const toast = document.createElement('div')
-  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;max-width:300px'
-  toast.textContent = mensaje
-  document.body.appendChild(toast)
-  setTimeout(() => {
-    toast.style.transition = 'opacity .5s'
-    toast.style.opacity = '0'
-    setTimeout(() => toast.remove(), 500)
-  }, 3000)
+  mostrarToast(mensaje, color)
 }
 
 // ── Direcciones frecuentes ──
@@ -3643,22 +3635,14 @@ async function guardarDireccion(inputId) {
   if (error) { alert('Error al guardar'); return }
   document.getElementById('modal-direcciones').remove()
 
-  const toast = document.createElement('div')
-  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#22c55e;color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
-  toast.textContent = '✅ Dirección guardada!'
-  document.body.appendChild(toast)
-  setTimeout(() => toast.remove(), 2500)
+  mostrarToast('✅ Dirección guardada!', 'success')
 }
 
 async function borrarDireccion(id, inputId) {
   await db.from('direcciones').delete().eq('id', id)
   document.getElementById('modal-direcciones').remove()
 
-  const toast = document.createElement('div')
-  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2)'
-  toast.textContent = '¡😲 Dirección eliminada!'
-  document.body.appendChild(toast)
-  setTimeout(() => toast.remove(), 2500)
+  mostrarToast('¡😲 Dirección eliminada!', 'warning')
 }
 function esFindeSemana(fecha) {
   const dia = new Date(fecha + 'T00:00:00').getDay()
@@ -4849,9 +4833,21 @@ db.channel('cliente-mensajes-global')
   })
   .subscribe()
 
-function mostrarToast(texto, color) {
+function mostrarToast(texto, tipoOColor = 'default') {
+  const valor = String(tipoOColor || 'default').toLowerCase().replace(/\s/g, '')
+  const textoNormalizado = String(texto || '')
+  let fondo = '#1a2740'
+
+  if (['success', 'exito', '#22c55e', 'var(--success)'].includes(valor) || textoNormalizado.startsWith('✅')) {
+    fondo = '#22c55e'
+  } else if (['error', '#ef4444'].includes(valor) || textoNormalizado.startsWith('❌')) {
+    fondo = '#ef4444'
+  } else if (['warning', 'advertencia', '#f59e0b', '#f05a1a', 'var(--orange)'].includes(valor) || /^[⚠️⏳🟠]/u.test(textoNormalizado)) {
+    fondo = '#f59e0b'
+  }
+
   const toast = document.createElement('div')
-  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:12px 24px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);text-align:center;max-width:300px'
+  toast.style.cssText = `position:fixed;bottom:80px;right:16px;background-color:${fondo};color:#ffffff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:99999;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;min-width:200px;max-width:min(360px,calc(100vw - 32px));text-align:center`
   toast.textContent = texto
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 3000)
@@ -5528,7 +5524,7 @@ async function _bvGuardar() {
   const { error: errMeta } = await db.auth.updateUser({ data: { nombre } })
   if (errMeta) {
     if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
-    showToast('❌ Error al guardar. Intenta de nuevo.')
+    mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
     return
   }
 
@@ -5538,7 +5534,7 @@ async function _bvGuardar() {
   const { error } = await db.from('usuarios').update(upd).eq('user_id', _bvUserId)
   if (error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
-    showToast('❌ Error al guardar. Intenta de nuevo.')
+    mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
     return
   }
 
