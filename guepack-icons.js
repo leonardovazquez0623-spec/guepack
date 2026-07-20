@@ -47,7 +47,7 @@ const GUEPACK_ICONS = {
   mensajes: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5h17a1 1 0 0 1 1 1V17a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1V7.5a1 1 0 0 1 1-1Z"/><path d="M3.8 7 12 13l8.2-6" stroke="#F05A1A"/></svg>`,
 
   // 16 Historial — reloj con flecha
-  historial: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2" stroke="#F05A1A"/><path d="M4 6l.3 3 3-.5" stroke="#1E56C7"/></svg>`,
+  historial: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2" stroke="var(--color-secondary)"/><path d="M4 6l.3 3 3-.5" stroke="var(--color-primary)"/></svg>`,
 
   // 17 Cotización — documento con líneas
   cotizacion: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.5 3.5V8H19"/><path d="M8 12.5h4M8 15.5h6" stroke="#F05A1A"/><circle cx="9.2" cy="17.8" r="1" fill="#F05A1A" stroke="#F05A1A"/></svg>`,
@@ -77,7 +77,7 @@ const GUEPACK_ICONS = {
   entrega: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V7.5a1 1 0 0 1 1-1h9.5v9.5"/><path d="M13.5 10h4l3 3v3h-2"/><circle cx="7" cy="18" r="1.8"/><circle cx="16.5" cy="18" r="1.8"/><path d="M5.5 12.5l1.8 1.8L10.5 11" stroke="#F05A1A"/></svg>`,
 
   // 24 Rastreo — pin clásico con círculo naranja (04-Direcciones)
-  rastreo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>`,
+  rastreo: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg>`,
 
   // 25 Seguro — escudo naranja con palomita
   seguro: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 5-3 7.7-7 8.5-4-.8-7-3.5-7-8.5V6l7-2.5Z" fill="#F05A1A" stroke="#F05A1A"/><path d="M8.7 12l2.2 2.2 4.4-4.4" stroke="white"/></svg>`,
@@ -95,7 +95,7 @@ const GUEPACK_ICONS = {
   buscar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3 20.5 20.5" stroke="#F05A1A"/></svg>`,
 
   // 30 Agregar — círculo azul con + blanco
-  agregar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="#1E56C7" stroke="#1E56C7"/><path d="M12 8v8M8 12h8" stroke="white"/></svg>`,
+  agregar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="var(--color-primary)" stroke="var(--color-primary)"/><path d="M12 8v8M8 12h8" stroke="white"/></svg>`,
 
   // 31 Editar — lápiz
   editar: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l.9-3.9L15.6 5.4a1.8 1.8 0 0 1 2.5 0l0 0a1.8 1.8 0 0 1 0 2.5L7.4 18.6 4 20Z"/><path d="M14 7 17 10" stroke="#F05A1A"/></svg>`,
@@ -128,7 +128,7 @@ const GUEPACK_ICONS = {
   salir: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/><path d="M15.5 8 19.5 12l-4 4" stroke="#F05A1A"/><path d="M19.5 12H9" stroke="#F05A1A"/></svg>`,
 
   // 43 Nacional — globo terráqueo
-  nacional: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17Z"/><path d="M5 7.5c1.8 1 4.3 1.5 7 1.5s5.2-.5 7-1.5M5 16.5c1.8-1 4.3-1.5 7-1.5s5.2.5 7 1.5" stroke="#F05A1A"/></svg>`,
+  nacional: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17Z"/><path d="M5 7.5c1.8 1 4.3 1.5 7 1.5s5.2-.5 7-1.5M5 16.5c1.8-1 4.3-1.5 7-1.5s5.2.5 7 1.5" stroke="var(--color-secondary)"/></svg>`,
 
   // 45 VIP — trofeo naranja
   vip: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12v3.5c0 4-2.5 6.7-6 7.3-3.5-.6-6-3.3-6-7.3V5Z" fill="#F05A1A" stroke="#F05A1A"/><path d="M6 6.5H3.5v1.8A2.7 2.7 0 0 0 6 11M18 6.5h2.5v1.8A2.7 2.7 0 0 1 18 11" stroke="#F05A1A"/><path d="M10 19h4M9 21h6M12 15.8V19"/></svg>`,
