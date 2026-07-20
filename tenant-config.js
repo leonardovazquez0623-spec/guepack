@@ -3,6 +3,15 @@
 
   const SUPABASE_URL_TENANT = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
   const SUPABASE_KEY_TENANT = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+  const imagenesPredeterminadas = {
+    bienvenida: '/enviar_g.png',
+    encamino: '/encamino_g.png',
+    recolectado: '/recolectado_g.png',
+    transito: '/transito_g.png',
+    entregado: '/entregado_g.png',
+    soporte: '/soporte_g.png'
+  }
+  window.tenantImages = { ...imagenesPredeterminadas }
 
   function esColorHexadecimal(valor) {
     return /^#[0-9a-f]{6}$/i.test(String(valor || ''))
@@ -115,6 +124,16 @@
       raiz.style.setProperty('--orange-light', lightenColor(tenant.color_secundario, 20))
     }
 
+    window.tenantImages = {
+      bienvenida: tenant.img_bienvenida || '/enviar_g.png',
+      encamino: tenant.img_encamino || '/encamino_g.png',
+      recolectado: tenant.img_recolectado || '/recolectado_g.png',
+      transito: tenant.img_transito || '/transito_g.png',
+      entregado: tenant.img_entregado || '/entregado_g.png',
+      soporte: tenant.img_soporte || '/soporte_g.png'
+    }
+    aplicarImagenesEnDocumento()
+
     if (tenant.nombre) document.title = tenant.nombre
 
     const logo = urlSegura(tenant.logo_url)
@@ -127,16 +146,24 @@
 
     try {
       sessionStorage.setItem('tenant_config', JSON.stringify(tenant))
+      sessionStorage.setItem('tenant_images', JSON.stringify(window.tenantImages))
     } catch (error) {
       console.warn('No se pudo guardar la configuración del tenant en la sesión:', error)
     }
     window.dispatchEvent(new CustomEvent('tenant-config-aplicada', { detail: tenant }))
   }
 
+  function aplicarImagenesEnDocumento() {
+    document.querySelectorAll('[data-tenant-image]').forEach(imagen => {
+      const nombre = imagen.dataset.tenantImage
+      if (window.tenantImages?.[nombre]) imagen.src = window.tenantImages[nombre]
+    })
+  }
+
   async function consultarTenant(identificador) {
     const columna = identificador.tipo === 'dominio' ? 'dominio' : 'slug'
     const consulta = new URLSearchParams({
-      select: 'id,nombre,slug,dominio,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,datos_bancarios,horario_atencion,activo',
+      select: 'id,nombre,slug,dominio,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,datos_bancarios,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
       [columna]: `eq.${identificador.valor}`,
       activo: 'eq.true',
       limit: '1'
@@ -198,4 +225,5 @@
   window.lightenColor = lightenColor
   window.cargarConfiguracionTenant = cargarConfiguracionTenant
   window.tenantConfigReady = cargarConfiguracionTenant()
+  aplicarImagenesEnDocumento()
 })()

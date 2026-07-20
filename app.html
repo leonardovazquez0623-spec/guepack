@@ -993,7 +993,7 @@
             <div class="hero-sub">Recolección en tu domicilio<br>en minutos</div>
             <button class="hero-btn" onclick="event.stopPropagation();_abrirModo('enviar')">Cotizar envío →</button>
           </div>
-          <img src="/enviar_g.png" alt="" class="hero-img">
+          <img data-tenant-image="bienvenida" alt="" class="hero-img">
         </div>
 
         <!-- ACCESO RÁPIDO 2×2 -->
@@ -1030,7 +1030,7 @@
 
         <!-- SOPORTE -->
         <div class="support-card" onclick="abrirSoporteWhatsApp()">
-          <img src="/soporte_g.png" alt="Soporte" class="support-img">
+          <img data-tenant-image="soporte" alt="Soporte" class="support-img">
           <div class="support-content">
             <div class="support-title">¿Necesitas ayuda?</div>
             <div class="support-sub">Nuestro equipo está listo para ayudarte</div>
@@ -1608,7 +1608,7 @@
       <div id="resultado-rastreo" style="display:none">
         <!-- Gatito según estado -->
         <div class="rastreo-gato-wrap">
-          <img id="rastreo-gato" src="/encamino_g.png" alt="">
+          <img id="rastreo-gato" data-tenant-image="encamino" alt="">
         </div>
 
         <!-- Card principal -->
@@ -3260,15 +3260,15 @@ function _actualizarUIRastreo(data) {
   const gatoImg = document.getElementById('rastreo-gato')
   if (gatoImg) {
     const gatoMap = {
-      'Pendiente':                           '/encamino_g.png',
-      'En camino a recoleccion':             '/encamino_g.png',
-      'Repartidor en domicilio recoleccion': '/encamino_g.png',
-      'Recolectado':                         '/recolectado_g.png',
-      'En camino a entrega':                 '/transito_g.png',
-      'Repartidor en domicilio':             '/transito_g.png',
-      'Entregado':                           '/entregado_g.png',
+      'Pendiente':                           window.tenantImages?.encamino || '/encamino_g.png',
+      'En camino a recoleccion':             window.tenantImages?.encamino || '/encamino_g.png',
+      'Repartidor en domicilio recoleccion': window.tenantImages?.encamino || '/encamino_g.png',
+      'Recolectado':                         window.tenantImages?.recolectado || '/recolectado_g.png',
+      'En camino a entrega':                 window.tenantImages?.transito || '/transito_g.png',
+      'Repartidor en domicilio':             window.tenantImages?.transito || '/transito_g.png',
+      'Entregado':                           window.tenantImages?.entregado || '/entregado_g.png',
     }
-    gatoImg.src = gatoMap[data.estado] || '/encamino_g.png'
+    gatoImg.src = gatoMap[data.estado] || window.tenantImages?.encamino || '/encamino_g.png'
   }
 
   const estadoMap = {
@@ -5134,28 +5134,35 @@ function _renderHistorial() {
 
   if (!filtered.length) {
     const textoFiltro = _historialFiltro === 'entregados' ? 'entregados' : _historialFiltro === 'cancelados' ? 'cancelados' : 'envíos'
-    const catEmpty = _historialFiltro === 'entregados' ? 'entregado_g.png' : _historialFiltro === 'cancelados' ? 'transito_g.png' : 'encamino_g.png'
-    contenedor.innerHTML = `<div class="hist-empty"><img src="/${catEmpty}" alt=""><p>No tienes envíos ${textoFiltro} aún</p></div>`
+    const catEmpty = _historialFiltro === 'entregados'
+      ? window.tenantImages?.entregado || '/entregado_g.png'
+      : _historialFiltro === 'cancelados'
+      ? window.tenantImages?.transito || '/transito_g.png'
+      : window.tenantImages?.encamino || '/encamino_g.png'
+    contenedor.innerHTML = `<div class="hist-empty"><img src="${catEmpty}" alt=""><p>No tienes envíos ${textoFiltro} aún</p></div>`
     return
   }
 
   const _DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
   const _MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const _CAT_MAP = {
-    'Entregado':'entregado_g.png','En camino a recoleccion':'encamino_g.png',
-    'Repartidor en domicilio recoleccion':'encamino_g.png','Recolectado':'recolectado_g.png',
-    'En camino a entrega':'transito_g.png','Repartidor en domicilio':'transito_g.png'
+    'Entregado': window.tenantImages?.entregado || '/entregado_g.png',
+    'En camino a recoleccion': window.tenantImages?.encamino || '/encamino_g.png',
+    'Repartidor en domicilio recoleccion': window.tenantImages?.encamino || '/encamino_g.png',
+    'Recolectado': window.tenantImages?.recolectado || '/recolectado_g.png',
+    'En camino a entrega': window.tenantImages?.transito || '/transito_g.png',
+    'Repartidor en domicilio': window.tenantImages?.transito || '/transito_g.png'
   }
 
   contenedor.innerHTML = filtered.map(pedido => {
     const esCancelado = pedido.estado === 'Cancelado'
     const esPagoMP    = pedido.estado === 'Pendiente pago MP'
-    const catFile = _CAT_MAP[pedido.estado] || 'encamino_g.png'
+    const catFile = _CAT_MAP[pedido.estado] || window.tenantImages?.encamino || '/encamino_g.png'
     const iconHTML = esCancelado
       ? `<div style="width:30px;height:30px;border-radius:50%;background:rgba(239,68,68,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:15px;font-weight:900;color:#dc2626;line-height:1">✕</span></div>`
       : esPagoMP
       ? `<div style="width:30px;height:30px;border-radius:50%;background:rgba(0,158,227,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#009ee3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="13" rx="2"/><path d="M2.5 10h19"/></svg></div>`
-      : `<img src="/${catFile}" alt="" class="hist-cat-icon">`
+      : `<img src="${catFile}" alt="" class="hist-cat-icon">`
 
     const badgeHTML = pedido.estado === 'Entregado'
       ? `<span class="hist-badge-done">Entregado</span>`

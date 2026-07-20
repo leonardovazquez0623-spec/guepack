@@ -281,6 +281,17 @@ let tenants = []
 let tenantEditandoId = null
 let archivoLogoSeleccionado = null
 let urlTemporalLogo = null
+const camposImagenesMascota = [
+  { campo: 'img_bienvenida', etiqueta: 'Bienvenida / Home hero' },
+  { campo: 'img_encamino', etiqueta: 'En camino a recolección' },
+  { campo: 'img_recolectado', etiqueta: 'Paquete recolectado' },
+  { campo: 'img_transito', etiqueta: 'En tránsito' },
+  { campo: 'img_entregado', etiqueta: 'Entregado' },
+  { campo: 'img_soporte', etiqueta: 'Soporte / Ayuda' }
+]
+let urlsImagenesTenant = {}
+let urlsTemporalesMascota = {}
+let subidasMascotaEnCurso = 0
 
 db.auth.onAuthStateChange((evento) => {
   if (evento === 'SIGNED_OUT') window.location.href = 'login.html'
@@ -380,6 +391,7 @@ document.getElementById('tabla-tenants').addEventListener('change', evento => {
 function abrirModalTenant(id = null) {
   tenantEditandoId = id
   const tenant = id == null ? null : tenants.find(item => String(item.id) === String(id))
+  urlsImagenesTenant = Object.fromEntries(camposImagenesMascota.map(item => [item.campo, tenant?.[item.campo] || null]))
   const fondo = document.createElement('div')
   fondo.id = 'modal-tenant'
   fondo.className = 'modal-fondo'
@@ -411,6 +423,26 @@ function abrirModalTenant(id = null) {
           </select></div>
           <div><label for="tenant-precio">Precio mensual</label><input type="number" id="tenant-precio" min="0" step="0.01" value="${Number(tenant?.precio_mensual) || 0}"></div>
           <div class="campo-completo"><label for="tenant-datos-bancarios">Datos bancarios para transferencias</label><textarea id="tenant-datos-bancarios" maxlength="1500" placeholder="Banco, titular, CLABE y referencia">${escaparHtml(tenant?.datos_bancarios || '')}</textarea></div>
+          <div class="campo-completo" style="border-top:2px solid #e8edf5;padding-top:18px;margin-top:4px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
+              <img src="guepack-icons/guepack-icons/svg/12-galeria.svg" alt="" width="22" height="22">
+              <div style="font-family:'Bebas Neue',sans-serif;color:var(--azul);font-size:23px;letter-spacing:1px">Imágenes de mascota</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+              ${camposImagenesMascota.map(item => `
+                <div style="display:flex;align-items:center;gap:10px;background:#f4f6fb;border-radius:12px;padding:10px">
+                  <img id="preview-${item.campo}" src="${escaparAtributo(tenant?.[item.campo] || '')}" alt="${item.etiqueta}" style="width:60px;height:60px;border-radius:10px;object-fit:contain;background:white;border:1px solid #e0e6f0">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:10px;font-weight:900;color:var(--texto);line-height:1.3;margin-bottom:7px">${item.etiqueta}</div>
+                    <input type="file" id="archivo-${item.campo}" accept="image/*" hidden onchange="seleccionarImagenMascota('${item.campo}', event)">
+                    <button type="button" id="subir-${item.campo}" onclick="document.getElementById('archivo-${item.campo}').click()" style="display:inline-flex;align-items:center;gap:5px;padding:7px 9px;border:none;border-radius:8px;background:var(--azul);color:white;font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;cursor:pointer">
+                      <img src="guepack-icons/guepack-icons/svg/11-evidencia.svg" alt="" width="14" height="14" style="filter:brightness(0) invert(1)"> Subir
+                    </button>
+                    <div id="estado-${item.campo}" style="font-size:9px;font-weight:700;color:var(--gris-medio);margin-top:5px">${tenant?.[item.campo] ? 'Imagen actual' : 'Sin imagen personalizada'}</div>
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>
           <div class="campo-completo"><label for="tenant-notas">Notas</label><textarea id="tenant-notas" maxlength="1000">${escaparHtml(tenant?.notas || '')}</textarea></div>
         </div>
         <div class="modal-acciones">
@@ -437,8 +469,12 @@ function abrirModalTenant(id = null) {
 function cerrarModalTenant() {
   document.getElementById('modal-tenant')?.remove()
   if (urlTemporalLogo) URL.revokeObjectURL(urlTemporalLogo)
+  Object.values(urlsTemporalesMascota).forEach(url => URL.revokeObjectURL(url))
   urlTemporalLogo = null
   archivoLogoSeleccionado = null
+  urlsImagenesTenant = {}
+  urlsTemporalesMascota = {}
+  subidasMascotaEnCurso = 0
   tenantEditandoId = null
 }
 
@@ -486,6 +522,60 @@ async function subirLogoTenant(slug, boton) {
   return `${data.publicUrl}?actualizacion=${Date.now()}`
 }
 
+async function seleccionarImagenMascota(campo, evento) {
+  const configuracion = camposImagenesMascota.find(item => item.campo === campo)
+  const archivo = evento.target.files?.[0]
+  const slug = document.getElementById('tenant-slug').value.trim().toLowerCase()
+  if (!configuracion || !archivo) return
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    evento.target.value = ''
+    mostrarToast('❌ Escribe un slug válido antes de subir imágenes')
+    document.getElementById('tenant-slug').focus()
+    return
+  }
+  if (!archivo.type.startsWith('image/') || archivo.size > 5 * 1024 * 1024) {
+    evento.target.value = ''
+    mostrarToast('❌ Selecciona una imagen de máximo 5 MB')
+    return
+  }
+
+  const preview = document.getElementById(`preview-${campo}`)
+  const boton = document.getElementById(`subir-${campo}`)
+  const estado = document.getElementById(`estado-${campo}`)
+  if (urlsTemporalesMascota[campo]) URL.revokeObjectURL(urlsTemporalesMascota[campo])
+  urlsTemporalesMascota[campo] = URL.createObjectURL(archivo)
+  preview.src = urlsTemporalesMascota[campo]
+  boton.disabled = true
+  boton.innerHTML = '<span class="spinner-logo"></span> Subiendo...'
+  estado.textContent = 'Subiendo imagen...'
+  subidasMascotaEnCurso++
+  document.getElementById('boton-guardar-tenant').disabled = true
+
+  try {
+    const ruta = `mascotas/${slug}/${campo}.png`
+    const { error } = await db.storage.from('anuncios').upload(ruta, archivo, {
+      upsert: true,
+      contentType: archivo.type,
+      cacheControl: '3600'
+    })
+    if (error) throw error
+    const { data } = db.storage.from('anuncios').getPublicUrl(ruta)
+    const urlPublica = `${data.publicUrl}?actualizacion=${Date.now()}`
+    urlsImagenesTenant[campo] = urlPublica
+    preview.src = urlPublica
+    estado.textContent = '✅ Imagen subida'
+  } catch (error) {
+    console.error(`Error al subir ${campo}:`, error)
+    estado.textContent = '❌ Error al subir'
+    mostrarToast(`❌ No se pudo subir: ${configuracion.etiqueta}`)
+  } finally {
+    subidasMascotaEnCurso--
+    boton.disabled = false
+    boton.innerHTML = '<img src="guepack-icons/guepack-icons/svg/11-evidencia.svg" alt="" width="14" height="14" style="filter:brightness(0) invert(1)"> Subir'
+    document.getElementById('boton-guardar-tenant').disabled = subidasMascotaEnCurso > 0
+  }
+}
+
 async function guardarTenant(evento) {
   evento.preventDefault()
   const boton = document.getElementById('boton-guardar-tenant')
@@ -524,6 +614,7 @@ async function guardarTenant(evento) {
     plan: document.getElementById('tenant-plan').value,
     precio_mensual: Number(document.getElementById('tenant-precio').value) || 0,
     datos_bancarios: document.getElementById('tenant-datos-bancarios').value.trim() || null,
+    ...urlsImagenesTenant,
     notas: document.getElementById('tenant-notas').value.trim() || null
   }
   boton.textContent = 'Guardando...'
