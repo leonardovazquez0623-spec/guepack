@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -7,27 +7,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
-<meta name="theme-color" content="#1a4fa0">
+<meta name="theme-color" content="#0d3a8a">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
 <style>
   :root {
-    --blue: #1a4fa0;
+    --color-primary: #1E56C7;
+    --color-secondary: #F05A1A;
+    --color-primary-dark: #0d3a8a;
+    --color-primary-light: #e8f0fe;
+    --color-secondary-dark: #c4440e;
+    --color-secondary-light: #fff0eb;
+    --blue: var(--color-primary-dark);
     --blue-dark: #0e3070;
     --blue-light: #2563c4;
-    --orange: #f05a1a;
+    --orange: var(--color-secondary);
     --white: #ffffff;
     --gray-light: #f4f6fb;
     --gray: #e0e6f0;
     --gray-mid: #8fa3c0;
-    --text: #1a2740;
+    --text: var(--color-primary-dark);
     --success: #22c55e;
     --shadow: 0 4px 24px rgba(26,79,160,0.13);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Montserrat', sans-serif; background: var(--gray-light); color: var(--text); min-height: 100vh; }
   .delivery-header {
-    background: linear-gradient(135deg, #0e3070, #1a4fa0);
+    background: linear-gradient(135deg, #0e3070, var(--color-primary-dark));
     padding: 14px 16px;
     color: white;
   }
@@ -173,7 +179,7 @@
   .guep-spinner .paw-ring .paw:nth-child(4){transform:rotate(180deg) translate(0,-27px)}
   .guep-spinner .paw-ring .paw:nth-child(5){transform:rotate(240deg) translate(0,-27px)}
   .guep-spinner .paw-ring .paw:nth-child(6){transform:rotate(300deg) translate(0,-27px)}
-  .guep-spinner .paw-ring .paw circle { fill:#F05A1A; }
+  .guep-spinner .paw-ring .paw circle { fill:var(--color-secondary); }
   .guep-spinner .paw-ring .paw:nth-child(1){opacity:1}
   .guep-spinner .paw-ring .paw:nth-child(2){opacity:.85}
   .guep-spinner .paw-ring .paw:nth-child(3){opacity:.7}
@@ -284,7 +290,7 @@
   .ms-idx.sq { border-radius:5px; }
   .ms-addr { color:#14181f; font-size:12px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ms-tag { font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:10px; flex-shrink:0; }
-  .ms-tag.rec { background:#eaf0fd; color:#1a4fa0; }
+  .ms-tag.rec { background:#eaf0fd; color:var(--color-primary-dark); }
   .ms-tag.ent { background:#fcefe9; color:#b03f10; }
 
   .ms-optimize-btn {
@@ -368,7 +374,7 @@
   .tpp-label { font-size:10px; font-weight:900; letter-spacing:1px; color:var(--orange); text-transform:uppercase; margin-bottom:4px; }
   .tpp-body { display:flex; align-items:flex-start; gap:10px; }
   .tpp-tag { font-size:9px; font-weight:800; padding:3px 8px; border-radius:10px; flex-shrink:0; margin-top:2px; }
-  .tpp-tag.rec { background:#eaf0fd; color:#1a4fa0; }
+  .tpp-tag.rec { background:#eaf0fd; color:var(--color-primary-dark); }
   .tpp-tag.ent { background:#fcefe9; color:#b03f10; }
   .tpp-addr { font-size:13px; font-weight:700; color:#14181f; flex:1; line-height:1.35; }
   .tpp-dist { font-size:11px; font-weight:700; color:#94a3b8; margin-top:3px; }
@@ -410,7 +416,7 @@
   .chat-list-item.unread { border-color:var(--blue); }
   .chat-list-avatar {
     width:42px; height:42px; border-radius:50%;
-    background:linear-gradient(135deg,#1a4fa0,#2563c4);
+    background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);
     display:flex; align-items:center; justify-content:center;
     font-family:'Bebas Neue',sans-serif; color:white; font-size:15px; flex-shrink:0;
   }
@@ -424,7 +430,7 @@
   }
   .soporte-item-icon {
     width:42px; height:42px; border-radius:12px;
-    background:linear-gradient(135deg,#f05a1a,#d04010);
+    background:linear-gradient(135deg,var(--color-secondary),#d04010);
     display:flex; align-items:center; justify-content:center;
     font-family:'Bebas Neue',sans-serif; color:white; font-size:11px;
     flex-shrink:0; letter-spacing:.5px;
@@ -456,7 +462,7 @@
 <div id="vista-mapa-wrap">
   <div id="mapa-legend"></div>
   <div id="mapa-repartidor"></div>
-  <button id="btn-centrar-mapa" onclick="_centrarEnRepartidor(true)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg> Centrar</button>
+  <button id="btn-centrar-mapa" onclick="_centrarEnRepartidor(true)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg> Centrar</button>
   <div id="mapa-sheet">
     <div id="mapa-sheet-handle" onclick="_toggleSheet()"></div>
     <div id="mapa-sheet-head" onclick="_toggleSheet()">
@@ -475,7 +481,7 @@
 <div id="menu-lateral-drawer" style="position:fixed;top:0;right:-380px;width:350px;max-width:95vw;height:100%;background:white;z-index:8001;box-shadow:-4px 0 40px rgba(0,0,0,0.22);transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column">
 
   <!-- Header del drawer: foto + nombre + nivel -->
-  <div style="background:linear-gradient(135deg,#0e3070,#1a4fa0);padding:24px 18px 20px;color:white;flex-shrink:0;position:relative">
+  <div style="background:linear-gradient(135deg,#0e3070,var(--color-primary-dark));padding:24px 18px 20px;color:white;flex-shrink:0;position:relative">
     <button onclick="_cerrarMenuLateral()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:18px;width:34px;height:34px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     <div style="display:flex;align-items:center;gap:14px">
       <div id="drawer-avatar" onclick="_abrirModalFotoRepartidor()" style="width:64px;height:64px;border-radius:50%;border:2.5px solid rgba(255,255,255,0.7);overflow:hidden;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:26px;color:white;cursor:pointer;flex-shrink:0"></div>
@@ -491,7 +497,7 @@
 
     <!-- Sección: Tu desempeño -->
     <div style="padding:18px 16px 0">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">⭐ TU DESEMPEÑO</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:12px">⭐ TU DESEMPEÑO</div>
       <div id="drawer-desempeno-body" style="min-height:40px">
         <div style="color:#bbb;font-size:12px;text-align:center;padding:10px 0">Cargando...</div>
       </div>
@@ -501,7 +507,7 @@
 
     <!-- Sección: Mis ganancias -->
     <div style="padding:0 16px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💰 MIS GANANCIAS</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:12px">💰 MIS GANANCIAS</div>
       <div id="ganancias-body" style="min-height:60px">
         <div style="color:#bbb;font-size:12px;text-align:center;padding:16px 0">Cargando...</div>
       </div>
@@ -511,7 +517,7 @@
 
     <!-- Sección: Efectivo acumulado -->
     <div style="padding:0 16px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💵 EFECTIVO ACUMULADO</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:12px">💵 EFECTIVO ACUMULADO</div>
       <div id="drawer-efectivo-body"></div>
     </div>
 
@@ -519,7 +525,7 @@
 
     <!-- Sección: Mi progreso -->
     <div style="padding:0 16px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">📊 MI PROGRESO</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:12px">📊 MI PROGRESO</div>
       <div id="drawer-progreso-body"></div>
     </div>
 
@@ -543,12 +549,12 @@
       <div class="guep-loader-wrap">
         <div class="guep-spinner">
           <svg class="cat-head" width="44" height="40" viewBox="0 0 44 40" fill="none">
-            <circle cx="22" cy="20" r="15" stroke="#1E56C7" stroke-width="2.5" fill="#F7F8FA"/>
-            <path d="M11 10 L6 1 L16 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/>
-            <path d="M33 10 L38 1 L28 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/>
-            <circle cx="17" cy="19" r="1.6" fill="#1E56C7"/>
-            <circle cx="27" cy="19" r="1.6" fill="#1E56C7"/>
-            <path d="M17 25 Q22 29 27 25" stroke="#F05A1A" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+            <circle cx="22" cy="20" r="15" stroke="var(--color-primary)" stroke-width="2.5" fill="#F7F8FA"/>
+            <path d="M11 10 L6 1 L16 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/>
+            <path d="M33 10 L38 1 L28 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/>
+            <circle cx="17" cy="19" r="1.6" fill="var(--color-primary)"/>
+            <circle cx="27" cy="19" r="1.6" fill="var(--color-primary)"/>
+            <path d="M17 25 Q22 29 27 25" stroke="var(--color-secondary)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
           </svg>
           <svg class="paw-ring" width="70" height="70" viewBox="-35 -35 70 70">
             <g class="paw"><circle r="3.4"/><circle cx="4.5" cy="-1.5" r="2"/><circle cx="-4.5" cy="-1.5" r="2"/><circle cx="2.5" cy="-4.5" r="1.8"/><circle cx="-2.5" cy="-4.5" r="1.8"/></g>
@@ -570,7 +576,7 @@
 <!-- ── VISTA CHAT ── -->
 <div id="vista-chat">
   <div style="padding:16px 16px 0">
-    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;margin-bottom:12px">💬 MIS CHATS</div>
+    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:12px">💬 MIS CHATS</div>
     <div id="chat-lista-nav"></div>
   </div>
 </div>
@@ -787,23 +793,23 @@ async function _mostrarModalNuevoPedido(pedido) {
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:slideUp .3s ease">
       <div style="width:52px;height:52px;display:inline-flex;margin:0 auto 8px" data-icon="paquete"></div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a4fa0;margin-bottom:4px">Nuevo pedido disponible</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:var(--color-primary-dark);margin-bottom:4px">Nuevo pedido disponible</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
         <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#8fa3c0">GK-${pedido.id}</span>
         ${esWeekend ? '<span style="background:rgba(139,92,246,0.12);color:#7c3aed;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:3px 10px;border-radius:20px;letter-spacing:.5px">📅 Pedido del fin de semana</span>' : ''}
       </div>
       <div style="background:#f4f6fb;border-radius:12px;padding:14px;margin-bottom:12px;text-align:left">
         <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-bottom:3px">RECOLECCIÓN</div>
-        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_recoleccion || '–'}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--color-primary-dark)">${pedido.direccion_recoleccion || '–'}</div>
         <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-top:10px;margin-bottom:3px">ENTREGA</div>
-        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:#1a2740">${pedido.direccion_entrega || '–'}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;color:var(--color-primary-dark)">${pedido.direccion_entrega || '–'}</div>
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:16px;background:#f0fdf4;border-radius:12px;padding:10px 14px;margin-bottom:14px">
         ${_kmModal ? `<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#64748b">📍 ${_kmModal} km</span>` : ''}
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:#16a34a">💰 Tu ganancia estimada: <span style="font-family:'Bebas Neue',sans-serif;font-size:20px">$${_ganEst}</span></span>
       </div>
       ${_bloqueoHtml}
-      <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:#f05a1a;line-height:1;margin-bottom:16px">${segsTotal}</div>
+      <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--color-secondary);line-height:1;margin-bottom:16px">${segsTotal}</div>
       <div style="display:flex;gap:10px">
         <button onclick="_rechazarPedido(${pedido.id})" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#ef4444">❌ RECHAZAR</button>
         ${_aceptarBloqueado ? '' : `<button onclick="_aceptarPedido(${pedido.id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;cursor:pointer">✅ ACEPTAR</button>`}
@@ -816,7 +822,7 @@ async function _mostrarModalNuevoPedido(pedido) {
   _modalCountdownTimer = setInterval(() => {
     segs--
     const el = document.getElementById('modal-pedido-countdown')
-    if (el) { el.textContent = segs; el.style.color = segs <= 10 ? '#ef4444' : '#f05a1a' }
+    if (el) { el.textContent = segs; el.style.color = segs <= 10 ? '#ef4444' : 'var(--color-secondary)' }
     if (segs <= 0) { clearInterval(_modalCountdownTimer); _rechazarPedido(pedido.id, true) }
   }, 1000)
 }
@@ -1140,7 +1146,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">🗺️</a>
               ${pedido.foto_recoleccion
                 ? '<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#22c55e;flex-shrink:0">✅ Recolectado</span>'
-                : `<button onclick="abrirModalRecoleccion(${pedido.id})" id="btn-recoleccion-${pedido.id}" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:3px 7px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;flex-shrink:0;white-space:nowrap">Recolectado</button>`
+                : `<button onclick="abrirModalRecoleccion(${pedido.id})" id="btn-recoleccion-${pedido.id}" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:3px 7px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;flex-shrink:0;white-space:nowrap">Recolectado</button>`
               }
             </div>
             <hr style="border:none;border-top:1px solid rgba(26,79,160,0.1);margin:8px 0 0">
@@ -1154,7 +1160,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
           ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
           <div id="paradas-rep-${pedido.id}" style="margin-bottom:4px"></div>
           <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-            <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:#1a4fa0;color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+            <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:var(--color-primary-dark);color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
               <span class="guep-icon-inline icon-on-color" data-icon="chat"></span> Chat
               <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
@@ -1297,28 +1303,28 @@ function _renderEfectivoDrawer() {
       <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#991b1b">Debes depositar antes de aceptar nuevos pedidos en efectivo</div>
     </div>
     <div style="background:#f0f4ff;border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;margin-bottom:10px">Datos para depósito</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);margin-bottom:10px">Datos para depósito</div>
       <div style="margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">BANCO</div>
-        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">BBVA</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">BBVA</div>
       </div>
       <div style="margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">CLABE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">012320029474665791</span>
-          <button onclick="navigator.clipboard.writeText('012320029474665791').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">012320029474665791</span>
+          <button onclick="navigator.clipboard.writeText('012320029474665791').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
         </div>
       </div>
       <div>
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">NOMBRE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Leonardo Vazquez Fajardo</span>
-          <button onclick="navigator.clipboard.writeText('Leonardo Vazquez Fajardo').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Leonardo Vazquez Fajardo</span>
+          <button onclick="navigator.clipboard.writeText('Leonardo Vazquez Fajardo').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
         </div>
       </div>
     </div>
     <input type="file" id="comprobante-deposito-input" accept="image/*" style="display:none" onchange="_subirComprobanteDeposito(this)">
-    <label for="comprobante-deposito-input" id="btn-comprobante-deposito" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:linear-gradient(135deg,#1a4fa0,#0e3070);color:white;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de depósito</label>
+    <label for="comprobante-deposito-input" id="btn-comprobante-deposito" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:linear-gradient(135deg,var(--color-primary-dark),#0e3070);color:white;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de depósito</label>
     <div id="comprobante-deposito-preview" style="margin-top:10px"></div>
     ` : ''}
   `
@@ -1338,7 +1344,7 @@ function _renderProgresoDrawer() {
       ${esPremium ? '' : `<span style="font-size:11px;font-weight:700;color:#94a3b8">${total}/${META}</span>`}
     </div>
     <div style="background:#f1f5f9;border-radius:99px;height:10px;margin-bottom:10px;overflow:hidden">
-      <div style="height:100%;width:${pct}%;background:${esPremium ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#1a4fa0,#2563c4)'};border-radius:99px;transition:width .4s ease"></div>
+      <div style="height:100%;width:${pct}%;background:${esPremium ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,var(--color-primary-dark),#2563c4)'};border-radius:99px;transition:width .4s ease"></div>
     </div>
     ${esPremium
       ? '<div style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.35);border-radius:10px;padding:10px 14px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:900;color:#92400e;text-align:center">⭐ ¡Eres repartidor Premium!</div>'
@@ -1375,7 +1381,7 @@ async function _cargarGanancias(nombreRepa) {
   const body = document.getElementById('ganancias-body')
   if (!body) return
 
-  body.innerHTML = '<div class="guep-loader-wrap" style="padding:12px 0"><div class="guep-spinner" style="width:50px;height:50px"><svg class="cat-head" width="28" height="26" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="#1E56C7" stroke-width="2.5" fill="#F7F8FA"/><path d="M11 10 L6 1 L16 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="#1E56C7"/><circle cx="27" cy="19" r="1.6" fill="#1E56C7"/><path d="M17 25 Q22 29 27 25" stroke="#F05A1A" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><svg class="paw-ring" width="44" height="44" viewBox="-35 -35 70 70"><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g></svg><div class="puff"></div><div class="puff"></div><div class="puff"></div></div></div>'
+  body.innerHTML = '<div class="guep-loader-wrap" style="padding:12px 0"><div class="guep-spinner" style="width:50px;height:50px"><svg class="cat-head" width="28" height="26" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="var(--color-primary)" stroke-width="2.5" fill="#F7F8FA"/><path d="M11 10 L6 1 L16 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="var(--color-primary)"/><circle cx="27" cy="19" r="1.6" fill="var(--color-primary)"/><path d="M17 25 Q22 29 27 25" stroke="var(--color-secondary)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><svg class="paw-ring" width="44" height="44" viewBox="-35 -35 70 70"><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g><g class="paw"><circle r="3.4"/></g></svg><div class="puff"></div><div class="puff"></div><div class="puff"></div></div></div>'
 
   const ahora = new Date()
   const diaSemana = ahora.getDay()
@@ -1409,7 +1415,7 @@ async function _cargarGanancias(nombreRepa) {
         <div style="font-size:10px;font-weight:700;color:#166534;margin-top:2px">Pedidos</div>
       </div>
       <div style="background:#eff6ff;border-radius:12px;padding:12px 10px;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#1a4fa0;line-height:1">$${totalGanancia.toFixed(0)}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--color-primary-dark);line-height:1">$${totalGanancia.toFixed(0)}</div>
         <div style="font-size:10px;font-weight:700;color:#1e40af;margin-top:2px">Ganancia</div>
       </div>
       <div style="background:#fff7ed;border-radius:12px;padding:12px 10px;text-align:center">
@@ -1491,7 +1497,7 @@ function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
   setTimeout(() => document.getElementById('modal-cancelacion-repa')?.remove(), 5000)
 }
 
-function _toastRepa(msg, color = '#1a4fa0') {
+function _toastRepa(msg, color = 'var(--color-primary-dark)') {
   const t = document.createElement('div')
   t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:10px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden'
   t.textContent = msg
@@ -1559,7 +1565,7 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
     <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#8fa3c0;margin:4px 0 6px;letter-spacing:.3px">Paradas ${completadas}/${total} completadas</div>
     ${paradas.map((p, idx) => {
       const anteriorCompletada = idx === 0 || paradas[idx - 1].estado === 'completada'
-      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_domicilio' ? '#f05a1a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_domicilio' ? 'var(--color-secondary)' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
 
       let btnHtml = ''
       if (p.estado === 'completada') {
@@ -1571,11 +1577,11 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
       } else if (p.estado === 'pendiente') {
         btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.repartidor}</span> En camino</button>`
       } else if (p.estado === 'en_camino') {
-        btnHtml = `<button onclick="paradaEnDomicilio(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Ya llegué</button>`
+        btnHtml = `<button onclick="paradaEnDomicilio(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-secondary);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Ya llegué</button>`
       } else if (p.estado === 'en_domicilio') {
         btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 7:00</span>
-          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>
         </div>`
       }
 
@@ -1622,7 +1628,7 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       id="btn-ruta-completa-${pedidoId}"
       onclick="completarRutaMulti(${pedidoId}, '${wa}', '${nom}')"
       ${todasCompletadas ? '' : 'disabled'}
-      style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;background:#1a4fa0;color:white;opacity:${todasCompletadas ? '1' : '0.4'};cursor:${todasCompletadas ? 'pointer' : 'not-allowed'}">
+      style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;background:var(--color-primary-dark);color:white;opacity:${todasCompletadas ? '1' : '0.4'};cursor:${todasCompletadas ? 'pointer' : 'not-allowed'}">
       🏁 RUTA COMPLETA
     </button>
   `
@@ -1633,7 +1639,7 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
   el.innerHTML = `
     <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#8fa3c0;margin:4px 0 6px;letter-spacing:.3px">Paradas ${completadas}/${total} completadas</div>
     ${paradas.map(p => {
-      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_camino' ? 'var(--orange)' : p.estado === 'en_domicilio' ? '#f05a1a' : '#8fa3c0'
+      const color = p.estado === 'completada' ? '#16a34a' : p.estado === 'en_camino' ? 'var(--orange)' : p.estado === 'en_domicilio' ? 'var(--color-secondary)' : '#8fa3c0'
 
       let btnHtml = ''
       if (p.estado === 'completada') {
@@ -1645,11 +1651,11 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       } else if (p.estado === 'pendiente') {
         btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.repartidor}</span> En camino</button>`
       } else if (p.estado === 'en_camino') {
-        btnHtml = `<button onclick="paradaEnDomicilioMulti(${pedidoId}, ${p.id}, ${p.orden})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#f05a1a;color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> YA LLEGUÉ</button>`
+        btnHtml = `<button onclick="paradaEnDomicilioMulti(${pedidoId}, ${p.id}, ${p.orden})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-secondary);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> YA LLEGUÉ</button>`
       } else if (p.estado === 'en_domicilio') {
         btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 5:00</span>
-          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:#1a4fa0;color:white;cursor:pointer;white-space:nowrap">📸 ENTREGAR</button>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 ENTREGAR</button>
         </div>`
       }
 
@@ -1795,7 +1801,7 @@ function _mostrarAvisoBloqueadoEfectivo(acumulado) {
     <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center">
       <div style="font-size:48px;margin-bottom:12px">⚠️</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f59e0b;letter-spacing:1px;margin-bottom:10px">Depósito requerido</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:#1a2740;margin-bottom:8px">Has acumulado <span style="color:#ef4444;font-family:'Bebas Neue',sans-serif;font-size:22px">$${acumulado}</span> en efectivo</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--color-primary-dark);margin-bottom:8px">Has acumulado <span style="color:#ef4444;font-family:'Bebas Neue',sans-serif;font-size:22px">$${acumulado}</span> en efectivo</div>
       <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:24px">Debes depositar antes de aceptar nuevos pedidos con efectivo. Avisa a tu coordinador.</div>
       <button onclick="document.getElementById('modal-bloqueado-efectivo').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer">Entendido</button>
     </div>
@@ -1851,12 +1857,12 @@ function abrirModalEntrega(id) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📦 Confirmar entrega ${_folioLabel}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:var(--color-primary-dark)">📦 Confirmar entrega ${_folioLabel}</div>
 
       <div style="margin-bottom:16px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">📸 Foto de evidencia</div>
         <input type="file" id="entrega-foto" accept="image/*" capture="environment" style="display:none">
-        <label for="entrega-foto" id="btn-tomar-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box;transition:opacity .2s">📸 Tomar foto</label>
+        <label for="entrega-foto" id="btn-tomar-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:var(--color-primary-dark);color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box;transition:opacity .2s">📸 Tomar foto</label>
         <div id="entrega-foto-preview" style="margin-top:10px"></div>
       </div>
 
@@ -1868,7 +1874,7 @@ function abrirModalEntrega(id) {
 
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-entrega').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
-        <button id="btn-confirmar-entrega" onclick="confirmarEntrega(${id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar entrega</button>
+        <button id="btn-confirmar-entrega" onclick="confirmarEntrega(${id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar entrega</button>
       </div>
     </div>
   `
@@ -1885,10 +1891,10 @@ function abrirModalEntrega(id) {
     return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) }
   }
   canvas.addEventListener('mousedown', e => { dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) })
-  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() })
+  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() })
   canvas.addEventListener('mouseup', () => dibujando = false)
   canvas.addEventListener('touchstart', e => { e.preventDefault(); dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }, { passive: false })
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
   canvas.addEventListener('touchend', () => dibujando = false)
 
   // Preview foto
@@ -1986,10 +1992,10 @@ function abrirModalParada(pedidoId, paradaId, orden, total) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,50,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0;display:flex;align-items:center;gap:6px"><span style="display:inline-flex;width:24px;height:24px">${GUEPACK_ICONS.ubicacion}</span> Confirmar Parada ${orden} / ${total}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:var(--color-primary-dark);display:flex;align-items:center;gap:6px"><span style="display:inline-flex;width:24px;height:24px">${GUEPACK_ICONS.ubicacion}</span> Confirmar Parada ${orden} / ${total}</div>
       <div style="margin-bottom:16px">
         <input type="file" id="parada-foto" accept="image/*" capture="environment" style="display:none">
-        <label for="parada-foto" id="btn-parada-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
+        <label for="parada-foto" id="btn-parada-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:var(--color-primary-dark);color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
         <div id="parada-foto-preview" style="margin-top:10px"></div>
       </div>
       <div style="margin-bottom:16px">
@@ -1999,7 +2005,7 @@ function abrirModalParada(pedidoId, paradaId, orden, total) {
       </div>
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-parada').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
-        <button id="btn-confirmar-parada" onclick="confirmarParada(${pedidoId}, ${paradaId}, ${orden}, ${total})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar parada</button>
+        <button id="btn-confirmar-parada" onclick="confirmarParada(${pedidoId}, ${paradaId}, ${orden}, ${total})" style="flex:2;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar parada</button>
       </div>
     </div>
   `
@@ -2015,7 +2021,7 @@ function abrirModalParada(pedidoId, paradaId, orden, total) {
   canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.beginPath(); ctx.moveTo(t.clientX - r.left, t.clientY - r.top) }, { passive: false })
   canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.lineTo(t.clientX - r.left, t.clientY - r.top); ctx.stroke() }, { passive: false })
   canvas.addEventListener('touchend', () => { drawing = false })
-  ctx.strokeStyle = '#1a2740'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
+  ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
 
   document.getElementById('parada-foto').addEventListener('change', function() {
     if (!this.files[0]) return
@@ -2126,13 +2132,13 @@ async function abrirChat(pedidoId, rol, titulo) {
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
       <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">💬 ${titulo}</span>
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">💬 ${titulo}</span>
         <button onclick="cerrarChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
       </div>
       <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
       <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
         <input id="chat-input" type="text" placeholder="Escribe un mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarMensajeChat()">
-        <button onclick="enviarMensajeChat()" style="background:#1a4fa0;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+        <button onclick="enviarMensajeChat()" style="background:var(--color-primary-dark);color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
       </div>
     </div>`
   document.body.appendChild(modal)
@@ -2161,7 +2167,7 @@ function _agregarBurbuja(msg, scroll = true) {
   label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
   label.textContent = esAdmin ? '🛡️ Soporte' : msg.de === 'cliente' ? '👤 Cliente' : '🏍️ Repartidor'
   const burbuja = document.createElement('div')
-  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#1a4fa0' : esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esMio || esAdmin ? 'white' : '#333'}`
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? 'var(--color-primary-dark)' : esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esMio || esAdmin ? 'white' : '#333'}`
   burbuja.textContent = msg.texto
   c.appendChild(label); c.appendChild(burbuja)
   if (scroll) c.scrollTop = c.scrollHeight
@@ -2300,13 +2306,13 @@ function _abrirModalFotoRepartidor() {
   modal.id = 'modal-foto-repa'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px'
   const fotoHtml = _repaFotoUrl
-    ? '<img id="mfr-img" src="' + _repaFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
-    : '<div style="width:90px;height:90px;border-radius:50%;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">🏍️</div>'
+    ? '<img id="mfr-img" src="' + _repaFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary-dark);display:block;margin:0 auto 16px">'
+    : '<div style="width:90px;height:90px;border-radius:50%;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">🏍️</div>'
   modal.innerHTML = '<div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:320px;text-align:center">'
-    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--color-primary-dark);letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
     + fotoHtml
     + '<input type="file" id="mfr-input" accept="image/*" style="display:none">'
-    + '<label for="mfr-input" style="display:block;padding:11px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
+    + '<label for="mfr-input" style="display:block;padding:11px;background:var(--color-primary-dark);color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
     + '<div id="mfr-status" style="font-family:Montserrat,sans-serif;font-size:12px;color:#888;min-height:18px;margin-bottom:10px"></div>'
     + '<button onclick="document.getElementById(\'modal-foto-repa\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cerrar</button>'
     + '</div>'
@@ -2321,11 +2327,11 @@ function abrirModalRecoleccion(pedidoId) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">📦 Evidencia de recolección GK-${pedidoId}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:var(--color-primary-dark)">📦 Evidencia de recolección GK-${pedidoId}</div>
       <div style="margin-bottom:16px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">📸 Foto de recolección</div>
         <input type="file" id="recol-foto" accept="image/*" capture="environment" style="display:none">
-        <label for="recol-foto" id="btn-recol-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:#1a4fa0;color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
+        <label for="recol-foto" id="btn-recol-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:var(--color-primary-dark);color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
         <div id="recol-foto-preview" style="margin-top:10px"></div>
       </div>
       <div style="margin-bottom:20px">
@@ -2335,7 +2341,7 @@ function abrirModalRecoleccion(pedidoId) {
       </div>
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-recoleccion').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
-        <button id="btn-confirmar-recoleccion" onclick="confirmarRecoleccion(${pedidoId})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar recolección</button>
+        <button id="btn-confirmar-recoleccion" onclick="confirmarRecoleccion(${pedidoId})" style="flex:2;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar recolección</button>
       </div>
     </div>
   `
@@ -2350,10 +2356,10 @@ function abrirModalRecoleccion(pedidoId) {
     return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) }
   }
   canvas.addEventListener('mousedown', e => { dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) })
-  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() })
+  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() })
   canvas.addEventListener('mouseup', () => dibujando = false)
   canvas.addEventListener('touchstart', e => { e.preventDefault(); dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }, { passive: false })
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#1a4fa0'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
   canvas.addEventListener('touchend', () => dibujando = false)
 
   document.getElementById('recol-foto').addEventListener('change', function() {
@@ -2445,7 +2451,7 @@ async function _subirFotoRepartidor(e) {
 <script>
 // ── MAPA REPARTIDOR ──────────────────────────────────────────────────────────
 const _MAPA_PALETA = [
-  '#1E56C7','#F05A1A','#0E9488','#9333ea','#0891b2','#b45309','#be123c','#16a34a'
+  'var(--color-primary)','var(--color-secondary)','#0E9488','#9333ea','#0891b2','#b45309','#be123c','#16a34a'
 ]
 
 let _mapaIniciado   = false
@@ -2611,7 +2617,7 @@ async function _abrirChatSoporte(pedidoId, clienteNombre) {
     <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
       <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
         <div>
-          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">🆘 Soporte GK-${pedidoId}</span>
+          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">🆘 Soporte GK-${pedidoId}</span>
           <div style="font-size:11px;color:#8fa3c0;font-weight:600;margin-top:1px">${clienteNombre || ''}</div>
         </div>
         <button onclick="document.getElementById('modal-soporte-repa').remove();if(_soporteChannel){db.removeChannel(_soporteChannel);_soporteChannel=null}" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
@@ -2619,7 +2625,7 @@ async function _abrirChatSoporte(pedidoId, clienteNombre) {
       <div id="soporte-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
       <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
         <input id="soporte-input" type="text" placeholder="Describe el problema..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')_enviarMensajeSoporte()">
-        <button onclick="_enviarMensajeSoporte()" style="background:#f05a1a;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+        <button onclick="_enviarMensajeSoporte()" style="background:var(--color-secondary);color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
       </div>
     </div>`
   document.body.appendChild(modal)
@@ -2651,7 +2657,7 @@ function _agregarBurbujaS(msg, scroll = true) {
   label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
   label.textContent = esMio ? '🏍️ Tú' : '🛡️ Soporte'
   const burbuja = document.createElement('div')
-  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#f05a1a' : '#f0f0f0'};color:${esMio ? 'white' : '#333'}`
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? 'var(--color-secondary)' : '#f0f0f0'};color:${esMio ? 'white' : '#333'}`
   burbuja.textContent = msg.texto
   c.appendChild(label); c.appendChild(burbuja)
   if (scroll) c.scrollTop = c.scrollHeight
@@ -3268,8 +3274,8 @@ function _renderSheetOptimizado(ordered) {
 </script>
 
 <button id="btn-activar-sonido" onclick="_activarSonido()" title="Activar sonido" style="position:fixed;bottom:80px;right:16px;z-index:9999;background:none;border:none;cursor:pointer;padding:0;box-shadow:0 4px 16px rgba(0,0,0,0.25);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="12" cy="12" r="9" fill="#1E56C7" stroke="#1E56C7"/>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9" fill="var(--color-primary)" stroke="var(--color-primary)"/>
     <path d="M7.5 9.7v4.6h2l3.3 2.6V7.1l-3.3 2.6h-2Z" fill="white" stroke="white"/>
     <path d="M15.3 9.3a4 4 0 0 1 0 5.4" stroke="white"/>
     <path d="M17.3 7.3a7 7 0 0 1 0 9.4" stroke="white"/>
@@ -3282,7 +3288,7 @@ function _renderSheetOptimizado(ordered) {
     <div class="bnav-tab-icon">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/>
-        <circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/>
+        <circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/>
       </svg>
     </div>
     Entregas

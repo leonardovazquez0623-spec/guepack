@@ -8,6 +8,65 @@
     return /^#[0-9a-f]{6}$/i.test(String(valor || ''))
   }
 
+  function hexadecimalAHsl(color) {
+    const hexadecimal = color.replace('#', '')
+    const rojo = parseInt(hexadecimal.slice(0, 2), 16) / 255
+    const verde = parseInt(hexadecimal.slice(2, 4), 16) / 255
+    const azul = parseInt(hexadecimal.slice(4, 6), 16) / 255
+    const maximo = Math.max(rojo, verde, azul)
+    const minimo = Math.min(rojo, verde, azul)
+    const diferencia = maximo - minimo
+    let tono = 0
+    const luminosidad = (maximo + minimo) / 2
+
+    if (diferencia !== 0) {
+      if (maximo === rojo) tono = ((verde - azul) / diferencia) % 6
+      else if (maximo === verde) tono = (azul - rojo) / diferencia + 2
+      else tono = (rojo - verde) / diferencia + 4
+      tono = Math.round(tono * 60)
+      if (tono < 0) tono += 360
+    }
+
+    const saturacion = diferencia === 0 ? 0 : diferencia / (1 - Math.abs(2 * luminosidad - 1))
+    return { tono, saturacion: saturacion * 100, luminosidad: luminosidad * 100 }
+  }
+
+  function hslAHexadecimal(tono, saturacion, luminosidad) {
+    const s = Math.max(0, Math.min(100, saturacion)) / 100
+    const l = Math.max(0, Math.min(100, luminosidad)) / 100
+    const croma = (1 - Math.abs(2 * l - 1)) * s
+    const componente = croma * (1 - Math.abs(((tono / 60) % 2) - 1))
+    const ajuste = l - croma / 2
+    let rojo = 0
+    let verde = 0
+    let azul = 0
+
+    if (tono < 60) [rojo, verde, azul] = [croma, componente, 0]
+    else if (tono < 120) [rojo, verde, azul] = [componente, croma, 0]
+    else if (tono < 180) [rojo, verde, azul] = [0, croma, componente]
+    else if (tono < 240) [rojo, verde, azul] = [0, componente, croma]
+    else if (tono < 300) [rojo, verde, azul] = [componente, 0, croma]
+    else [rojo, verde, azul] = [croma, 0, componente]
+
+    const canalHexadecimal = canal => Math.round((canal + ajuste) * 255).toString(16).padStart(2, '0')
+    return `#${canalHexadecimal(rojo)}${canalHexadecimal(verde)}${canalHexadecimal(azul)}`
+  }
+
+  function darkenColor(color, porcentaje) {
+    if (!esColorHexadecimal(color)) return color
+    const hsl = hexadecimalAHsl(color)
+    const luminosidad = hsl.luminosidad * (1 - Math.max(0, Math.min(100, porcentaje)) / 100)
+    return hslAHexadecimal(hsl.tono, hsl.saturacion, luminosidad)
+  }
+
+  function lightenColor(color, porcentaje) {
+    if (!esColorHexadecimal(color)) return color
+    const hsl = hexadecimalAHsl(color)
+    const proporcion = Math.max(0, Math.min(100, porcentaje)) / 100
+    const luminosidad = hsl.luminosidad + (100 - hsl.luminosidad) * proporcion
+    return hslAHexadecimal(hsl.tono, hsl.saturacion, luminosidad)
+  }
+
   function obtenerSlugSolicitado() {
     const parametros = new URLSearchParams(window.location.search)
     const slugParametro = parametros.get('tenant') || parametros.get('slug')
@@ -35,12 +94,25 @@
     const raiz = document.documentElement
 
     if (esColorHexadecimal(tenant.color_primario)) {
+      const primarioOscuro = darkenColor(tenant.color_primario, 20)
+      const primarioClaro = lightenColor(tenant.color_primario, 85)
       raiz.style.setProperty('--color-primary', tenant.color_primario)
+      raiz.style.setProperty('--color-primary-dark', primarioOscuro)
+      raiz.style.setProperty('--color-primary-light', primarioClaro)
       raiz.style.setProperty('--blue', tenant.color_primario)
+      raiz.style.setProperty('--blue-dark', primarioOscuro)
+      raiz.style.setProperty('--blue-light', lightenColor(tenant.color_primario, 20))
+      raiz.style.setProperty('--text', primarioOscuro)
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', primarioOscuro)
     }
     if (esColorHexadecimal(tenant.color_secundario)) {
+      const secundarioOscuro = darkenColor(tenant.color_secundario, 20)
+      const secundarioClaro = lightenColor(tenant.color_secundario, 85)
       raiz.style.setProperty('--color-secondary', tenant.color_secundario)
+      raiz.style.setProperty('--color-secondary-dark', secundarioOscuro)
+      raiz.style.setProperty('--color-secondary-light', secundarioClaro)
       raiz.style.setProperty('--orange', tenant.color_secundario)
+      raiz.style.setProperty('--orange-light', lightenColor(tenant.color_secundario, 20))
     }
 
     if (tenant.nombre) document.title = tenant.nombre
@@ -122,6 +194,8 @@
   }
 
   window.applyTenantTheme = applyTenantTheme
+  window.darkenColor = darkenColor
+  window.lightenColor = lightenColor
   window.cargarConfiguracionTenant = cargarConfiguracionTenant
   window.tenantConfigReady = cargarConfiguracionTenant()
 })()

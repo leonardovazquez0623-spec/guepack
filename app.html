@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -7,16 +7,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --blue: #1a4fa0;
+    --color-primary: #1E56C7;
+    --color-secondary: #F05A1A;
+    --color-primary-dark: #0d3a8a;
+    --color-primary-light: #e8f0fe;
+    --color-secondary-dark: #c4440e;
+    --color-secondary-light: #fff0eb;
+    --blue: var(--color-primary-dark);
     --blue-dark: #0e3070;
     --blue-light: #2563c4;
-    --orange: #f05a1a;
+    --orange: var(--color-secondary);
     --orange-light: #ff7a3d;
     --white: #ffffff;
     --gray-light: #f4f6fb;
     --gray: #e0e6f0;
     --gray-mid: #8fa3c0;
-    --text: #1a2740;
+    --text: var(--color-primary-dark);
     --success: #22c55e;
     --shadow: 0 4px 24px rgba(26,79,160,0.13);
   }
@@ -84,22 +90,22 @@
     50%      { background-position: 100% 50%; }
   }
   body.vip-plata .app-header {
-    background: linear-gradient(135deg, #0e3070 0%, #1a4fa0 60%, #2563c4 100%) !important;
+    background: linear-gradient(135deg, #0e3070 0%, var(--color-primary-dark) 60%, #2563c4 100%) !important;
   }
   body.vip-plata .app-header::after,
   body.vip-plata .app-header::before {
-    background: #f05a1a !important;
+    background: var(--color-secondary) !important;
   }
   body.vip-plata .btn-primary {
-    background: linear-gradient(135deg, #f05a1a, #ff7a3d) !important;
+    background: linear-gradient(135deg, var(--color-secondary), #ff7a3d) !important;
     box-shadow: 0 4px 14px rgba(240,90,26,0.35) !important;
   }
   body.vip-plata .nav-tabs {
     background: #0e3070 !important;
   }
   body.vip-plata .nav-tab.active {
-    color: #f05a1a !important;
-    border-bottom-color: #f05a1a !important;
+    color: var(--color-secondary) !important;
+    border-bottom-color: var(--color-secondary) !important;
   }
   body.vip-bronce .app-header {
     background: linear-gradient(135deg, #5D2E0C 0%, #8B4513 50%, #CD7F32 100%) !important;
@@ -160,23 +166,23 @@
   .home-header-row { display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1; }
   .home-notif-btn { position:relative; background:rgba(38, 22, 187, 0.1); border:none; cursor:pointer; padding:8px; border-radius:12px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
   .home-notif-btn:hover { background:rgba(145, 24, 24, 0.18); }
-  .home-notif-badge { position:absolute; top:-4px; right:-4px; background:#da5820; color:white; border-radius:50%; min-width:18px; height:18px; padding:0 3px; font-size:9px; font-weight:900; display:none; align-items:center; justify-content:center; font-family:'Montserrat',sans-serif; border:2px solid #1E56C7; }
+  .home-notif-badge { position:absolute; top:-4px; right:-4px; background:#da5820; color:white; border-radius:50%; min-width:18px; height:18px; padding:0 3px; font-size:9px; font-weight:900; display:none; align-items:center; justify-content:center; font-family:'Montserrat',sans-serif; border:2px solid var(--color-primary); }
   .home-greeting { position:relative; z-index:1; }
   .home-greeting-name { color:white; font-family:'Montserrat',sans-serif; font-size:20px; font-weight:700; line-height:1.2; }
   .home-greeting-sub { color:rgba(255,255,255,0.72); font-size:13px; font-weight:600; margin-top:3px; }
   /* ── HERO CARD ── */
-  .hero-card { background:linear-gradient(135deg,#0761e7 0%,#0b49a7 55%,#0761e7 100%); border-radius:20px; margin:0 0 14px; padding:20px 0 20px 20px; display:flex; align-items:flex-end; overflow:visible; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 6px 24px rgba(14,32,85,0.28); position:relative; min-height:160px; }
+  .hero-card { background:linear-gradient(135deg,var(--color-primary-dark) 0%,var(--color-primary-dark) 55%,var(--color-primary-dark) 100%); border-radius:20px; margin:0 0 14px; padding:20px 0 20px 20px; display:flex; align-items:flex-end; overflow:visible; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 6px 24px rgba(14,32,85,0.28); position:relative; min-height:160px; }
   .hero-content { flex:1; min-width:0; position:relative; z-index:1; }
   .hero-title { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:900; color:white; line-height:1.15; margin-bottom:6px; }
   .hero-sub { color:rgba(255,255,255,0.82); font-size:11px; font-weight:100; line-height:1.5; margin-bottom:16px; }
-  .hero-btn { background:#f05a1a; color:white; border:none; border-radius:30px; padding:10px 18px; font-family:'Montserrat',sans-serif; font-weight:900; font-size:12px; cursor:pointer; letter-spacing:.3px; box-shadow:0 2px 10px rgba(240,90,26,0.4); }
+  .hero-btn { background:var(--color-secondary); color:white; border:none; border-radius:30px; padding:10px 18px; font-family:'Montserrat',sans-serif; font-weight:900; font-size:12px; cursor:pointer; letter-spacing:.3px; box-shadow:0 2px 10px rgba(240,90,26,0.4); }
   .hero-img { width: 320px; height: auto; object-fit:contain; position:absolute; right: -40px; top:-25px; pointer-events:none; z-index: 2 }
   /* ── QUICK GRID ── */
   .quick-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:0 0 14px; }
   .quick-card { background:white; border-radius:16px; padding:16px 14px 14px; box-shadow:0 2px 12px rgba(26,79,160,0.09); cursor:pointer; display:flex; flex-direction:column; gap:8px; border:1.5px solid #f0f3fa; transition:border-color .15s,transform .12s; -webkit-tap-highlight-color:transparent; }
   .quick-card:active { transform:scale(0.96); }
   .qc-icon { width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
-  .qc-label { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:900; color:#1a2740; line-height:1.2; }
+  .qc-label { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:900; color:var(--color-primary-dark); line-height:1.2; }
   .qc-sub { font-size:10px; color:#8fa3c0; font-weight:600; line-height:1.35; }
   /* ── SUPPORT CARD ── */
   .support-card { margin:0 0 30px; background:#ff843d; border-radius:30px; padding:10px 20px 20px 0; display:flex; align-items:center; overflow:visible; cursor:pointer; box-shadow:0 4px 20px rgba(14,32,85,0.22); position:relative; min-height:110px; }
@@ -200,10 +206,10 @@
     font-weight: 900;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    color: #1E56C7;
+    color: var(--color-primary);
     margin-bottom: 16px;
     padding-bottom: 8px;
-    border-bottom: 1.5px solid #e8f0fe;
+    border-bottom: 1.5px solid var(--color-primary-light);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -235,7 +241,7 @@
   }
   .form-input:focus, .form-select:focus {
     outline: none;
-    border-color: #1E56C7;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(30,86,199,0.08);
   }
   input, select, textarea { font-size: 16px !important; }
@@ -314,7 +320,7 @@
     box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   }
   .quote-label { color: #6b7280; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
-  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: #1E56C7; line-height: 1; }
+  .quote-price { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--color-primary); line-height: 1; }
   .quote-detail { color: #6b7280; font-size: 10px; font-weight: 600; margin-top: 8px; line-height: 1.7; }
 
   /* ── BUTTONS ── */
@@ -331,7 +337,7 @@
     transition: all .2s;
   }
   .btn-primary {
-    background: linear-gradient(135deg, #f05a1a, #e04510);
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark));
     color: var(--white);
     box-shadow: 0 4px 20px rgba(240,90,26,0.4);
   }
@@ -366,7 +372,7 @@
     transition:all .3s; font-size:11px; line-height:1;
   }
   .tl-item.done .tl-dot { background:#22c55e; border-color:#22c55e; color:white; }
-  .tl-item.current .tl-dot { background:#f05a1a; border-color:#f05a1a; animation:pulse 1.5s infinite; }
+  .tl-item.current .tl-dot { background:var(--color-secondary); border-color:var(--color-secondary); animation:pulse 1.5s infinite; }
   .tl-item.pending .tl-dot { background:white; border-color:#d1d9e6; }
   @keyframes pulse {
     0%,100% { box-shadow:0 0 0 0 rgba(240,90,26,0.4); }
@@ -374,16 +380,16 @@
   }
   .tl-title { font-size:13px; font-weight:700; color:var(--text); }
   .tl-item.done .tl-title { color:#15803d; }
-  .tl-item.current .tl-title { color:#f05a1a; font-weight:900; }
+  .tl-item.current .tl-title { color:var(--color-secondary); font-weight:900; }
   .tl-item.pending .tl-title { color:#a0aec0; font-weight:600; }
   .tl-time { font-size:10px; color:var(--gray-mid); font-weight:600; margin-top:2px; }
   /* ── RASTREO GATO ── */
   .rastreo-gato-wrap { text-align:center; margin-bottom:-28px; position:relative; z-index:2; pointer-events:none; }
   .rastreo-gato-wrap img { width:150px; height:150px; object-fit:contain; filter:drop-shadow(0 6px 16px rgba(14,32,85,0.18)); }
   /* ── PAC CARD ── */
-  .pac-header { background:linear-gradient(90deg,#0a2a6e 0%,#1E56C7 100%); padding:13px 16px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; -webkit-tap-highlight-color:transparent; }
+  .pac-header { background:linear-gradient(90deg,#0a2a6e 0%,var(--color-primary) 100%); padding:13px 16px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; -webkit-tap-highlight-color:transparent; }
   .pac-repa-card { display:flex; align-items:center; gap:12px; background:#f4f7fb; border-radius:12px; padding:10px 12px; margin-bottom:12px; }
-  .pac-repa-avatar { width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0; border:2px solid #dde4f0; background:#dde4f0; display:flex; align-items:center; justify-content:center; font-family:Montserrat,sans-serif; font-weight:900; font-size:16px; color:#1a2740; }
+  .pac-repa-avatar { width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0; border:2px solid #dde4f0; background:#dde4f0; display:flex; align-items:center; justify-content:center; font-family:Montserrat,sans-serif; font-weight:900; font-size:16px; color:var(--color-primary-dark); }
   .pac-repa-avatar img { width:100%; height:100%; object-fit:cover; }
 
   /* ── ORDER CARD (admin) ── */
@@ -445,7 +451,7 @@
 
   /* ── REPARTIDOR ── */
   .delivery-header {
-    background: linear-gradient(135deg, #0e3070, #1a4fa0);
+    background: linear-gradient(135deg, #0e3070, var(--color-primary-dark));
     padding: 20px;
     color: var(--white);
     border-radius: 0 0 20px 20px;
@@ -740,7 +746,7 @@
     position: absolute;
     z-index: 999999;
     background: #fff;
-    border: 1.5px solid #1E56C7;
+    border: 1.5px solid var(--color-primary);
     border-radius: 10px;
     box-shadow: 0 8px 28px rgba(26,79,160,0.18);
     overflow: hidden;
@@ -759,9 +765,9 @@
   .guep-ac-item:last-child { border-bottom: none; }
   .guep-ac-item:hover, .guep-ac-item.activo {
     background: #f0f4ff;
-    border-left-color: #1E56C7;
+    border-left-color: var(--color-primary);
   }
-  .guep-ac-item-main { font-weight: 700; font-size: 13px; color: #1a2740; }
+  .guep-ac-item-main { font-weight: 700; font-size: 13px; color: var(--color-primary-dark); }
   .guep-ac-item-sub  { font-size: 11px; color: #8fa3c0; margin-top: 2px; }
   .loader--4 {
     --anim-duration: 0.5s;
@@ -813,7 +819,7 @@
   .parada-drag-handle:active { cursor:grabbing; opacity:1; }
   @keyframes paradaWiggle { 0%,100%{transform:translateY(0)} 25%{transform:translateY(-4px)} 75%{transform:translateY(4px)} }
   .parada-handle-wiggle { animation:paradaWiggle .55s ease 3; }
-  #parada-drag-tip { position:fixed; background:#1a4fa0; color:#fff; font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; padding:9px 13px; border-radius:10px; z-index:9100; pointer-events:none; box-shadow:0 4px 16px rgba(14,32,85,.25); max-width:240px; line-height:1.4; }
+  #parada-drag-tip { position:fixed; background:var(--color-primary-dark); color:#fff; font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; padding:9px 13px; border-radius:10px; z-index:9100; pointer-events:none; box-shadow:0 4px 16px rgba(14,32,85,.25); max-width:240px; line-height:1.4; }
 
   /* ── COMPARADOR NACIONAL ── */
   .comparador-titulo { font-family:Montserrat,sans-serif; font-size:13px; font-weight:900; color:var(--blue); margin:0 0 12px; }
@@ -874,7 +880,7 @@
   .guep-spinner .paw-ring .paw:nth-child(4){transform:rotate(180deg) translate(0,-27px)}
   .guep-spinner .paw-ring .paw:nth-child(5){transform:rotate(240deg) translate(0,-27px)}
   .guep-spinner .paw-ring .paw:nth-child(6){transform:rotate(300deg) translate(0,-27px)}
-  .guep-spinner .paw-ring .paw circle { fill:#F05A1A; }
+  .guep-spinner .paw-ring .paw circle { fill:var(--color-secondary); }
   .guep-spinner .paw-ring .paw:nth-child(1){opacity:1}
   .guep-spinner .paw-ring .paw:nth-child(2){opacity:.85}
   .guep-spinner .paw-ring .paw:nth-child(3){opacity:.7}
@@ -915,15 +921,15 @@
 </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
-<meta name="theme-color" content="#1a4fa0">
+<meta name="theme-color" content="var(--color-primary-dark)">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
 </head>
 <body>
-<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a4fa0;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:var(--color-primary-dark);color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
   <span>🔄 Nueva versión disponible</span>
   <div style="display:flex;align-items:center;gap:8px">
     <button onclick="document.getElementById('update-banner').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:4px 10px;border-radius:6px;cursor:pointer">✕</button>
-    <button id="update-btn" style="background:#f05a1a;border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer">Actualizar</button>
+    <button id="update-btn" style="background:var(--color-secondary);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer">Actualizar</button>
   </div>
 </div>
 
@@ -946,8 +952,8 @@
       <button class="home-notif-btn" onclick="_abrirDrawer()" title="Menú">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/>
-          <path d="M15.5 8 19.5 12l-4 4" stroke="#F05A1A"/>
-          <path d="M19.5 12H9" stroke="#F05A1A"/>
+          <path d="M15.5 8 19.5 12l-4 4" stroke="var(--color-secondary)"/>
+          <path d="M19.5 12H9" stroke="var(--color-secondary)"/>
         </svg>
         <span id="header-notif-badge" class="home-notif-badge">0</span>
       </button>
@@ -994,28 +1000,28 @@
         <div class="quick-grid">
           <div class="quick-card" onclick="_abrirModo('nacional')">
             <div class="qc-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17Z"/><path d="M5 7.5c1.8 1 4.3 1.5 7 1.5s5.2-.5 7-1.5M5 16.5c1.8-1 4.3-1.5 7-1.5s5.2.5 7 1.5" stroke="#F05A1A"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17Z"/><path d="M5 7.5c1.8 1 4.3 1.5 7 1.5s5.2-.5 7-1.5M5 16.5c1.8-1 4.3-1.5 7-1.5s5.2.5 7 1.5" stroke="var(--color-secondary)"/></svg>
             </div>
             <div class="qc-label">Envío Nacional</div>
             <div class="qc-sub">FedEx · DHL · Estafeta</div>
           </div>
           <div class="quick-card" onclick="_abrirModo('recibir')">
             <div class="qc-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="12" width="14" height="9" rx="1.2"/><path d="M5 12l2.3-2.8h9.4L19 12"/><path d="M12 12v9"/><path d="M12 3v5" stroke="#F05A1A"/><path d="M9 5.5 12 8.5l3-3" stroke="#F05A1A"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="12" width="14" height="9" rx="1.2"/><path d="M5 12l2.3-2.8h9.4L19 12"/><path d="M12 12v9"/><path d="M12 3v5" stroke="var(--color-secondary)"/><path d="M9 5.5 12 8.5l3-3" stroke="var(--color-secondary)"/></svg>
             </div>
             <div class="qc-label">Recibir paquete</div>
             <div class="qc-sub">Lo llevamos hasta ti</div>
           </div>
           <div id="modo-card-multiparadas" class="quick-card" onclick="_abrirModo('multiparadas')" style="display:none">
             <div class="qc-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h5.5L10 21l8.5-11H12.5L13 3Z" fill="#F05A1A" stroke="#F05A1A"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.5h5.5L10 21l8.5-11H12.5L13 3Z" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg>
             </div>
             <div class="qc-label">Ruta Multiparada</div>
             <div class="qc-sub">Varias entregas en un viaje</div>
           </div>
           <div class="quick-card" onclick="showClientSection('tracking')">
             <div class="qc-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg>
             </div>
             <div class="qc-label">Rastreo de envío</div>
             <div class="qc-sub">Consulta el estado de tu paquete</div>
@@ -1165,8 +1171,8 @@
               <div class="size-option" id="sz-sobre" onclick="selectSize('sobre')">
                 <span class="size-icon">
                   <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="4" y="10" width="32" height="22" rx="3" fill="#e8f0fe" stroke="#1E56C7" stroke-width="2"/>
-                    <path d="M4 13l16 10 16-10" stroke="#1E56C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="4" y="10" width="32" height="22" rx="3" fill="var(--color-primary-light)" stroke="var(--color-primary)" stroke-width="2"/>
+                    <path d="M4 13l16 10 16-10" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                 </span>
                 <span class="size-name">Pequeño o sobre</span>
@@ -1175,10 +1181,10 @@
               <div class="size-option" id="sz-grande" onclick="selectSize('grande')">
                 <span class="size-icon">
                   <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="5" y="15" width="30" height="19" rx="2" fill="#fff3ed" stroke="#f05a1a" stroke-width="2"/>
-                    <path d="M5 15l5-8h20l5 8" stroke="#f05a1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <line x1="20" y1="15" x2="20" y2="34" stroke="#f05a1a" stroke-width="1.5"/>
-                    <line x1="5" y1="22" x2="35" y2="22" stroke="#f05a1a" stroke-width="1" stroke-dasharray="3 2"/>
+                    <rect x="5" y="15" width="30" height="19" rx="2" fill="#fff3ed" stroke="var(--color-secondary)" stroke-width="2"/>
+                    <path d="M5 15l5-8h20l5 8" stroke="var(--color-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="20" y1="15" x2="20" y2="34" stroke="var(--color-secondary)" stroke-width="1.5"/>
+                    <line x1="5" y1="22" x2="35" y2="22" stroke="var(--color-secondary)" stroke-width="1" stroke-dasharray="3 2"/>
                   </svg>
                 </span>
                 <span class="size-name">Caja grande</span>
@@ -1274,7 +1280,7 @@
                 </div>
               </div>
               <input type="file" id="comprobante-input" accept="image/*" style="display:none">
-              <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
+              <label for="comprobante-input" id="btn-comprobante" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:var(--color-primary-dark);color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-sizing:border-box">📎 Subir comprobante de pago</label>
               <div id="comprobante-preview" style="margin-top:10px"></div>
             </div>
           </div>
@@ -1703,7 +1709,7 @@
       <div id="lista-historial">
         <div class="guep-loader-wrap">
           <div class="guep-spinner">
-            <svg class="cat-head" width="38" height="34" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="#1E56C7" stroke-width="2.5" fill="#f4f6fb"/><path d="M11 10 L6 1 L16 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="#1E56C7" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="#1E56C7"/><circle cx="27" cy="19" r="1.6" fill="#1E56C7"/><path d="M17 25 Q22 29 27 25" stroke="#F05A1A" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+            <svg class="cat-head" width="38" height="34" viewBox="0 0 44 40" fill="none"><circle cx="22" cy="20" r="15" stroke="var(--color-primary)" stroke-width="2.5" fill="#f4f6fb"/><path d="M11 10 L6 1 L16 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/><path d="M33 10 L38 1 L28 6" stroke="var(--color-primary)" stroke-width="2.3" stroke-linejoin="round"/><circle cx="17" cy="19" r="1.6" fill="var(--color-primary)"/><circle cx="27" cy="19" r="1.6" fill="var(--color-primary)"/><path d="M17 25 Q22 29 27 25" stroke="var(--color-secondary)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
             <svg class="paw-ring" width="60" height="60" viewBox="-30 -30 60 60"><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g><g class="paw"><circle r="3"/></g></svg>
             <div class="puff"></div><div class="puff"></div><div class="puff"></div>
           </div>
@@ -1779,7 +1785,7 @@ const _VIP_NIVELES = [
   { min:  0, nivel: 'normal', icono: '',   label: 'GuepAmigo', bg: ''        }
 ]
 const _VIP_TEMAS = {
-  normal: { blue:'#1a4fa0', blueDark:'#0e3070', blueLight:'#2563c4', orange:'#f05a1a', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'#1a4fa0' },
+  normal: { blue:'var(--color-primary-dark)', blueDark:'#0e3070', blueLight:'#2563c4', orange:'var(--color-secondary)', orangeLight:'#ff7a3d', logo:'/logo_principal.png', sweep:'var(--color-primary-dark)' },
   bronce: { blue:'#8B4513', blueDark:'#5D2E0C', blueLight:'#CD7F32', orange:'#CD7F32', orangeLight:'#DFA152', logo:'/icono_vip_bronce.png', sweep:'#CD7F32' },
   plata:  { blue:'#555555', blueDark:'#333333', blueLight:'#808080', orange:'#909090', orangeLight:'#C0C0C0', logo:'/icono_vip_plata.png',  sweep:'#808080' },
   oro:    { blue:'#B8860B', blueDark:'#8B6914', blueLight:'#DAA520', orange:'#FFD700', orangeLight:'#FFE44D', logo:'/logo_vip.png',       sweep:'#DAA520' }
@@ -2522,10 +2528,10 @@ function _mostrarModalNotificaciones() {
   overlay.innerHTML = `
     <div style="background:white;border-radius:20px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center">
       <div style="width:64px;height:64px;display:inline-flex;margin:0 auto 12px">${GUEPACK_ICONS.notificaciones}</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:#1a2740;margin-bottom:10px">¡Activa las notificaciones!</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:var(--color-primary-dark);margin-bottom:10px">¡Activa las notificaciones!</div>
       <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.7;margin-bottom:24px">Para que puedas saber en tiempo real cuándo tu mensajero va en camino, llegó a recolectar o entregó tu paquete, necesitamos tu permiso.</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button id="btn-notif-activar" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#1a4fa0,#2563c4);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35);display:inline-flex;align-items:center;gap:6px"><span class="guep-icon-inline icon-on-color" data-icon="notificaciones"></span> Activar notificaciones</button>
+        <button id="btn-notif-activar" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35);display:inline-flex;align-items:center;gap:6px"><span class="guep-icon-inline icon-on-color" data-icon="notificaciones"></span> Activar notificaciones</button>
         <button id="btn-notif-omitir" style="padding:12px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#8fa3c0">Ahora no</button>
       </div>
     </div>
@@ -2545,7 +2551,7 @@ function _mostrarRecordatorioNotif() {
   if (document.getElementById('notif-recordatorio')) return
   const reminder = document.createElement('div')
   reminder.id = 'notif-recordatorio'
-  reminder.style.cssText = 'background:rgba(26,79,160,0.08);border-bottom:1.5px solid rgba(26,79,160,0.15);padding:8px 16px;text-align:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a4fa0;cursor:pointer'
+  reminder.style.cssText = 'background:rgba(26,79,160,0.08);border-bottom:1.5px solid rgba(26,79,160,0.15);padding:8px 16px;text-align:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--color-primary-dark);cursor:pointer'
   reminder.textContent = '🔔 Activa notificaciones para rastrear tu pedido'
   reminder.onclick = () => { reminder.remove(); _mostrarModalNotificaciones() }
   document.body.insertBefore(reminder, document.body.firstChild)
@@ -2718,7 +2724,7 @@ function _iniciarMapaWizard() {
   })
   _wizardDirRenderer = new google.maps.DirectionsRenderer({
     suppressMarkers: true,
-    polylineOptions: { strokeColor: '#1a4fa0', strokeWeight: 4, strokeOpacity: 0.85 }
+    polylineOptions: { strokeColor: 'var(--color-primary-dark)', strokeWeight: 4, strokeOpacity: 0.85 }
   })
   _wizardDirRenderer.setMap(_wizardMap)
 }
@@ -2772,8 +2778,8 @@ function _actualizarMapaWizard() {
         const legs = result.routes[0].legs
         const orig = legs[0].start_location
         const dest = legs[legs.length - 1].end_location
-        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
-        if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('#f05a1a') })
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
+        if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('var(--color-secondary)') })
         _wizardPinRec.setPosition(orig)
         _wizardPinEnt.setPosition(dest)
         _wizardPinsIntermedios.forEach(m => m.setMap(null))
@@ -2782,7 +2788,7 @@ function _actualizarMapaWizard() {
           _wizardPinsIntermedios.push(new google.maps.Marker({
             map:      _wizardMap,
             position: leg.end_location,
-            icon:     _wizardPinIcon('#f05a1a')
+            icon:     _wizardPinIcon('var(--color-secondary)')
           }))
         })
       }
@@ -2794,7 +2800,7 @@ function _actualizarMapaWizard() {
       const loc = new google.maps.LatLng(_latRecoleccion, _lngRecoleccion)
       _wizardMap.setCenter(loc)
       _wizardMap.setZoom(15)
-      if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
+      if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
       _wizardPinRec.setPosition(loc)
     } else {
       new google.maps.Geocoder().geocode({ address: dirRec }, (res, status) => {
@@ -2802,7 +2808,7 @@ function _actualizarMapaWizard() {
         const loc = res[0].geometry.location
         _wizardMap.setCenter(loc)
         _wizardMap.setZoom(15)
-        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('#1a4fa0') })
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
         _wizardPinRec.setPosition(loc)
       })
     }
@@ -2918,7 +2924,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!file) return
     const url = URL.createObjectURL(file)
     document.getElementById('comprobante-preview').innerHTML =
-      `<img src="${url}" style="width:100%;border-radius:10px;border:2px solid #1a4fa0;margin-top:4px;object-fit:cover;max-height:200px">`
+      `<img src="${url}" style="width:100%;border-radius:10px;border:2px solid var(--color-primary-dark);margin-top:4px;object-fit:cover;max-height:200px">`
     const btn = document.getElementById('btn-comprobante')
     btn.textContent = '✅ Comprobante cargado'
     btn.style.background = '#22c55e'
@@ -3412,7 +3418,7 @@ async function _cargarRepaCardRastreo(nombreRepa) {
   const avg = cals?.length ? (cals.reduce((s, c) => s + (c.estrellas || 0), 0) / cals.length).toFixed(1) : null
   const avatarInner = repa?.foto_perfil
     ? `<img src="${repa.foto_perfil}" style="width:100%;height:100%;object-fit:cover">`
-    : `<div style="width:100%;height:100%;background:#dde4f0;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:20px;color:#1a2740">${nombreRepa.charAt(0).toUpperCase()}</div>`
+    : `<div style="width:100%;height:100%;background:#dde4f0;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-weight:900;font-size:20px;color:var(--color-primary-dark)">${nombreRepa.charAt(0).toUpperCase()}</div>`
 
   const waBtn = repa?.telefono
     ? `<a href="https://wa.me/52${repa.telefono}?text=Hola%20${encodeURIComponent(nombreRepa)}%2C%20soy%20tu%20cliente%20de%20GUEPACK" target="_blank" rel="noopener" style="flex:1;padding:10px;background:#22c55e;color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none">
@@ -3425,7 +3431,7 @@ async function _cargarRepaCardRastreo(nombreRepa) {
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:${waBtn ? '14' : '0'}px">
       <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2.5px solid #dde4f0;flex-shrink:0">${avatarInner}</div>
       <div>
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a2740">${nombreRepa}</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">${nombreRepa}</div>
         <div style="font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">Tu repartidor${avg ? ' · ⭐ ' + avg : ''}${repa?.placas ? ' · 🔖 ' + repa.placas : ''}</div>
       </div>
     </div>
@@ -3977,7 +3983,7 @@ async function _cargarParadasPedido(pedidoId) {
   el.style.display = 'block'
 
   const recoleccionHtml = recoleccion
-    ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:#1a4fa0;display:flex;align-items:center;gap:3px"><span style="display:inline-flex;width:16px;height:16px">${GUEPACK_ICONS.ubicacion}</span> Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
+    ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:var(--color-primary-dark);display:flex;align-items:center;gap:3px"><span style="display:inline-flex;width:16px;height:16px">${GUEPACK_ICONS.ubicacion}</span> Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
     : ''
 
   if (!data?.length) {
@@ -3991,7 +3997,7 @@ async function _cargarParadasPedido(pedidoId) {
     data.map(p => {
       const esEnDomicilio = p.estado === 'en_domicilio'
       const icon = p.estado === 'completada' ? '✅' : esEnDomicilio ? '📍' : p.estado === 'en_camino' ? '🚚' : '⏳'
-      const color = p.estado === 'completada' ? 'var(--success)' : esEnDomicilio ? '#f05a1a' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
+      const color = p.estado === 'completada' ? 'var(--success)' : esEnDomicilio ? 'var(--color-secondary)' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
       const evidencia = p.foto_url
         ? ` · <a href="${p.foto_url}" target="_blank" rel="noopener" style="font-size:10px;color:var(--blue);font-weight:700;text-decoration:none">📸 ver evidencia</a>`
         : ''
@@ -3999,7 +4005,7 @@ async function _cargarParadasPedido(pedidoId) {
         ? `<div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${p.direccion}</div>`
         : ''
       const timerEl = esEnDomicilio
-        ? `<div id="pac-${pedidoId}-ptimer-${p.id}" style="font-size:10px;font-weight:900;color:#f05a1a;margin-top:2px">⏱ 5:00</div>`
+        ? `<div id="pac-${pedidoId}-ptimer-${p.id}" style="font-size:10px;font-weight:900;color:var(--color-secondary);margin-top:2px">⏱ 5:00</div>`
         : ''
       if (esEnDomicilio) paradasEnDomicilio.push({ paradaId: p.id, orden: p.orden })
       return `<div style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05)"><div style="font-size:11px;font-weight:700;color:${color}">${icon} Parada ${p.orden}${evidencia}</div>${dir}${timerEl}</div>`
@@ -4038,18 +4044,18 @@ function abrirModalAgregarParada(pedidoId) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:flex-end;justify-content:center'
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:#1a4fa0">➕ Agregar parada · GK-${pedidoId}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:var(--color-primary-dark)">➕ Agregar parada · GK-${pedidoId}</div>
       <div style="margin-bottom:14px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> Dirección</div>
-        <input id="nueva-parada-dir" type="text" placeholder="Escribe una dirección..." autocomplete="off" style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
+        <input id="nueva-parada-dir" type="text" placeholder="Escribe una dirección..." autocomplete="off" style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='var(--color-primary-dark)'" onblur="this.style.borderColor='#e0e6f0'">
       </div>
       <div style="margin-bottom:20px">
         <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:6px;display:flex;align-items:center;gap:4px"><span style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.nota_pedido}</span> Instrucciones (opcional)</div>
-        <input id="parada-inst-input" type="text" placeholder="Ej: Tocar el timbre, 2do piso..." style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a4fa0'" onblur="this.style.borderColor='#e0e6f0'">
+        <input id="parada-inst-input" type="text" placeholder="Ej: Tocar el timbre, 2do piso..." style="width:100%;padding:13px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='var(--color-primary-dark)'" onblur="this.style.borderColor='#e0e6f0'">
       </div>
       <div style="display:flex;gap:10px">
         <button onclick="document.getElementById('modal-agregar-parada').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
-        <button id="btn-confirmar-agregar-parada" onclick="confirmarAgregarParada(${pedidoId})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">➕ Agregar parada</button>
+        <button id="btn-confirmar-agregar-parada" onclick="confirmarAgregarParada(${pedidoId})" style="flex:2;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">➕ Agregar parada</button>
       </div>
     </div>
   `
@@ -4163,7 +4169,7 @@ async function compartirRastreo(id) {
     }
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(shareText + '\n' + url).then(() => {
-      mostrarToast('🔗 Link de rastreo copiado', '#1a4fa0')
+      mostrarToast('🔗 Link de rastreo copiado', 'var(--color-primary-dark)')
     }).catch(() => { prompt('Copia este link:', url) })
   } else {
     prompt('Copia este link:', url)
@@ -4211,21 +4217,21 @@ function _crearCardHTML(id, nombreRemitente = null) {
         <!-- Chat + Compartir (cuando hay repartidor) -->
         <div id="pac-${id}-chat-wrap" style="display:none;margin-bottom:10px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="padding:11px 8px;background:#1E56C7;color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;gap:5px">
+            <button onclick="abrirChat(${id},'cliente','Chat ${_folioLabel}')" style="padding:11px 8px;background:var(--color-primary);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;gap:5px">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               Chat
               <span id="chat-badge-${id}" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
-            <button onclick="compartirRastreo(${id})" style="padding:11px 8px;background:white;color:#1E56C7;border:2px solid #1E56C7;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <button onclick="compartirRastreo(${id})" style="padding:11px 8px;background:white;color:var(--color-primary);border:2px solid var(--color-primary);border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               Compartir
             </button>
           </div>
         </div>
         <!-- Compartir solo (cuando NO hay repartidor aún) -->
         <div id="pac-${id}-compartir-solo" style="margin-bottom:10px">
-          <button onclick="compartirRastreo(${id})" style="width:100%;padding:10px;background:rgba(30,86,199,0.07);color:#1E56C7;border:1.5px solid rgba(30,86,199,0.25);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <button onclick="compartirRastreo(${id})" style="width:100%;padding:10px;background:rgba(30,86,199,0.07);color:var(--color-primary);border:1.5px solid rgba(30,86,199,0.25);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             Compartir rastreo
           </button>
         </div>
@@ -4452,7 +4458,7 @@ async function _mostrarPlacasRepartidor(pedidoId, nombreRepartidor) {
     <div class="pac-repa-card">
       <div class="pac-repa-avatar">${avatarInner}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a2740">${nombreRepartidor}</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--color-primary-dark)">${nombreRepartidor}</div>
         <div style="font-size:10px;color:#8fa3c0;font-weight:600;margin-top:1px">Tu repartidor${data?.placas ? ' · 🔖 ' + data.placas : ''}</div>
       </div>
     </div>`
@@ -4550,13 +4556,13 @@ async function abrirChat(pedidoId, rol, titulo) {
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
       <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">💬 ${titulo}</span>
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">💬 ${titulo}</span>
         <button onclick="cerrarChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
       </div>
       <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
       <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
         <input id="chat-input" type="text" placeholder="Escribe un mensaje..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarMensajeChat()">
-        <button onclick="enviarMensajeChat()" style="background:#1a4fa0;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+        <button onclick="enviarMensajeChat()" style="background:var(--color-primary-dark);color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
       </div>
     </div>`
   document.body.appendChild(modal)
@@ -4586,7 +4592,7 @@ function _agregarBurbuja(msg, scroll = true) {
   label.style.cssText = `font-size:10px;font-weight:700;color:#aaa;align-self:${esMio ? 'flex-end' : 'flex-start'};margin-bottom:-2px`
   label.textContent = esAdmin ? '🛡️ Soporte' : msg.de === 'cliente' ? '👤 Cliente' : '🏍️ Repartidor'
   const burbuja = document.createElement('div')
-  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? '#1a4fa0' : esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esMio || esAdmin ? 'white' : '#333'}`
+  burbuja.style.cssText = `max-width:75%;padding:10px 14px;border-radius:${esMio ? '18px 18px 4px 18px' : '18px 18px 18px 4px'};font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;align-self:${esMio ? 'flex-end' : 'flex-start'};background:${esMio ? 'var(--color-primary-dark)' : esAdmin ? '#f59e0b' : '#f0f0f0'};color:${esMio || esAdmin ? 'white' : '#333'}`
   burbuja.textContent = msg.texto
   c.appendChild(label); c.appendChild(burbuja)
   if (scroll) c.scrollTop = c.scrollHeight
@@ -4647,7 +4653,7 @@ async function aplicarCupon() {
         .select('usos').eq('cupon_id', data.id).eq('user_id', session.user.id).single()
       _cuponUsosUsuario = usosData?.usos || 0
       if (_cuponUsosUsuario >= data.usos_por_usuario) {
-        mostrarToast('⚠️ Ya alcanzaste el límite de uso de este cupón', '#f05a1a')
+        mostrarToast('⚠️ Ya alcanzaste el límite de uso de este cupón', 'var(--color-secondary)')
         resultado.style.display = 'none'
         return
       }
@@ -4836,13 +4842,13 @@ db.channel('cliente-mensajes-global')
 function mostrarToast(texto, tipoOColor = 'default') {
   const valor = String(tipoOColor || 'default').toLowerCase().replace(/\s/g, '')
   const textoNormalizado = String(texto || '')
-  let fondo = '#1a2740'
+  let fondo = 'var(--color-primary-dark)'
 
   if (['success', 'exito', '#22c55e', 'var(--success)'].includes(valor) || textoNormalizado.startsWith('✅')) {
     fondo = '#22c55e'
   } else if (['error', '#ef4444'].includes(valor) || textoNormalizado.startsWith('❌')) {
     fondo = '#ef4444'
-  } else if (['warning', 'advertencia', '#f59e0b', '#f05a1a', 'var(--orange)'].includes(valor) || /^[⚠️⏳🟠]/u.test(textoNormalizado)) {
+  } else if (['warning', 'advertencia', '#f59e0b', 'var(--color-secondary)', 'var(--orange)'].includes(valor) || /^[⚠️⏳🟠]/u.test(textoNormalizado)) {
     fondo = '#f59e0b'
   }
 
@@ -4941,7 +4947,7 @@ function resetForm() {
   const comprobantePrev = document.getElementById('comprobante-preview')
   if (comprobantePrev) comprobantePrev.innerHTML = ''
   const btnComp = document.getElementById('btn-comprobante')
-  if (btnComp) { btnComp.textContent = '📎 Subir comprobante de pago'; btnComp.style.background = '#1a4fa0' }
+  if (btnComp) { btnComp.textContent = '📎 Subir comprobante de pago'; btnComp.style.background = 'var(--color-primary-dark)' }
 }
 function _abrirModo(modo) {
   if (modo === 'nacional') {
@@ -5005,7 +5011,7 @@ function _pinSvgEditable() {
   return {
     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">' +
-      '<path fill="#F05A1A" stroke="#1a4fa0" stroke-width="2" d="M20 2C10 2 2 10 2 20c0 14 18 30 18 30s18-16 18-30C38 10 30 2 20 2z"/>' +
+      '<path fill="var(--color-secondary)" stroke="var(--color-primary-dark)" stroke-width="2" d="M20 2C10 2 2 10 2 20c0 14 18 30 18 30s18-16 18-30C38 10 30 2 20 2z"/>' +
       '<circle cx="20" cy="20" r="7" fill="white"/>' +
       '</svg>'
     ),
@@ -5023,7 +5029,7 @@ function _activarAjusteGps(tipo) {
   if (linkEl) linkEl.style.display = 'none'
 
   // Ícono de pin editable + bounce
-  const colorOriginal = tipo === 'rec' ? '#1a4fa0' : '#f05a1a'
+  const colorOriginal = tipo === 'rec' ? 'var(--color-primary-dark)' : 'var(--color-secondary)'
   pin.setIcon(_pinSvgEditable())
   pin.setDraggable(true)
   pin.setAnimation(google.maps.Animation.BOUNCE)
@@ -5210,7 +5216,7 @@ function verEvidencia(fotoUrl, firmaUrl) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#1a4fa0">📸 Evidencia de entrega</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:var(--color-primary-dark)">📸 Evidencia de entrega</div>
       ${fotoUrl ? `
         <div style="margin-bottom:16px">
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px">FOTO</div>
@@ -5221,7 +5227,7 @@ function verEvidencia(fotoUrl, firmaUrl) {
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px">FIRMA DEL CLIENTE</div>
           <img src="${firmaUrl}" style="width:100%;border-radius:12px;border:1px solid #e0e0e0">
         </div>` : ''}
-      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
     </div>
   `
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
@@ -5249,7 +5255,7 @@ function verTodasEvidencias(pedidoId) {
   const seccionesHtml = secciones.length
     ? secciones.map(s => `
       <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid #f0f0f0">
-        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#1a4fa0;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${s.label}</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">${s.label}</div>
         ${s.foto ? `<div style="margin-bottom:8px">
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#999;margin-bottom:4px">FOTO</div>
           <img src="${s.foto}" style="width:100%;border-radius:10px;object-fit:cover;max-height:160px">
@@ -5266,9 +5272,9 @@ function verTodasEvidencias(pedidoId) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#1a4fa0">📸 Evidencias GK-${pedidoId}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:var(--color-primary-dark)">📸 Evidencias GK-${pedidoId}</div>
       ${seccionesHtml}
-      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-top:4px">Cerrar</button>
+      <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-top:4px">Cerrar</button>
     </div>
   `
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
@@ -5584,7 +5590,7 @@ function _mostrarPopupAnuncio(anuncio) {
     <div style="position:relative;background:#fff;border-radius:20px;overflow:hidden;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
       <button onclick="cerrarPopupAnuncio()" style="position:absolute;top:8px;right:8px;z-index:10;background:none;color:#9ca3af;border:none;font-size:14px;cursor:pointer;line-height:1;padding:4px">✕</button>
       <img src="${anuncio.imagen_url}" alt="${anuncio.nombre_aliado || 'Anuncio'}" style="width:100%;display:block;max-height:420px;object-fit:cover">
-      ${anuncio.link_url ? `<div style="padding:12px 16px"><a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="display:block;background:linear-gradient(135deg,#f05a1a,#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a></div>` : ''}
+      ${anuncio.link_url ? `<div style="padding:12px 16px"><a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="display:block;background:linear-gradient(135deg,var(--color-secondary),#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a></div>` : ''}
     </div>`
   document.body.appendChild(overlay)
   overlay._tid = setTimeout(() => cerrarPopupAnuncio(), seg * 1000)
@@ -5845,13 +5851,13 @@ function _abrirModalFotoCliente() {
   modal.id = 'modal-foto-perfil'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px'
   const fotoHtml = _clienteFotoUrl
-    ? '<img id="mfp-img" src="' + _clienteFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
-    : '<div style="width:90px;height:90px;border-radius:50%;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' + (_clienteEmail.charAt(0)||'?').toUpperCase() + '</div>'
+    ? '<img id="mfp-img" src="' + _clienteFotoUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary-dark);display:block;margin:0 auto 16px">'
+    : '<div style="width:90px;height:90px;border-radius:50%;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">' + (_clienteEmail.charAt(0)||'?').toUpperCase() + '</div>'
   modal.innerHTML = '<div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:320px;text-align:center">'
-    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
+    + '<div style="font-family:Bebas Neue,sans-serif;font-size:22px;color:var(--color-primary-dark);letter-spacing:2px;margin-bottom:16px">Mi foto de perfil</div>'
     + fotoHtml
     + '<input type="file" id="mfp-input" accept="image/*" style="display:none">'
-    + '<label for="mfp-input" style="display:block;padding:11px;background:#1a4fa0;color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
+    + '<label for="mfp-input" style="display:block;padding:11px;background:var(--color-primary-dark);color:white;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:10px">📷 Cambiar foto</label>'
     + '<div id="mfp-status" style="font-family:Montserrat,sans-serif;font-size:12px;color:#888;min-height:18px;margin-bottom:10px"></div>'
     + '<button onclick="document.getElementById(\'modal-foto-perfil\').remove()" style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cerrar</button>'
     + '</div>'
@@ -5877,7 +5883,7 @@ async function _subirFotoCliente(e) {
   const img = document.getElementById('mfp-img')
   if (img) { img.src = publicUrl } else {
     const fotoEl = document.querySelector('#modal-foto-perfil div > div')
-    if (fotoEl) fotoEl.outerHTML = '<img id="mfp-img" src="' + publicUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #1a4fa0;display:block;margin:0 auto 16px">'
+    if (fotoEl) fotoEl.outerHTML = '<img id="mfp-img" src="' + publicUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary-dark);display:block;margin:0 auto 16px">'
   }
   if (status) status.textContent = '✅ Foto actualizada'
 }
@@ -5958,10 +5964,10 @@ async function _abrirDrawer() {
     : `<span style="font-size:30px;font-family:Montserrat,sans-serif;font-weight:900;color:white">${(_clienteEmail.charAt(0) || '?').toUpperCase()}</span>`
 
   const svgArrow   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#c0c8d8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`
-  const svgPerfil  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/></svg>`
-  const svgDir     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="#F05A1A" stroke="#F05A1A"/></svg>`
-  const svgRef     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z"/><circle cx="7.5" cy="7.5" r="1.3" fill="#F05A1A" stroke="#F05A1A"/></svg>`
-  const svgVip     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E56C7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12v3.5c0 4-2.5 6.7-6 7.3-3.5-.6-6-3.3-6-7.3V5Z" fill="#F05A1A" stroke="#F05A1A"/><path d="M6 6.5H3.5v1.8A2.7 2.7 0 0 0 6 11M18 6.5h2.5v1.8A2.7 2.7 0 0 1 18 11" stroke="#F05A1A"/><path d="M10 19h4M9 21h6M12 15.8V19"/></svg>`
+  const svgPerfil  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"/></svg>`
+  const svgDir     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg>`
+  const svgRef     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4Z"/><circle cx="7.5" cy="7.5" r="1.3" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg>`
+  const svgVip     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12v3.5c0 4-2.5 6.7-6 7.3-3.5-.6-6-3.3-6-7.3V5Z" fill="var(--color-secondary)" stroke="var(--color-secondary)"/><path d="M6 6.5H3.5v1.8A2.7 2.7 0 0 0 6 11M18 6.5h2.5v1.8A2.7 2.7 0 0 1 18 11" stroke="var(--color-secondary)"/><path d="M10 19h4M9 21h6M12 15.8V19"/></svg>`
   const svgSalir   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/><path d="M15.5 8 19.5 12l-4 4" stroke="#ef4444"/><path d="M19.5 12H9" stroke="#ef4444"/></svg>`
   const svgApp     = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#b0bec5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M6 5.5h12M6 18.5h12"/><circle cx="12" cy="20" r="0.9" fill="#b0bec5" stroke="#b0bec5"/></svg>`
 
@@ -5976,7 +5982,7 @@ async function _abrirDrawer() {
 
   drawer.innerHTML = `
     <!-- ── HEADER ── -->
-    <div style="background:linear-gradient(145deg,#0a2a6e 0%,#1E56C7 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
+    <div style="background:linear-gradient(145deg,#0a2a6e 0%,var(--color-primary) 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
       <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;z-index:1">✕</button>
       <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;flex-shrink:0">${avatarHtml}</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:white;line-height:1.2;margin-bottom:3px">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
@@ -5995,24 +6001,24 @@ async function _abrirDrawer() {
         <div onclick="_drawerToggle('drawer-datos')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
           <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgPerfil}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mis datos</div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Mis datos</div>
             <div style="font-size:10px;color:#a0aec0;font-weight:600">Correo y WhatsApp</div>
           </div>
           <div id="drawer-datos-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
         </div>
         <div id="drawer-datos" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
           <div style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;padding-top:10px;margin-bottom:5px">
-            <span style="font-weight:700;color:#1a2740">Correo:</span> ${_maskEmail(_clienteEmail)}
+            <span style="font-weight:700;color:var(--color-primary-dark)">Correo:</span> ${_maskEmail(_clienteEmail)}
           </div>
           <div id="drawer-wa-row" style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a;margin-bottom:10px">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</span>
+              <span><span style="font-weight:700;color:var(--color-primary-dark)">WhatsApp:</span> ${_maskWa(_clienteWhatsapp)}</span>
               ${_clienteWhatsappEditado
                 ? '<span style="font-size:10px;color:#a0aec0;font-weight:700">🔒 No modificable</span>'
-                : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'}
+                : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">✏️ Editar</button>'}
             </div>
           </div>
-          <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#1a4fa0">🔑 Cambiar contraseña</button>
+          <button onclick="_cambiarContrasena(this)" style="width:100%;padding:9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:var(--color-primary-dark)">🔑 Cambiar contraseña</button>
         </div>
 
         <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
@@ -6021,7 +6027,7 @@ async function _abrirDrawer() {
         <div onclick="_drawerToggle('drawer-dirs');_cargarDireccionesDrawer()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
           <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgDir}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mis direcciones</div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Mis direcciones</div>
             <div style="font-size:10px;color:#a0aec0;font-weight:600">Favoritas guardadas</div>
           </div>
           <div id="drawer-dirs-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
@@ -6037,8 +6043,8 @@ async function _abrirDrawer() {
           <div style="width:36px;height:36px;border-radius:10px;background:#fff4ef;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgRef}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Referidos</span>
-              <span style="background:#f05a1a;color:white;font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;font-family:Montserrat,sans-serif;white-space:nowrap">Gana envíos gratis</span>
+              <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Referidos</span>
+              <span style="background:var(--color-secondary);color:white;font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;font-family:Montserrat,sans-serif;white-space:nowrap">Gana envíos gratis</span>
             </div>
             <div style="font-size:10px;color:#a0aec0;font-weight:600">Invita amigos</div>
           </div>
@@ -6048,9 +6054,9 @@ async function _abrirDrawer() {
           <div style="padding-top:10px">
             <div style="font-size:10px;color:#a0aec0;font-family:Montserrat,sans-serif;font-weight:700;margin-bottom:6px">Tu código de referido</div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#1a4fa0;letter-spacing:3px;line-height:1">${_clienteCodigoReferido || '...'}</div>
-              <button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">📋 Copiar</button>
-              <button onclick="_compartirCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">🔗 Compartir</button>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--color-primary-dark);letter-spacing:3px;line-height:1">${_clienteCodigoReferido || '...'}</div>
+              <button id="btn-copiar-ref" onclick="_copiarCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">📋 Copiar</button>
+              <button onclick="_compartirCodigoReferido()" style="padding:5px 10px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">🔗 Compartir</button>
             </div>
             ${_clienteEnviosGratis > 0 ? `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px;font-family:Montserrat,sans-serif;font-weight:700;color:#16a34a;margin-bottom:10px">🎟️ ${_clienteEnviosGratis} envíos gratis disponibles</div>` : ''}
             <div id="drawer-referidos-lista"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
@@ -6063,7 +6069,7 @@ async function _abrirDrawer() {
         <div onclick="_drawerToggle('drawer-vip')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
           <div style="width:36px;height:36px;border-radius:10px;background:#fffbeb;display:flex;align-items:center;justify-content:center;flex-shrink:0">${svgVip}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Nivel VIP</div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Nivel VIP</div>
             <div style="font-size:10px;font-weight:700;color:${_vipColors[nivel]}">${_vipLabels[nivel]} · ${total} envíos</div>
           </div>
           <div id="drawer-vip-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
@@ -6077,7 +6083,7 @@ async function _abrirDrawer() {
         <div onclick="_drawerToggle('drawer-cred')" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
           <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">💳</div>
           <div style="flex:1;min-width:0">
-            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Mi crédito</div>
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Mi crédito</div>
             <div style="font-size:10px;color:#a0aec0;font-weight:600">Saldo disponible</div>
           </div>
           <div id="drawer-cred-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
@@ -6132,7 +6138,7 @@ async function _cargarDireccionesDrawer() {
   el.innerHTML = data.map(d => `
     <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #f0f3fa">
       <div style="flex:1;min-width:0">
-        <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a2740">${d.nombre}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--color-primary-dark)">${d.nombre}</div>
         <div style="font-size:10px;color:#8fa3c0;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.direccion}</div>
       </div>
       <button onclick="borrarDireccion(${d.id},null);this.closest('[style*=border-bottom]').remove()" style="background:none;border:none;color:#fca5a5;cursor:pointer;font-size:15px;padding:2px;flex-shrink:0">🗑️</button>
@@ -6154,7 +6160,7 @@ async function _cargarReferidosDrawer() {
   const col = { pendiente: '#f59e0b', aprobado: '#22c55e', rechazado: '#ef4444' }
   el.innerHTML = data.map(r => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f2f6">
-      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#1a2740;font-weight:600">${r.referido_nombre || r.referido_email}</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--color-primary-dark);font-weight:600">${r.referido_nombre || r.referido_email}</div>
       <div style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:20px;background:${col[r.estado] || '#888'}20;color:${col[r.estado] || '#888'};font-family:Montserrat,sans-serif">${r.estado}</div>
     </div>`).join('')
 }
@@ -6220,16 +6226,16 @@ async function _cargarCreditoDrawer() {
 
   el.innerHTML = `
     <div style="background:linear-gradient(135deg,#f0f4ff,#e8eeff);border:1.5px solid #c7d5f5;border-radius:12px;padding:14px">
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a4fa0;margin-bottom:2px">${empresa.nombre}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--color-primary-dark);margin-bottom:2px">${empresa.nombre}</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:11px;color:#5a78b0;margin-bottom:12px">Crédito ${tipoCred} · ${labelPeriodo}</div>
 
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <div style="flex:1;background:white;border-radius:10px;padding:10px 8px;text-align:center;box-shadow:0 1px 6px rgba(26,79,160,0.08)">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#1a4fa0;line-height:1">${totalPedidos}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--color-primary-dark);line-height:1">${totalPedidos}</div>
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:9px;color:#8fa3c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">pedidos</div>
         </div>
         <div style="flex:1;background:white;border-radius:10px;padding:10px 8px;text-align:center;box-shadow:0 1px 6px rgba(26,79,160,0.08)">
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#f05a1a;line-height:1">$${montoTotal.toFixed(0)}</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--color-secondary);line-height:1">$${montoTotal.toFixed(0)}</div>
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:9px;color:#8fa3c0;text-transform:uppercase;letter-spacing:.5px;margin-top:2px">acumulado</div>
         </div>
       </div>
@@ -6237,8 +6243,8 @@ async function _cargarCreditoDrawer() {
       <div style="background:rgba(240,90,26,0.07);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
         <span style="font-size:16px">📅</span>
         <div>
-          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;color:#f05a1a;text-transform:uppercase;letter-spacing:.5px">Próximo corte</div>
-          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#1a2740;text-transform:capitalize">${corteStr} · 6:30 PM</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;color:var(--color-secondary);text-transform:uppercase;letter-spacing:.5px">Próximo corte</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:var(--color-primary-dark);text-transform:capitalize">${corteStr} · 6:30 PM</div>
         </div>
       </div>
     </div>
@@ -6274,11 +6280,11 @@ function _editarWhatsapp() {
   warn.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px'
   warn.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;max-width:280px;text-align:center;font-family:Montserrat,sans-serif">'
     + '<div style="font-size:34px;margin-bottom:8px">⚠️</div>'
-    + '<div style="font-weight:900;font-size:14px;color:#1a2740;margin-bottom:8px">Cambio de WhatsApp</div>'
+    + '<div style="font-weight:900;font-size:14px;color:var(--color-primary-dark);margin-bottom:8px">Cambio de WhatsApp</div>'
     + '<div style="font-size:12px;color:#5a6a8a;line-height:1.5;margin-bottom:18px">Solo puedes cambiar tu número de WhatsApp <strong>UNA VEZ</strong>. Esta acción no se puede deshacer. ¿Deseas continuar?</div>'
     + '<div style="display:flex;gap:8px">'
     + '<button onclick="document.getElementById(\'modal-wa-warn\').remove()" style="flex:1;padding:10px;border:1.5px solid #e0e6f0;border-radius:8px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">Cancelar</button>'
-    + '<button onclick="document.getElementById(\'modal-wa-warn\').remove();_mostrarInputWhatsapp()" style="flex:1;padding:10px;background:#f05a1a;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Continuar</button>'
+    + '<button onclick="document.getElementById(\'modal-wa-warn\').remove();_mostrarInputWhatsapp()" style="flex:1;padding:10px;background:var(--color-secondary);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Continuar</button>'
     + '</div></div>'
   document.body.appendChild(warn)
 }
@@ -6287,8 +6293,8 @@ function _mostrarInputWhatsapp() {
   const waRow = document.getElementById('drawer-wa-row')
   if (!waRow) return
   waRow.innerHTML = '<div style="display:flex;gap:6px;align-items:center">'
-    + '<input id="drawer-wa-input" type="tel" maxlength="10" placeholder="Nuevo número (10 dígitos)" oninput="this.value=this.value.replace(/\\D/g,\'\')" style="flex:1;padding:7px 10px;border:2px solid #1a4fa0;border-radius:8px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#1a2740;background:#f4f6fb">'
-    + '<button onclick="_guardarNuevoWhatsapp()" style="padding:7px 12px;background:#1a4fa0;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✔</button>'
+    + '<input id="drawer-wa-input" type="tel" maxlength="10" placeholder="Nuevo número (10 dígitos)" oninput="this.value=this.value.replace(/\\D/g,\'\')" style="flex:1;padding:7px 10px;border:2px solid var(--color-primary-dark);border-radius:8px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:var(--color-primary-dark);background:#f4f6fb">'
+    + '<button onclick="_guardarNuevoWhatsapp()" style="padding:7px 12px;background:var(--color-primary-dark);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">✔</button>'
     + '<button onclick="_cerrarEditarWhatsapp()" style="padding:7px 8px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer;color:#666">✕</button>'
     + '</div>'
     + '<div id="drawer-wa-error" style="font-size:10px;color:#ef4444;font-family:Montserrat,sans-serif;margin-top:4px;display:none">Número inválido o ya está registrado</div>'
@@ -6317,7 +6323,7 @@ async function _guardarNuevoWhatsapp() {
   const waRow = document.getElementById('drawer-wa-row')
   if (waRow) {
     waRow.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
-      + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ' + _maskWa(val) + '</span>'
+      + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:var(--color-primary-dark)">WhatsApp:</span> ' + _maskWa(val) + '</span>'
       + '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
       + '</div>'
   }
@@ -6328,9 +6334,9 @@ function _cerrarEditarWhatsapp() {
   if (!waRow) return
   const lockOrBtn = _clienteWhatsappEditado
     ? '<span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:700">🔒 No modificable</span>'
-    : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:#1a4fa0">✏️ Editar</button>'
+    : '<button onclick="_editarWhatsapp()" style="padding:3px 9px;background:#f4f6fb;border:1.5px solid #e0e6f0;border-radius:6px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">✏️ Editar</button>'
   waRow.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
-    + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:#1a2740">WhatsApp:</span> ' + _maskWa(_clienteWhatsapp) + '</span>'
+    + '<span style="font-size:12px;font-family:Montserrat,sans-serif;color:#5a6a8a"><span style="font-weight:700;color:var(--color-primary-dark)">WhatsApp:</span> ' + _maskWa(_clienteWhatsapp) + '</span>'
     + lockOrBtn + '</div>'
 }
 
@@ -6368,7 +6374,7 @@ function _confettiVip(nivel) {
     plata:  ['#C0C0C0','#A8A8A8','#E8E8E8','#fff','#b0c4de'],
     oro:    ['#FFD700','#FFA500','#FFEC47','#fff','#B8860B']
   }
-  const colors = paletas[nivel] || ['#f05a1a','#1a4fa0','#22c55e','#ffd700','#fff']
+  const colors = paletas[nivel] || ['var(--color-secondary)','var(--color-primary-dark)','#22c55e','#ffd700','#fff']
   const particles = Array.from({ length: 160 }, () => ({
     x: Math.random() * canvas.width,
     y: -30 - Math.random() * 300,
@@ -6414,13 +6420,13 @@ function mostrarModalCalificacion(pedidoId, repartidor) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:24px;max-width:340px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
       <div style="width:56px;height:56px;display:inline-flex;margin:0 auto 10px">${GUEPACK_ICONS.favoritos}</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#1a4fa0;letter-spacing:1px;margin-bottom:6px">¿Cómo fue tu experiencia?</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--color-primary-dark);letter-spacing:1px;margin-bottom:6px">¿Cómo fue tu experiencia?</div>
       <div style="font-size:12px;color:#8fa3c0;font-weight:600;margin-bottom:18px">Folio GK-${pedidoId}${repartidor ? ' · ' + repartidor : ''}</div>
       <div id="cal-stars-row" style="display:flex;gap:4px;justify-content:center;margin-bottom:18px">
         ${[1,2,3,4,5].map(n => `<span data-val="${n}" onmouseover="calHover(${n})" onmouseout="calResetHover()" onclick="calSelect(${n})" style="font-size:42px;cursor:pointer;color:#e0e0e0;transition:color .12s;line-height:1">★</span>`).join('')}
       </div>
-      <textarea id="cal-comentario" placeholder="Cuéntanos tu experiencia (opcional)..." style="width:100%;border:2px solid #e0e6f0;border-radius:12px;padding:12px 14px;font-family:Montserrat,sans-serif;font-size:13px;color:#1a2740;resize:none;outline:none;height:80px;margin-bottom:16px;transition:border-color .2s" onfocus="this.style.borderColor='#2563c4'" onblur="this.style.borderColor='#e0e6f0'"></textarea>
-      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,#f05a1a,#ff7a3d);border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
+      <textarea id="cal-comentario" placeholder="Cuéntanos tu experiencia (opcional)..." style="width:100%;border:2px solid #e0e6f0;border-radius:12px;padding:12px 14px;font-family:Montserrat,sans-serif;font-size:13px;color:var(--color-primary-dark);resize:none;outline:none;height:80px;margin-bottom:16px;transition:border-color .2s" onfocus="this.style.borderColor='#2563c4'" onblur="this.style.borderColor='#e0e6f0'"></textarea>
+      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--color-secondary),#ff7a3d);border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
       <button onclick="cerrarModalCalificacion()" style="width:100%;padding:11px;background:transparent;border:none;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Omitir</button>
     </div>`
   document.body.appendChild(overlay)
@@ -6428,13 +6434,13 @@ function mostrarModalCalificacion(pedidoId, repartidor) {
 
 function calHover(n) {
   document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
-    s.style.color = i < n ? '#f05a1a' : '#e0e0e0'
+    s.style.color = i < n ? 'var(--color-secondary)' : '#e0e0e0'
   })
 }
 
 function calResetHover() {
   document.querySelectorAll('#cal-stars-row span').forEach((s, i) => {
-    s.style.color = i < _calStars ? '#f05a1a' : '#e0e0e0'
+    s.style.color = i < _calStars ? 'var(--color-secondary)' : '#e0e0e0'
   })
 }
 
@@ -7575,7 +7581,7 @@ function _cerrarTour() {
   <canvas id="lluvia-canvas" style="width:100%;height:100%"></canvas>
 </div>
 
-<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,#1a4fa0,#2563c4);color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
+<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
   <div style="font-size:24px;margin-bottom:6px">🌧️</div>
   <div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:4px">AVISO CLIMÁTICO</div>
   <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="lluvia-mensaje">Por condiciones climáticas, es posible que tu pedido tenga retrasos. ¡Gracias por tu comprensión!</div>
@@ -7630,7 +7636,7 @@ function _cerrarTour() {
     </div>
 
     <button id="bv-btn-continuar" onclick="_bvGuardar()" disabled
-      style="width:100%;background:linear-gradient(135deg,#1a4fa0,#0e3070);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
+      style="width:100%;background:linear-gradient(135deg,var(--color-primary-dark),#0e3070);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
       Continuar →
     </button>
   </div>

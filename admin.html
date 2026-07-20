@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -7,20 +7,26 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/Icono_gp.png">
-<meta name="theme-color" content="#1a4fa0">
+<meta name="theme-color" content="#0d3a8a">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
 <style>
   :root {
-    --blue: #1a4fa0;
+    --color-primary: #1E56C7;
+    --color-secondary: #F05A1A;
+    --color-primary-dark: #0d3a8a;
+    --color-primary-light: #e8f0fe;
+    --color-secondary-dark: #c4440e;
+    --color-secondary-light: #fff0eb;
+    --blue: var(--color-primary-dark);
     --blue-dark: #0e3070;
     --blue-light: #2563c4;
-    --orange: #f05a1a;
+    --orange: var(--color-secondary);
     --orange-light: #ff7a3d;
     --white: #ffffff;
     --gray-light: #f4f6fb;
     --gray: #e0e6f0;
     --gray-mid: #8fa3c0;
-    --text: #1a2740;
+    --text: var(--color-primary-dark);
     --success: #22c55e;
     --shadow: 0 4px 24px rgba(26,79,160,0.13);
   }
@@ -41,7 +47,7 @@
   .admin-user-menu { position: relative; display: inline-block; }
   .admin-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); overflow: hidden; z-index: 300; min-width: 200px; display: none; }
   .admin-dropdown.up { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; }
-  .admin-dropdown-item { display: block; width: 100%; padding: 11px 16px; border: none; background: none; text-align: left; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; color: #1a2740; cursor: pointer; letter-spacing: .3px; white-space: nowrap; }
+  .admin-dropdown-item { display: block; width: 100%; padding: 11px 16px; border: none; background: none; text-align: left; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; color: var(--color-primary-dark); cursor: pointer; letter-spacing: .3px; white-space: nowrap; }
   .admin-dropdown-item:hover { background: #f0f4ff; }
 
   .container { padding: 16px; max-width: 480px; margin: 0 auto; padding-bottom: 20px; }
@@ -120,7 +126,7 @@
   .pub-img-preview img { width: 100%; display: block; max-height: 180px; object-fit: cover; }
 
   /* Admin toast */
-  #admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a2740; color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
+  #admin-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--color-primary-dark); color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
   #admin-toast.show { transform: translateX(-50%) translateY(0); }
   @keyframes slideUp { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
@@ -257,7 +263,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')" style="position:relative;display:flex;align-items:center;gap:6px">👥 Clientes<span id="sidebar-clientes-sin-verificar-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto">0</span></button>
     <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')">📊 Tráfico</button>
-    <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px">📩 Contactos<span id="sidebar-contactos-badge" style="display:none;background:#f05a1a;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
+    <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px">📩 Contactos<span id="sidebar-contactos-badge" style="display:none;background:var(--color-secondary);color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
@@ -315,7 +321,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
     <button class="tab" onclick="showTab('clientes')" style="position:relative">👥 Clientes<span id="tab-clientes-sin-verificar-badge" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:white;border-radius:50%;min-width:16px;height:16px;padding:0 4px;font-size:8px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <button class="tab" onclick="showTab('trafico')">📊 Tráfico</button>
-    <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px">📩 Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:#f05a1a;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
+    <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px">📩 Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:var(--color-secondary);color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -760,7 +766,7 @@ function initMapsAdmin() {
       <button id="gstab-config" onclick="showGuiasSubtab('config')"
         class="btn btn-secondary" style="font-size:11px;padding:8px 16px">⚙️ Configuración</button>
       <button id="gstab-ventas" onclick="showGuiasSubtab('ventas')"
-        class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">📈 Ventas y ganancias</button>
+        class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">📈 Ventas y ganancias</button>
     </div>
 
     <!-- Sub-tab: Configuración -->
@@ -787,9 +793,9 @@ function initMapsAdmin() {
       <!-- Pills de período (mismo patrón que Tráfico) -->
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
         <button onclick="setFiltroGuias('hoy')"    id="fguias-hoy"    class="btn btn-secondary" style="font-size:11px;padding:8px 16px">Hoy</button>
-        <button onclick="setFiltroGuias('semana')" id="fguias-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Esta semana</button>
-        <button onclick="setFiltroGuias('mes')"    id="fguias-mes"    class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este mes</button>
-        <button onclick="setFiltroGuias('anio')"   id="fguias-anio"   class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este año</button>
+        <button onclick="setFiltroGuias('semana')" id="fguias-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Esta semana</button>
+        <button onclick="setFiltroGuias('mes')"    id="fguias-mes"    class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Este mes</button>
+        <button onclick="setFiltroGuias('anio')"   id="fguias-anio"   class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Este año</button>
       </div>
 
       <!-- 5 KPI cards (solo estados pago_verificado / guia_generada) -->
@@ -942,7 +948,7 @@ function initMapsAdmin() {
       </div>
       <div class="form-group">
         <label class="form-label">Color del polígono</label>
-        <input type="color" id="z-color" value="#1a4fa0" style="width:100%;height:44px;border:2px solid var(--gray);border-radius:10px;cursor:pointer;padding:3px 6px;background:white">
+        <input type="color" id="z-color" value="var(--color-primary-dark)" style="width:100%;height:44px;border:2px solid var(--gray);border-radius:10px;cursor:pointer;padding:3px 6px;background:white">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div class="form-group" style="margin-bottom:0">
@@ -1048,7 +1054,7 @@ function initMapsAdmin() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">💳 Métodos de pago:</span>
-        <select id="emp-metodos-pago-sel" onchange="empCambiarMetodosPago(this.value)" style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;background:white;color:#1a4fa0">
+        <select id="emp-metodos-pago-sel" onchange="empCambiarMetodosPago(this.value)" style="padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;background:white;color:var(--color-primary-dark)">
           <option value="credito">💳 Solo Crédito</option>
           <option value="todos">💳 Crédito + Efectivo + Transferencia</option>
           <option value="efectivo">💵 Solo Efectivo + Transferencia</option>
@@ -1171,7 +1177,7 @@ function initMapsAdmin() {
           <span class="toggle-slider"></span>
         </label>
         <div>
-          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">Activar asignación automática</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Activar asignación automática</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">Notifica a repartidores disponibles cuando llega un pedido</div>
         </div>
       </div>
@@ -1205,7 +1211,7 @@ function initMapsAdmin() {
       <div class="card-title">⚙️ Configuración de referidos</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <label style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#5a6a8a">Envíos gratis por referido aprobado:</label>
-        <input type="number" id="config-envios-gratis" min="1" max="20" style="width:70px;padding:8px 10px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;color:#1a2740;background:#f4f6fb" value="3">
+        <input type="number" id="config-envios-gratis" min="1" max="20" style="width:70px;padding:8px 10px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;color:var(--color-primary-dark);background:#f4f6fb" value="3">
         <button onclick="guardarConfigEnviosGratis()" style="padding:9px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar</button>
       </div>
     </div>
@@ -1229,13 +1235,13 @@ function initMapsAdmin() {
       <div class="card-title">👥 Clientes</div>
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="stab-empresariales" onclick="_switchClienteTab('empresariales')"
-                style="padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#1a4fa0;color:white">🏢 Empresariales</button>
+                style="padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:var(--color-primary-dark);color:white">🏢 Empresariales</button>
         <button id="stab-generales" onclick="_switchClienteTab('generales')"
                 style="padding:8px 16px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#f4f6fb;color:#8fa3c0">👤 Generales</button>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:14px">
         <button id="fnotif-todos" onclick="_setFiltroNotif('todos')"
-                style="padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#1a4fa0;color:white">🔔 Todos</button>
+                style="padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:var(--color-primary-dark);color:white">🔔 Todos</button>
         <button id="fnotif-activas" onclick="_setFiltroNotif('activas')"
                 style="padding:6px 12px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#f4f6fb;color:#8fa3c0">✅ Con notificaciones</button>
         <button id="fnotif-sin" onclick="_setFiltroNotif('sin')"
@@ -1262,8 +1268,8 @@ function initMapsAdmin() {
     <!-- Filtros -->
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button onclick="setFiltroTrafico('hoy')" id="ftraf-hoy" class="btn btn-secondary" style="font-size:11px;padding:8px 16px">Hoy</button>
-      <button onclick="setFiltroTrafico('semana')" id="ftraf-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Esta semana</button>
-      <button onclick="setFiltroTrafico('mes')" id="ftraf-mes" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0">Este mes</button>
+      <button onclick="setFiltroTrafico('semana')" id="ftraf-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Esta semana</button>
+      <button onclick="setFiltroTrafico('mes')" id="ftraf-mes" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Este mes</button>
       <div id="traf-pedidos-activos-badge" style="margin-left:auto;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border-radius:10px;padding:8px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;display:flex;align-items:center;gap:6px">
         <span style="width:8px;height:8px;background:white;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span>
         <span id="traf-activos-num">–</span> pedidos activos ahora
@@ -1301,17 +1307,17 @@ function initMapsAdmin() {
 <div id="tab-contactos" class="tab-content">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
     <div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a2740">📩 Contactos desde la Landing</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">📩 Contactos desde la Landing</div>
       <div style="font-size:11px;color:#8fa3c0;margin-top:2px">Empresas y repartidores que enviaron formulario en guepack.com</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <select id="filtro-contactos-tipo" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:#1a4fa0;cursor:pointer;outline:none">
+      <select id="filtro-contactos-tipo" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:var(--color-primary-dark);cursor:pointer;outline:none">
         <option value="">Todos</option>
         <option value="empresa">Empresas</option>
         <option value="repartidor">Repartidores</option>
         <option value="otro">Otros</option>
       </select>
-      <select id="filtro-contactos-leido" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:#1a4fa0;cursor:pointer;outline:none">
+      <select id="filtro-contactos-leido" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:var(--color-primary-dark);cursor:pointer;outline:none">
         <option value="">Todos</option>
         <option value="false">No leídos</option>
         <option value="true">Leídos</option>
@@ -1670,9 +1676,9 @@ function eliminarEmpresa(id, nombre) {
   overlay.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
       <div style="font-size:40px;margin-bottom:12px">🗑️</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;margin-bottom:8px">¿Eliminar empresa?</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:var(--color-primary-dark);margin-bottom:8px">¿Eliminar empresa?</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:13px;color:#8fa3c0;margin-bottom:24px;line-height:1.5">
-        <span style="color:#1a4fa0;font-weight:900">${nombre.trim()}</span><br>Esta acción no se puede deshacer.
+        <span style="color:var(--color-primary-dark);font-weight:900">${nombre.trim()}</span><br>Esta acción no se puede deshacer.
       </div>
       <div style="display:flex;gap:10px">
         <button id="emp-cancel-btn" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:#8fa3c0;letter-spacing:.5px">❌ Cancelar</button>
@@ -2045,7 +2051,7 @@ async function _renderRepaDisponibles() {
   if (!data?.length) { el.innerHTML = '<div style="color:#999;font-size:12px;font-weight:600;font-family:Montserrat,sans-serif">Sin repartidores</div>'; return }
   el.innerHTML = data.map(r => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f3f8">
-      <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">${r.nombre}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">${r.nombre}</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;padding:3px 10px;border-radius:20px;${r.disponible !== false ? 'background:rgba(34,197,94,0.12);color:#22c55e' : 'background:rgba(239,68,68,0.1);color:#ef4444'}">${r.disponible !== false ? '🟢 Disponible' : '🔴 No disponible'}</div>
     </div>
   `).join('')
@@ -2062,7 +2068,7 @@ async function cargarRepartidores() {
     const nivel = r.nivel || 'nuevo'
     const nivelBadge = nivel === 'premium'
       ? '<span style="background:rgba(245,158,11,0.15);color:#d97706;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">⭐ Premium</span>'
-      : '<span style="background:#f0f4ff;color:#1a4fa0;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">🆕 Nuevo</span>'
+      : '<span style="background:#f0f4ff;color:var(--color-primary-dark);font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:2px 8px;border-radius:20px;letter-spacing:.5px">🆕 Nuevo</span>'
     const efectivoAcum = Number(r.efectivo_acumulado) || 0
     const bloqueado = r.bloqueado_efectivo === true
     const nombreEscaped = (r.nombre || '').replace(/'/g, "\\'")
@@ -2088,7 +2094,7 @@ async function cargarRepartidores() {
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         ${efectivoAcum > 0 || bloqueado ? `<button onclick="confirmarDeposito(${r.id})" style="padding:6px 14px;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✅ Confirmar depósito</button>` : ''}
-        <button onclick="cambiarNivelRepartidor(${r.id},'${nivel}')" style="padding:6px 14px;background:#f0f4ff;color:#1a4fa0;border:1.5px solid #c7d7f5;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">${nivel === 'premium' ? '↩️ Bajar a Nuevo' : '⭐ Subir a Premium'}</button>
+        <button onclick="cambiarNivelRepartidor(${r.id},'${nivel}')" style="padding:6px 14px;background:#f0f4ff;color:var(--color-primary-dark);border:1.5px solid #c7d7f5;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">${nivel === 'premium' ? '↩️ Bajar a Nuevo' : '⭐ Subir a Premium'}</button>
       </div>
     </div>
   `}).join('')
@@ -2268,24 +2274,24 @@ function generarFactura(codigo, nombre, total, numPedidos) {
       <div style="border-top:2px dashed #e0e6f0;border-bottom:2px dashed #e0e6f0;padding:16px 0;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:12px;color:#8fa3c0;font-weight:700">EMPRESA</span>
-          <span style="font-size:12px;font-weight:900;color:#1a2740">${nombre}</span>
+          <span style="font-size:12px;font-weight:900;color:var(--color-primary-dark)">${nombre}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:12px;color:#8fa3c0;font-weight:700">CÓDIGO</span>
-          <span style="font-size:12px;font-weight:700;color:#1a4fa0;font-family:monospace">${codigo}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:monospace">${codigo}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="font-size:12px;color:#8fa3c0;font-weight:700">PEDIDOS</span>
-          <span style="font-size:12px;font-weight:900;color:#1a2740">${numPedidos}</span>
+          <span style="font-size:12px;font-weight:900;color:var(--color-primary-dark)">${numPedidos}</span>
         </div>
         <div style="display:flex;justify-content:space-between">
           <span style="font-size:12px;color:#8fa3c0;font-weight:700">FECHA</span>
-          <span style="font-size:12px;font-weight:700;color:#1a2740">${fecha}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--color-primary-dark)">${fecha}</span>
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding:12px 16px;background:#f4f6fb;border-radius:12px">
-        <span style="font-size:15px;font-weight:900;color:#1a2740">TOTAL A COBRAR</span>
-        <span style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:#f05a1a;line-height:1">$${total}</span>
+        <span style="font-size:15px;font-weight:900;color:var(--color-primary-dark)">TOTAL A COBRAR</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:42px;color:var(--color-secondary);line-height:1">$${total}</span>
       </div>
       <div style="background:#fffbeb;border:2px solid #fcd34d;border-radius:10px;padding:12px;font-size:11px;color:#92400e;font-weight:700;text-align:center;margin-bottom:16px">
         ⚠️ Vista previa. Integración con Facturama próximamente.
@@ -2314,11 +2320,11 @@ async function cargarReferidos() {
 
   elPend.innerHTML = pendientes.length ? pendientes.map(r => `
     <div style="background:#f4f6fb;border-radius:10px;padding:12px;margin-bottom:8px">
-      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">
+      <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif">
         🏅 <strong>${r.referidor_nombre || r.referidor_email}</strong>
         <span style="color:#8fa3c0;font-weight:600"> ${r.referidor_email}</span>
       </div>
-      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif;margin-top:4px">
+      <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif;margin-top:4px">
         👤 <strong>${r.referido_nombre || r.referido_email}</strong>
         <span style="color:#8fa3c0;font-weight:600"> ${r.referido_email}</span>
       </div>
@@ -2336,7 +2342,7 @@ async function cargarReferidos() {
     const col = r.estado === 'aprobado' ? '#22c55e' : '#ef4444'
     const ico = r.estado === 'aprobado' ? '✅' : '❌'
     return `<div style="border-left:3px solid ${col};padding:10px 12px;margin-bottom:8px;background:#f4f6fb;border-radius:0 10px 10px 0">
-      <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">${ico} ${r.referidor_nombre || r.referidor_email} → ${r.referido_nombre || r.referido_email}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif">${ico} ${r.referidor_nombre || r.referidor_email} → ${r.referido_nombre || r.referido_email}</div>
       <div style="font-size:11px;color:#8fa3c0;font-family:Montserrat,sans-serif;margin-top:2px">${r.codigo} · ${new Date(r.created_at).toLocaleDateString('es-MX')} · <strong style="color:${col}">${r.estado}</strong></div>
     </div>`
   }).join('')
@@ -2351,10 +2357,10 @@ async function cargarReferidos() {
   elCli.innerHTML = clientes?.length ? clientes.map(c => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f4f6fb;border-radius:10px;margin-bottom:6px">
       <div>
-        <div style="font-size:12px;font-weight:700;color:#1a2740;font-family:Montserrat,sans-serif">${c.nombre || c.email}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif">${c.nombre || c.email}</div>
         <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif">${c.email}</div>
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#f05a1a;line-height:1">${c.envios_gratis} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#8fa3c0">gratis</span></div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--color-secondary);line-height:1">${c.envios_gratis} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#8fa3c0">gratis</span></div>
     </div>`).join('')
     : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Ningún cliente tiene envíos gratis acumulados</div>'
 }
@@ -3191,7 +3197,7 @@ function verComprobante(url) {
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#f59e0b">🧾 Comprobante de pago</div>
       <img src="${url}" style="width:100%;border-radius:12px;object-fit:contain;border:2px solid #f59e0b;margin-bottom:16px">
-      <button onclick="document.getElementById('modal-comprobante').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
+      <button onclick="document.getElementById('modal-comprobante').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
     </div>
   `
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
@@ -3233,14 +3239,14 @@ async function asignarRepartidor(id) {
   div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px'
   div.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:340px">
-      <div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:#1a4fa0;letter-spacing:2px;margin-bottom:16px">Asignar Repartidor</div>
-      <select id="sel-repa" style="width:100%;padding:12px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;color:#1a2740;background:#f4f6fb;margin-bottom:16px">
+      <div style="font-family:Bebas Neue,sans-serif;font-size:24px;color:var(--color-primary-dark);letter-spacing:2px;margin-bottom:16px">Asignar Repartidor</div>
+      <select id="sel-repa" style="width:100%;padding:12px 14px;border:2px solid #e0e6f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:13px;font-weight:600;color:var(--color-primary-dark);background:#f4f6fb;margin-bottom:16px">
         <option value="">Selecciona un repartidor...</option>
         ${opciones}
       </select>
       <div style="display:flex;gap:8px">
         <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:12px;border:2px solid #e0e6f0;border-radius:10px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">Cancelar</button>
-        <button onclick="confirmarAsignacion(${id})" style="flex:1;padding:12px;border:none;border-radius:10px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Asignar ✅</button>
+        <button onclick="confirmarAsignacion(${id})" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Asignar ✅</button>
       </div>
     </div>
   `
@@ -3531,13 +3537,13 @@ async function abrirChat(pedidoId, rol, titulo) {
   modal.innerHTML = `
     <div style="background:white;border-radius:24px 24px 0 0;width:100%;max-width:480px;height:76vh;display:flex;flex-direction:column">
       <div style="padding:16px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
-        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:#1a4fa0">💬 ${titulo}</span>
+        <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">💬 ${titulo}</span>
         <button onclick="cerrarChat()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8fa3c0">✕</button>
       </div>
       <div id="chat-messages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:6px"></div>
       <div style="padding:10px 14px;border-top:1px solid #e8e8e8;display:flex;gap:8px;flex-shrink:0">
         <input id="chat-input" type="text" placeholder="Responder como admin..." style="flex:1;border:1.5px solid #e0e0e0;border-radius:20px;padding:10px 16px;font-family:Montserrat,sans-serif;font-size:13px;outline:none" onkeydown="if(event.key==='Enter')enviarMensajeChat()">
-        <button onclick="enviarMensajeChat()" style="background:#1a4fa0;color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
+        <button onclick="enviarMensajeChat()" style="background:var(--color-primary-dark);color:white;border:none;border-radius:20px;padding:10px 18px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Enviar</button>
       </div>
     </div>`
   document.body.appendChild(modal)
@@ -4092,7 +4098,7 @@ function _renderStars(promedio, size = 20) {
   return [1,2,3,4,5].map(i => {
     const llena = promedio >= i
     const media = !llena && promedio >= i - 0.5
-    const color = (llena || media) ? '#f05a1a' : '#e0e0e0'
+    const color = (llena || media) ? 'var(--color-secondary)' : '#e0e0e0'
     const opacity = media ? '0.6' : '1'
     return `<span style="font-size:${size}px;color:${color};opacity:${opacity}">★</span>`
   }).join('')
@@ -4344,9 +4350,9 @@ async function cargarCargosConcelacion() {
         </div>`
       }).join('')}
     </div>
-    <div style="background:#1a4fa0;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+    <div style="background:var(--color-primary-dark);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;color:rgba(255,255,255,0.8)">Total cargos pendientes</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#f05a1a;line-height:1">$${totalCargos}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--color-secondary);line-height:1">$${totalCargos}</div>
     </div>`
 }
 
@@ -4512,7 +4518,7 @@ let _editingZonaId = null
 
 // Estado del dibujo manual
 let _drawMode   = false
-let _drawColor  = '#1a4fa0'
+let _drawColor  = 'var(--color-primary-dark)'
 let _drawPoints = []          // [{lat,lng}, ...]
 let _drawMarkers    = []      // Marker por vértice
 let _drawPolyline   = null    // Polyline de vista previa
@@ -4565,7 +4571,7 @@ function _activarDibujo(color) {
   if (!_zonasMap) return
   _limpiarDibujo()
   _drawMode  = true
-  _drawColor = color || '#1a4fa0'
+  _drawColor = color || 'var(--color-primary-dark)'
 
   _zonasMap.setOptions({ draggableCursor: 'crosshair', disableDoubleClickZoom: true })
 
@@ -4723,10 +4729,10 @@ async function _cargarZonasEnMapa() {
     if (!zona.coordenadas || zona.coordenadas.length < 3) return
     _zonasPolygons[zona.id] = new google.maps.Polygon({
       paths: zona.coordenadas.map(function(p) { return { lat: p.lat, lng: p.lng } }),
-      fillColor: zona.color || '#1a4fa0',
+      fillColor: zona.color || 'var(--color-primary-dark)',
       fillOpacity: zona.activa ? 0.18 : 0.04,
       strokeWeight: 2,
-      strokeColor: zona.color || '#1a4fa0',
+      strokeColor: zona.color || 'var(--color-primary-dark)',
       strokeOpacity: zona.activa ? 1 : 0.3,
       map: _zonasMap,
       zIndex: 0
@@ -4802,7 +4808,7 @@ async function cargarZonas() {
     var tienePoligono = z.coordenadas && z.coordenadas.length >= 3
     return '<div class="card" style="margin-bottom:10px;padding:14px 16px">' +
       '<div style="display:flex;align-items:center;gap:10px">' +
-        '<div style="width:14px;height:14px;border-radius:3px;background:' + (z.color||'#1a4fa0') + ';flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></div>' +
+        '<div style="width:14px;height:14px;border-radius:3px;background:' + (z.color||'var(--color-primary-dark)') + ';flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-weight:900;font-size:13px">' + z.nombre + '</div>' +
           '<div style="font-size:10px;color:var(--gray-mid);font-weight:700;margin-top:2px">Sobre $' + z.precio_sobre + ' · Grande $' + z.precio_grande + ' · ' + (tienePoligono ? '✅ Con polígono' : '⚠️ Sin polígono') + '</div>' +
@@ -4824,7 +4830,7 @@ async function cargarZonas() {
 function zonaFormOpen(zona) {
   document.getElementById('z-id').value           = zona ? zona.id : ''
   document.getElementById('z-nombre').value       = zona ? zona.nombre : ''
-  document.getElementById('z-color').value        = zona ? (zona.color || '#1a4fa0') : '#1a4fa0'
+  document.getElementById('z-color').value        = zona ? (zona.color || 'var(--color-primary-dark)') : 'var(--color-primary-dark)'
   document.getElementById('z-precio-sobre').value  = zona ? zona.precio_sobre : ''
   document.getElementById('z-precio-grande').value = zona ? zona.precio_grande : ''
   document.getElementById('zonas-form-title').textContent = zona ? 'Editar zona' : 'Nueva zona'
@@ -4888,7 +4894,7 @@ function zonaEditarPoligono(id) {
   db.from('zonas_cobertura').select('coordenadas, color').eq('id', id).single().then(function(res) {
     var data = res.data
     if (!data) return
-    var color = data.color || '#1a4fa0'
+    var color = data.color || 'var(--color-primary-dark)'
     _drawColor = color
 
     if (!data.coordenadas || data.coordenadas.length < 3) {
@@ -4952,9 +4958,9 @@ function zonaEliminar(id, nombre) {
   overlay.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
       <div style="font-size:40px;margin-bottom:12px">🗑️</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;margin-bottom:8px">¿Eliminar zona?</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:var(--color-primary-dark);margin-bottom:8px">¿Eliminar zona?</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:13px;color:#8fa3c0;margin-bottom:24px;line-height:1.5">
-        <span style="color:#1a4fa0;font-weight:900">${nombre}</span><br>Esta acción no se puede deshacer.
+        <span style="color:var(--color-primary-dark);font-weight:900">${nombre}</span><br>Esta acción no se puede deshacer.
       </div>
       <div style="display:flex;gap:10px">
         <button id="zona-cancel-btn" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:#8fa3c0;letter-spacing:.5px">❌ Cancelar</button>
@@ -5152,7 +5158,7 @@ function setFiltroTrafico(filtro) {
   _trafFiltro = filtro
   document.querySelectorAll('[id^="ftraf-"]').forEach(b => {
     b.className = 'btn'
-    b.style.cssText = 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0'
+    b.style.cssText = 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0'
   })
   const activo = document.getElementById('ftraf-' + filtro)
   if (activo) { activo.className = 'btn btn-secondary'; activo.style.cssText = 'font-size:11px;padding:8px 16px' }
@@ -5232,7 +5238,7 @@ function _renderChartHoras(horasCount) {
       datasets: [{
         label: 'Pedidos',
         data: horasCount,
-        backgroundColor: '#1a4fa0',
+        backgroundColor: 'var(--color-primary-dark)',
         borderRadius: 4
       }]
     },
@@ -5253,7 +5259,7 @@ function _renderChartDona(conteo) {
   if (_chartDona) _chartDona.destroy()
   const labels  = ['Landing', 'Registro', 'Login', 'Pedido', 'Retorno']
   const valores = [conteo.landing, conteo.registro, conteo.login, conteo.pedido, conteo.retorno]
-  const colores = ['#64748b', '#22c55e', '#3b82f6', '#f05a1a', '#8b5cf6']
+  const colores = ['#64748b', '#22c55e', '#3b82f6', 'var(--color-secondary)', '#8b5cf6']
   _chartDona = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -5299,27 +5305,27 @@ async function _renderRetencion() {
           <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">PERÍODO</th>
           <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">CLIENTES ACTIVOS</th>
           <th style="padding:10px 12px;text-align:center;font-weight:900;color:#22c55e;font-size:10px">✅ RETENIDOS</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:900;color:#1a4fa0;font-size:10px">🆕 NUEVOS</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:900;color:var(--color-primary-dark);font-size:10px">🆕 NUEVOS</th>
           <th style="padding:10px 12px;text-align:center;font-weight:900;color:#ef4444;font-size:10px">❌ PERDIDOS</th>
           <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">TASA RET.</th>
         </tr>
       </thead>
       <tbody>
         <tr style="border-bottom:1px solid #f0f3f8">
-          <td style="padding:10px 12px;font-weight:700;color:#1a2740">Semana pasada<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semPasIni)} – ${fmtSem(semPasFin)}</span></td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${usersPasado.size}</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:700;color:#1a2740">–</td>
+          <td style="padding:10px 12px;font-weight:700;color:var(--color-primary-dark)">Semana pasada<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semPasIni)} – ${fmtSem(semPasFin)}</span></td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:var(--color-primary-dark)">${usersPasado.size}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--color-primary-dark)">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--color-primary-dark)">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--color-primary-dark)">–</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--color-primary-dark)">–</td>
         </tr>
         <tr>
-          <td style="padding:10px 12px;font-weight:700;color:#1a2740">Esta semana<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semActIni)} – ${fmtSem(semActFin)}</span></td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${usersActual.size}</td>
+          <td style="padding:10px 12px;font-weight:700;color:var(--color-primary-dark)">Esta semana<br><span style="font-size:10px;color:#8fa3c0;font-weight:600">${fmtSem(semActIni)} – ${fmtSem(semActFin)}</span></td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:var(--color-primary-dark)">${usersActual.size}</td>
           <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#22c55e">${retenidos}</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#1a4fa0">${nuevos}</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:var(--color-primary-dark)">${nuevos}</td>
           <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:#ef4444">${perdidos}</td>
-          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:${tasaRet >= 50 ? '#22c55e' : '#f05a1a'}">${tasaRet}%</td>
+          <td style="padding:10px 12px;text-align:center;font-weight:900;font-size:16px;color:${tasaRet >= 50 ? '#22c55e' : 'var(--color-secondary)'}">${tasaRet}%</td>
         </tr>
       </tbody>
     </table>
@@ -5335,7 +5341,7 @@ let _clientesRenderData = null
 
 function _setFiltroNotif(filtro) {
   _filtroNotif = filtro
-  const activeStyle = 'padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#1a4fa0;color:white'
+  const activeStyle = 'padding:6px 12px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:var(--color-primary-dark);color:white'
   const inactiveStyle = 'padding:6px 12px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;background:#f4f6fb;color:#8fa3c0'
   document.getElementById('fnotif-todos').style.cssText   = filtro === 'todos'   ? activeStyle : inactiveStyle
   document.getElementById('fnotif-activas').style.cssText = filtro === 'activas' ? activeStyle : inactiveStyle
@@ -5347,7 +5353,7 @@ function _switchClienteTab(tab) {
   const isEmp = tab === 'empresariales'
   document.getElementById('clientes-lista-empresariales').style.display = isEmp ? 'block' : 'none'
   document.getElementById('clientes-lista-generales').style.display = isEmp ? 'none' : 'block'
-  const activeStyle = 'padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#1a4fa0;color:white'
+  const activeStyle = 'padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:var(--color-primary-dark);color:white'
   const inactiveStyle = 'padding:8px 16px;border:2px solid #e0e6f0;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:#f4f6fb;color:#8fa3c0'
   document.getElementById('stab-empresariales').style.cssText = isEmp ? activeStyle : inactiveStyle
   document.getElementById('stab-generales').style.cssText = isEmp ? inactiveStyle : activeStyle
@@ -5423,7 +5429,7 @@ async function cargarCuentasSinVerificar() {
       <div id="cuenta-sin-verificar-${cuenta.user_id}" style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8">
         <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="28" height="28" style="flex-shrink:0">
         <div style="flex:1;min-width:0">
-          <div style="font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;color:var(--color-primary-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${email}</div>
           <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:10px;color:#8fa3c0;margin-top:3px">${fecha}</div>
         </div>
         <span style="display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#dc2626;border-radius:20px;padding:5px 9px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;white-space:nowrap">
@@ -5458,7 +5464,7 @@ function eliminarCuentaSinVerificar(userId, email) {
   overlay.innerHTML = `
     <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:#dc2626;margin-bottom:9px">Eliminar cuenta sin verificar</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:#1a2740;line-height:1.6;margin-bottom:10px">¿Eliminar <strong>${escaparHtmlAdmin(email)}</strong> de la tabla de usuarios?</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:var(--color-primary-dark);line-height:1.6;margin-bottom:10px">¿Eliminar <strong>${escaparHtmlAdmin(email)}</strong> de la tabla de usuarios?</div>
       <div style="background:#fff7ed;color:#9a3412;border-radius:9px;padding:10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;line-height:1.5;margin-bottom:18px">Después deberás eliminar también la cuenta desde Authentication → Users en Supabase.</div>
       <div style="display:flex;gap:9px">
         <button id="cancelar-cuenta-sin-verificar" style="flex:1;padding:11px;border:none;border-radius:9px;background:#f4f6fb;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Cancelar</button>
@@ -5495,9 +5501,9 @@ function mostrarInstruccionEliminarAuth(email) {
   overlay.innerHTML = `
     <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;text-align:center">
       <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="42" height="42" style="margin-bottom:10px">
-      <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:#1a4fa0;margin-bottom:9px">Falta eliminarla de Authentication</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:#1a2740;line-height:1.6;margin-bottom:18px">En Supabase abre <strong>Authentication → Users</strong>, busca <strong>${escaparHtmlAdmin(email)}</strong> y elimina la cuenta manualmente.</div>
-      <button onclick="document.getElementById('modal-instruccion-auth').remove()" style="width:100%;padding:11px;border:none;border-radius:9px;background:#1a4fa0;color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Entendido</button>
+      <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:var(--color-primary-dark);margin-bottom:9px">Falta eliminarla de Authentication</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:var(--color-primary-dark);line-height:1.6;margin-bottom:18px">En Supabase abre <strong>Authentication → Users</strong>, busca <strong>${escaparHtmlAdmin(email)}</strong> y elimina la cuenta manualmente.</div>
+      <button onclick="document.getElementById('modal-instruccion-auth').remove()" style="width:100%;padding:11px;border:none;border-radius:9px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Entendido</button>
     </div>`
   document.body.appendChild(overlay)
 }
@@ -5517,7 +5523,7 @@ function _renderListasClientes({ todos, empMap, countMap }) {
   const elG = document.getElementById('clientes-lista-generales')
   if (!elE || !elG) return
 
-  const bellActiva = `<svg width="18" height="18" viewBox="0 0 24 24" style="display:block"><path d="M12 2C8.5 2 6 4.5 6 8v5l-2 2v1h16v-1l-2-2V8c0-3.5-2.5-6-6-6z" fill="#22c55e"/><path d="M10 19a2 2 0 0 0 4 0" fill="#22c55e"/><path d="M11 6l1 3 1-3" fill="#F05A1A" stroke="#F05A1A" stroke-width="1.5"/></svg>`
+  const bellActiva = `<svg width="18" height="18" viewBox="0 0 24 24" style="display:block"><path d="M12 2C8.5 2 6 4.5 6 8v5l-2 2v1h16v-1l-2-2V8c0-3.5-2.5-6-6-6z" fill="#22c55e"/><path d="M10 19a2 2 0 0 0 4 0" fill="#22c55e"/><path d="M11 6l1 3 1-3" fill="var(--color-secondary)" stroke="var(--color-secondary)" stroke-width="1.5"/></svg>`
   const bellInactiva = `<svg width="18" height="18" viewBox="0 0 24 24" style="display:block"><path d="M12 2C8.5 2 6 4.5 6 8v5l-2 2v1h16v-1l-2-2V8c0-3.5-2.5-6-6-6z" fill="#9ca3af"/><path d="M10 19a2 2 0 0 0 4 0" fill="#9ca3af"/><line x1="4" y1="4" x2="20" y2="20" stroke="#ef4444" stroke-width="2"/></svg>`
 
   const _renderItem = (u, sublinea) => {
@@ -5536,11 +5542,11 @@ function _renderListasClientes({ todos, empMap, countMap }) {
       <div onclick="abrirPanelCliente('${u.user_id}')"
            style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8;cursor:pointer;border-radius:10px;transition:background .15s"
            onmouseover="this.style.background='#f4f6fb'" onmouseout="this.style.background='transparent'">
-        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1a4fa0,#2563c4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <span style="color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px">${inicial}</span>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nombre}</div>
+          <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nombre}</div>
           <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.email}</div>
           <div style="display:flex;gap:10px;margin-top:3px;flex-wrap:wrap">${wsp}${sublinea ? ' · ' + sublinea : ''}</div>
         </div>
@@ -5566,7 +5572,7 @@ function _renderListasClientes({ todos, empMap, countMap }) {
   const tabActiva = document.getElementById('clientes-lista-empresariales').style.display !== 'none' ? 'empresariales' : 'generales'
 
   elE.innerHTML = empresariales.length
-    ? empresariales.map(u => _renderItem(u, `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:#1a4fa0">🏢 ${empMap[u.empresa_codigo] || u.empresa_codigo}</span>`)).join('')
+    ? empresariales.map(u => _renderItem(u, `<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--color-primary-dark)">🏢 ${empMap[u.empresa_codigo] || u.empresa_codigo}</span>`)).join('')
     : '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin resultados</div>'
 
   elG.innerHTML = generales.length
@@ -5607,24 +5613,24 @@ async function abrirPanelCliente(userId) {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
             <div style="background:#f4f6fb;border-radius:10px;padding:12px;text-align:center">
               <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-bottom:4px">TIPO TARIFA</div>
-              <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:#1a4fa0">${empresa.tipo_tarifa === 'km' ? '📏 KM' : '📅 Diaria'}</div>
+              <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:var(--color-primary-dark)">${empresa.tipo_tarifa === 'km' ? '📏 KM' : '📅 Diaria'}</div>
             </div>
             <div style="background:#f4f6fb;border-radius:10px;padding:12px;text-align:center">
               <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#8fa3c0;letter-spacing:1px;margin-bottom:4px">TIPO CRÉDITO</div>
-              <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:#1a4fa0">💳 ${empresa.tipo_credito || 'Semanal'}</div>
+              <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;color:var(--color-primary-dark)">💳 ${empresa.tipo_credito || 'Semanal'}</div>
             </div>
           </div>
           <div class="toggle-wrap" style="margin-bottom:14px">
             <label class="toggle"><input type="checkbox" id="toggle-permite-paradas" ${permiteParadas ? 'checked' : ''} onchange="_togglePermiteParadas(${empresa.id}, this.checked)"><span class="toggle-slider"></span></label>
             <div>
-              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">➕ Permitir agregar paradas</div>
+              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">➕ Permitir agregar paradas</div>
               <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">El cliente puede agregar paradas extra durante el envío</div>
             </div>
           </div>
           <div class="toggle-wrap">
             <label class="toggle"><input type="checkbox" id="toggle-pedidos-activos" ${pedidosActivos ? 'checked' : ''} onchange="_togglePedidosActivos(${empresa.id}, this.checked)"><span class="toggle-slider"></span></label>
             <div>
-              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:#1a2740">✅ Pedidos activos</div>
+              <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">✅ Pedidos activos</div>
               <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">La empresa puede realizar pedidos</div>
             </div>
           </div>
@@ -5643,15 +5649,15 @@ async function abrirPanelCliente(userId) {
       <div style="display:grid;gap:8px;margin-bottom:4px">
         <div style="display:flex;justify-content:space-between;align-items:center;background:#f4f6fb;border-radius:10px;padding:10px 14px">
           <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#8fa3c0">📧 Correo</span>
-          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a2740;word-break:break-all">${usuario.email}</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--color-primary-dark);word-break:break-all">${usuario.email}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;background:#f4f6fb;border-radius:10px;padding:10px 14px">
           <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#8fa3c0">📱 WhatsApp</span>
-          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:${usuario.whatsapp ? '#1a2740' : '#f59e0b'}">${usuario.whatsapp || '⚠️ Sin WhatsApp'}</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:${usuario.whatsapp ? 'var(--color-primary-dark)' : '#f59e0b'}">${usuario.whatsapp || '⚠️ Sin WhatsApp'}</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;background:#f4f6fb;border-radius:10px;padding:10px 14px">
           <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#8fa3c0">📦 Pedidos</span>
-          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#1a2740">${totalPedidos}</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--color-primary-dark)">${totalPedidos}</span>
         </div>
         ${usuario.nivel_vip ? `
         <div style="display:flex;justify-content:space-between;align-items:center;background:#fffbeb;border-radius:10px;padding:10px 14px;border:1px solid #fde68a">
@@ -5685,9 +5691,9 @@ async function eliminarCliente(userId) {
   overlay.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
       <div style="font-size:40px;margin-bottom:12px">🗑️</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:#1a2740;margin-bottom:8px">¿Eliminar cuenta?</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:var(--color-primary-dark);margin-bottom:8px">¿Eliminar cuenta?</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:600;font-size:13px;color:#8fa3c0;margin-bottom:24px;line-height:1.5">
-        <span style="color:#1a4fa0;font-weight:900">${nombre}</span><br>Esta acción no se puede deshacer.
+        <span style="color:var(--color-primary-dark);font-weight:900">${nombre}</span><br>Esta acción no se puede deshacer.
       </div>
       <div style="display:flex;gap:10px">
         <button id="cli-cancel-btn" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:#8fa3c0;letter-spacing:.5px">❌ Cancelar</button>
@@ -5774,7 +5780,7 @@ async function cargarGuias() {
 
 function showGuiasSubtab(tab) {
   const ON  = ['btn btn-secondary', 'font-size:11px;padding:8px 16px']
-  const OFF = ['btn', 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0']
+  const OFF = ['btn', 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0']
   const cfg = document.getElementById('gstab-config')
   const ven = document.getElementById('gstab-ventas')
   ;[cfg.className, cfg.style.cssText] = tab === 'config' ? ON : OFF
@@ -5791,7 +5797,7 @@ function setFiltroGuias(filtro) {
     b.className = f === filtro ? 'btn btn-secondary' : 'btn'
     b.style.cssText = f === filtro
       ? 'font-size:11px;padding:8px 16px'
-      : 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:#1a4fa0;border:2px solid #e0e6f0'
+      : 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0'
   })
   cargarVentasGuias()
 }
@@ -5848,7 +5854,7 @@ async function cargarVentasGuias() {
     : `${nPend} pendiente${nPend !== 1 ? 's' : ''} de pago · $${sumPend.toFixed(0)} en el aire`
 
   const BADGE = {
-    pendiente_pago:  { bg: 'rgba(240,90,26,0.12)',  color: '#f05a1a', label: 'Pendiente'  },
+    pendiente_pago:  { bg: 'rgba(240,90,26,0.12)',  color: 'var(--color-secondary)', label: 'Pendiente'  },
     pago_verificado: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: 'Verificado' },
     guia_generada:   { bg: 'rgba(34,197,94,0.12)',  color: '#22c55e', label: 'Guía lista' },
     cancelado:       { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', label: 'Cancelado'  },
@@ -5924,13 +5930,13 @@ async function cargarContactos() {
     const fecha = new Date(c.created_at).toLocaleString('es-MX', { dateStyle:'short', timeStyle:'short' })
     const chip  = tipoLabel[c.tipo] || c.tipo || '—'
     const bg    = c.leido ? '#f4f6fb' : '#fff'
-    const borde = c.leido ? '#e0e6f0' : '#1a4fa0'
+    const borde = c.leido ? '#e0e6f0' : 'var(--color-primary-dark)'
     return `
     <div id="contacto-${c.id}" style="background:${bg};border:1.5px solid ${borde};border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;transition:background .2s">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:#1a2740">${c.nombre || '—'}</span>
-          <span style="font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;background:${c.tipo==='empresa'?'#eff6ff':'#f0fdf4'};color:${c.tipo==='empresa'?'#1a4fa0':'#15803d'};border-radius:20px;padding:3px 10px">${chip}</span>
+          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--color-primary-dark)">${c.nombre || '—'}</span>
+          <span style="font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;background:${c.tipo==='empresa'?'#eff6ff':'#f0fdf4'};color:${c.tipo==='empresa'?'var(--color-primary-dark)':'#15803d'};border-radius:20px;padding:3px 10px">${chip}</span>
           ${!c.leido ? '<span style="font-size:9px;font-weight:900;font-family:Montserrat,sans-serif;background:#fff3cd;color:#b45309;border-radius:20px;padding:3px 8px">NUEVO</span>' : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -5938,7 +5944,7 @@ async function cargarContactos() {
           ${!c.leido ? `<button onclick="marcarContactoLeido('${c.id}')" style="font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;background:#f0fdf4;border:1.5px solid #22c55e;color:#15803d;border-radius:8px;padding:5px 10px;cursor:pointer">✓ Marcar leído</button>` : ''}
         </div>
       </div>
-      <div style="font-size:12px;color:#4b5e78"><a href="mailto:${c.email}" style="color:#1a4fa0;text-decoration:none;font-weight:700">${c.email || '—'}</a></div>
+      <div style="font-size:12px;color:#4b5e78"><a href="mailto:${c.email}" style="color:var(--color-primary-dark);text-decoration:none;font-weight:700">${c.email || '—'}</a></div>
       <div style="font-size:12px;color:#4b5e78;line-height:1.6;background:#f8fafc;border-radius:8px;padding:10px 12px;white-space:pre-wrap">${c.mensaje || '—'}</div>
     </div>`
   }).join('')
