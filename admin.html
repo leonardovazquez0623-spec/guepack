@@ -105,6 +105,9 @@
   .tabs.dragging { cursor: grabbing; user-select: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tab { flex-shrink: 0; white-space: nowrap; padding: 10px 12px; text-align: center; border-radius: 8px; font-size: 10px; font-weight: 900; cursor: pointer; color: var(--gray-mid); letter-spacing: 0.5px; border: none; background: transparent; font-family: 'Montserrat', sans-serif; transition: color .2s, background .2s; }
+  .modulo-icono { width: 18px; height: 18px; object-fit: contain; vertical-align: middle; margin-right: 5px; }
+  .sidebar-item .modulo-icono { filter: brightness(0) invert(1); opacity: .78; margin-right: 0; }
+  .sidebar-item:hover .modulo-icono, .sidebar-item.active .modulo-icono { opacity: 1; }
   .tab.active { background: rgba(26,79,160,0.08); color: var(--blue); }
   #tab-indicator { position: absolute; bottom: 4px; height: 3px; background: var(--orange); border-radius: 3px; transition: left .28s cubic-bezier(.4,0,.2,1), width .28s cubic-bezier(.4,0,.2,1); pointer-events: none; }
   .tab-content { display: none; }
@@ -227,21 +230,21 @@ function initMapsAdmin() {
     <img src="/logo_principal.png" alt="GUEPACK" style="max-width:200px;height:auto;display:block">
   </div>
   <nav style="flex:1;padding:0 10px">
-    <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')">📋 Pedidos</button>
+    <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/17-cotizacion.svg" alt="">Pedidos</button>
     <button class="sidebar-item" id="snav-chats" onclick="showTab('chats')" style="position:relative;display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="chat"></span>Chats<span id="sidebar-chat-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
-    <button class="sidebar-item" id="snav-publicidad" onclick="showTab('publicidad')">📢 Publicidad</button>
+    <button class="sidebar-item" id="snav-publicidad" onclick="showTab('publicidad')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/27-estadisticas.svg" alt="">Publicidad</button>
     <button class="sidebar-item" id="snav-widget" onclick="showTab('widget')" style="display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="paquete"></span>Widget</button>
     <button class="sidebar-item" id="snav-calificaciones" onclick="showTab('calificaciones')" style="display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="favoritos"></span>Calificaciones</button>
-    <button class="sidebar-item" id="snav-finanzas" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="sidebar-item" id="snav-finanzas" onclick="showTab('finanzas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/19-cobros.svg" alt="">Finanzas</button>
     <button class="sidebar-item" id="snav-guias" onclick="showTab('guias')" style="display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="paquete"></span>Guías</button>
-    <button class="sidebar-item" id="snav-vip" onclick="showTab('vip')">👑 VIP</button>
-    <button class="sidebar-item" id="snav-zonas" onclick="showTab('zonas')">🗺️ Zonas</button>
-    <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')">🏢 Empresas</button>
-    <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')">🏍️ Repartidores</button>
-    <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')">🎁 Referidos</button>
-    <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')" style="position:relative;display:flex;align-items:center;gap:6px">👥 Clientes<span id="sidebar-clientes-sin-verificar-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto">0</span></button>
-    <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')">📊 Tráfico</button>
-    <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px">📩 Contactos<span id="sidebar-contactos-badge" style="display:none;background:var(--color-secondary);color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
+    <button class="sidebar-item" id="snav-vip" onclick="showTab('vip')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/45-vip.svg" alt="">VIP</button>
+    <button class="sidebar-item" id="snav-zonas" onclick="showTab('zonas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Zonas</button>
+    <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Empresas</button>
+    <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/03-envios.svg" alt="">Repartidores</button>
+    <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/06-usuarios.svg" alt="">Referidos</button>
+    <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')" style="position:relative;display:flex;align-items:center;gap:6px"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/05-perfil.svg" alt="">Clientes<span id="sidebar-clientes-sin-verificar-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto">0</span></button>
+    <button class="sidebar-item" id="snav-trafico" onclick="showTab('trafico')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/27-estadisticas.svg" alt="">Tráfico</button>
+    <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos<span id="sidebar-contactos-badge" style="display:none;background:var(--color-secondary);color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
   </nav>
   <div style="padding:12px 10px 18px">
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
@@ -284,21 +287,21 @@ function initMapsAdmin() {
   </button>
 </div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
+    <button class="tab active" onclick="showTab('pedidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/17-cotizacion.svg" alt="">Pedidos</button>
     <button class="tab" onclick="showTab('chats')" id="tab-btn-chats" style="position:relative;display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="chat"></span>Chats<span id="admin-chat-badge" style="display:none;position:absolute;top:3px;right:3px;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
-    <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
+    <button class="tab" onclick="showTab('publicidad')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/27-estadisticas.svg" alt="">Publicidad</button>
     <button class="tab" onclick="showTab('widget')" style="display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span>Widget</button>
     <button class="tab" onclick="showTab('calificaciones')" style="display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="favoritos"></span>Calificaciones</button>
-    <button class="tab" onclick="showTab('finanzas')">💰 Finanzas</button>
+    <button class="tab" onclick="showTab('finanzas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/19-cobros.svg" alt="">Finanzas</button>
     <button class="tab" onclick="showTab('guias')" style="display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span>Guías</button>
-    <button class="tab" onclick="showTab('vip')">👑 VIP</button>
-    <button class="tab" onclick="showTab('zonas')">🗺️ Zonas</button>
-    <button class="tab" onclick="showTab('empresas')">🏢 Empresas</button>
-    <button class="tab" onclick="showTab('repartidores')">🏍️ Repartidores</button>
-    <button class="tab" onclick="showTab('referidos')">🎁 Referidos</button>
-    <button class="tab" onclick="showTab('clientes')" style="position:relative">👥 Clientes<span id="tab-clientes-sin-verificar-badge" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:white;border-radius:50%;min-width:16px;height:16px;padding:0 4px;font-size:8px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
-    <button class="tab" onclick="showTab('trafico')">📊 Tráfico</button>
-    <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px">📩 Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:var(--color-secondary);color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
+    <button class="tab" onclick="showTab('vip')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/45-vip.svg" alt="">VIP</button>
+    <button class="tab" onclick="showTab('zonas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Zonas</button>
+    <button class="tab" onclick="showTab('empresas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Empresas</button>
+    <button class="tab" onclick="showTab('repartidores')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/03-envios.svg" alt="">Repartidores</button>
+    <button class="tab" onclick="showTab('referidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/06-usuarios.svg" alt="">Referidos</button>
+    <button class="tab" onclick="showTab('clientes')" style="position:relative"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/05-perfil.svg" alt="">Clientes<span id="tab-clientes-sin-verificar-badge" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:white;border-radius:50%;min-width:16px;height:16px;padding:0 4px;font-size:8px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
+    <button class="tab" onclick="showTab('trafico')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/27-estadisticas.svg" alt="">Tráfico</button>
+    <button class="tab" onclick="showTab('contactos')" id="tab-btn-contactos" style="position:relative;display:inline-flex;align-items:center;gap:4px"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos<span id="tab-contactos-badge" style="display:none;position:absolute;top:3px;right:3px;background:var(--color-secondary);color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <div id="tab-indicator"></div>
   </div>
 
@@ -320,7 +323,7 @@ function initMapsAdmin() {
     </div>
 
    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-  <div class="card-title" style="padding:0;margin:0">📋 Pedidos</div>
+  <div class="card-title" style="padding:0;margin:0"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/17-cotizacion.svg" alt="">Pedidos</div>
   <div style="display:flex;gap:6px">
     <button onclick="filtrarFecha(0)" id="btn-hoy" class="btn btn-secondary" style="padding:6px 12px;font-size:10px;border-radius:8px">Hoy</button>
     <button onclick="filtrarFecha(1)" id="btn-ayer" class="btn" style="padding:6px 12px;font-size:10px;border-radius:8px;background:var(--gray);color:var(--text)">Ayer</button>
@@ -1103,7 +1106,7 @@ function initMapsAdmin() {
   <!-- TAB CLIENTES -->
   <div id="tab-clientes" class="tab-content">
     <div class="card">
-      <div class="card-title">👥 Clientes</div>
+      <div class="card-title"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/05-perfil.svg" alt="">Clientes</div>
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="stab-empresariales" onclick="_switchClienteTab('empresariales')"
                 style="padding:8px 16px;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;background:var(--color-primary-dark);color:white">🏢 Empresariales</button>
@@ -1178,7 +1181,7 @@ function initMapsAdmin() {
 <div id="tab-contactos" class="tab-content">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
     <div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)">📩 Contactos desde la Landing</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos desde la Landing</div>
       <div style="font-size:11px;color:#8fa3c0;margin-top:2px">Empresas y repartidores que enviaron formulario en guepack.com</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
