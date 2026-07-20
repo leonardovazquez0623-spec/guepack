@@ -378,13 +378,24 @@ function abrirModalTenant(id = null) {
           <div><label for="tenant-nombre">Nombre *</label><input id="tenant-nombre" required maxlength="120" value="${escaparAtributo(tenant?.nombre || '')}"></div>
           <div><label for="tenant-slug">Slug *</label><input id="tenant-slug" required maxlength="80" pattern="[a-z0-9-]+" placeholder="mi-empresa" value="${escaparAtributo(tenant?.slug || '')}"></div>
           <div class="campo-completo"><label for="tenant-dominio">Dominio</label><input id="tenant-dominio" maxlength="180" placeholder="empresa.com" value="${escaparAtributo(tenant?.dominio || '')}"></div>
+          <div class="campo-completo">
+            <label for="tenant-logo-url">URL del logo</label>
+            <input type="url" id="tenant-logo-url" maxlength="500" placeholder="https://empresa.com/logo.png" value="${escaparAtributo(tenant?.logo_url || '')}">
+            <div id="tenant-logo-preview-contenedor" style="display:${tenant?.logo_url ? 'flex' : 'none'};align-items:center;justify-content:center;margin-top:9px;padding:12px;background:#f4f6fb;border-radius:10px;min-height:70px">
+              <img id="tenant-logo-preview" src="${escaparAtributo(tenant?.logo_url || '')}" alt="Vista previa del logo" style="max-width:220px;max-height:80px;object-fit:contain">
+            </div>
+          </div>
           <div><label for="tenant-color-primario">Color primario</label><input type="color" id="tenant-color-primario" value="${colorValido(tenant?.color_primario, '#1E56C7')}"></div>
           <div><label for="tenant-color-secundario">Color secundario</label><input type="color" id="tenant-color-secundario" value="${colorValido(tenant?.color_secundario, '#F05A1A')}"></div>
+          <div><label for="tenant-nombre-app">Nombre de la app</label><input id="tenant-nombre-app" maxlength="120" placeholder="MiPaquetería" value="${escaparAtributo(tenant?.nombre_app || '')}"></div>
+          <div><label for="tenant-ciudad">Ciudad</label><input id="tenant-ciudad" maxlength="120" placeholder="Monterrey" value="${escaparAtributo(tenant?.ciudad || '')}"></div>
           <div><label for="tenant-whatsapp">WhatsApp soporte</label><input type="tel" id="tenant-whatsapp" maxlength="20" value="${escaparAtributo(tenant?.whatsapp_soporte || '')}"></div>
+          <div><label for="tenant-horario">Horario de atención</label><input id="tenant-horario" maxlength="200" placeholder="Lunes a Viernes 9am-6pm" value="${escaparAtributo(tenant?.horario_atencion || '')}"></div>
           <div><label for="tenant-plan">Plan</label><select id="tenant-plan">
             ${['basico', 'pro', 'enterprise'].map(plan => `<option value="${plan}" ${tenant?.plan === plan ? 'selected' : ''}>${plan}</option>`).join('')}
           </select></div>
           <div><label for="tenant-precio">Precio mensual</label><input type="number" id="tenant-precio" min="0" step="0.01" value="${Number(tenant?.precio_mensual) || 0}"></div>
+          <div class="campo-completo"><label for="tenant-datos-bancarios">Datos bancarios para transferencias</label><textarea id="tenant-datos-bancarios" maxlength="1500" placeholder="Banco, titular, CLABE y referencia">${escaparHtml(tenant?.datos_bancarios || '')}</textarea></div>
           <div class="campo-completo"><label for="tenant-notas">Notas</label><textarea id="tenant-notas" maxlength="1000">${escaparHtml(tenant?.notas || '')}</textarea></div>
         </div>
         <div class="modal-acciones">
@@ -399,6 +410,11 @@ function abrirModalTenant(id = null) {
   campoSlug.addEventListener('input', () => {
     campoSlug.value = campoSlug.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
   })
+  const campoLogo = document.getElementById('tenant-logo-url')
+  campoLogo.addEventListener('input', actualizarVistaPreviaLogo)
+  document.getElementById('tenant-logo-preview').addEventListener('error', () => {
+    document.getElementById('tenant-logo-preview-contenedor').style.display = 'none'
+  })
   document.getElementById('form-tenant').addEventListener('submit', guardarTenant)
   document.getElementById('tenant-nombre').focus()
 }
@@ -406,6 +422,19 @@ function abrirModalTenant(id = null) {
 function cerrarModalTenant() {
   document.getElementById('modal-tenant')?.remove()
   tenantEditandoId = null
+}
+
+function actualizarVistaPreviaLogo() {
+  const url = document.getElementById('tenant-logo-url').value.trim()
+  const contenedor = document.getElementById('tenant-logo-preview-contenedor')
+  const imagen = document.getElementById('tenant-logo-preview')
+  if (!url) {
+    contenedor.style.display = 'none'
+    imagen.removeAttribute('src')
+    return
+  }
+  imagen.src = url
+  contenedor.style.display = 'flex'
 }
 
 async function guardarTenant(evento) {
@@ -420,11 +449,16 @@ async function guardarTenant(evento) {
     nombre: document.getElementById('tenant-nombre').value.trim(),
     slug,
     dominio: document.getElementById('tenant-dominio').value.trim() || null,
+    logo_url: document.getElementById('tenant-logo-url').value.trim() || null,
     color_primario: document.getElementById('tenant-color-primario').value,
     color_secundario: document.getElementById('tenant-color-secundario').value,
+    nombre_app: document.getElementById('tenant-nombre-app').value.trim() || null,
+    ciudad: document.getElementById('tenant-ciudad').value.trim() || null,
     whatsapp_soporte: document.getElementById('tenant-whatsapp').value.trim() || null,
+    horario_atencion: document.getElementById('tenant-horario').value.trim() || null,
     plan: document.getElementById('tenant-plan').value,
     precio_mensual: Number(document.getElementById('tenant-precio').value) || 0,
+    datos_bancarios: document.getElementById('tenant-datos-bancarios').value.trim() || null,
     notas: document.getElementById('tenant-notas').value.trim() || null
   }
   boton.disabled = true

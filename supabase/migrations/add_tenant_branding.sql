@@ -1,0 +1,6 @@
+ALTER TABLE public.tenants
+  ADD COLUMN IF NOT EXISTS logo_url TEXT,
+  ADD COLUMN IF NOT EXISTS nombre_app TEXT,
+  ADD COLUMN IF NOT EXISTS ciudad TEXT,
+  ADD COLUMN IF NOT EXISTS datos_bancarios TEXT,
+  ADD COLUMN IF NOT EXISTS horario_atencion TEXT;
