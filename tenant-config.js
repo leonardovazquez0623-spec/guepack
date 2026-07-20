@@ -8,19 +8,15 @@
     return /^#[0-9a-f]{6}$/i.test(String(valor || ''))
   }
 
-  function obtenerIdentificadorTenant() {
+  function obtenerSlugSolicitado() {
     const parametros = new URLSearchParams(window.location.search)
     const slugParametro = parametros.get('tenant') || parametros.get('slug')
-    if (slugParametro) return { tipo: 'slug', valor: slugParametro.toLowerCase().trim() }
+    if (slugParametro) return slugParametro.toLowerCase().trim()
 
     const dominio = window.location.hostname.toLowerCase()
     if (dominio.endsWith('.guepack.com')) {
       const subdominio = dominio.slice(0, -'.guepack.com'.length)
-      if (subdominio && subdominio !== 'www') return { tipo: 'slug', valor: subdominio }
-    }
-
-    if (dominio && dominio !== 'guepack.com' && dominio !== 'www.guepack.com' && dominio !== 'localhost' && dominio !== '127.0.0.1') {
-      return { tipo: 'dominio', valor: dominio }
+      if (subdominio && subdominio !== 'www') return subdominio
     }
     return null
   }
@@ -85,14 +81,14 @@
   }
 
   async function cargarConfiguracionTenant() {
-    const identificador = obtenerIdentificadorTenant()
-    if (!identificador) return null
+    const slugSolicitado = obtenerSlugSolicitado()
+    const dominioActual = window.location.hostname.toLowerCase()
 
     try {
       const guardado = JSON.parse(sessionStorage.getItem('tenant_config') || 'null')
-      const coincide = identificador.tipo === 'slug'
-        ? guardado?.slug === identificador.valor
-        : guardado?.dominio === identificador.valor
+      const coincide = slugSolicitado
+        ? guardado?.slug === slugSolicitado
+        : guardado?.dominio?.toLowerCase() === dominioActual
       if (coincide) applyTenantTheme(guardado)
     } catch (_) {
       try {
@@ -101,7 +97,22 @@
     }
 
     try {
-      const tenant = await consultarTenant(identificador)
+      let tenant = null
+
+      if (slugSolicitado) {
+        tenant = await consultarTenant({ tipo: 'slug', valor: slugSolicitado })
+      }
+
+      if (!tenant && dominioActual) {
+        tenant = await consultarTenant({ tipo: 'dominio', valor: dominioActual })
+      }
+
+      if (!tenant) {
+        tenant = await consultarTenant({ tipo: 'slug', valor: 'guepack' })
+      }
+
+      const slugDetectado = tenant?.slug || 'guepack'
+      console.log('[tenant] detected slug:', slugDetectado)
       if (tenant) applyTenantTheme(tenant)
       return tenant
     } catch (error) {
