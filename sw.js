@@ -75,9 +75,12 @@ self.addEventListener('fetch', function(event) {
     url.includes('googleapis.com') ||
     url.includes('firebaseapp.com') ||
     url.includes('firebasestorage.app') ||
-    url.includes('gstatic.com') ||
     url.includes('mapbox.com') ||
-    url.includes('api.mapbox.com')
+    url.includes('unpkg.com') ||
+    url.includes('cdn.jsdelivr.net') ||
+    url.includes('gstatic.com') ||
+    url.includes('firebase') ||
+    url.includes('google')
   ) return
 
   event.respondWith(
