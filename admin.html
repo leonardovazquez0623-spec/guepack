@@ -214,27 +214,6 @@ function initMapsAdmin() {
     }
   }
 
-  // Places autocomplete en formulario Nuevo Pedido
-  const gdlBounds = new google.maps.LatLngBounds(
-    { lat: 20.50, lng: -103.55 },
-    { lat: 20.85, lng: -103.15 }
-  )
-  const acOpts = {
-    componentRestrictions: { country: 'mx' },
-    fields: ['formatted_address', 'address_components', 'geometry'],
-    bounds: gdlBounds,
-    strictBounds: false
-  }
-  const inputRec = document.getElementById('a-recoleccion')
-  const inputEnt = document.getElementById('a-entrega')
-  if (inputRec) new google.maps.places.Autocomplete(inputRec, acOpts)
-  if (inputEnt) {
-    const acEnt = new google.maps.places.Autocomplete(inputEnt, acOpts)
-    acEnt.addListener('place_changed', function () {
-      const place = acEnt.getPlace()
-      if (place.geometry) _aDetectarZonaEntrega(place)
-    })
-  }
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
@@ -249,7 +228,6 @@ function initMapsAdmin() {
   </div>
   <nav style="flex:1;padding:0 10px">
     <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')">📋 Pedidos</button>
-    <button class="sidebar-item" id="snav-nuevo" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
     <button class="sidebar-item" id="snav-chats" onclick="showTab('chats')" style="position:relative;display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="chat"></span>Chats<span id="sidebar-chat-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
     <button class="sidebar-item" id="snav-publicidad" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="sidebar-item" id="snav-widget" onclick="showTab('widget')" style="display:flex;align-items:center;gap:6px"><span class="guep-icon-inline" data-icon="paquete"></span>Widget</button>
@@ -307,7 +285,6 @@ function initMapsAdmin() {
 </div>
   <div class="tabs">
     <button class="tab active" onclick="showTab('pedidos')">📋 Pedidos</button>
-    <button class="tab" onclick="showTab('nuevo')">➕ Nuevo pedido</button>
     <button class="tab" onclick="showTab('chats')" id="tab-btn-chats" style="position:relative;display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="chat"></span>Chats<span id="admin-chat-badge" style="display:none;position:absolute;top:3px;right:3px;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
     <button class="tab" onclick="showTab('publicidad')">📢 Publicidad</button>
     <button class="tab" onclick="showTab('widget')" style="display:inline-flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="paquete"></span>Widget</button>
@@ -360,112 +337,6 @@ function initMapsAdmin() {
         <div class="loader--4" style="margin:0 auto"></div>
       </div>
     </div>
-  </div>
-
-  <!-- TAB NUEVO PEDIDO -->
-  <div id="tab-nuevo" class="tab-content">
-    <div class="card">
-      <div class="card-title">📬 Datos del envío</div>
-
-      <div class="form-group">
-        <label class="form-label">Nombre del destinatario</label>
-        <input type="text" id="a-nombre" class="form-input" placeholder="Ej. María García">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Nombre del remitente</label>
-        <input type="text" id="a-nombre-remitente" class="form-input" placeholder="Quien envía">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">WhatsApp</label>
-        <input type="tel" id="a-whatsapp" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Dirección de recolección</label>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input type="text" id="a-recoleccion" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-          <button type="button" onclick="aMostrarDirecciones('recoleccion')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:24px;height:24px;display:inline-flex"></span></button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Dirección de entrega</label>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input type="text" id="a-entrega" class="form-input" placeholder="Calle, número, colonia" style="flex:1">
-          <button type="button" onclick="aMostrarDirecciones('entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:24px;height:24px;display:inline-flex"></span></button>
-        </div>
-        <div id="a-zona-detect-result" style="display:none;padding:13px 14px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;display:flex;align-items:center;gap:10px;min-height:46px"></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Instrucciones de recolección</label>
-        <textarea id="a-instrucciones" class="form-input" rows="2" placeholder="Ej. Recoger en recepción, preguntar por Juan..."></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Fecha de recolección</label>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button type="button" id="a-btn-hoy" onclick="aSeleccionarFecha('hoy')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Hoy 😉</button>
-          <button type="button" id="a-btn-manana" onclick="aSeleccionarFecha('mañana')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Día siguiente 🤙</button>
-          <button type="button" id="a-btn-otra" onclick="aSeleccionarFecha('otra')" style="flex:1;padding:10px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--text)">Otra fecha 💁‍♂️</button>
-        </div>
-        <input type="date" id="a-input-fecha-custom" class="form-input" style="display:none">
-        <input type="hidden" id="a-fecha-seleccionada">
-        <div id="a-aviso-fecha" style="display:none;padding:12px 16px;border-radius:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📐 Tamaño</div>
-      <div class="size-grid">
-        <div class="size-option" id="a-sz-sobre" onclick="selectSize('sobre')">
-          <span class="size-icon" data-icon="paquete"></span>
-          <span class="size-name">Sobre / Chico</span>
-        </div>
-        <div class="size-option" id="a-sz-grande" onclick="selectSize('grande')">
-          <span class="size-icon" data-icon="paquete"></span>
-          <span class="size-name">Grande</span>
-        </div>
-      </div>
-    </div>
-
-    <div id="a-quote" class="quote-box" style="display:none">
-      <div>
-        <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;letter-spacing:1px">COSTO DE ENVÍO</div>
-        <div class="quote-price" id="a-quote-amount">$0</div>
-        <div style="color:rgba(255,255,255,0.55);font-size:10px;font-weight:600" id="a-quote-detail">—</div>
-      </div>
-      <div style="font-size:36px">🚀</div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">💳 Método de pago</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button type="button" id="a-mp-efectivo" onclick="aSeleccionarMetodoPago('Efectivo')"
-          style="padding:12px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--text)">
-          💵 Efectivo
-        </button>
-        <button type="button" id="a-mp-transferencia" onclick="aSeleccionarMetodoPago('Transferencia')"
-          style="padding:12px;border:2px solid var(--gray);border-radius:10px;background:var(--gray-light);font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;color:var(--text)">
-          🏦 Transferencia
-        </button>
-      </div>
-      <input type="hidden" id="a-metodo-pago">
-    </div>
-
-    <div class="card">
-      <div class="card-title">🏷️ ¿Tienes un cupón?</div>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="a-cupon-input" class="form-input" placeholder="Código de descuento"
-          style="flex:1;font-size:13px" oninput="this.value=this.value.toUpperCase()">
-        <button onclick="aAplicarCupon()" style="padding:11px 16px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;white-space:nowrap">Aplicar</button>
-      </div>
-      <div id="a-cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
-    </div>
-
-    <button class="btn btn-primary" onclick="crearPedidoAdmin()">Crear Pedido →</button>
   </div>
 
   <!-- TAB CHATS -->
@@ -1357,7 +1228,6 @@ db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') window.location.href = 'login.html'
 })
 
-let selSize = null, selZone = null, _aZonaData = null
 const prices = {
   centro: { sobre: 110, grande: 150 },
   norte: { sobre: 150, grande: 200 },
@@ -2426,15 +2296,6 @@ function showTab(tab, btn) {
     cargarChats()
   }
   if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
-  if (tab === 'nuevo') {
-    db.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return
-      const campo = document.getElementById('a-nombre-remitente')
-      if (campo && !campo.value) {
-        campo.value = session.user.user_metadata?.nombre || session.user.user_metadata?.full_name || session.user.email || ''
-      }
-    })
-  }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
   if (tab === 'finanzas') { cargarFinanzas(); cargarCargosConcelacion() }
@@ -2460,6 +2321,9 @@ window.addEventListener('load', () => {
   const activeTab = document.querySelector('.tab.active')
   if (activeTab) _moverIndicador(activeTab)
 })
+/*
+  Funcionalidad retirada junto con la sección "Nuevo pedido".
+  Se conserva temporalmente como referencia histórica, sin registrarla en la página.
 async function aMostrarDirecciones(tipo) {
   const { data: { session } } = await db.auth.getSession()
   if (!session) return
@@ -2859,6 +2723,7 @@ function _aResetForm() {
   const zdr = document.getElementById('a-zona-detect-result')
   if (zdr) zdr.style.display = 'none'
 }
+*/
 
 let diaFiltro = 0
 
