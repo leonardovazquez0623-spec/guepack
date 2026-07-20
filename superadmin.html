@@ -174,6 +174,17 @@
   input[type="color"] { padding: 5px; cursor: pointer; }
   textarea { min-height: 90px; resize: vertical; }
   .modal-acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+  .spinner-logo {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,.45);
+    border-top-color: white;
+    border-radius: 50%;
+    display: inline-block;
+    animation: girar-logo .7s linear infinite;
+    vertical-align: middle;
+  }
+  @keyframes girar-logo { to { transform: rotate(360deg); } }
   #toast {
     position: fixed;
     left: 50%;
@@ -268,6 +279,8 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 let tenants = []
 let tenantEditandoId = null
+let archivoLogoSeleccionado = null
+let urlTemporalLogo = null
 
 db.auth.onAuthStateChange((evento) => {
   if (evento === 'SIGNED_OUT') window.location.href = 'login.html'
@@ -379,8 +392,10 @@ function abrirModalTenant(id = null) {
           <div><label for="tenant-slug">Slug *</label><input id="tenant-slug" required maxlength="80" pattern="[a-z0-9-]+" placeholder="mi-empresa" value="${escaparAtributo(tenant?.slug || '')}"></div>
           <div class="campo-completo"><label for="tenant-dominio">Dominio</label><input id="tenant-dominio" maxlength="180" placeholder="empresa.com" value="${escaparAtributo(tenant?.dominio || '')}"></div>
           <div class="campo-completo">
-            <label for="tenant-logo-url">URL del logo</label>
-            <input type="url" id="tenant-logo-url" maxlength="500" placeholder="https://empresa.com/logo.png" value="${escaparAtributo(tenant?.logo_url || '')}">
+            <label>Logo</label>
+            <input type="file" id="tenant-logo-archivo" accept="image/*" hidden>
+            <button type="button" class="boton boton-secundario" onclick="document.getElementById('tenant-logo-archivo').click()">📷 Subir logo</button>
+            <span id="tenant-logo-nombre" style="margin-left:8px;color:var(--gris-medio);font-size:10px;font-weight:700">${tenant?.logo_url ? 'Logo actual' : 'Ningún archivo seleccionado'}</span>
             <div id="tenant-logo-preview-contenedor" style="display:${tenant?.logo_url ? 'flex' : 'none'};align-items:center;justify-content:center;margin-top:9px;padding:12px;background:#f4f6fb;border-radius:10px;min-height:70px">
               <img id="tenant-logo-preview" src="${escaparAtributo(tenant?.logo_url || '')}" alt="Vista previa del logo" style="max-width:220px;max-height:80px;object-fit:contain">
             </div>
@@ -410,8 +425,8 @@ function abrirModalTenant(id = null) {
   campoSlug.addEventListener('input', () => {
     campoSlug.value = campoSlug.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
   })
-  const campoLogo = document.getElementById('tenant-logo-url')
-  campoLogo.addEventListener('input', actualizarVistaPreviaLogo)
+  const campoLogo = document.getElementById('tenant-logo-archivo')
+  campoLogo.addEventListener('change', actualizarVistaPreviaLogo)
   document.getElementById('tenant-logo-preview').addEventListener('error', () => {
     document.getElementById('tenant-logo-preview-contenedor').style.display = 'none'
   })
@@ -421,20 +436,54 @@ function abrirModalTenant(id = null) {
 
 function cerrarModalTenant() {
   document.getElementById('modal-tenant')?.remove()
+  if (urlTemporalLogo) URL.revokeObjectURL(urlTemporalLogo)
+  urlTemporalLogo = null
+  archivoLogoSeleccionado = null
   tenantEditandoId = null
 }
 
-function actualizarVistaPreviaLogo() {
-  const url = document.getElementById('tenant-logo-url').value.trim()
+function actualizarVistaPreviaLogo(evento) {
+  const archivo = evento.target.files?.[0] || null
   const contenedor = document.getElementById('tenant-logo-preview-contenedor')
   const imagen = document.getElementById('tenant-logo-preview')
-  if (!url) {
+  const nombre = document.getElementById('tenant-logo-nombre')
+  if (!archivo) {
+    archivoLogoSeleccionado = null
     contenedor.style.display = 'none'
     imagen.removeAttribute('src')
+    nombre.textContent = 'Ningún archivo seleccionado'
     return
   }
-  imagen.src = url
+  if (!archivo.type.startsWith('image/')) {
+    evento.target.value = ''
+    mostrarToast('❌ Selecciona un archivo de imagen')
+    return
+  }
+  if (archivo.size > 5 * 1024 * 1024) {
+    evento.target.value = ''
+    mostrarToast('❌ El logo no debe superar 5 MB')
+    return
+  }
+  if (urlTemporalLogo) URL.revokeObjectURL(urlTemporalLogo)
+  archivoLogoSeleccionado = archivo
+  urlTemporalLogo = URL.createObjectURL(archivo)
+  imagen.src = urlTemporalLogo
   contenedor.style.display = 'flex'
+  nombre.textContent = archivo.name
+}
+
+async function subirLogoTenant(slug, boton) {
+  if (!archivoLogoSeleccionado) return null
+  boton.innerHTML = '<span class="spinner-logo"></span> Subiendo logo...'
+  const ruta = `logos/${slug}.png`
+  const { error } = await db.storage.from('anuncios').upload(ruta, archivoLogoSeleccionado, {
+    upsert: true,
+    contentType: archivoLogoSeleccionado.type,
+    cacheControl: '3600'
+  })
+  if (error) throw error
+  const { data } = db.storage.from('anuncios').getPublicUrl(ruta)
+  return `${data.publicUrl}?actualizacion=${Date.now()}`
 }
 
 async function guardarTenant(evento) {
@@ -445,11 +494,27 @@ async function guardarTenant(evento) {
     mostrarToast('❌ El slug solo puede contener minúsculas, números y guiones')
     return
   }
+  const tenantActual = tenantEditandoId == null
+    ? null
+    : tenants.find(item => String(item.id) === String(tenantEditandoId))
+  boton.disabled = true
+  let logoUrl = tenantActual?.logo_url || null
+  if (archivoLogoSeleccionado) {
+    try {
+      logoUrl = await subirLogoTenant(slug, boton)
+    } catch (error) {
+      console.error('Error al subir el logo del tenant:', error)
+      mostrarToast('❌ No se pudo subir el logo')
+      boton.disabled = false
+      boton.textContent = tenantEditandoId == null ? 'Crear tenant' : 'Guardar cambios'
+      return
+    }
+  }
   const datos = {
     nombre: document.getElementById('tenant-nombre').value.trim(),
     slug,
     dominio: document.getElementById('tenant-dominio').value.trim() || null,
-    logo_url: document.getElementById('tenant-logo-url').value.trim() || null,
+    logo_url: logoUrl,
     color_primario: document.getElementById('tenant-color-primario').value,
     color_secundario: document.getElementById('tenant-color-secundario').value,
     nombre_app: document.getElementById('tenant-nombre-app').value.trim() || null,
@@ -461,7 +526,6 @@ async function guardarTenant(evento) {
     datos_bancarios: document.getElementById('tenant-datos-bancarios').value.trim() || null,
     notas: document.getElementById('tenant-notas').value.trim() || null
   }
-  boton.disabled = true
   boton.textContent = 'Guardando...'
   const consulta = tenantEditandoId == null
     ? db.from('tenants').insert(datos)
