@@ -2211,10 +2211,20 @@ async function _chequearTarifaDiaria() {
   console.log('[tarifa diaria] pedidos hoy:', data?.length, data?.map(p => p.estado))
   _tarifaDiariaYaCubierta = (data?.length || 0) > 0
   console.log('[tarifa-diaria] ya cubierta hoy:', _tarifaDiariaYaCubierta)
+  selMetodoPago = 'Crédito'
+
+  const cardMP = document.getElementById('card-metodo-pago')
   if (_tarifaDiariaYaCubierta) {
-    selMetodoPago = 'Crédito'
-    const cardMP = document.getElementById('card-metodo-pago')
     if (cardMP) cardMP.style.display = 'none'
+    return
+  }
+
+  if (cardMP) cardMP.style.display = ''
+  const opcionesPago = document.getElementById('mp-opciones')
+  if (opcionesPago) {
+    const periodoCredito = _empresaData?.tipo_credito || 'Semanal'
+    opcionesPago.style.gridTemplateColumns = '1fr'
+    opcionesPago.innerHTML = `<div class="mp-option selected" id="mp-credito" style="border-color:var(--blue);background:rgba(26,79,160,0.06);font-size:14px;padding:16px;cursor:default">🏢 Crédito ${periodoCredito}</div>`
   }
 }
 
@@ -3078,6 +3088,7 @@ function updateQuote() {
 
 async function submitRequest() {
   const sanitize = (str) => str ? String(str).trim().replace(/<[^>]*>/g, '') : ''
+  if (_empresaData?.tipo_tarifa === 'diaria') selMetodoPago = 'Crédito'
   const nombre = sanitize(document.getElementById('nombre-destinatario').value)
   const nombreRemitente = sanitize(document.getElementById('nombre-remitente').value)
   const whatsapp = sanitize(document.getElementById('whatsapp').value)

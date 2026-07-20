@@ -132,7 +132,10 @@ Deno.serve(async (req) => {
     if (usersConId.length === 0) console.warn('[procesar-asignacion] ⚠️ ningún repartidor tiene user_id en usuarios — push no se enviará')
 
     const notifBody = `GK-${pedido_id} · ${pedido.direccion_recoleccion || ''}`
-    const pushHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` }
+    const pushHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + Deno.env.get('SERVICE_ROLE_KEY')
+    }
 
     await Promise.all(
       usersConId.map(async (u: any) => {
@@ -201,7 +204,10 @@ async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: 
       try {
         const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + Deno.env.get('SERVICE_ROLE_KEY')
+          },
           body: JSON.stringify({
             user_id: u.user_id,
             title: `⚠️ Pedido GK-${pedidoId} sin asignar`,

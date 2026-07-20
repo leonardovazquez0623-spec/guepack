@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GUEPACK – Iniciar Sesión</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+window.db = db
+</script>
 <script src="/tenant-config.js"></script>
 <style>
   :root {
@@ -277,11 +284,7 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 let tenantActualLogin = null
 
 function aplicarBrandingLogin(tenant) {
