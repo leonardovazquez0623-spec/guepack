@@ -1086,7 +1086,10 @@ async function init() {
 }
 
 async function cargarPedidos(email) {
-  const { data: repaData, error: repaError } = await db.from('repartidores').select('*').eq('email', email).single()
+  const { data: repaData, error: repaError } = await db.from('repartidores')
+    .select('id, nombre, email, placas, disponible, foto_perfil, nivel, total_envios, efectivo_acumulado, bloqueado_efectivo, lat, lng')
+    .eq('email', email)
+    .single()
   
   if (repaError || !repaData) {
     document.getElementById('lista-repartidor').innerHTML = '<div class="empty-state"><span class="empty-icon">⚠️</span><div class="empty-text">Tu cuenta no está registrada como repartidor</div></div>'
