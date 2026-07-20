@@ -78,6 +78,13 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 })
 
+setTimeout(() => {
+  if (window.location.pathname === '/splash.html' || window.location.href.includes('splash')) {
+    console.log('[splash] tiempo agotado; se forzará la redirección al inicio de sesión')
+    window.location.href = 'login.html'
+  }
+}, 5000)
+
 async function init() {
   const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
   const promesaEsperaSplash = new Promise(resolve => setTimeout(resolve, 2000))
@@ -133,16 +140,21 @@ async function init() {
     return
   }
 
-  const tenant = await promesaTenant
-  const slug = String(tenant?.slug || '').toLowerCase()
-  const plan = String(tenant?.plan || '').toLowerCase()
+  try {
+    const tenant = await promesaTenant
+    const slug = String(tenant?.slug || '').toLowerCase()
+    const plan = String(tenant?.plan || '').toLowerCase()
 
-  if (slug === 'guepack') {
-    window.location.href = 'landing.html.html'
-  } else if (plan === 'basico') {
+    if (slug === 'guepack') {
+      window.location.href = 'landing.html.html'
+    } else if (plan === 'basico') {
+      window.location.href = 'login.html'
+    } else {
+      window.location.href = 'landing-tenant.html'
+    }
+  } catch (error) {
+    console.error('[splash] error al detectar el tenant:', error)
     window.location.href = 'login.html'
-  } else {
-    window.location.href = 'landing-tenant.html'
   }
 }
 init()
