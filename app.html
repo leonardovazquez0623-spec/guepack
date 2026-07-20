@@ -97,7 +97,7 @@
     background: var(--color-primary-light) !important;
   }
   body.vip-plata .btn-primary {
-    background: linear-gradient(135deg, var(--color-secondary), #ff7a3d) !important;
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark)) !important;
     box-shadow: 0 4px 14px rgba(240,90,26,0.35) !important;
   }
   body.vip-plata .nav-tabs {
@@ -113,7 +113,7 @@
 
   /* ── HEADER ── */
   .app-header {
-    background: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 55%, var(--color-primary) 100%);
     padding: 14px 20px 16px;
     padding-top: calc(14px + env(safe-area-inset-top, 0px));
     position: relative;
@@ -171,11 +171,12 @@
   .home-greeting-name { color:white; font-family:'Montserrat',sans-serif; font-size:20px; font-weight:700; line-height:1.2; }
   .home-greeting-sub { color:rgba(255,255,255,0.72); font-size:13px; font-weight:600; margin-top:3px; }
   /* ── HERO CARD ── */
-  .hero-card { background:linear-gradient(135deg,var(--color-primary-dark) 0%,var(--color-primary-dark) 55%,var(--color-primary-dark) 100%); border-radius:20px; margin:0 0 14px; padding:20px 0 20px 20px; display:flex; align-items:flex-end; overflow:visible; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 6px 24px rgba(14,32,85,0.28); position:relative; min-height:160px; }
+  .hero-card { background:linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-dark) 55%,var(--color-primary) 100%); border-radius:20px; margin:0 0 14px; padding:20px 0 20px 20px; display:flex; align-items:flex-end; overflow:visible; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 6px 24px rgba(14,32,85,0.28); position:relative; min-height:160px; }
   .hero-content { flex:1; min-width:0; position:relative; z-index:1; }
   .hero-title { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:900; color:white; line-height:1.15; margin-bottom:6px; }
   .hero-sub { color:rgba(255,255,255,0.82); font-size:11px; font-weight:100; line-height:1.5; margin-bottom:16px; }
-  .hero-btn { background:var(--color-secondary); color:white; border:none; border-radius:30px; padding:10px 18px; font-family:'Montserrat',sans-serif; font-weight:900; font-size:12px; cursor:pointer; letter-spacing:.3px; box-shadow:0 2px 10px rgba(240,90,26,0.4); }
+  .hero-btn { background:var(--color-secondary); color:white; border:none; border-radius:30px; padding:10px 18px; font-family:'Montserrat',sans-serif; font-weight:900; font-size:12px; cursor:pointer; letter-spacing:.3px; box-shadow:0 2px 10px rgba(240,90,26,0.4); transition:background .2s,transform .2s; }
+  .hero-btn:hover { background:linear-gradient(135deg,var(--color-secondary) 0%,var(--color-secondary-dark) 55%,var(--color-secondary) 100%); transform:translateY(-1px); }
   #home-state img[data-tenant-image] { width:auto; max-height:220px; object-fit:contain; }
   .hero-img { width:auto; height:auto; max-width:55%; max-height:220px; object-fit:contain; position:absolute; right:-40px; top:-25px; pointer-events:none; z-index:2; }
   /* ── QUICK GRID ── */
@@ -338,14 +339,22 @@
     transition: all .2s;
   }
   .btn-primary {
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark));
+    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
     color: var(--white);
     box-shadow: 0 4px 20px rgba(240,90,26,0.4);
   }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(240,90,26,0.5); }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 55%, var(--color-secondary) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(240,90,26,0.5);
+  }
   .btn-secondary {
     background: var(--blue);
     color: var(--white);
+  }
+  .btn-secondary:hover {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 55%, var(--color-primary) 100%);
+    transform: translateY(-1px);
   }
   .btn-sm {
     width: auto;
@@ -388,7 +397,7 @@
   .rastreo-gato-wrap { text-align:center; margin-bottom:-28px; position:relative; z-index:2; pointer-events:none; }
   .rastreo-gato-wrap img { width:150px; height:150px; object-fit:contain; filter:drop-shadow(0 6px 16px rgba(14,32,85,0.18)); }
   /* ── PAC CARD ── */
-  .pac-header { background:linear-gradient(90deg,#0a2a6e 0%,var(--color-primary) 100%); padding:13px 16px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; -webkit-tap-highlight-color:transparent; }
+  .pac-header { background:linear-gradient(90deg,var(--color-primary-dark) 0%,var(--color-primary) 100%); padding:13px 16px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; -webkit-tap-highlight-color:transparent; }
   .pac-repa-card { display:flex; align-items:center; gap:12px; background:#f4f7fb; border-radius:12px; padding:10px 12px; margin-bottom:12px; }
   .pac-repa-avatar { width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0; border:2px solid #dde4f0; background:#dde4f0; display:flex; align-items:center; justify-content:center; font-family:Montserrat,sans-serif; font-weight:900; font-size:16px; color:var(--color-primary-dark); }
   .pac-repa-avatar img { width:100%; height:100%; object-fit:cover; }
@@ -452,7 +461,7 @@
 
   /* ── REPARTIDOR ── */
   .delivery-header {
-    background: linear-gradient(135deg, #0e3070, var(--color-primary-dark));
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 55%, var(--color-primary) 100%);
     padding: 20px;
     color: var(--white);
     border-radius: 0 0 20px 20px;
@@ -480,7 +489,7 @@
     box-shadow: var(--shadow);
   }
   .route-top {
-    background: linear-gradient(90deg, var(--blue), var(--blue-light));
+    background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
     padding: 12px 16px;
     display: flex;
     justify-content: space-between;
@@ -723,10 +732,11 @@
   }
   .tour-dot.active { background: var(--blue); }
   .tour-btn-primary {
-    flex: 1; padding: 11px 16px; background: var(--blue); color: white;
+    flex: 1; padding: 11px 16px; background: var(--color-primary); color: white;
     border: none; border-radius: 10px; font-family: Montserrat,sans-serif;
-    font-weight: 900; font-size: 13px; cursor: pointer;
+    font-weight: 900; font-size: 13px; cursor: pointer; transition:background .2s,transform .2s;
   }
+  .tour-btn-primary:hover { background:linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-dark) 55%,var(--color-primary) 100%); transform:translateY(-1px); }
   .tour-btn-secondary {
     flex: 1; padding: 11px 14px; background: transparent; color: var(--blue);
     border: 2px solid var(--blue); border-radius: 10px;
@@ -844,7 +854,8 @@
   .upsell-label  { font-family:Montserrat,sans-serif; font-size:12px; font-weight:600; flex:1; }
   .upsell-precio { font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; color:var(--orange); }
   .upsell-total  { font-family:Montserrat,sans-serif; font-size:14px; font-weight:700; color:var(--blue); text-align:right; margin-bottom:12px; }
-  .btn-primario  { width:100%; background:var(--orange); color:#fff; border:none; border-radius:12px; padding:14px; font-family:Montserrat,sans-serif; font-weight:900; font-size:14px; cursor:pointer; transition:opacity .2s; }
+  .btn-primario  { width:100%; background:var(--color-secondary); color:#fff; border:none; border-radius:12px; padding:14px; font-family:Montserrat,sans-serif; font-weight:900; font-size:14px; cursor:pointer; transition:background .2s,opacity .2s,transform .2s; }
+  .btn-primario:hover:not(:disabled) { background:linear-gradient(135deg,var(--color-secondary) 0%,var(--color-secondary-dark) 55%,var(--color-secondary) 100%); transform:translateY(-1px); }
   .btn-primario:disabled { opacity:.5; cursor:not-allowed; }
   .opcion-envio  { cursor:default; }
   .nac-tamano-chip { padding:8px 14px; border-radius:20px; border:1.5px solid var(--gray); background:#fff; font-family:Montserrat,sans-serif; font-size:12px; font-weight:700; color:var(--gray-mid); cursor:pointer; transition:all .15s; }
@@ -1570,7 +1581,7 @@
         </div>
 
         <button id="nac-btn-confirmar" onclick="nacConfirmarEnvioFinal()"
-          style="width:100%;background:linear-gradient(135deg,var(--orange),#c94812);color:#fff;font-weight:900;padding:16px;border-radius:12px;font-size:16px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-bottom:6px">
+          style="width:100%;background:linear-gradient(135deg,var(--color-secondary),var(--color-secondary-dark));color:#fff;font-weight:900;padding:16px;border-radius:12px;font-size:16px;border:none;cursor:pointer;font-family:Montserrat,sans-serif;margin-bottom:6px">
           Confirmar envío
         </button>
         <p style="text-align:center;font-size:11px;font-weight:600;color:var(--gray-mid);margin:0 0 10px">Te redirigirá a una pasarela de pago segura</p>
@@ -1932,7 +1943,7 @@ function _mostrarBannerPwa(esIos, userId) {
 
   const botonAccion = esIos
     ? ''
-    : '<button onclick="_instalarPwa()" style="flex:1;padding:13px;background:linear-gradient(135deg,var(--orange),#ff7a3d);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(240,90,26,0.35)">📲 Instalar app</button>'
+    : '<button onclick="_instalarPwa()" style="flex:1;padding:13px;background:linear-gradient(135deg,var(--color-secondary),var(--color-secondary-dark));color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(240,90,26,0.35)">📲 Instalar app</button>'
 
   banner.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -2532,7 +2543,7 @@ function _mostrarModalNotificaciones() {
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:var(--color-primary-dark);margin-bottom:10px">¡Activa las notificaciones!</div>
       <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.7;margin-bottom:24px">Para que puedas saber en tiempo real cuándo tu mensajero va en camino, llegó a recolectar o entregó tu paquete, necesitamos tu permiso.</div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <button id="btn-notif-activar" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35);display:inline-flex;align-items:center;gap:6px"><span class="guep-icon-inline icon-on-color" data-icon="notificaciones"></span> Activar notificaciones</button>
+        <button id="btn-notif-activar" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary));color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35);display:inline-flex;align-items:center;gap:6px"><span class="guep-icon-inline icon-on-color" data-icon="notificaciones"></span> Activar notificaciones</button>
         <button id="btn-notif-omitir" style="padding:12px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#8fa3c0">Ahora no</button>
       </div>
     </div>
@@ -5598,7 +5609,7 @@ function _mostrarPopupAnuncio(anuncio) {
     <div style="position:relative;background:#fff;border-radius:20px;overflow:hidden;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
       <button onclick="cerrarPopupAnuncio()" style="position:absolute;top:8px;right:8px;z-index:10;background:none;color:#9ca3af;border:none;font-size:14px;cursor:pointer;line-height:1;padding:4px">✕</button>
       <img src="${anuncio.imagen_url}" alt="${anuncio.nombre_aliado || 'Anuncio'}" style="width:100%;display:block;max-height:420px;object-fit:cover">
-      ${anuncio.link_url ? `<div style="padding:12px 16px"><a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="display:block;background:linear-gradient(135deg,var(--color-secondary),#ff7a3d);color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a></div>` : ''}
+      ${anuncio.link_url ? `<div style="padding:12px 16px"><a href="${anuncio.link_url}" target="_blank" rel="noopener noreferrer" style="display:block;background:linear-gradient(135deg,var(--color-secondary),var(--color-secondary-dark));color:#fff;border-radius:10px;padding:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;text-align:center;text-decoration:none;letter-spacing:.5px">Ver más →</a></div>` : ''}
     </div>`
   document.body.appendChild(overlay)
   overlay._tid = setTimeout(() => cerrarPopupAnuncio(), seg * 1000)
@@ -5990,7 +6001,7 @@ async function _abrirDrawer() {
 
   drawer.innerHTML = `
     <!-- ── HEADER ── -->
-    <div style="background:linear-gradient(145deg,#0a2a6e 0%,var(--color-primary) 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
+    <div style="background:linear-gradient(145deg,var(--color-primary-dark) 0%,var(--color-primary) 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
       <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;z-index:1">✕</button>
       <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;flex-shrink:0">${avatarHtml}</div>
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:white;line-height:1.2;margin-bottom:3px">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
@@ -6434,7 +6445,7 @@ function mostrarModalCalificacion(pedidoId, repartidor) {
         ${[1,2,3,4,5].map(n => `<span data-val="${n}" onmouseover="calHover(${n})" onmouseout="calResetHover()" onclick="calSelect(${n})" style="font-size:42px;cursor:pointer;color:#e0e0e0;transition:color .12s;line-height:1">★</span>`).join('')}
       </div>
       <textarea id="cal-comentario" placeholder="Cuéntanos tu experiencia (opcional)..." style="width:100%;border:2px solid #e0e6f0;border-radius:12px;padding:12px 14px;font-family:Montserrat,sans-serif;font-size:13px;color:var(--color-primary-dark);resize:none;outline:none;height:80px;margin-bottom:16px;transition:border-color .2s" onfocus="this.style.borderColor='#2563c4'" onblur="this.style.borderColor='#e0e6f0'"></textarea>
-      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--color-secondary),#ff7a3d);border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
+      <button onclick="enviarCalificacion(${pedidoId},'${repartidor || ''}')" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--color-secondary),var(--color-secondary-dark));border:none;border-radius:12px;color:#fff;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 16px rgba(240,90,26,0.35);margin-bottom:10px">Enviar calificación</button>
       <button onclick="cerrarModalCalificacion()" style="width:100%;padding:11px;background:transparent;border:none;color:#8fa3c0;font-family:Montserrat,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Omitir</button>
     </div>`
   document.body.appendChild(overlay)
@@ -7589,7 +7600,7 @@ function _cerrarTour() {
   <canvas id="lluvia-canvas" style="width:100%;height:100%"></canvas>
 </div>
 
-<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,var(--color-primary-dark),#2563c4);color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
+<div id="lluvia-aviso" style="display:none;position:fixed;top:70px;left:16px;right:16px;z-index:999;background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary));color:white;border-radius:16px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,0.3);pointer-events:none">
   <div style="font-size:24px;margin-bottom:6px">🌧️</div>
   <div style="font-family:Bebas Neue,sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:4px">AVISO CLIMÁTICO</div>
   <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)" id="lluvia-mensaje">Por condiciones climáticas, es posible que tu pedido tenga retrasos. ¡Gracias por tu comprensión!</div>
@@ -7644,7 +7655,7 @@ function _cerrarTour() {
     </div>
 
     <button id="bv-btn-continuar" onclick="_bvGuardar()" disabled
-      style="width:100%;background:linear-gradient(135deg,var(--color-primary-dark),#0e3070);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
+      style="width:100%;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
       Continuar →
     </button>
   </div>
