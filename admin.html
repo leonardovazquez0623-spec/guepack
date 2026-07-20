@@ -1285,6 +1285,37 @@ const db = new Proxy(dbBase, {
   }
 })
 
+function obtenerRutaEvidencia(valor) {
+  if (!valor) return null
+  const texto = String(valor).trim()
+  const marcadores = [
+    '/storage/v1/object/public/evidencias/',
+    '/storage/v1/object/sign/evidencias/',
+    '/storage/v1/object/authenticated/evidencias/'
+  ]
+  const marcador = marcadores.find(item => texto.includes(item))
+  const rutaConConsulta = marcador
+    ? texto.slice(texto.indexOf(marcador) + marcador.length)
+    : texto.replace(/^evidencias\//, '').replace(/^\/+/, '')
+  const ruta = rutaConConsulta.split('?')[0]
+  try {
+    return decodeURIComponent(ruta)
+  } catch (_) {
+    return ruta
+  }
+}
+
+async function crearUrlFirmadaEvidencia(valor) {
+  const ruta = obtenerRutaEvidencia(valor)
+  if (!ruta) return null
+  const { data, error } = await db.storage.from('evidencias').createSignedUrl(ruta, 3600)
+  if (error) {
+    console.error('[evidencias] No fue posible crear la URL firmada:', error.message)
+    return null
+  }
+  return data?.signedUrl || null
+}
+
 db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') window.location.href = 'login.html'
 })
@@ -3129,14 +3160,19 @@ async function eliminarPedidosAbandonados(ids, eliminacionMasiva) {
     : '✅ Pedido abandonado eliminado')
 }
 
-function verComprobante(url) {
+async function verComprobante(url) {
+  const urlFirmada = await crearUrlFirmadaEvidencia(url)
+  if (!urlFirmada) {
+    showToast('❌ No fue posible abrir el comprobante')
+    return
+  }
   const modal = document.createElement('div')
   modal.id = 'modal-comprobante'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:#f59e0b">🧾 Comprobante de pago</div>
-      <img src="${url}" style="width:100%;border-radius:12px;object-fit:contain;border:2px solid #f59e0b;margin-bottom:16px">
+      <img src="${urlFirmada}" style="width:100%;border-radius:12px;object-fit:contain;border:2px solid #f59e0b;margin-bottom:16px">
       <button onclick="document.getElementById('modal-comprobante').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
     </div>
   `
@@ -3144,22 +3180,30 @@ function verComprobante(url) {
   document.body.appendChild(modal)
 }
 
-function verEvidencia(fotoUrl, firmaUrl) {
+async function verEvidencia(fotoUrl, firmaUrl) {
+  const [fotoFirmada, firmaFirmada] = await Promise.all([
+    crearUrlFirmadaEvidencia(fotoUrl),
+    crearUrlFirmadaEvidencia(firmaUrl)
+  ])
+  if (!fotoFirmada && !firmaFirmada) {
+    showToast('❌ No fue posible abrir la evidencia')
+    return
+  }
   const modal = document.createElement('div')
   modal.id = 'modal-evidencia'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:var(--blue)">📸 Evidencia de entrega</div>
-      ${fotoUrl ? `
+      ${fotoFirmada ? `
         <div style="margin-bottom:16px">
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px;letter-spacing:1px">FOTO</div>
-          <img src="${fotoUrl}" style="width:100%;border-radius:12px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.1)">
+          <img src="${fotoFirmada}" style="width:100%;border-radius:12px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.1)">
         </div>` : ''}
-      ${firmaUrl ? `
+      ${firmaFirmada ? `
         <div style="margin-bottom:20px">
           <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#666;margin-bottom:6px;letter-spacing:1px">FIRMA DEL CLIENTE</div>
-          <img src="${firmaUrl}" style="width:100%;border-radius:12px;border:1px solid #e0e0e0">
+          <img src="${firmaFirmada}" style="width:100%;border-radius:12px;border:1px solid #e0e0e0">
         </div>` : ''}
       <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--blue);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Cerrar</button>
     </div>
