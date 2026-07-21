@@ -979,20 +979,6 @@ async function _continuarCargaApp(session) {
   _repaEmail  = session.user.email
   _registrarTokenFCM(session.user.id)  // fire-and-forget
 
-  // GPS global para tarjeta próxima parada (fuera del mapa)
-  if (navigator.geolocation && !_gpsWatchId) {
-    _gpsWatchId = navigator.geolocation.watchPosition(pos => {
-      _currentGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-      _renderProximaParada()
-      // Publica lat/lng en repartidores cada 10s para que el cliente vea proximidad
-      const now = Date.now()
-      if (now - _lastGpsPush > 10000 && _repaData?.nombre) {
-        _lastGpsPush = now
-        db.from('repartidores').update({ lat: _currentGPS.lat, lng: _currentGPS.lng }).eq('nombre', _repaData.nombre).then(() => {})
-      }
-    }, null, { enableHighAccuracy: true, maximumAge: 8000 })
-  }
-
   // Realtime calificaciones: actualiza "Tu desempeño" si el drawer está abierto
   if (_calChannel) db.removeChannel(_calChannel)
   _calChannel = db.channel('repa-calificaciones-rt')
@@ -1031,6 +1017,8 @@ async function _continuarCargaApp(session) {
       _renderAvatarRepartidor()
     }
   }
+
+  _iniciarSeguimientoGps()
 
   _suscribirPedidosNuevos()
   cargarPedidos(session.user.email)
@@ -1520,6 +1508,62 @@ function _toastRepa(msg, color = 'var(--color-primary-dark)') {
   t.textContent = msg
   document.body.appendChild(t)
   setTimeout(() => t.remove(), 4000)
+}
+
+let _ultimoAvisoGps = 0
+
+function _mostrarAvisoGps() {
+  const ahora = Date.now()
+  if (ahora - _ultimoAvisoGps < 15000) return
+  _ultimoAvisoGps = ahora
+  const aviso = document.createElement('div')
+  aviso.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:#f59e0b;color:white;padding:10px 14px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:max-content;max-width:90vw'
+  aviso.innerHTML = '<img src="guepack-icons/guepack-icons/svg/25-seguro.svg" alt="" width="22" height="22" style="filter:brightness(0) invert(1);flex-shrink:0"><span>GPS impreciso - activa la ubicación en tu cel para mejor rastreo</span>'
+  document.body.appendChild(aviso)
+  setTimeout(() => aviso.remove(), 5000)
+}
+
+async function _actualizarUbicacionRepartidor(latitud, longitud) {
+  _currentGPS = { lat: latitud, lng: longitud }
+  _renderProximaParada()
+  if (!_repaData?.nombre) return
+  const { error } = await db.from('repartidores')
+    .update({ lat: latitud, lng: longitud })
+    .eq('nombre', _repaData.nombre)
+  if (error) console.error('[GPS] error al actualizar ubicación:', error)
+}
+
+function _solicitarUbicacionActual() {
+  if (!navigator.geolocation) {
+    console.error('[GPS] error: geolocalización no disponible')
+    _mostrarAvisoGps()
+    return
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      if (pos.coords.accuracy < 100) {
+        _actualizarUbicacionRepartidor(pos.coords.latitude, pos.coords.longitude)
+      } else {
+        console.warn('[GPS] precisión baja:', pos.coords.accuracy, 'm - no actualizando')
+        _mostrarAvisoGps()
+      }
+    },
+    err => {
+      console.error('[GPS] error:', err)
+      _mostrarAvisoGps()
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  )
+}
+
+function _iniciarSeguimientoGps() {
+  if (_gpsWatchId) return
+  if (!navigator.geolocation) {
+    _solicitarUbicacionActual()
+    return
+  }
+  _solicitarUbicacionActual()
+  _gpsWatchId = setInterval(_solicitarUbicacionActual, 10000)
 }
 
 function _renderBotonesNormales(pedido) {
@@ -2487,8 +2531,7 @@ let _autoCentrarInterval = null   // id del setInterval de auto-centrado
 
 // ── Estado global GPS + paradas (compartido entre vistas) ───────────────────
 let _currentGPS     = null   // { lat, lng } — actualizado por watchPosition
-let _gpsWatchId     = null   // watchId para vista lista (fuera del mapa)
-let _lastGpsPush    = 0      // timestamp del último push de lat/lng a Supabase
+let _gpsWatchId     = null   // intervalo de actualización GPS fuera del mapa
 let _todasParadas   = {}     // pedidoId → paradas[] — para proximidad sin queries extra
 let _calChannel     = null   // realtime channel calificaciones
 let _repaEmail      = null   // email del repartidor autenticado
@@ -2745,6 +2788,11 @@ async function _initMapaRepartidor() {
   let _firstFix = true
   if (navigator.geolocation) {
     _driverWatchId = navigator.geolocation.watchPosition(pos => {
+      if (pos.coords.accuracy >= 100) {
+        console.warn('[GPS] precisión baja:', pos.coords.accuracy, 'm - no actualizando')
+        _mostrarAvisoGps()
+        return
+      }
       const { latitude: lat, longitude: lng } = pos.coords
       _currentGPS = { lat, lng }
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
@@ -2753,7 +2801,13 @@ async function _initMapaRepartidor() {
         _mapboxMap.resize()
         _mapboxMap.flyTo({ center: [lng, lat], zoom: 15, speed: 1.4 })
       }
-    }, null, { enableHighAccuracy: true, maximumAge: 5000 })
+    }, err => {
+      console.error('[GPS] error:', err)
+      _mostrarAvisoGps()
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 })
+  } else {
+    console.error('[GPS] error: geolocalización no disponible')
+    _mostrarAvisoGps()
   }
 
   // Auto-centrado — marca interacción y muestra botón "Centrar" al mover manualmente
