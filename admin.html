@@ -766,6 +766,17 @@ function initMapsAdmin() {
   <!-- TAB ZONAS -->
   <div id="tab-zonas" class="tab-content">
 
+    <div class="card" style="margin-bottom:16px;border-left:4px solid var(--color-primary)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="30" height="30">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">Configuración de precios</div>
+          <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:var(--gray-mid)">Administra las tarifas, rangos, zonas de cobertura y empresas afiliadas de tu tenant.</div>
+        </div>
+      </div>
+      <button onclick="showTab('empresas')" style="width:100%;margin-top:12px;padding:10px;background:var(--color-primary-light);color:var(--color-primary);border:1.5px solid var(--color-primary);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">Ver empresas afiliadas</button>
+    </div>
+
     <!-- Precios generales -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">💰 Precios generales (usuarios no corporativos)</div>
@@ -783,7 +794,15 @@ function initMapsAdmin() {
         </div>
         <div id="pg-rangos-tabla"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tarifa base ($)</label>
+          <input type="number" id="pg-tarifa-base" class="form-input" placeholder="115" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">KM incluidos</label>
+          <input type="number" id="pg-km-minimo" class="form-input" placeholder="5" min="0" step="0.5">
+        </div>
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">$ por KM extra <small style="color:#8fa3c0;font-weight:600">(último rango)</small></label>
           <input type="number" id="pg-precio-km" class="form-input" placeholder="13" min="0" step="0.5">
@@ -1564,7 +1583,7 @@ async function guardarEmpresa() {
   if (id) {
     ;({ error } = await db.from('empresas_afiliadas').update(payload).eq('id', id))
   } else {
-    const { data: insertada, error: insertErr } = await db.from('empresas_afiliadas').insert(payload).select('id').single()
+    const { data: insertada, error: insertErr } = await db.from('empresas_afiliadas').insert({ ...payload, tenant_id: TENANT_ID }).select('id').single()
     error = insertErr
     if (insertada) nuevaEmpresaId = insertada.id
   }
@@ -1579,12 +1598,12 @@ async function guardarEmpresa() {
     console.log('[empresa] empresa creada con id:', nuevaEmpresaId)
     console.log('[empresa] insertando rangos default...')
     const rangosDefault = [
-      { empresa_id: nuevaEmpresaId, km_desde: 0,  km_hasta: 3,   precio: 115 },
-      { empresa_id: nuevaEmpresaId, km_desde: 3,  km_hasta: 10,  precio: 130 },
-      { empresa_id: nuevaEmpresaId, km_desde: 10, km_hasta: 15,  precio: 160 },
-      { empresa_id: nuevaEmpresaId, km_desde: 15, km_hasta: 20,  precio: 185 },
-      { empresa_id: nuevaEmpresaId, km_desde: 20, km_hasta: 25,  precio: 200 },
-      { empresa_id: nuevaEmpresaId, km_desde: 25, km_hasta: null, precio: 200 }
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 0,  km_hasta: 3,   precio: 115 },
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 3,  km_hasta: 10,  precio: 130 },
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 10, km_hasta: 15,  precio: 160 },
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 15, km_hasta: 20,  precio: 185 },
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 20, km_hasta: 25,  precio: 200 },
+      { tenant_id: TENANT_ID, empresa_id: nuevaEmpresaId, km_desde: 25, km_hasta: null, precio: 200 }
     ]
     const { data: rangosData, error: rangosErr } = await db.from('rangos_precio_empresa').insert(rangosDefault).select()
     console.log('[empresa] rangos insertados:', rangosData, 'error:', rangosErr)
@@ -1797,7 +1816,7 @@ async function guardarRangosEmpresa() {
   const { error: delErr } = await db.from('rangos_precio_empresa').delete().eq('empresa_id', empId)
   if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
 
-  const rows = _empRangos.map(r => ({ empresa_id: empId, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
+  const rows = _empRangos.map(r => ({ tenant_id: TENANT_ID, empresa_id: empId, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
   const { error: insErr } = await db.from('rangos_precio_empresa').insert(rows)
   if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
 
@@ -4897,8 +4916,12 @@ async function cargarPreciosGenerales() {
     db.from('rangos_precio_general').select('*').order('km_desde')
   ])
   if (data) {
+    const tb = document.getElementById('pg-tarifa-base')
+    const km = document.getElementById('pg-km-minimo')
     const pk = document.getElementById('pg-precio-km')
     const iv = document.getElementById('pg-iva')
+    if (tb) tb.value = data.tarifa_base ?? ''
+    if (km) km.value = data.km_minimo ?? ''
     if (pk) pk.value = data.precio_km_extra ?? ''
     if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
   }
@@ -4907,11 +4930,13 @@ async function cargarPreciosGenerales() {
 }
 
 async function guardarPreciosGenerales() {
+  const tarifa_base     = parseFloat(document.getElementById('pg-tarifa-base').value)
+  const km_minimo       = parseFloat(document.getElementById('pg-km-minimo').value)
   const precio_km_extra = parseFloat(document.getElementById('pg-precio-km').value)
   const ivaPorc         = parseFloat(document.getElementById('pg-iva').value)
 
-  if (isNaN(precio_km_extra) || isNaN(ivaPorc)) {
-    showToast('⚠️ Completa el precio KM extra e IVA')
+  if (isNaN(tarifa_base) || isNaN(km_minimo) || isNaN(precio_km_extra) || isNaN(ivaPorc)) {
+    showToast('Completa la tarifa base, KM incluidos, precio por KM extra e IVA')
     return
   }
   if (!_pgRangos.length) {
@@ -4926,12 +4951,12 @@ async function guardarPreciosGenerales() {
 
   const iva = ivaPorc / 100
   const { data: existing } = await db.from('precios_generales').select('id').limit(1).maybeSingle()
-  const payload = { precio_km_extra, iva }
+  const payload = { tarifa_base, km_minimo, precio_km_extra, iva }
   let error
   if (existing) {
     ;({ error } = await db.from('precios_generales').update(payload).eq('id', existing.id))
   } else {
-    ;({ error } = await db.from('precios_generales').insert(payload))
+    ;({ error } = await db.from('precios_generales').insert({ ...payload, tenant_id: TENANT_ID }))
   }
   if (error) { showToast('❌ Error al guardar: ' + error.message); return }
 
@@ -4939,7 +4964,7 @@ async function guardarPreciosGenerales() {
   const { error: delErr } = await db.from('rangos_precio_general').delete().not('id', 'is', null)
   if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
 
-  const rows = _pgRangos.map(r => ({ km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
+  const rows = _pgRangos.map(r => ({ tenant_id: TENANT_ID, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
   const { error: insErr } = await db.from('rangos_precio_general').insert(rows)
   if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
 
@@ -5011,7 +5036,7 @@ async function guardarMetadataZona() {
     result = await db.from('zonas_cobertura').update({ nombre, color, precio_sobre, precio_grande }).eq('id', id)
     _editingZonaId = parseInt(id)
   } else {
-    result = await db.from('zonas_cobertura').insert({ nombre, color, precio_sobre, precio_grande, activa: true }).select('id').single()
+    result = await db.from('zonas_cobertura').insert({ tenant_id: TENANT_ID, nombre, color, precio_sobre, precio_grande, activa: true }).select('id').single()
     _editingZonaId = result.data?.id
   }
   if (result.error) return showToast('❌ Error: ' + result.error.message)
