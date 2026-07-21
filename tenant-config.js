@@ -157,7 +157,9 @@
   function aplicarImagenesEnDocumento() {
     document.querySelectorAll('[data-tenant-image]').forEach(imagen => {
       const nombre = imagen.dataset.tenantImage
-      if (window.tenantImages?.[nombre]) imagen.src = window.tenantImages[nombre]
+      const origen = window.tenantImages?.[nombre]
+      if (origen) imagen.src = origen
+      imagen.classList.toggle('tenant-image-uploaded', Boolean(origen && origen !== imagenesPredeterminadas[nombre]))
     })
   }
 

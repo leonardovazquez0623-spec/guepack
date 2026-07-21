@@ -4437,17 +4437,29 @@ const _VIP_INFO = {
 }
 
 async function cargarClientesVip() {
+  console.log('[finanzas] iniciando carga VIP')
   const cont = document.getElementById('fin-vip-lista')
   if (!cont) return
-  const { data } = await db.from('usuarios')
-    .select('id, email, total_pedidos, nivel_vip, created_at')
-    .in('nivel_vip', ['bronce', 'plata', 'oro'])
-    .order('total_pedidos', { ascending: false })
-  if (!data || data.length === 0) {
-    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">Sin clientes VIP aún</div>'
-    return
-  }
-  cont.innerHTML = data.map(u => {
+  cont.innerHTML = '<div class="loader--4" style="margin:12px auto"></div>'
+  let cargaFinalizada = false
+  const temporizador = setTimeout(() => {
+    if (!cargaFinalizada && cont.querySelector('.loader--4')) {
+      cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">No hay datos</div>'
+    }
+  }, 10000)
+
+  try {
+    const { data, error } = await db.from('usuarios')
+      .select('id, email, total_pedidos, nivel_vip, created_at')
+      .in('nivel_vip', ['bronce', 'plata', 'oro'])
+      .order('total_pedidos', { ascending: false })
+    console.log('[finanzas] resultado:', data, error)
+    if (error) throw error
+    if (!data || data.length === 0) {
+      cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">No hay datos</div>'
+      return
+    }
+    cont.innerHTML = data.map(u => {
     const info = _VIP_INFO[u.nivel_vip] || _VIP_INFO.bronce
     const nombre = u.email || 'Cliente'
     return `
@@ -4461,7 +4473,14 @@ async function cargarClientesVip() {
         <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:${info.border};line-height:1">${u.total_pedidos || 0} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700">envíos</span></div>
       </div>
     </div>`
-  }).join('')
+    }).join('')
+  } catch (err) {
+    console.error('[finanzas] error:', err)
+    cont.innerHTML = '<div style="color:#999;font-size:12px;font-family:Montserrat,sans-serif;font-weight:600;padding:8px 0">No hay datos</div>'
+  } finally {
+    cargaFinalizada = true
+    clearTimeout(temporizador)
+  }
 }
 
 // ── Cargos por cancelación ────────────────────────────────────────────────────
@@ -4573,13 +4592,36 @@ async function marcarCargoCobrado(pedidoId) {
 // ── Finanzas ──────────────────────────────────────────────────────────────────
 
 async function cargarFinanzas() {
-  const { data, error } = await db
-    .from('pedidos')
-    .select('id, nombre, precio, metodo_pago, created_at')
-    .eq('estado', 'Entregado')
-    .order('created_at', { ascending: false })
+  console.log('[finanzas] iniciando carga VIP')
+  cargarClientesVip()
+  const cuerpoTabla = document.getElementById('fin-tabla-body')
+  if (cuerpoTabla) cuerpoTabla.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center"><div class="loader--4" style="margin:0 auto"></div></td></tr>'
+  let cargaFinalizada = false
+  const temporizador = setTimeout(() => {
+    if (!cargaFinalizada && cuerpoTabla?.querySelector('.loader--4')) {
+      cuerpoTabla.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-weight:600">No hay datos</td></tr>'
+    }
+  }, 10000)
 
-  if (error || !data || data.length === 0) {
+  let data, error
+  try {
+    ;({ data, error } = await db
+      .from('pedidos')
+      .select('id, nombre, precio, metodo_pago, created_at')
+      .eq('estado', 'Entregado')
+      .order('created_at', { ascending: false }))
+    console.log('[finanzas] resultado:', data, error)
+    if (error) throw error
+  } catch (err) {
+    console.error('[finanzas] error:', err)
+    if (cuerpoTabla) cuerpoTabla.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:#999;font-weight:600">No hay datos</td></tr>'
+    return
+  } finally {
+    cargaFinalizada = true
+    clearTimeout(temporizador)
+  }
+
+  if (!data || data.length === 0) {
     ;['fin-hoy','fin-semana','fin-mes','fin-ticket','fin-efectivo','fin-transferencia'].forEach(id => {
       const el = document.getElementById(id)
       if (el) el.textContent = '$0'
@@ -4651,7 +4693,6 @@ async function cargarFinanzas() {
       <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p.created_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
     </tr>`).join('')
 
-  cargarClientesVip()
 }
 
 // ── Drag-to-scroll en pestañas (desktop) ──
