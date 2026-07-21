@@ -79,41 +79,9 @@
   @keyframes slideUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
   @keyframes parpadeoRojo { 0%,100% { border-color:#ef4444; } 50% { border-color:transparent; } }
 
-  /* ── VIP TEMAS ── */
-  body.vip-oro .app-header {
-    background: linear-gradient(135deg, #8B6914 0%, #B8860B 35%, #c99b29 55%, #c5aa0e 70%, #B8860B 100%) !important;
-    background-size: 250% 250% !important;
-    animation: oroShimmer 4s ease-in-out infinite !important;
-  }
-  @keyframes oroShimmer {
-    0%,100% { background-position: 0% 50%; }
-    50%      { background-position: 100% 50%; }
-  }
-  body.vip-plata .app-header {
-    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 60%, var(--color-primary-light) 100%) !important;
-  }
-  body.vip-plata .app-header::after,
-  body.vip-plata .app-header::before {
-    background: var(--color-primary-light) !important;
-  }
-  body.vip-plata .btn-primary {
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-dark)) !important;
-    box-shadow: 0 4px 14px rgba(240,90,26,0.35) !important;
-  }
-  body.vip-plata .nav-tabs {
-    background: var(--color-primary-dark) !important;
-  }
-  body.vip-plata .nav-tab.active {
-    color: var(--color-secondary) !important;
-    border-bottom-color: var(--color-secondary) !important;
-  }
-  body.vip-bronce .app-header {
-    background: linear-gradient(135deg, #5D2E0C 0%, #8B4513 50%, #CD7F32 100%) !important;
-  }
-
   /* ── HEADER ── */
   .app-header {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 55%, var(--color-primary) 100%);
+    background: var(--color-primary);
     padding: 14px 20px 16px;
     padding-top: calc(14px + env(safe-area-inset-top, 0px));
     position: relative;
@@ -968,8 +936,8 @@
       <button class="home-notif-btn" onclick="_abrirDrawer()" title="Menú">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/>
-          <path d="M15.5 8 19.5 12l-4 4" stroke="var(--color-primary-light)"/>
-          <path d="M19.5 12H9" stroke="var(--color-primary-light)"/>
+          <path d="M15.5 8 19.5 12l-4 4" stroke="white"/>
+          <path d="M19.5 12H9" stroke="white"/>
         </svg>
         <span id="header-notif-badge" class="home-notif-badge">0</span>
       </button>
@@ -5777,15 +5745,6 @@ function _calcNivel(total) {
 }
 
 function _aplicarTemaVip(nivel) {
-  const t = _VIP_TEMAS[nivel] || _VIP_TEMAS.normal
-  const r = document.documentElement
-  r.style.setProperty('--blue',         t.blue)
-  r.style.setProperty('--blue-dark',    t.blueDark)
-  r.style.setProperty('--blue-light',   t.blueLight)
-  r.style.setProperty('--orange',       t.orange)
-  r.style.setProperty('--orange-light', t.orangeLight)
-  const logo = document.getElementById('header-logo')
-  if (logo) logo.src = t.logo
   document.body.classList.remove('vip-bronce', 'vip-plata', 'vip-oro')
   if (nivel !== 'normal') document.body.classList.add('vip-' + nivel)
   _mostrarVipHeader(nivel)
