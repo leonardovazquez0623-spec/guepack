@@ -274,7 +274,7 @@ function initMapsAdmin() {
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
       <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
-      <div class="header-sub">Panel de Control</div>
+      <div class="header-sub" id="admin-panel-titulo">Panel de Control</div>
     </div>
     <div class="admin-user-menu">
       <button onclick="_toggleAdminMenu(event,'menu-salir-header')" class="btn-logout">🚪 Salir ▾</button>
@@ -1236,6 +1236,7 @@ const dbBase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let TENANT_ID = 1
+let ES_SUPERADMIN = false
 let canalSuscripcionSaas = null
 const TABLAS_POR_TENANT = new Set([
   'pedidos',
@@ -1248,7 +1249,9 @@ const TABLAS_POR_TENANT = new Set([
   'clientes_aliados',
   'configuracion',
   'precios_generales',
-  'rangos_precio_general'
+  'rangos_precio_general',
+  'rangos_precio_empresa',
+  'rangos_paqueteria'
 ])
 
 function agregarTenantAValores(valores) {
@@ -1265,13 +1268,22 @@ function consultaAisladaPorTenant(tabla) {
   return new Proxy(consulta, {
     get(objetivo, propiedad) {
       if (propiedad === 'select') {
-        return (...argumentos) => objetivo.select(...argumentos).eq('tenant_id', TENANT_ID)
+        return (...argumentos) => {
+          const resultado = objetivo.select(...argumentos)
+          return ES_SUPERADMIN ? resultado : resultado.eq('tenant_id', TENANT_ID)
+        }
       }
       if (propiedad === 'update') {
-        return (...argumentos) => objetivo.update(...argumentos).eq('tenant_id', TENANT_ID)
+        return (...argumentos) => {
+          const resultado = objetivo.update(...argumentos)
+          return ES_SUPERADMIN ? resultado : resultado.eq('tenant_id', TENANT_ID)
+        }
       }
       if (propiedad === 'delete') {
-        return (...argumentos) => objetivo.delete(...argumentos).eq('tenant_id', TENANT_ID)
+        return (...argumentos) => {
+          const resultado = objetivo.delete(...argumentos)
+          return ES_SUPERADMIN ? resultado : resultado.eq('tenant_id', TENANT_ID)
+        }
       }
       if (propiedad === 'insert') {
         return (valores, opciones) => objetivo.insert(agregarTenantAValores(valores), opciones)
@@ -1545,7 +1557,7 @@ async function guardarEmpresa() {
   if (!nombre || !codigo) { showToast('⚠️ Nombre y código son obligatorios'); return }
   const tipoCredito  = document.getElementById('emp-tipo-credito')?.value || 'Semanal'
   const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
-  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra, permite_paqueterias: _empPermitePaqueterias, permite_mercado_libre: _empPermiteMercadoLibre, tenant_id: TENANT_ID }
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra, permite_paqueterias: _empPermitePaqueterias, permite_mercado_libre: _empPermiteMercadoLibre }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   let error, nuevaEmpresaId = null
   if (id) {
@@ -2084,7 +2096,7 @@ async function guardarRepartidor() {
   const ganancia_base           = parseFloat(document.getElementById('rep-ganancia-base').value)    || 20
   const ganancia_por_km         = parseFloat(document.getElementById('rep-ganancia-km').value)      || 5
   const ganancia_tarifa_diaria  = parseFloat(document.getElementById('rep-ganancia-diaria').value)  || 40
-  const payload = { nombre, email, placas, ganancia_base, ganancia_por_km, ganancia_tarifa_diaria, tenant_id: TENANT_ID }
+  const payload = { nombre, email, placas, ganancia_base, ganancia_por_km, ganancia_tarifa_diaria }
   const { error } = id
     ? await db.from('repartidores').update(payload).eq('id', id)
     : await db.from('repartidores').insert(payload)
@@ -2437,23 +2449,32 @@ async function init() {
     window.location.href = 'login.html?error=email_no_verificado'
     return
   }
-  const { data: usuarioAdmin, error: errorUsuarioAdmin } = await dbBase.from('usuarios')
+  const { data: adminData, error: errorUsuarioAdmin } = await dbBase.from('usuarios')
     .select('rol, es_superadmin, tenant_id')
     .eq('user_id', session.user.id)
     .single()
   if (errorUsuarioAdmin) {
     console.error('No fue posible obtener el tenant del administrador:', errorUsuarioAdmin)
   }
-  if (!usuarioAdmin || usuarioAdmin.rol !== 'admin') { window.location.href = 'login.html'; return; }
+  if (!adminData || adminData.rol !== 'admin') { window.location.href = 'login.html'; return; }
 
-  TENANT_ID = usuarioAdmin.tenant_id || 1
-  console.log('[tenant] Administrador cargado para tenant_id:', TENANT_ID)
+  TENANT_ID = adminData?.tenant_id || 1
+  ES_SUPERADMIN = adminData?.es_superadmin || false
+  console.log('[tenant] Administrador cargado para tenant_id:', TENANT_ID, '| superadmin:', ES_SUPERADMIN)
+
+  const { data: tenantActual, error: errorTenantActual } = await dbBase.from('tenants')
+    .select('nombre')
+    .eq('id', TENANT_ID)
+    .single()
+  if (errorTenantActual) console.error('No fue posible obtener el nombre del tenant:', errorTenantActual)
+  const tituloPanel = document.getElementById('admin-panel-titulo')
+  if (tituloPanel) tituloPanel.textContent = 'Panel de Control · ' + (tenantActual?.nombre || 'Tenant ' + TENANT_ID)
+
   cargarMiSuscripcion()
   iniciarRealtimeSuscripcion()
 
-  if (usuarioAdmin.es_superadmin) {
-    document.getElementById('sidebar-btn-superadmin').style.display = 'block'
-  }
+  const botonSuperadmin = document.getElementById('sidebar-btn-superadmin')
+  if (botonSuperadmin) botonSuperadmin.style.display = ES_SUPERADMIN ? 'block' : 'none'
   cargarEstadoLluvia()
   cargarCuentasSinVerificar()
   iniciarActualizacionCuentasSinVerificar()
@@ -3772,7 +3793,7 @@ async function guardarAnuncio() {
   const id = document.getElementById('pub-id').value
   if (!nombre) return showToast('⚠️ Ingresa el nombre del aliado')
   if (!imagenUrl) return showToast('⚠️ Sube una imagen primero')
-  const payload = { nombre_aliado: nombre, imagen_url: imagenUrl, link_url: link || null, segundos, activo, tenant_id: TENANT_ID }
+  const payload = { nombre_aliado: nombre, imagen_url: imagenUrl, link_url: link || null, segundos, activo }
   let error
   if (id) {
     ;({ error } = await db.from('anuncios').update(payload).eq('id', id))
@@ -3921,7 +3942,7 @@ async function guardarCupon() {
   const expiracion = document.getElementById('cupon-expiracion').value || null
   const id = document.getElementById('cupon-id').value
   if (!codigo || !descuento) return showToast('⚠️ Ingresa código y descuento')
-  const payload = { codigo, descuento, tipo, usos_maximos: usos, usos_por_usuario: usosPorUsuario, fecha_expiracion: expiracion, tenant_id: TENANT_ID }
+  const payload = { codigo, descuento, tipo, usos_maximos: usos, usos_por_usuario: usosPorUsuario, fecha_expiracion: expiracion }
   let error
   if (id) {
     ;({ error } = await db.from('cupones').update(payload).eq('id', id))
@@ -4917,7 +4938,7 @@ async function guardarMetadataZona() {
     result = await db.from('zonas_cobertura').update({ nombre, color, precio_sobre, precio_grande }).eq('id', id)
     _editingZonaId = parseInt(id)
   } else {
-    result = await db.from('zonas_cobertura').insert({ nombre, color, precio_sobre, precio_grande, activa: true, tenant_id: TENANT_ID }).select('id').single()
+    result = await db.from('zonas_cobertura').insert({ nombre, color, precio_sobre, precio_grande, activa: true }).select('id').single()
     _editingZonaId = result.data?.id
   }
   if (result.error) return showToast('❌ Error: ' + result.error.message)
