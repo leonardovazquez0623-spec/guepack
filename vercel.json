@@ -1,6 +1,15 @@
 {
   "headers": [
     {
+      "source": "/supabase-local.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
