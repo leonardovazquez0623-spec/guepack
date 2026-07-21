@@ -52,7 +52,7 @@ self.addEventListener('notificationclick', function(event) {
     })
   )
 })
-const CACHE_NAME = 'guepack-v8'
+const CACHE_NAME = 'guepack-v9'
 
 self.addEventListener('install', () => { /* espera a que el cliente solicite la activación */ })
 self.addEventListener('activate', event => {
