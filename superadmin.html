@@ -617,7 +617,7 @@ function abrirModalTenant(id = null) {
       <form id="form-tenant">
         <div class="formulario-grid">
           <div><label for="tenant-nombre">Nombre *</label><input id="tenant-nombre" required maxlength="120" value="${escaparAtributo(tenant?.nombre || '')}"></div>
-          <div><label for="tenant-slug">Slug *</label><input id="tenant-slug" required maxlength="80" pattern="[a-z0-9-]+" placeholder="mi-empresa" value="${escaparAtributo(tenant?.slug || '')}"></div>
+          <div><label for="tenant-slug">Slug *</label><input id="tenant-slug" required maxlength="80" placeholder="mi-empresa" value="${escaparAtributo(tenant?.slug || '')}"></div>
           <div class="campo-completo"><label for="tenant-dominio">Dominio</label><input id="tenant-dominio" maxlength="180" placeholder="empresa.com" value="${escaparAtributo(tenant?.dominio || '')}"></div>
           <div class="campo-completo">
             <label>Logo</label>
@@ -760,12 +760,6 @@ async function seleccionarImagenMascota(campo, evento) {
     document.getElementById('tenant-slug').focus()
     return
   }
-  const bancoClabe = document.getElementById('tenant-banco-clabe').value.trim()
-  if (bancoClabe && !/^\d{18}$/.test(bancoClabe)) {
-    mostrarToast('❌ La CLABE debe contener exactamente 18 dígitos')
-    document.getElementById('tenant-banco-clabe').focus()
-    return
-  }
   if (!archivo.type.startsWith('image/') || archivo.size > 5 * 1024 * 1024) {
     evento.target.value = ''
     mostrarToast('❌ Selecciona una imagen de máximo 5 MB')
@@ -813,8 +807,16 @@ async function guardarTenant(evento) {
   evento.preventDefault()
   const boton = document.getElementById('boton-guardar-tenant')
   const slug = document.getElementById('tenant-slug').value.trim().toLowerCase()
+  const bancoClabe = document.getElementById('tenant-banco-clabe')?.value?.trim() || ''
+  const bancoNombre = document.getElementById('tenant-banco-nombre')?.value?.trim() || ''
+  const bancoTitular = document.getElementById('tenant-banco-titular')?.value?.trim() || ''
   if (!/^[a-z0-9-]+$/.test(slug)) {
     mostrarToast('❌ El slug solo puede contener minúsculas, números y guiones')
+    return
+  }
+  if (bancoClabe && !/^\d{18}$/.test(bancoClabe)) {
+    mostrarToast('❌ La CLABE debe contener exactamente 18 dígitos')
+    document.getElementById('tenant-banco-clabe')?.focus()
     return
   }
   const tenantActual = tenantEditandoId == null
@@ -847,8 +849,8 @@ async function guardarTenant(evento) {
     plan: document.getElementById('tenant-plan').value,
     precio_mensual: Number(document.getElementById('tenant-precio').value) || 0,
     banco_clabe: bancoClabe || null,
-    banco_nombre: document.getElementById('tenant-banco-nombre').value.trim() || null,
-    banco_titular: document.getElementById('tenant-banco-titular').value.trim() || null,
+    banco_nombre: bancoNombre || null,
+    banco_titular: bancoTitular || null,
     ...urlsImagenesTenant,
     notas: document.getElementById('tenant-notas').value.trim() || null
   }
