@@ -666,6 +666,14 @@ function abrirModalTenant(id = null) {
                 </div>`).join('')}
             </div>
           </div>
+          ${tenant ? `<div class="campo-completo" style="border-top:2px solid #e8edf5;padding-top:18px;margin-top:4px">
+            <div style="font-family:'Bebas Neue',sans-serif;color:var(--azul);font-size:23px;letter-spacing:1px;margin-bottom:12px">Administradores</div>
+            <div id="tenant-administradores-lista" style="margin-bottom:12px"><div class="estado-vacio" style="padding:12px">Cargando administradores...</div></div>
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+              <div style="flex:1;min-width:220px"><label for="tenant-admin-correo">Correo del administrador</label><input type="email" id="tenant-admin-correo" maxlength="254" placeholder="admin@empresa.com"></div>
+              <button type="button" class="boton boton-primario" id="tenant-admin-asignar" onclick="asignarAdministradorTenant()" style="display:inline-flex;align-items:center;gap:6px"><img src="guepack-icons/guepack-icons/svg/30-agregar.svg" alt="" width="17" height="17" style="filter:brightness(0) invert(1)">Asignar como admin</button>
+            </div>
+          </div>` : ''}
           <div class="campo-completo"><label for="tenant-notas">Notas</label><textarea id="tenant-notas" maxlength="1000">${escaparHtml(tenant?.notas || '')}</textarea></div>
         </div>
         <div class="modal-acciones">
@@ -690,7 +698,99 @@ function abrirModalTenant(id = null) {
     document.getElementById('tenant-logo-preview-contenedor').style.display = 'none'
   })
   document.getElementById('form-tenant').addEventListener('submit', guardarTenant)
+  if (tenant) {
+    cargarAdministradoresTenant(tenant.id)
+    document.getElementById('tenant-admin-correo')?.addEventListener('keydown', evento => {
+      if (evento.key === 'Enter') {
+        evento.preventDefault()
+        asignarAdministradorTenant()
+      }
+    })
+  }
   document.getElementById('tenant-nombre').focus()
+}
+
+function mostrarToastConIcono(nombreIcono, mensaje) {
+  const toast = document.getElementById('toast')
+  toast.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;gap:8px"><img src="guepack-icons/guepack-icons/svg/${escaparAtributo(nombreIcono)}" alt="" width="20" height="20">${escaparHtml(mensaje)}</span>`
+  toast.classList.add('visible')
+  clearTimeout(temporizadorToast)
+  temporizadorToast = setTimeout(() => toast.classList.remove('visible'), 4000)
+}
+
+async function cargarAdministradoresTenant(tenantId = tenantEditandoId) {
+  const lista = document.getElementById('tenant-administradores-lista')
+  if (!lista || !tenantId) return
+  lista.innerHTML = '<div class="estado-vacio" style="padding:12px">Cargando administradores...</div>'
+  const { data: administradores, error } = await db.from('usuarios')
+    .select('email, user_id')
+    .eq('tenant_id', tenantId)
+    .eq('rol', 'admin')
+    .order('email')
+  if (error) {
+    console.error('No fue posible cargar los administradores del tenant:', error)
+    lista.innerHTML = '<div class="estado-vacio" style="padding:12px;color:var(--rojo)">No fue posible cargar los administradores</div>'
+    return
+  }
+  lista.innerHTML = administradores?.length ? administradores.map(administrador => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;background:#f4f6fb;border-radius:10px;margin-bottom:6px">
+    <div style="font-size:11px;font-weight:800;color:var(--texto);overflow-wrap:anywhere">${escaparHtml(administrador.email || 'Sin correo')}</div>
+    <button type="button" class="boton boton-eliminar" data-email="${escaparAtributo(administrador.email || '')}" onclick="quitarAdministradorTenant(this)" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap"><img src="guepack-icons/guepack-icons/svg/32-eliminar.svg" alt="" width="15" height="15">Quitar admin</button>
+  </div>`).join('') : '<div class="estado-vacio" style="padding:12px">Este tenant aún no tiene administradores</div>'
+}
+
+async function asignarAdministradorTenant() {
+  const tenant = tenants.find(item => String(item.id) === String(tenantEditandoId))
+  const campoCorreo = document.getElementById('tenant-admin-correo')
+  const boton = document.getElementById('tenant-admin-asignar')
+  const correo = campoCorreo?.value?.trim().toLowerCase() || ''
+  if (!tenant || !correo) {
+    mostrarToast('⚠️ Escribe el correo del administrador')
+    return
+  }
+  boton.disabled = true
+  const { data: usuario, error: errorBusqueda } = await db.from('usuarios')
+    .select('email, user_id')
+    .eq('tenant_id', tenant.id)
+    .ilike('email', correo)
+    .maybeSingle()
+  if (errorBusqueda) console.error('Error al buscar el usuario para asignarlo como administrador:', errorBusqueda)
+  if (!usuario) {
+    boton.disabled = false
+    mostrarToastConIcono('29-buscar.svg', `Usuario no encontrado - debe registrarse primero en ${tenant.slug}.guepack.com`)
+    return
+  }
+  const { error } = await db.from('usuarios')
+    .update({ rol: 'admin' })
+    .eq('tenant_id', tenant.id)
+    .eq('email', usuario.email)
+  boton.disabled = false
+  if (error) {
+    console.error('No fue posible asignar el administrador:', error)
+    mostrarToast('❌ No fue posible asignar el administrador')
+    return
+  }
+  campoCorreo.value = ''
+  mostrarToastConIcono('09-favoritos.svg', `${usuario.email} ahora es administrador de ${tenant.nombre}`)
+  await cargarAdministradoresTenant(tenant.id)
+}
+
+async function quitarAdministradorTenant(boton) {
+  const tenant = tenants.find(item => String(item.id) === String(tenantEditandoId))
+  const correo = boton?.dataset?.email || ''
+  if (!tenant || !correo) return
+  boton.disabled = true
+  const { error } = await db.from('usuarios')
+    .update({ rol: 'cliente' })
+    .eq('tenant_id', tenant.id)
+    .eq('email', correo)
+  if (error) {
+    boton.disabled = false
+    console.error('No fue posible quitar el administrador:', error)
+    mostrarToast('❌ No fue posible quitar el administrador')
+    return
+  }
+  mostrarToast(`✅ ${correo} ya no es administrador`)
+  await cargarAdministradoresTenant(tenant.id)
 }
 
 function cerrarModalTenant() {
