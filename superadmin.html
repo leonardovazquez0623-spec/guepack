@@ -471,7 +471,14 @@ function abrirModalTenant(id = null) {
             ${['basico', 'pro', 'enterprise'].map(plan => `<option value="${plan}" ${tenant?.plan === plan ? 'selected' : ''}>${plan}</option>`).join('')}
           </select></div>
           <div><label for="tenant-precio">Precio mensual</label><input type="number" id="tenant-precio" min="0" step="0.01" value="${Number(tenant?.precio_mensual) || 0}"></div>
-          <div class="campo-completo"><label for="tenant-datos-bancarios">Datos bancarios para transferencias</label><textarea id="tenant-datos-bancarios" maxlength="1500" placeholder="Banco, titular, CLABE y referencia">${escaparHtml(tenant?.datos_bancarios || '')}</textarea></div>
+          <div class="campo-completo">
+            <div style="font-family:'Bebas Neue',sans-serif;color:var(--azul);font-size:21px;letter-spacing:1px;margin-bottom:10px">Datos bancarios para transferencias</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+              <div><label for="tenant-banco-clabe">CLABE Interbancaria</label><input type="text" id="tenant-banco-clabe" inputmode="numeric" maxlength="18" pattern="[0-9]{18}" placeholder="18 dígitos" value="${escaparAtributo(tenant?.banco_clabe || '')}"></div>
+              <div><label for="tenant-banco-nombre">Banco</label><input type="text" id="tenant-banco-nombre" maxlength="120" placeholder="BBVA, Banorte, HSBC" value="${escaparAtributo(tenant?.banco_nombre || '')}"></div>
+              <div><label for="tenant-banco-titular">Nombre del titular de la cuenta</label><input type="text" id="tenant-banco-titular" maxlength="180" value="${escaparAtributo(tenant?.banco_titular || '')}"></div>
+            </div>
+          </div>
           <div class="campo-completo" style="border-top:2px solid #e8edf5;padding-top:18px;margin-top:4px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
               <img src="guepack-icons/guepack-icons/svg/12-galeria.svg" alt="" width="22" height="22">
@@ -505,6 +512,10 @@ function abrirModalTenant(id = null) {
   const campoSlug = document.getElementById('tenant-slug')
   campoSlug.addEventListener('input', () => {
     campoSlug.value = campoSlug.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  })
+  const campoClabe = document.getElementById('tenant-banco-clabe')
+  campoClabe.addEventListener('input', () => {
+    campoClabe.value = campoClabe.value.replace(/\D/g, '').slice(0, 18)
   })
   const campoLogo = document.getElementById('tenant-logo-archivo')
   campoLogo.addEventListener('change', actualizarVistaPreviaLogo)
@@ -580,6 +591,12 @@ async function seleccionarImagenMascota(campo, evento) {
     evento.target.value = ''
     mostrarToast('❌ Escribe un slug válido antes de subir imágenes')
     document.getElementById('tenant-slug').focus()
+    return
+  }
+  const bancoClabe = document.getElementById('tenant-banco-clabe').value.trim()
+  if (bancoClabe && !/^\d{18}$/.test(bancoClabe)) {
+    mostrarToast('❌ La CLABE debe contener exactamente 18 dígitos')
+    document.getElementById('tenant-banco-clabe').focus()
     return
   }
   if (!archivo.type.startsWith('image/') || archivo.size > 5 * 1024 * 1024) {
@@ -662,7 +679,9 @@ async function guardarTenant(evento) {
     horario_atencion: document.getElementById('tenant-horario').value.trim() || null,
     plan: document.getElementById('tenant-plan').value,
     precio_mensual: Number(document.getElementById('tenant-precio').value) || 0,
-    datos_bancarios: document.getElementById('tenant-datos-bancarios').value.trim() || null,
+    banco_clabe: bancoClabe || null,
+    banco_nombre: document.getElementById('tenant-banco-nombre').value.trim() || null,
+    banco_titular: document.getElementById('tenant-banco-titular').value.trim() || null,
     ...urlsImagenesTenant,
     notas: document.getElementById('tenant-notas').value.trim() || null
   }

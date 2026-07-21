@@ -1288,6 +1288,16 @@ function _cargarMenuLateral() {
 function _renderEfectivoDrawer() {
   const cont = document.getElementById('drawer-efectivo-body')
   if (!cont || !_repaData) return
+  let tenant = window.tenantConfig || null
+  if (!tenant) {
+    try {
+      tenant = JSON.parse(sessionStorage.getItem('tenant_config') || 'null')
+    } catch (_) {}
+  }
+  const escaparDato = valor => String(valor || '').replace(/[&<>"']/g, caracter => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caracter])
+  const bancoNombre = escaparDato(tenant?.banco_nombre || 'No configurado')
+  const bancoClabe = escaparDato(tenant?.banco_clabe || 'No configurada')
+  const bancoTitular = escaparDato(tenant?.banco_titular || 'No configurado')
   const acum = Number(_repaData.efectivo_acumulado) || 0
   const bloqueado = _repaData.bloqueado_efectivo === true || acum >= 300
   const pct = Math.min((acum / 300) * 100, 100)
@@ -1309,20 +1319,20 @@ function _renderEfectivoDrawer() {
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:var(--color-primary-dark);margin-bottom:10px">Datos para depósito</div>
       <div style="margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">BANCO</div>
-        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">BBVA</div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">${bancoNombre}</div>
       </div>
       <div style="margin-bottom:8px">
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">CLABE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">012320029474665791</span>
-          <button onclick="navigator.clipboard.writeText('012320029474665791').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+          <span id="deposito-clabe" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">${bancoClabe}</span>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('deposito-clabe').textContent).then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
         </div>
       </div>
       <div>
         <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:3px">NOMBRE</div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <span style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Leonardo Vazquez Fajardo</span>
-          <button onclick="navigator.clipboard.writeText('Leonardo Vazquez Fajardo').then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
+          <span id="deposito-titular" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">${bancoTitular}</span>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('deposito-titular').textContent).then(()=>_toastRepa('✅ Copiado','#22c55e'))" style="padding:4px 10px;border:none;border-radius:7px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer;white-space:nowrap">Copiar</button>
         </div>
       </div>
     </div>
@@ -1332,6 +1342,10 @@ function _renderEfectivoDrawer() {
     ` : ''}
   `
 }
+
+window.addEventListener('tenant-config-aplicada', () => {
+  if (_repaData) _renderEfectivoDrawer()
+})
 
 function _renderProgresoDrawer() {
   const cont = document.getElementById('drawer-progreso-body')
