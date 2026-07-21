@@ -128,17 +128,22 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders(req) })
   }
 
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
+  const authHeader = req.headers.get('Authorization') || ''
+  const tokenJwt = authHeader.replace(/^Bearer\s+/i, '')
+  if (!tokenJwt) {
     return new Response(JSON.stringify({ error: 'No autorizado' }), {
       status: 401,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
     })
   }
 
-  const tokenJwt = authHeader.replace(/^Bearer\s+/i, '')
-  const claveServicio = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  if (tokenJwt !== claveServicio) {
+  const clavesServicio = [
+    Deno.env.get('SERVICE_ROLE_KEY'),
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  ].filter((clave): clave is string => Boolean(clave))
+
+  // Las llamadas internas pueden autenticarse directamente con una clave de servicio.
+  if (!clavesServicio.includes(tokenJwt)) {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!
@@ -201,7 +206,7 @@ Deno.serve(async (req) => {
   if (user_id) {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      (Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!
     )
     const { data: tokenRows, error: tkErr } = await supabase
       .from('usuarios_tokens')

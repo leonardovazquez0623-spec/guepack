@@ -4900,6 +4900,7 @@ async function _pagarConTarjetaHistorial(pedidoId, btn) {
 
 async function _iniciarAsignacionAutomatica(pedido) {
   const pedidoId = pedido.id
+  console.log('[asignacion] iniciando para pedido id:', pedidoId)
   if (!window._asignacionEnCurso) window._asignacionEnCurso = new Set()
   if (window._asignacionEnCurso.has(pedidoId)) {
     console.log('[asignacion] ya en curso para pedido:', pedidoId, '— ignorando duplicado')
@@ -4911,12 +4912,21 @@ async function _iniciarAsignacionAutomatica(pedido) {
   try {
     const { data: { session } } = await db.auth.getSession()
     const jwt = session?.access_token ?? SUPABASE_KEY
-    const res = await fetch(SUPABASE_URL + '/functions/v1/procesar-asignacion', {
+    console.log('[asignacion] llamando edge function procesar-asignacion')
+    const response = await fetch(SUPABASE_URL + '/functions/v1/procesar-asignacion', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
       body: JSON.stringify({ pedido_id: pedidoId, ronda: 1 })
     })
-    const json = await res.json()
+    console.log('[asignacion] respuesta status:', response.status)
+    const respuestaBody = await response.text()
+    console.log('[asignacion] respuesta body:', respuestaBody)
+    let json
+    try {
+      json = respuestaBody ? JSON.parse(respuestaBody) : {}
+    } catch {
+      json = { respuesta: respuestaBody }
+    }
     console.log('[asignacion] respuesta Edge Function:', json)
   } catch (e) {
     console.warn('[asignacion] error llamando procesar-asignacion:', e)

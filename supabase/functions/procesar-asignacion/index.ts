@@ -59,6 +59,8 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('[procesar] pedido_id:', pedido_id, 'ronda:', ronda)
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceKey  = Deno.env.get('SERVICE_ROLE_KEY')!
     const supabase    = createClient(supabaseUrl, serviceKey)
@@ -68,9 +70,11 @@ Deno.serve(async (req) => {
     // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
     const { data: pedido, error: pedErr } = await supabase
       .from('pedidos')
-      .select('id, repartidor, direccion_recoleccion')
+      .select('id, repartidor, estado, direccion_recoleccion')
       .eq('id', pedido_id)
       .single()
+
+    console.log('[procesar] pedido estado actual:', pedido?.repartidor, pedido?.estado)
 
     if (pedErr || !pedido) {
       console.warn('[procesar-asignacion] pedido no encontrado:', pedErr?.message)
@@ -108,6 +112,7 @@ Deno.serve(async (req) => {
       .select('email, nombre')
       .eq('disponible', true)
     console.log(`[procesar-asignacion] repartidores disponibles: ${repas?.length ?? 0}`)
+    console.log('[procesar] repartidores disponibles:', repas?.length, repas)
 
     if (!repas?.length) {
       console.log('[procesar-asignacion] sin repartidores — notificando admin')
@@ -145,7 +150,15 @@ Deno.serve(async (req) => {
             headers: pushHeaders,
             body: JSON.stringify({ user_id: u.user_id, title: '📦 Nuevo pedido disponible', body: notifBody, tipo: 'pedido' })
           })
-          const json = await res.json()
+          const responseStatus = res.status
+          const responseBody = await res.text()
+          console.log('[procesar] resultado enviar-push:', responseStatus, responseBody)
+          let json: any = {}
+          try {
+            json = responseBody ? JSON.parse(responseBody) : {}
+          } catch {
+            json = { respuesta: responseBody }
+          }
           if (!res.ok) {
             console.error(`[procesar-asignacion] enviar-push HTTP ${res.status} para ${u.email}:`, JSON.stringify(json))
           } else {
@@ -215,7 +228,15 @@ async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: 
             tipo: 'admin'
           })
         })
-        const json = await res.json()
+        const responseStatus = res.status
+        const responseBody = await res.text()
+        console.log('[procesar] resultado enviar-push:', responseStatus, responseBody)
+        let json: any = {}
+        try {
+          json = responseBody ? JSON.parse(responseBody) : {}
+        } catch {
+          json = { respuesta: responseBody }
+        }
         if (!res.ok) {
           console.error(`[procesar-asignacion] admin push HTTP ${res.status}:`, JSON.stringify(json))
         } else {
