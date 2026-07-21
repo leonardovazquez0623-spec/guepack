@@ -388,7 +388,7 @@ async function loginEmail() {
 
   const { data: { session } } = await db.auth.getSession()
   if (session) {
-    db.from('eventos_trafico').insert({ tipo: 'login', user_id: session.user.id }).then(() => {})
+    db.from('eventos_trafico').insert({ tipo: 'login', user_id: session.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }
 
   await redirigirSegunRol(email)
@@ -526,7 +526,7 @@ async function registrar() {
         console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
       }
     }
-    db.from('eventos_trafico').insert({ tipo: 'registro', user_id: signUpData.user.id }).then(() => {})
+    db.from('eventos_trafico').insert({ tipo: 'registro', user_id: signUpData.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }
   _mostrarModalCuentaCreada()
 }

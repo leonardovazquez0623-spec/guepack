@@ -2059,6 +2059,8 @@ async function _posponerrPwaBanner(userId) {
 }
 
 // ── Verificar sesión ──
+let _tenantIdEventos = null
+
 async function verificarSesion() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) {
@@ -2073,9 +2075,11 @@ async function verificarSesion() {
   }
 
   const { data: usuario } = await db.from('usuarios')
-    .select('rol, whatsapp')
+    .select('rol, whatsapp, tenant_id')
     .eq('user_id', session.user.id)
     .single()
+
+  _tenantIdEventos = usuario?.tenant_id || window.tenantConfig?.id || null
 
   if (usuario?.rol === 'repartidor') {
     window.location.replace('repartidor.html')
@@ -2104,7 +2108,7 @@ async function verificarSesion() {
   iniciarTour()
   // Evento retorno: si el usuario ya tiene pedidos previos es visita de retorno
   db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
-    if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id }).then(() => {})
+    if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id, tenant_id: _tenantIdEventos }).then(() => {})
   })
 }
 
@@ -3255,7 +3259,7 @@ const { data, error } = await db.from('pedidos').insert({
       ).then(() => {})
     }
   }
-  if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId }).then(() => {})
+  if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId, tenant_id: _tenantIdEventos }).then(() => {})
 
   const folioReal = data[0].id
   _pedidoTokens[folioReal] = tokenRastreo
@@ -5721,7 +5725,7 @@ async function _bvGuardar() {
     await _cargarAvatarCliente(session.user)
     iniciarTour()
     db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
-      if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id }).then(() => {})
+      if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id, tenant_id: _tenantIdEventos }).then(() => {})
     })
   }
 }

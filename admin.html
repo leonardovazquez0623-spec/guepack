@@ -1251,7 +1251,8 @@ const TABLAS_POR_TENANT = new Set([
   'precios_generales',
   'rangos_precio_general',
   'rangos_precio_empresa',
-  'rangos_paqueteria'
+  'rangos_paqueteria',
+  'eventos_trafico'
 ])
 
 function agregarTenantAValores(valores) {
@@ -3408,6 +3409,38 @@ function escaparHTML(str) {
 let _chatChannel = null, _chatPedidoId = null, _chatRol = 'admin'
 let _soporteAdminEmail = null, _soporteAdminChannel = null
 
+async function obtenerIdsPedidosDelTenant() {
+  if (ES_SUPERADMIN) return null
+  const { data, error } = await db.from('pedidos').select('id')
+  if (error) {
+    console.error('[chats] No se pudieron consultar los pedidos del tenant:', error)
+    return []
+  }
+  return (data || []).map(pedido => pedido.id)
+}
+
+async function obtenerCorreosDelTenant() {
+  if (ES_SUPERADMIN) return null
+  const { data, error } = await db.from('usuarios').select('email')
+  if (error) {
+    console.error('[chats] No se pudieron consultar los usuarios del tenant:', error)
+    return []
+  }
+  return (data || []).map(usuario => usuario.email).filter(Boolean)
+}
+
+async function pedidoPerteneceAlTenant(pedidoId) {
+  if (ES_SUPERADMIN) return true
+  const { data } = await db.from('pedidos').select('id').eq('id', pedidoId).maybeSingle()
+  return Boolean(data)
+}
+
+async function correoPerteneceAlTenant(email) {
+  if (ES_SUPERADMIN) return true
+  const { data } = await db.from('usuarios').select('user_id').eq('email', email).maybeSingle()
+  return Boolean(data)
+}
+
 function _actualizarBadgeSoporte(cantidad) {
   for (const id of ['admin-chat-badge', 'sidebar-chat-badge']) {
     const badge = document.getElementById(id)
@@ -3418,12 +3451,21 @@ function _actualizarBadgeSoporte(cantidad) {
 }
 
 async function cargarChats() {
-  const { data: soportePendiente, error: errorSoporte } = await db.from('mensajes')
+  const [pedidosDelTenant, correosDelTenant] = await Promise.all([
+    obtenerIdsPedidosDelTenant(),
+    obtenerCorreosDelTenant()
+  ])
+
+  let consultaSoporte = db.from('mensajes')
     .select('*')
     .eq('tipo', 'soporte')
     .eq('escalado', true)
     .neq('leido', true)
     .order('created_at', { ascending: false })
+  if (!ES_SUPERADMIN && correosDelTenant.length) consultaSoporte = consultaSoporte.in('remitente_email', correosDelTenant)
+  const { data: soportePendiente, error: errorSoporte } = !ES_SUPERADMIN && !correosDelTenant.length
+    ? { data: [], error: null }
+    : await consultaSoporte
 
   if (errorSoporte) console.error('[cargarChats] soporte pendiente:', errorSoporte)
 
@@ -3464,11 +3506,15 @@ async function cargarChats() {
     }
   }
 
-  const { data: chatData } = await db.from('mensajes')
+  let consultaChats = db.from('mensajes')
     .select('*')
     .eq('tipo', 'chat')
     .not('pedido_id', 'is', null)
     .order('created_at', { ascending: false })
+  if (!ES_SUPERADMIN && pedidosDelTenant.length) consultaChats = consultaChats.in('pedido_id', pedidosDelTenant)
+  const { data: chatData } = !ES_SUPERADMIN && !pedidosDelTenant.length
+    ? { data: [] }
+    : await consultaChats
   console.log('[cargarChats] Q3 chats pedidos → count:', chatData?.length)
   const porPedido = {}
   ;(chatData || []).forEach(m => {
@@ -3493,6 +3539,10 @@ async function cargarChats() {
 }
 
 async function abrirChatSoporte(email) {
+  if (!await correoPerteneceAlTenant(email)) {
+    showToast('No tienes acceso a esta conversación')
+    return
+  }
   _soporteAdminEmail = email
   document.getElementById('modal-chat-soporte')?.remove()
   const modal = document.createElement('div')
@@ -3529,6 +3579,7 @@ async function abrirChatSoporte(email) {
 }
 
 async function _cargarConversacionSoporte() {
+  if (!await correoPerteneceAlTenant(_soporteAdminEmail)) return
   const { data, error } = await db.from('mensajes')
     .select('*')
     .eq('tipo', 'soporte')
@@ -3564,6 +3615,10 @@ async function enviarRespuestaSoporte() {
   const input = document.getElementById('soporte-admin-input')
   const texto = input?.value.trim()
   if (!texto || !_soporteAdminEmail) return
+  if (!await correoPerteneceAlTenant(_soporteAdminEmail)) {
+    showToast('No tienes acceso a esta conversación')
+    return
+  }
   input.value = ''
   input.disabled = true
   const { error } = await db.from('mensajes').insert({
@@ -3583,6 +3638,10 @@ async function enviarRespuestaSoporte() {
 
 async function cerrarTicketSoporte(email) {
   if (!email) return
+  if (!await correoPerteneceAlTenant(email)) {
+    showToast('No tienes acceso a esta conversación')
+    return
+  }
   const { error } = await db.from('mensajes')
     .update({ leido: true })
     .eq('tipo', 'soporte')
@@ -3607,6 +3666,10 @@ function cerrarChatSoporte() {
 }
 
 async function abrirChat(pedidoId, rol, titulo) {
+  if (!await pedidoPerteneceAlTenant(pedidoId)) {
+    showToast('No tienes acceso a este pedido')
+    return
+  }
   _chatPedidoId = pedidoId; _chatRol = rol
   if (document.getElementById('modal-chat')) cerrarChat()
   const modal = document.createElement('div')
@@ -3634,6 +3697,7 @@ async function abrirChat(pedidoId, rol, titulo) {
 }
 
 async function _cargarMensajesChat() {
+  if (!await pedidoPerteneceAlTenant(_chatPedidoId)) return
   const { data } = await db.from('mensajes').select('*').eq('pedido_id', _chatPedidoId).eq('tipo', 'chat').order('created_at', { ascending: true })
   const c = document.getElementById('chat-messages')
   if (!c) return
@@ -3660,6 +3724,10 @@ async function enviarMensajeChat() {
   const input = document.getElementById('chat-input')
   const texto = input.value.trim()
   if (!texto) return
+  if (!await pedidoPerteneceAlTenant(_chatPedidoId)) {
+    showToast('No tienes acceso a este pedido')
+    return
+  }
   input.value = ''
   const msg = { texto, de: 'admin', tipo: 'chat', pedido_id: _chatPedidoId }
   await db.from('mensajes').insert(msg)
@@ -3673,13 +3741,15 @@ function cerrarChat() {
 if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
 
 db.channel('admin-mensajes-global')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, payload => {
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes' }, async payload => {
     const msg = payload.new
     if (msg.tipo === 'soporte') {
+      if (!await correoPerteneceAlTenant(msg.remitente_email)) return
       if (msg.escalado === true && msg.leido !== true) cargarChats()
       return
     }
     if (msg.de === 'admin' || !msg.pedido_id) return
+    if (!await pedidoPerteneceAlTenant(msg.pedido_id)) return
     const esMismaConv = _chatPedidoId === msg.pedido_id
     if (esMismaConv && document.getElementById('modal-chat')) return
     if (Notification.permission === 'granted') {
@@ -4183,7 +4253,10 @@ function _renderStars(promedio, size = 20) {
 }
 
 async function cargarCalificaciones() {
-  const { data } = await db.from('calificaciones').select('*').order('created_at', { ascending: false })
+  const pedidosDelTenant = await obtenerIdsPedidosDelTenant()
+  let consulta = db.from('calificaciones').select('*').order('created_at', { ascending: false })
+  if (!ES_SUPERADMIN && pedidosDelTenant.length) consulta = consulta.in('pedido_id', pedidosDelTenant)
+  const { data } = !ES_SUPERADMIN && !pedidosDelTenant.length ? { data: [] } : await consulta
   if (!data || data.length === 0) {
     document.getElementById('cal-promedio-num').textContent = '—'
     document.getElementById('cal-promedio-estrellas').innerHTML = '<span style="color:#e0e0e0;font-size:36px">★★★★★</span>'
@@ -5487,7 +5560,9 @@ function iniciarActualizacionCuentasSinVerificar() {
 
 async function cargarCuentasSinVerificar() {
   const lista = document.getElementById('lista-cuentas-sin-verificar')
-  const { data, error } = await db.rpc('listar_cuentas_sin_verificar')
+  const { data, error } = await db.rpc('listar_cuentas_sin_verificar', {
+    p_tenant_id: ES_SUPERADMIN ? null : TENANT_ID
+  })
   if (error) {
     console.error('Error al cargar cuentas sin verificar:', error)
     if (lista) {
