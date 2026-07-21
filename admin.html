@@ -247,6 +247,14 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-contactos" onclick="showTab('contactos')" style="position:relative;display:flex;align-items:center;gap:6px"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos<span id="sidebar-contactos-badge" style="display:none;background:var(--color-secondary);color:white;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto;flex-shrink:0">0</span></button>
   </nav>
   <div style="padding:12px 10px 18px">
+    <section id="sidebar-mi-suscripcion" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:12px;margin-bottom:10px;color:white">
+      <div style="display:flex;align-items:center;gap:7px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:900;margin-bottom:9px"><img src="guepack-icons/guepack-icons/svg/18-pagos.svg" alt="" width="18" height="18" style="filter:brightness(0) invert(1)">Mi suscripción</div>
+      <div id="suscripcion-resumen-sidebar" style="font-family:Montserrat,sans-serif;font-size:10px;color:rgba(255,255,255,.72)">Cargando...</div>
+      <details style="margin-top:8px">
+        <summary style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;cursor:pointer;color:rgba(255,255,255,.82)">Historial · últimos 3 meses</summary>
+        <div id="suscripcion-historial-sidebar" style="margin-top:7px"></div>
+      </details>
+    </section>
     <button id="sidebar-btn-lluvia" onclick="toggleLluvia()" style="width:100%;padding:11px;border:none;border-radius:10px;background:rgba(255,255,255,.12);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center">🌤️ Modo lluvia: OFF</button>
     <button id="sidebar-btn-superadmin" onclick="window.location.href='superadmin.html'" style="display:none;width:100%;padding:11px;border:none;border-radius:10px;background:#7C3AED;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;letter-spacing:.5px;margin-bottom:8px;text-align:center;box-shadow:0 4px 14px rgba(124,58,237,.35)">🌐 Super Admin</button>
     <div class="admin-user-menu" style="width:100%">
@@ -1228,6 +1236,7 @@ const dbBase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let TENANT_ID = 1
+let canalSuscripcionSaas = null
 const TABLAS_POR_TENANT = new Set([
   'pedidos',
   'usuarios',
@@ -2354,6 +2363,68 @@ async function guardarConfigEnviosGratis() {
   showToast('✅ Configuración guardada')
 }
 
+function fechaPagoAdmin(valor) {
+  if (!valor) return null
+  const fecha = new Date(String(valor).slice(0, 10) + 'T12:00:00')
+  return Number.isNaN(fecha.getTime()) ? null : fecha
+}
+
+async function cargarMiSuscripcion() {
+  const resumen = document.getElementById('suscripcion-resumen-sidebar')
+  const historial = document.getElementById('suscripcion-historial-sidebar')
+  if (!resumen || !historial) return
+  const [{ data: tenant, error: errorTenant }, { data: pagos, error: errorPagos }] = await Promise.all([
+    dbBase.from('tenants').select('id, plan, precio_mensual, created_at').eq('id', TENANT_ID).single(),
+    dbBase.from('pagos_saas').select('id, fecha_vencimiento, monto, estado, fecha_pago').eq('tenant_id', TENANT_ID).order('fecha_vencimiento', { ascending: false })
+  ])
+  if (errorTenant || errorPagos || !tenant) {
+    console.error('No fue posible cargar la suscripción:', errorTenant || errorPagos)
+    resumen.textContent = 'Suscripción no disponible'
+    historial.innerHTML = ''
+    return
+  }
+
+  const listaPagos = pagos || []
+  const pendiente = listaPagos.filter(pago => pago.estado !== 'pagado')
+    .sort((a, b) => String(a.fecha_vencimiento).localeCompare(String(b.fecha_vencimiento)))[0]
+  const ultimoPagado = listaPagos.filter(pago => pago.estado === 'pagado')[0]
+  let proximoPago = fechaPagoAdmin(pendiente?.fecha_vencimiento)
+  if (!proximoPago && ultimoPagado) {
+    proximoPago = fechaPagoAdmin(ultimoPagado.fecha_vencimiento)
+    proximoPago.setMonth(proximoPago.getMonth() + 1)
+  }
+  if (!proximoPago) {
+    proximoPago = fechaPagoAdmin(tenant.created_at) || new Date()
+    proximoPago.setMonth(proximoPago.getMonth() + 1)
+  }
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const dias = Math.ceil((proximoPago - hoy) / 86400000)
+  const estado = dias < 0
+    ? { color: '#ef4444', texto: 'Vencido' }
+    : dias <= 7
+      ? { color: '#f59e0b', texto: 'Próximo vencimiento' }
+      : { color: '#22c55e', texto: 'Al corriente' }
+
+  resumen.innerHTML = `<div style="font-weight:900;color:white;text-transform:capitalize">Plan ${escaparHtmlAdmin(tenant.plan || '—')}</div>
+    <div style="margin-top:3px">$${Number(tenant.precio_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} al mes</div>
+    <div style="margin-top:3px">Próximo pago: ${proximoPago.toLocaleDateString('es-MX')}</div>
+    <div style="display:flex;align-items:center;gap:5px;margin-top:6px;color:white;font-weight:900"><span style="width:8px;height:8px;border-radius:50%;background:${estado.color}"></span>${estado.texto}</div>`
+
+  const limite = new Date()
+  limite.setMonth(limite.getMonth() - 3)
+  const pagosRecientes = listaPagos.filter(pago => (fechaPagoAdmin(pago.fecha_vencimiento) || new Date(0)) >= limite).slice(0, 3)
+  historial.innerHTML = pagosRecientes.length ? pagosRecientes.map(pago => `<div style="display:flex;justify-content:space-between;gap:5px;padding:5px 0;border-top:1px solid rgba(255,255,255,.12);font-family:Montserrat,sans-serif;font-size:9px;color:rgba(255,255,255,.75)"><span>${fechaPagoAdmin(pago.fecha_vencimiento)?.toLocaleDateString('es-MX') || '—'}</span><span style="font-weight:900;color:${pago.estado === 'pagado' ? '#86efac' : '#fdba74'}">${pago.estado === 'pagado' ? 'Pagado' : 'Pendiente'}</span></div>`).join('') : '<div style="font-size:9px;color:rgba(255,255,255,.55)">Sin pagos registrados</div>'
+}
+
+function iniciarRealtimeSuscripcion() {
+  if (canalSuscripcionSaas) dbBase.removeChannel(canalSuscripcionSaas)
+  canalSuscripcionSaas = dbBase.channel('admin-suscripcion-' + TENANT_ID)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_saas', filter: 'tenant_id=eq.' + TENANT_ID }, cargarMiSuscripcion)
+    .subscribe()
+}
+
 async function init() {
   let { data: { session } } = await db.auth.getSession()
   if (!session) {
@@ -2377,6 +2448,8 @@ async function init() {
 
   TENANT_ID = usuarioAdmin.tenant_id || 1
   console.log('[tenant] Administrador cargado para tenant_id:', TENANT_ID)
+  cargarMiSuscripcion()
+  iniciarRealtimeSuscripcion()
 
   if (usuarioAdmin.es_superadmin) {
     document.getElementById('sidebar-btn-superadmin').style.display = 'block'

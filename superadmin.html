@@ -73,6 +73,17 @@
   .boton-secundario { color: var(--texto); background: #e8edf5; }
   .boton-editar { color: var(--azul); background: rgba(30, 86, 199, .1); padding: 8px 10px; }
   .boton-eliminar { color: var(--rojo); background: rgba(220, 38, 38, .1); padding: 8px 10px; }
+  .navegacion-panel { display:flex; gap:8px; margin:0 0 16px; flex-wrap:wrap; }
+  .navegacion-panel button { display:flex; align-items:center; gap:7px; border:0; border-radius:10px; padding:10px 16px; background:#e8edf5; color:var(--texto); font-family:Montserrat,sans-serif; font-size:12px; font-weight:900; cursor:pointer; }
+  .navegacion-panel button.activo { background:var(--azul); color:white; }
+  .navegacion-panel img { width:18px; height:18px; object-fit:contain; }
+  .navegacion-panel button.activo img { filter:brightness(0) invert(1); }
+  .seccion-superadmin { display:none; }
+  .seccion-superadmin.activa { display:block; }
+  .estado-pago { display:inline-flex; align-items:center; border-radius:999px; padding:5px 9px; font-size:10px; font-weight:900; white-space:nowrap; }
+  .estado-pago.verde { background:#dcfce7; color:#166534; }
+  .estado-pago.naranja { background:#ffedd5; color:#9a3412; }
+  .estado-pago.rojo { background:#fee2e2; color:#991b1b; }
   .estadisticas {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -253,7 +264,12 @@
     <article class="estadistica"><div class="estadistica-valor" id="stat-prueba">0</div><div class="estadistica-etiqueta">Tenants en prueba</div></article>
   </section>
 
-  <section class="panel">
+  <nav class="navegacion-panel" aria-label="Secciones del panel">
+    <button id="boton-seccion-tenants" class="activo" onclick="mostrarSeccionPanel('tenants')"><img src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Tenants</button>
+    <button id="boton-seccion-facturacion" onclick="mostrarSeccionPanel('facturacion')"><img src="guepack-icons/guepack-icons/svg/19-cobros.svg" alt="">Facturación</button>
+  </nav>
+
+  <section class="panel seccion-superadmin activa" id="seccion-tenants">
     <div class="panel-cabecera">
       <div>
         <h1 class="titulo-seccion">Tenants</h1>
@@ -275,6 +291,16 @@
       </table>
     </div>
   </section>
+
+  <section class="panel seccion-superadmin" id="seccion-facturacion">
+    <div class="panel-cabecera">
+      <div>
+        <h1 class="titulo-seccion">Facturación SaaS</h1>
+        <div style="font-size:11px;color:var(--gris-medio);font-weight:700;margin-top:2px">Cobros mensuales e historial de los tenants</div>
+      </div>
+    </div>
+    <div id="lista-facturacion-saas"><div class="estado-vacio">Cargando facturación...</div></div>
+  </section>
 </main>
 
 <div id="toast"></div>
@@ -288,6 +314,8 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let tenants = []
+let pagosSaas = []
+let canalPagosSaas = null
 const estadosConfiguracionTenant = new Map()
 let tenantEditandoId = null
 let archivoLogoSeleccionado = null
@@ -331,6 +359,145 @@ async function iniciarPanel() {
 
   document.getElementById('cargando').style.display = 'none'
   await cargarTenants()
+  iniciarRealtimePagosSaas()
+}
+
+function mostrarSeccionPanel(seccion) {
+  document.querySelectorAll('.seccion-superadmin').forEach(elemento => elemento.classList.remove('activa'))
+  document.querySelectorAll('.navegacion-panel button').forEach(elemento => elemento.classList.remove('activo'))
+  document.getElementById('seccion-' + seccion)?.classList.add('activa')
+  document.getElementById('boton-seccion-' + seccion)?.classList.add('activo')
+  if (seccion === 'facturacion') cargarFacturacionSaas()
+}
+
+function fechaLocalSaas(valor) {
+  if (!valor) return null
+  const fecha = new Date(String(valor).slice(0, 10) + 'T12:00:00')
+  return Number.isNaN(fecha.getTime()) ? null : fecha
+}
+
+function fechaSqlSaas(fecha) {
+  return fecha.toISOString().slice(0, 10)
+}
+
+function sumarMesSaas(fecha) {
+  const resultado = new Date(fecha)
+  resultado.setMonth(resultado.getMonth() + 1)
+  return resultado
+}
+
+function obtenerResumenPagoSaas(tenant) {
+  const pagosTenant = pagosSaas.filter(pago => String(pago.tenant_id) === String(tenant.id))
+  const pendientes = pagosTenant.filter(pago => pago.estado !== 'pagado')
+    .sort((a, b) => String(a.fecha_vencimiento).localeCompare(String(b.fecha_vencimiento)))
+  const ultimoPagado = pagosTenant.filter(pago => pago.estado === 'pagado')
+    .sort((a, b) => String(b.fecha_vencimiento).localeCompare(String(a.fecha_vencimiento)))[0]
+  let fechaProxima = fechaLocalSaas(pendientes[0]?.fecha_vencimiento)
+  if (!fechaProxima && ultimoPagado) fechaProxima = sumarMesSaas(fechaLocalSaas(ultimoPagado.fecha_vencimiento))
+  if (!fechaProxima) fechaProxima = sumarMesSaas(fechaLocalSaas(tenant.created_at) || new Date())
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const dias = Math.ceil((fechaProxima - hoy) / 86400000)
+  const vencido = pendientes.length > 0 && dias < 0
+  if (vencido) return { clase: 'rojo', etiqueta: '🔴 Vencido', fechaProxima, pagoPendiente: pendientes[0] }
+  if (dias <= 7) return { clase: 'naranja', etiqueta: '🟠 Próximo vencimiento', fechaProxima, pagoPendiente: pendientes[0] }
+  return { clase: 'verde', etiqueta: '🟢 Al corriente', fechaProxima, pagoPendiente: pendientes[0] }
+}
+
+async function cargarFacturacionSaas() {
+  const contenedor = document.getElementById('lista-facturacion-saas')
+  if (!contenedor) return
+  contenedor.innerHTML = '<div class="estado-vacio">Cargando facturación...</div>'
+  const { data, error } = await db.from('pagos_saas')
+    .select('id, tenant_id, periodo, fecha_vencimiento, monto, estado, fecha_pago, created_at')
+    .order('fecha_vencimiento', { ascending: false })
+  if (error) {
+    console.error('No fue posible cargar la facturación SaaS:', error)
+    contenedor.innerHTML = '<div class="estado-vacio">No fue posible cargar la facturación</div>'
+    return
+  }
+  pagosSaas = data || []
+  contenedor.innerHTML = tenants.length ? tenants.map(tenant => {
+    const resumen = obtenerResumenPagoSaas(tenant)
+    const limiteHistorial = new Date()
+    limiteHistorial.setMonth(limiteHistorial.getMonth() - 6)
+    const historial = pagosSaas.filter(pago => String(pago.tenant_id) === String(tenant.id) && (fechaLocalSaas(pago.fecha_vencimiento) || new Date(0)) >= limiteHistorial).slice(0, 6)
+    return `<article style="border:1px solid #e3e8f2;border-radius:14px;padding:16px;margin-bottom:12px;background:#fff">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <div style="font-size:15px;font-weight:900;color:var(--texto)">${escaparHtml(tenant.nombre)}</div>
+          <div style="font-size:11px;color:var(--gris-medio);font-weight:700;margin-top:3px">Plan ${escaparHtml(tenant.plan || '—')} · ${formatearMoneda(tenant.precio_mensual)} al mes</div>
+          <div style="font-size:11px;color:var(--gris-medio);font-weight:700;margin-top:3px">Próximo pago: ${resumen.fechaProxima.toLocaleDateString('es-MX')}</div>
+        </div>
+        <span class="estado-pago ${resumen.clase}">${resumen.etiqueta}</span>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:13px">
+        <button class="boton" style="background:#16a34a;color:white;padding:8px 10px" onclick="marcarPagoSaas('${escaparAtributo(tenant.id)}',${resumen.pagoPendiente?.id || 'null'})"><img src="guepack-icons/guepack-icons/svg/26-express.svg" alt="" width="16" height="16" style="filter:brightness(0) invert(1)"> Marcar pagado</button>
+        <button class="boton boton-secundario" style="padding:8px 10px" onclick="enviarRecordatorioSaas('${escaparAtributo(tenant.id)}')"><img src="guepack-icons/guepack-icons/svg/17-cotizacion.svg" alt="" width="16" height="16"> Enviar recordatorio</button>
+        <button class="boton boton-primario" style="padding:8px 10px" onclick="generarCobroSaas('${escaparAtributo(tenant.id)}')"><img src="guepack-icons/guepack-icons/svg/30-agregar.svg" alt="" width="16" height="16" style="filter:brightness(0) invert(1)"> Generar cobro</button>
+      </div>
+      <details style="margin-top:13px">
+        <summary style="cursor:pointer;font-size:11px;font-weight:900;color:var(--azul)">Historial de pagos · últimos 6 meses</summary>
+        <div style="margin-top:8px">${historial.length ? historial.map(pago => `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #edf0f5;font-size:11px;font-weight:700"><span>${fechaLocalSaas(pago.fecha_vencimiento)?.toLocaleDateString('es-MX') || '—'} · ${formatearMoneda(pago.monto)}</span><span style="color:${pago.estado === 'pagado' ? '#16a34a' : '#d97706'}">${pago.estado === 'pagado' ? 'Pagado' : 'Pendiente'}</span></div>`).join('') : '<div class="estado-vacio" style="padding:12px">Sin pagos registrados</div>'}</div>
+      </details>
+    </article>`
+  }).join('') : '<div class="estado-vacio">No hay tenants registrados</div>'
+}
+
+async function generarCobroSaas(tenantId) {
+  const tenant = tenants.find(item => String(item.id) === String(tenantId))
+  if (!tenant) return
+  const resumen = obtenerResumenPagoSaas(tenant)
+  const fechaVencimiento = fechaSqlSaas(resumen.fechaProxima)
+  const duplicado = pagosSaas.some(pago => String(pago.tenant_id) === String(tenantId) && pago.estado === 'pendiente' && pago.fecha_vencimiento === fechaVencimiento)
+  if (duplicado) { mostrarToast('⚠️ Ya existe un cobro pendiente para esa fecha'); return }
+  const { error } = await db.from('pagos_saas').insert({
+    tenant_id: tenant.id,
+    periodo: fechaVencimiento.slice(0, 7) + '-01',
+    fecha_vencimiento: fechaVencimiento,
+    monto: Number(tenant.precio_mensual) || 0,
+    estado: 'pendiente'
+  })
+  if (error) { console.error('Error al generar cobro SaaS:', error); mostrarToast('❌ No se pudo generar el cobro'); return }
+  mostrarToast('✅ Cobro pendiente generado')
+  await cargarFacturacionSaas()
+}
+
+async function marcarPagoSaas(tenantId, pagoId) {
+  const tenant = tenants.find(item => String(item.id) === String(tenantId))
+  if (!tenant) return
+  const ahora = new Date().toISOString()
+  let error = null
+  if (pagoId) {
+    ;({ error } = await db.from('pagos_saas').update({ estado: 'pagado', fecha_pago: ahora }).eq('id', pagoId).eq('tenant_id', tenant.id))
+  } else {
+    const resumen = obtenerResumenPagoSaas(tenant)
+    const fecha = fechaSqlSaas(resumen.fechaProxima)
+    ;({ error } = await db.from('pagos_saas').insert({ tenant_id: tenant.id, periodo: fecha.slice(0, 7) + '-01', fecha_vencimiento: fecha, monto: Number(tenant.precio_mensual) || 0, estado: 'pagado', fecha_pago: ahora }))
+  }
+  if (error) { console.error('Error al marcar el pago SaaS:', error); mostrarToast('❌ No se pudo marcar el pago'); return }
+  mostrarToast('✅ Pago marcado como pagado')
+  await cargarFacturacionSaas()
+}
+
+function enviarRecordatorioSaas(tenantId) {
+  const tenant = tenants.find(item => String(item.id) === String(tenantId))
+  if (!tenant) return
+  const telefono = String(tenant.whatsapp_soporte || '').replace(/\D/g, '')
+  if (!telefono) { mostrarToast('⚠️ El tenant no tiene WhatsApp configurado'); return }
+  const resumen = obtenerResumenPagoSaas(tenant)
+  const mensaje = `Hola ${tenant.nombre}, te recordamos que tu pago del plan ${tenant.plan || ''} por ${formatearMoneda(tenant.precio_mensual)} vence el ${resumen.fechaProxima.toLocaleDateString('es-MX')}.`
+  window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener')
+}
+
+function iniciarRealtimePagosSaas() {
+  if (canalPagosSaas) db.removeChannel(canalPagosSaas)
+  canalPagosSaas = db.channel('superadmin-pagos-saas')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_saas' }, () => {
+      if (document.getElementById('seccion-facturacion')?.classList.contains('activa')) cargarFacturacionSaas()
+    })
+    .subscribe()
 }
 
 async function cargarTenants() {
