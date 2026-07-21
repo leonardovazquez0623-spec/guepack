@@ -220,7 +220,7 @@ function initMapsAdmin() {
 }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places,geometry&callback=initMapsAdmin" async defer></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/chart-local.js"></script>
 </head>
 <body>
 
@@ -830,7 +830,7 @@ function initMapsAdmin() {
       </div>
       <div class="form-group">
         <label class="form-label">Color del polígono</label>
-        <input type="color" id="z-color" value="var(--color-primary-dark)" style="width:100%;height:44px;border:2px solid var(--gray);border-radius:10px;cursor:pointer;padding:3px 6px;background:white">
+        <input type="color" id="z-color" value="#0d3a8a" style="width:100%;height:44px;border:2px solid var(--gray);border-radius:10px;cursor:pointer;padding:3px 6px;background:white">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div class="form-group" style="margin-bottom:0">
@@ -4885,9 +4885,11 @@ async function cargarZonas() {
 }
 
 function zonaFormOpen(zona) {
+  const colorGuardado = zona?.color || ''
+  const colorValido = /^#[0-9a-f]{6}$/i.test(colorGuardado) ? colorGuardado : '#0d3a8a'
   document.getElementById('z-id').value           = zona ? zona.id : ''
   document.getElementById('z-nombre').value       = zona ? zona.nombre : ''
-  document.getElementById('z-color').value        = zona ? (zona.color || 'var(--color-primary-dark)') : 'var(--color-primary-dark)'
+  document.getElementById('z-color').value        = colorValido
   document.getElementById('z-precio-sobre').value  = zona ? zona.precio_sobre : ''
   document.getElementById('z-precio-grande').value = zona ? zona.precio_grande : ''
   document.getElementById('zonas-form-title').textContent = zona ? 'Editar zona' : 'Nueva zona'
