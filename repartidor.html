@@ -2522,6 +2522,18 @@ let _mapaLastParadas = {}
 let _mapaOptimizado  = false
 let _ultimaInteraccion  = 0       // timestamp del último gesto manual en el mapa
 let _autoCentrarInterval = null   // id del setInterval de auto-centrado
+let _rutaSugeridaAbort = null
+let _rutaSugeridaTimer = null
+let _rutaSugeridaUltimaPos = null
+let _rutaSugeridaUltimoExito = 0
+let _rutaSugeridaUltimoDestino = null
+let _rutaSugeridaEnVueloPos = null
+let _rutaSugeridaEnVueloDestino = null
+const _estadosPedidoAdvertidos = new Set()
+const _RUTA_SUGERIDA_SOURCE = 'ruta-parada-sugerida'
+const _RUTA_SUGERIDA_LAYER = 'ruta-parada-sugerida-linea'
+const _RUTA_SUGERIDA_MOVIMIENTO_KM = 0.04
+const _RUTA_SUGERIDA_MAX_ESPERA_MS = 12000
 
 // ── Estado global GPS + paradas (compartido entre vistas) ───────────────────
 let _currentGPS     = null   // { lat, lng } — actualizado por watchPosition
@@ -2790,6 +2802,7 @@ async function _initMapaRepartidor() {
       const { latitude: lat, longitude: lng } = pos.coords
       _currentGPS = { lat, lng }
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
+      _renderProximaParada()
       if (_firstFix) {
         _firstFix = false
         _mapboxMap.resize()
@@ -3149,32 +3162,81 @@ function _suscribirMapaRealtime(nombreRepa) {
 
 // ── Próxima parada sugerida (GPS client-side, sin llamadas extra a API) ────────
 
-// Devuelve el siguiente stop pendiente, priorizando recolecciones no completadas
+// Devuelve el stop accionable más cercano: recolección pendiente o entrega ya recolectada.
+function _estadoRecoleccionPedido(pedido) {
+  const estado = typeof pedido?.estado === 'string' ? pedido.estado.trim() : ''
+  const estadosConocidos = new Set([
+    'Pendiente', 'Pendiente verificación de pago', 'Asignado',
+    'En camino a recoleccion', 'Repartidor en domicilio recoleccion',
+    'Recolectado', 'En camino a entrega', 'Repartidor en domicilio',
+    'Entregado', 'Cancelado', 'Pago rechazado'
+  ])
+  const estadosPostRecoleccion = new Set([
+    'Recolectado', 'En camino a entrega', 'Repartidor en domicilio', 'Entregado'
+  ])
+
+  if (!estadosConocidos.has(estado)) {
+    const clave = estado || '(vacío)'
+    if (!_estadosPedidoAdvertidos.has(clave)) {
+      _estadosPedidoAdvertidos.add(clave)
+      console.warn(
+        `⚠️ [RUTA/GPS] ESTADO DE PEDIDO NO RECONOCIDO: "${clave}" ` +
+        `(pedido GK-${pedido?.id ?? 'desconocido'}). Por seguridad se tratará como NO RECOLECTADO; ` +
+        'revisa _estadoRecoleccionPedido() si este estado es nuevo y válido.'
+      )
+    }
+    return { estado, yaRecolectado: false, valido: false }
+  }
+  return { estado, yaRecolectado: estadosPostRecoleccion.has(estado), valido: true }
+}
+
 function _proximaParada() {
-  const _ESTADOS_POST_REC = ['Recolectado', 'En camino a entrega', 'Repartidor en domicilio', 'Entregado']
-  const recs = [], ents = []
+  const candidates = []
+  const recoleccionesBloqueantes = []
   Object.values(_pedidosRep).forEach(p => {
-    // Recolección del pedido — excluir si ya fue recolectada (foto o estado posterior)
-    const yaRecolectado = _ESTADOS_POST_REC.includes(p.estado)
+    const { yaRecolectado } = _estadoRecoleccionPedido(p)
+    const pars = _todasParadas[p.id] || []
     if (!yaRecolectado && p.lat_recoleccion != null && p.lng_recoleccion != null) {
-      recs.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
+      candidates.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
         direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion })
     }
-    const pars = _todasParadas[p.id] || []
+    // No se puede entregar un pedido que todavía no ha sido recolectado.
+    if (!yaRecolectado) {
+      const tieneEntregaPendiente = pars.length
+        ? pars.some(par => par.estado !== 'completada')
+        : p.estado !== 'Entregado'
+      if (tieneEntregaPendiente) {
+        recoleccionesBloqueantes.push({
+          tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
+          direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion
+        })
+      }
+      return
+    }
     if (pars.length) {
       pars.forEach(par => {
         if (par.estado === 'completada') return  // excluir completadas
         if (par.lat == null || par.lng == null) return
-        ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
+        candidates.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
           direccion: par.direccion, lat: par.lat, lng: par.lng, orden: par.orden })
       })
-    } else if (!yaRecolectado && p.lat_entrega != null && p.lng_entrega != null) {
-      ents.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
+    } else if (p.lat_entrega != null && p.lng_entrega != null) {
+      candidates.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
         direccion: p.direccion_entrega, lat: p.lat_entrega, lng: p.lng_entrega })
     }
   })
-  const candidates = recs.length ? recs : ents
-  if (!candidates.length) return null
+  if (!candidates.length) {
+    if (!recoleccionesBloqueantes.length) return null
+    const ubicables = recoleccionesBloqueantes.filter(s => s.lat != null && s.lng != null)
+    let fallback = ubicables[0] || recoleccionesBloqueantes[0]
+    if (_currentGPS && ubicables.length) {
+      fallback = ubicables.reduce((mejor, stop) => {
+        const distancia = _haversine(_currentGPS.lat, _currentGPS.lng, stop.lat, stop.lng)
+        return !mejor || distancia < mejor.distKm ? { ...stop, distKm: distancia } : mejor
+      }, null)
+    }
+    return { ...fallback, requiereRecoleccion: true, mensaje: 'Recolecta un pedido para continuar' }
+  }
   if (!_currentGPS) return candidates[0]
   let best = null, bestDist = Infinity
   candidates.forEach(s => {
@@ -3188,6 +3250,7 @@ function _renderProximaParada() {
   const el = document.getElementById('tarjeta-proxima-parada')
   if (!el) return
   const parada = _proximaParada()
+  _programarRutaSugerida(parada)
   if (!parada) { el.style.display = 'none'; return }
   el.style.display = ''
   const esRec = parada.tipo === 'rec'
@@ -3199,6 +3262,7 @@ function _renderProximaParada() {
   }
   el.innerHTML = `
     <div class="tpp-label">Próxima parada sugerida</div>
+    ${parada.requiereRecoleccion ? `<div class="tpp-dist" style="margin-bottom:8px">${parada.mensaje}</div>` : ''}
     <div class="tpp-body">
       <span class="tpp-tag ${esRec ? 'rec' : 'ent'}">${esRec ? 'Recolección' : 'Entrega'}</span>
       <div>
@@ -3207,6 +3271,106 @@ function _renderProximaParada() {
         ${distStr ? `<div class="tpp-dist">${distStr}</div>` : ''}
       </div>
     </div>`
+}
+
+function _geojsonRutaVacia() {
+  return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
+}
+
+function _asegurarCapaRutaSugerida() {
+  if (!_mapboxMap?.isStyleLoaded()) return false
+  if (!_mapboxMap.getSource(_RUTA_SUGERIDA_SOURCE)) {
+    _mapboxMap.addSource(_RUTA_SUGERIDA_SOURCE, { type: 'geojson', data: _geojsonRutaVacia() })
+  }
+  if (!_mapboxMap.getLayer(_RUTA_SUGERIDA_LAYER)) {
+    _mapboxMap.addLayer({
+      id: _RUTA_SUGERIDA_LAYER,
+      type: 'line',
+      source: _RUTA_SUGERIDA_SOURCE,
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#1E56C7', 'line-width': 5, 'line-opacity': 0.9 }
+    })
+  }
+  return true
+}
+
+function _limpiarRutaSugerida() {
+  if (_rutaSugeridaAbort) _rutaSugeridaAbort.abort()
+  _rutaSugeridaAbort = null
+  _rutaSugeridaUltimaPos = null
+  _rutaSugeridaUltimoExito = 0
+  _rutaSugeridaUltimoDestino = null
+  _rutaSugeridaEnVueloPos = null
+  _rutaSugeridaEnVueloDestino = null
+  _mapboxMap?.getSource(_RUTA_SUGERIDA_SOURCE)?.setData(_geojsonRutaVacia())
+}
+
+function _programarRutaSugerida(parada) {
+  clearTimeout(_rutaSugeridaTimer)
+  const tieneCoordenadas = Number.isFinite(Number(parada?.lat)) && Number.isFinite(Number(parada?.lng))
+  if (!parada || !tieneCoordenadas || !_currentGPS || !_mapboxMap || !mapboxgl.accessToken) {
+    if (!parada || !tieneCoordenadas) _limpiarRutaSugerida()
+    return
+  }
+  // Evita varias llamadas simultáneas durante una ráfaga de GPS o realtime.
+  _rutaSugeridaTimer = setTimeout(() => _actualizarRutaSugerida(parada), 350)
+}
+
+async function _actualizarRutaSugerida(parada) {
+  if (!_currentGPS || !_mapboxMap || !mapboxgl.accessToken) return
+  if (!_asegurarCapaRutaSugerida()) {
+    _mapboxMap.once('load', () => _programarRutaSugerida(_proximaParada()))
+    return
+  }
+
+  const posicionSolicitud = { lat: Number(_currentGPS.lat), lng: Number(_currentGPS.lng) }
+  const destinoSolicitud = `${parada.tipo}:${parada.pedidoId}:${parada.orden || ''}:${parada.lat},${parada.lng}`
+  const ahora = Date.now()
+  const mismoDestino = destinoSolicitud === _rutaSugeridaUltimoDestino
+  const movimientoKm = _rutaSugeridaUltimaPos
+    ? _haversine(_rutaSugeridaUltimaPos.lat, _rutaSugeridaUltimaPos.lng, posicionSolicitud.lat, posicionSolicitud.lng)
+    : Infinity
+  const tiempoDesdeExito = ahora - _rutaSugeridaUltimoExito
+  const movimientoEnVueloKm = _rutaSugeridaEnVueloPos
+    ? _haversine(_rutaSugeridaEnVueloPos.lat, _rutaSugeridaEnVueloPos.lng, posicionSolicitud.lat, posicionSolicitud.lng)
+    : Infinity
+
+  // Recalcular si cambió el destino, avanzó al menos 40 m o pasaron 12 s.
+  if (mismoDestino && movimientoKm < _RUTA_SUGERIDA_MOVIMIENTO_KM && tiempoDesdeExito < _RUTA_SUGERIDA_MAX_ESPERA_MS) return
+  if (_rutaSugeridaAbort && destinoSolicitud === _rutaSugeridaEnVueloDestino && movimientoEnVueloKm < _RUTA_SUGERIDA_MOVIMIENTO_KM) return
+
+  if (_rutaSugeridaAbort) _rutaSugeridaAbort.abort()
+  const controller = new AbortController()
+  _rutaSugeridaAbort = controller
+  _rutaSugeridaEnVueloPos = posicionSolicitud
+  _rutaSugeridaEnVueloDestino = destinoSolicitud
+  const origen = `${posicionSolicitud.lng},${posicionSolicitud.lat}`
+  const destino = `${parada.lng},${parada.lat}`
+  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origen};${destino}?geometries=geojson&overview=full&access_token=${encodeURIComponent(mapboxgl.accessToken)}`
+
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    const geometry = data.routes?.[0]?.geometry
+    if (!geometry) throw new Error('La respuesta no contiene una ruta')
+    _mapboxMap.getSource(_RUTA_SUGERIDA_SOURCE)?.setData({
+      type: 'Feature',
+      properties: { pedidoId: parada.pedidoId, tipo: parada.tipo },
+      geometry
+    })
+    _rutaSugeridaUltimaPos = posicionSolicitud
+    _rutaSugeridaUltimoExito = Date.now()
+    _rutaSugeridaUltimoDestino = destinoSolicitud
+  } catch (error) {
+    if (error.name !== 'AbortError') console.warn('[mapa] No se pudo trazar la ruta sugerida:', error)
+  } finally {
+    if (_rutaSugeridaAbort === controller) {
+      _rutaSugeridaAbort = null
+      _rutaSugeridaEnVueloPos = null
+      _rutaSugeridaEnVueloDestino = null
+    }
+  }
 }
 
 // ── Optimización de ruta — vecino más cercano (Haversine, 100% client-side) ──
