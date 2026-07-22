@@ -9,6 +9,19 @@
 <script src="/config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-auth-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo",
+  authDomain: "guepack-app.firebaseapp.com",
+  projectId: "guepack-app",
+  storageBucket: "guepack-app.firebasestorage.app",
+  messagingSenderId: "912683525841",
+  appId: "1:912683525841:web:a67f014362160ea29b87f0"
+}
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig)
+}
+</script>
 <script src="/auth.js"></script>
 <script src="/tenant-config.js"></script>
 <style>
