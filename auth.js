@@ -18,6 +18,12 @@ function _firebaseAuthGuepack() {
   return firebase.auth()
 }
 
+async function _firebaseAuthTemporal() {
+  const auth = _firebaseAuthGuepack()
+  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
+  return auth
+}
+
 function _mensajeErrorSms(error) {
   return ['auth/too-many-requests', 'auth/quota-exceeded'].includes(error?.code)
     ? 'Demasiados intentos, espera un momento'
@@ -56,9 +62,12 @@ async function _regEnviarCodigo() {
   btn.textContent = 'Enviando...'
   document.getElementById('reg-sms-error').style.display = 'none'
   try {
-    const auth = _firebaseAuthGuepack()
+    const auth = await _firebaseAuthTemporal()
     if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
-    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible',
+      callback: () => {}
+    })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
     input.readOnly = true
@@ -79,8 +88,11 @@ async function _regReenviarCodigo() {
   if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
   const whatsapp = document.getElementById('reg-whatsapp').value.replace(/\D/g, '')
   try {
-    const auth = _firebaseAuthGuepack()
-    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    const auth = await _firebaseAuthTemporal()
+    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible',
+      callback: () => {}
+    })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
     _regIniciarCooldown()
@@ -93,7 +105,8 @@ async function _regVerificarCodigo() {
   const btn = document.getElementById('reg-btn-verificar')
   btn.disabled = true
   try {
-    await window.confirmationResult.confirm(code)
+    const result = await window.confirmationResult.confirm(code)
+    await _firebaseAuthGuepack().signOut()
     _regWhatsappVerificado = true
     document.getElementById('reg-otp-wrap').style.display = 'none'
     document.getElementById('reg-verificado-badge').style.display = 'block'

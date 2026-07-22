@@ -5706,6 +5706,12 @@ function _bvFirebaseAuth() {
   return firebase.auth()
 }
 
+async function _bvFirebaseAuthTemporal() {
+  const auth = _bvFirebaseAuth()
+  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
+  return auth
+}
+
 function _bvErrorSms(error) {
   const el = document.getElementById('bv-sms-error')
   const demasiados = ['auth/too-many-requests', 'auth/quota-exceeded'].includes(error?.code)
@@ -5724,9 +5730,12 @@ async function _bvEnviarCodigo() {
   btn.textContent = 'Enviando...'
   _bvTelefono = '+52' + wsp
   try {
-    const auth = _bvFirebaseAuth()
+    const auth = await _bvFirebaseAuthTemporal()
     if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
-    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible',
+      callback: () => {}
+    })
     _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
     window.confirmationResult = _bvConfirmationResult
     const input = document.getElementById('bv-whatsapp')
@@ -5764,7 +5773,8 @@ async function _bvVerificar() {
   btn.textContent = 'Verificando...'
 
   try {
-    await window.confirmationResult.confirm(codigo)
+    const result = await window.confirmationResult.confirm(codigo)
+    await _bvFirebaseAuth().signOut()
   } catch (error) {
     btn.disabled = false
     btn.textContent = 'Verificar código'
@@ -5842,9 +5852,12 @@ async function _bvReenviar() {
   if (btn.disabled) return
   btn.disabled = true
   try {
-    const auth = _bvFirebaseAuth()
+    const auth = await _bvFirebaseAuthTemporal()
     if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
-    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible',
+      callback: () => {}
+    })
     _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
     window.confirmationResult = _bvConfirmationResult
     _bvIniciarCooldown()
