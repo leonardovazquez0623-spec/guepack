@@ -66,8 +66,7 @@ async function _regEnviarCodigo() {
     const auth = await _firebaseAuthTemporal()
     if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
     _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible',
-      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
+      size: 'invisible'
     })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
@@ -91,8 +90,7 @@ async function _regReenviarCodigo() {
   try {
     const auth = await _firebaseAuthTemporal()
     _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible',
-      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
+      size: 'invisible'
     })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
