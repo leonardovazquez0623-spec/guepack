@@ -605,16 +605,10 @@
 })();
 </script>
 <script src="/supabase-local.js"></script>
-<script src="tenant-config.js"></script>
 <script src="config.js"></script>
+<script src="tenant-config.js"></script>
 <script src="tracking-repartidor.js"></script>
 <script>
-const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
-})
-
 db.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') window.location.href = 'login.html'
 })
@@ -642,7 +636,7 @@ function rugidoGuepack() {
 }
 
 let _repaUserId  = null
-let _repaData    = null
+var _repaData    = null
 let _appCargada  = false
 let _pedidosRechazados            = new Set()
 let _pedidosCancelacionNotificados = new Set()
@@ -1512,7 +1506,7 @@ function _toastRepa(msg, color = 'var(--color-primary-dark)') {
 
 let _ultimoAvisoGps = 0
 
-function _mostrarAvisoGps() {
+window._mostrarAvisoGps = function _mostrarAvisoGps() {
   const ahora = Date.now()
   if (ahora - _ultimoAvisoGps < 15000) return
   _ultimoAvisoGps = ahora
