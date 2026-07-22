@@ -17,30 +17,42 @@ function _firebaseAuthGuepack() {
   return firebase.auth()
 }
 
-async function _firebaseAuthTemporal() {
-  const auth = _firebaseAuthGuepack()
-  auth.settings.appVerificationDisabledForTesting = false
-  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
-  return auth
-}
-
-async function enviarCodigoSMS(whatsapp) {
+async function limpiarRecaptcha() {
   if (window._appVerifier) {
-    try { window._appVerifier.clear() } catch (error) {}
+    try { window._appVerifier.clear() } catch (error) { console.warn('clear error:', error) }
     window._appVerifier = null
   }
 
   const container = document.getElementById('recaptcha-container')
-  if (container) container.innerHTML = ''
+  if (container) container.replaceChildren()
+}
 
-  const auth = await _firebaseAuthTemporal()
-  window._appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-    size: 'invisible'
-  })
+async function enviarCodigoSMS(whatsapp) {
+  const boton = document.getElementById('btn-enviar-codigo')
+  try {
+    if (boton) boton.disabled = true
+    await limpiarRecaptcha()
 
-  const confirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, window._appVerifier)
-  window.confirmationResult = confirmationResult
-  return confirmationResult
+    window._appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible',
+      callback: () => console.log('[recaptcha] resuelto'),
+      'expired-callback': () => console.warn('[recaptcha] expirado')
+    })
+
+    await window._appVerifier.render()
+
+    const telefono = '+52' + whatsapp.replace(/\D/g, '')
+    console.log('[SMS] enviando a:', telefono)
+
+    window.confirmationResult = await firebase.auth().signInWithPhoneNumber(telefono, window._appVerifier)
+    console.log('[SMS] código enviado correctamente')
+  } catch (error) {
+    console.error('[SMS] error:', error.code, error.message)
+    await limpiarRecaptcha()
+    throw error
+  } finally {
+    if (boton) boton.disabled = false
+  }
 }
 
 function _mensajeErrorSms(error) {
@@ -76,12 +88,13 @@ async function _regEnviarCodigo() {
   const input = document.getElementById('reg-whatsapp')
   const whatsapp = input.value.replace(/\D/g, '')
   if (!/^\d{10}$/.test(whatsapp)) return showError('El WhatsApp debe tener exactamente 10 dígitos')
-  const btn = document.getElementById('reg-btn-enviar-codigo')
+  const btn = document.getElementById('btn-enviar-codigo')
   btn.disabled = true
   btn.textContent = 'Enviando...'
   document.getElementById('reg-sms-error').style.display = 'none'
   try {
-    _regConfirmationResult = await enviarCodigoSMS(whatsapp)
+    await enviarCodigoSMS(whatsapp)
+    _regConfirmationResult = window.confirmationResult
     input.readOnly = true
     input.style.borderColor = '#16a34a'
     document.getElementById('reg-whatsapp-check').style.display = 'block'
@@ -99,7 +112,8 @@ async function _regEnviarCodigo() {
 async function _regReenviarCodigo() {
   const whatsapp = document.getElementById('reg-whatsapp').value.replace(/\D/g, '')
   try {
-    _regConfirmationResult = await enviarCodigoSMS(whatsapp)
+    await enviarCodigoSMS(whatsapp)
+    _regConfirmationResult = window.confirmationResult
     _regIniciarCooldown()
   } catch (error) { _regMostrarErrorSms(error) }
 }
