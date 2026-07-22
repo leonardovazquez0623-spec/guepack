@@ -52,13 +52,15 @@ self.addEventListener('notificationclick', function(event) {
     })
   )
 })
-const CACHE_NAME = 'guepack-v9'
+const CACHE_NAME = 'guepack-v10'
 
 self.addEventListener('install', () => { /* espera a que el cliente solicite la activación */ })
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    self.skipWaiting().then(() =>
+      caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      )
     ).then(() => self.clients.claim())
   )
 })

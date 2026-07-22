@@ -910,10 +910,9 @@
 </head>
 <body>
 <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:var(--color-primary-dark);color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
-  <span>🔄 Nueva versión disponible</span>
+  <span>🎉 Nueva versión disponible</span>
   <div style="display:flex;align-items:center;gap:8px">
-    <button onclick="document.getElementById('update-banner').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:4px 10px;border-radius:6px;cursor:pointer">✕</button>
-    <button id="update-btn" style="background:var(--color-secondary);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer">Actualizar</button>
+    <button id="update-btn" style="background:var(--color-secondary);border:none;color:#fff;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;padding:6px 14px;border-radius:8px;cursor:pointer">Actualizar ahora</button>
   </div>
 </div>
 
@@ -2555,36 +2554,46 @@ db.channel('configuracion')
   })
   .subscribe()
 // ── Registrar Service Worker y detectar actualizaciones ──
+function showUpdateBanner(swWaiting) {
+  const banner = document.getElementById('update-banner')
+  const button = document.getElementById('update-btn')
+  if (!banner || !button || !swWaiting) return
+  banner.style.display = 'flex'
+  button.onclick = () => {
+    button.disabled = true
+    button.textContent = 'Actualizando...'
+    localStorage.setItem('guepack_actualizada', 'true')
+    swWaiting.postMessage({ type: 'SKIP_WAITING' })
+  }
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(reg => {
-    function mostrarBannerActualizacion(swWaiting) {
-      const banner = document.getElementById('update-banner')
-      if (!banner) return
-      banner.style.display = 'flex'
-      document.getElementById('update-btn').onclick = () => {
-        localStorage.setItem('guepack_actualizada', 'true')
-        swWaiting.postMessage({ type: 'SKIP_WAITING' })
-      }
-    }
-
     // SW ya estaba esperando al cargar la página (usuario volvió después de una actualización)
-    if (reg.waiting) mostrarBannerActualizacion(reg.waiting)
+    if (reg.waiting) showUpdateBanner(reg.waiting)
 
     // SW nuevo encontrado mientras la página estaba abierta
     reg.addEventListener('updatefound', () => {
       const newSW = reg.installing
+      if (!newSW) return
       newSW.addEventListener('statechange', () => {
         if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-          mostrarBannerActualizacion(newSW)
+          showUpdateBanner(newSW)
         }
       })
     })
 
+    // Comprobar el archivo del SW en cada carga, sin esperar al ciclo del navegador.
+    reg.update().catch(error => console.warn('[SW] No se pudo comprobar la actualización:', error))
+
     // Cuando el SW toma control (tras skipWaiting), recargar
+    let recargandoPorActualizacion = false
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargandoPorActualizacion) return
+      recargandoPorActualizacion = true
       window.location.reload()
     })
-  })
+  }).catch(error => console.warn('[SW] No se pudo registrar:', error))
 }
 
 // ── Permiso de notificaciones (modal amigable) ────────────────────────────────
@@ -6325,7 +6334,7 @@ async function _abrirDrawer() {
       </button>
       <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-top:10px">
         ${svgApp}
-        <span style="font-size:9px;font-family:Montserrat,sans-serif;color:#b0bec5;font-weight:600">GUEPACK v1.0</span>
+        <span style="font-size:9px;font-family:Montserrat,sans-serif;color:#b0bec5;font-weight:600">GUEPACK v1.1.0</span>
       </div>
     </div>`
 
