@@ -1,7 +1,6 @@
 let tenantActualLogin = null
 let _regWhatsappVerificado = false
 let _regConfirmationResult = null
-let _regRecaptchaVerifier = null
 let _regCooldownTimer = null
 
 const FIREBASE_CONFIG_GUEPACK = {
@@ -23,6 +22,25 @@ async function _firebaseAuthTemporal() {
   auth.settings.appVerificationDisabledForTesting = false
   await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
   return auth
+}
+
+async function enviarCodigoSMS(whatsapp) {
+  if (window._appVerifier) {
+    try { window._appVerifier.clear() } catch (error) {}
+    window._appVerifier = null
+  }
+
+  const container = document.getElementById('recaptcha-container')
+  if (container) container.innerHTML = ''
+
+  const auth = await _firebaseAuthTemporal()
+  window._appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+    size: 'invisible'
+  })
+
+  const confirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, window._appVerifier)
+  window.confirmationResult = confirmationResult
+  return confirmationResult
 }
 
 function _mensajeErrorSms(error) {
@@ -63,13 +81,7 @@ async function _regEnviarCodigo() {
   btn.textContent = 'Enviando...'
   document.getElementById('reg-sms-error').style.display = 'none'
   try {
-    const auth = await _firebaseAuthTemporal()
-    if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
-    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible'
-    })
-    _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
-    window.confirmationResult = _regConfirmationResult
+    _regConfirmationResult = await enviarCodigoSMS(whatsapp)
     input.readOnly = true
     input.style.borderColor = '#16a34a'
     document.getElementById('reg-whatsapp-check').style.display = 'block'
@@ -85,15 +97,9 @@ async function _regEnviarCodigo() {
 }
 
 async function _regReenviarCodigo() {
-  if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
   const whatsapp = document.getElementById('reg-whatsapp').value.replace(/\D/g, '')
   try {
-    const auth = await _firebaseAuthTemporal()
-    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible'
-    })
-    _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
-    window.confirmationResult = _regConfirmationResult
+    _regConfirmationResult = await enviarCodigoSMS(whatsapp)
     _regIniciarCooldown()
   } catch (error) { _regMostrarErrorSms(error) }
 }
