@@ -907,6 +907,7 @@
 <link rel="apple-touch-icon" href="/Icono_gp.png">
 <meta name="theme-color" content="#0d3a8a">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
+<script src="https://www.google.com/recaptcha/enterprise.js?render=6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug"></script>
 </head>
 <body>
 <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:var(--color-primary-dark);color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
@@ -5708,6 +5709,7 @@ function _bvFirebaseAuth() {
 
 async function _bvFirebaseAuthTemporal() {
   const auth = _bvFirebaseAuth()
+  auth.settings.appVerificationDisabledForTesting = false
   await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
   return auth
 }
@@ -5734,7 +5736,7 @@ async function _bvEnviarCodigo() {
     if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
     _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
       size: 'invisible',
-      callback: () => {}
+      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
     })
     _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
     window.confirmationResult = _bvConfirmationResult
@@ -5856,7 +5858,7 @@ async function _bvReenviar() {
     if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
     _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
       size: 'invisible',
-      callback: () => {}
+      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
     })
     _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
     window.confirmationResult = _bvConfirmationResult

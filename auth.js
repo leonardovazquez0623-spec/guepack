@@ -20,6 +20,7 @@ function _firebaseAuthGuepack() {
 
 async function _firebaseAuthTemporal() {
   const auth = _firebaseAuthGuepack()
+  auth.settings.appVerificationDisabledForTesting = false
   await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
   return auth
 }
@@ -66,7 +67,7 @@ async function _regEnviarCodigo() {
     if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
     _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
       size: 'invisible',
-      callback: () => {}
+      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
     })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
@@ -91,7 +92,7 @@ async function _regReenviarCodigo() {
     const auth = await _firebaseAuthTemporal()
     _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
       size: 'invisible',
-      callback: () => {}
+      'enterprise-site-key': '6LfQeGAtAAAAAOb0dgmy3-h1R-6u81lywxwIPgug'
     })
     _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
     window.confirmationResult = _regConfirmationResult
