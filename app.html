@@ -2033,6 +2033,22 @@ async function _posponerrPwaBanner(userId) {
 // ── Verificar sesión ──
 let _tenantIdEventos = null
 
+async function _iniciarAppCliente(user) {
+  verificarAnuncio()
+  _solicitarPermisoNotificaciones()
+  cargarVipUsuario(user.id)
+  cargarNombreRemitente(user)
+  await _cargarEmpresaUsuario(user)
+  _actualizarVisibilidadAgregarParada()
+  await _cargarCargoCancelacion(user)
+  await _cargarAvatarCliente(user)
+  _verificarEstadoPwa(user.id)
+  iniciarTour()
+  db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => {
+    if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: user.id, tenant_id: _tenantIdEventos }).then(() => {})
+  })
+}
+
 async function verificarSesion() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) {
@@ -2047,7 +2063,7 @@ async function verificarSesion() {
   }
 
   const { data: usuario } = await db.from('usuarios')
-    .select('rol, whatsapp, tenant_id')
+    .select('rol, whatsapp, whatsapp_verificado, tenant_id')
     .eq('user_id', session.user.id)
     .single()
 
@@ -2064,24 +2080,16 @@ async function verificarSesion() {
 
   const nombreMeta = session.user.user_metadata?.nombre || ''
   if (!usuario?.whatsapp || !nombreMeta) {
-    _mostrarModalBienvenida(session.user.id, nombreMeta)
+    _mostrarModalBienvenida(session.user.id, nombreMeta, usuario?.whatsapp || '', false, session.user)
     return
   }
 
-  verificarAnuncio()
-  _solicitarPermisoNotificaciones()
-  cargarVipUsuario(session.user.id)
-  cargarNombreRemitente(session.user)
-  await _cargarEmpresaUsuario(session.user)
-  _actualizarVisibilidadAgregarParada() // aplica aunque no haya empresa
-  await _cargarCargoCancelacion(session.user)
-  await _cargarAvatarCliente(session.user)
-  _verificarEstadoPwa(session.user.id)
-  iniciarTour()
-  // Evento retorno: si el usuario ya tiene pedidos previos es visita de retorno
-  db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
-    if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id, tenant_id: _tenantIdEventos }).then(() => {})
-  })
+  if (usuario.whatsapp_verificado !== true) {
+    _mostrarModalBienvenida(session.user.id, nombreMeta, usuario.whatsapp, true, session.user)
+    return
+  }
+
+  await _iniciarAppCliente(session.user)
 }
 
 async function _cargarEmpresaUsuario(user) {
@@ -5617,23 +5625,40 @@ function stepClick(btn, idx) {
 
 // ── MODAL BIENVENIDA ──
 
-function _mostrarModalBienvenida(userId, nombrePrevio) {
+let _bvTelefono = ''
+let _bvSoloVerificacion = false
+let _bvAppUser = null
+let _bvCooldownTimer = null
+
+function _mostrarModalBienvenida(userId, nombrePrevio, whatsappPrevio, soloVerificacion, appUser) {
   _bvUserId = userId
+  _bvSoloVerificacion = !!soloVerificacion
+  _bvAppUser = appUser || null
   const modal = document.getElementById('modal-bienvenida')
   if (!modal) return
+  document.getElementById('bv-datos').style.display = 'block'
+  document.getElementById('bv-otp').style.display = 'none'
+  document.getElementById('bv-titulo').textContent = soloVerificacion ? 'Verifica tu WhatsApp para continuar' : '¡Bienvenido a GUEPACK!'
+  document.getElementById('bv-subtitulo').textContent = soloVerificacion
+    ? 'Confirma tu número para poder usar la app'
+    : 'Necesitamos un dato más para completar tu perfil'
+  document.getElementById('bv-campos-perfil').style.display = soloVerificacion ? 'none' : 'block'
+  document.getElementById('bv-campos-opcionales').style.display = soloVerificacion ? 'none' : 'block'
   if (nombrePrevio) {
     const inp = document.getElementById('bv-nombre')
     if (inp) inp.value = nombrePrevio
   }
+  if (whatsappPrevio) document.getElementById('bv-whatsapp').value = String(whatsappPrevio).replace(/\D/g, '').slice(-10)
   modal.style.display = 'flex'
   modal.style.alignItems = 'center'
   modal.style.justifyContent = 'center'
+  _bvValidar()
 }
 
 function _bvValidar() {
   const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
   const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
-  const okNombre = nombre.length >= 2
+  const okNombre = _bvSoloVerificacion || nombre.length >= 2
   const okWsp = wsp.length === 10
 
   const inpN = document.getElementById('bv-nombre')
@@ -5656,50 +5681,114 @@ function _bvValidar() {
 async function _bvGuardar() {
   const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
   const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
-  if (!nombre || wsp.length !== 10) return
-  const empresa = (document.getElementById('bv-empresa')?.value || '').trim()
-  const referido = (document.getElementById('bv-referido')?.value || '').trim()
+  if ((!_bvSoloVerificacion && !nombre) || wsp.length !== 10) return
 
   const btn = document.getElementById('bv-btn-continuar')
-  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; btn.style.opacity = '0.7' }
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando código...'; btn.style.opacity = '0.7' }
 
-  const { error: errMeta } = await db.auth.updateUser({ data: { nombre } })
-  if (errMeta) {
+  _bvTelefono = '+52' + wsp
+  const { error } = await db.auth.signInWithOtp({ phone: _bvTelefono })
+  if (error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
-    mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
+    _mostrarToastSeguridad('No pudimos enviar el código. Intenta de nuevo.')
     return
   }
 
-  const upd = { whatsapp: wsp }
+  document.getElementById('bv-datos').style.display = 'none'
+  document.getElementById('bv-otp').style.display = 'block'
+  document.getElementById('bv-codigo').value = ''
+  document.getElementById('bv-btn-verificar').disabled = true
+  _bvIniciarCooldown()
+  setTimeout(() => document.getElementById('bv-codigo')?.focus(), 50)
+}
+
+function _bvValidarCodigo() {
+  const codigo = (document.getElementById('bv-codigo')?.value || '').replace(/\D/g, '')
+  const btn = document.getElementById('bv-btn-verificar')
+  if (btn) {
+    btn.disabled = !/^\d{4,6}$/.test(codigo)
+    btn.style.opacity = btn.disabled ? '0.5' : '1'
+    btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer'
+  }
+}
+
+async function _bvVerificar() {
+  const codigo = (document.getElementById('bv-codigo')?.value || '').replace(/\D/g, '')
+  if (!/^\d{4,6}$/.test(codigo)) return
+  const btn = document.getElementById('bv-btn-verificar')
+  btn.disabled = true
+  btn.textContent = 'Verificando...'
+
+  const { error: otpError } = await db.auth.verifyOtp({ phone: _bvTelefono, token: codigo, type: 'sms' })
+  if (otpError) {
+    btn.disabled = false
+    btn.textContent = 'Verificar'
+    _mostrarToastSeguridad('Código incorrecto, intenta de nuevo')
+    return
+  }
+
+  const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
+  const wsp = _bvTelefono.replace('+52', '')
+  const empresa = (document.getElementById('bv-empresa')?.value || '').trim()
+  const referido = (document.getElementById('bv-referido')?.value || '').trim()
+
+  if (!_bvSoloVerificacion) {
+    const { error: errMeta } = await db.auth.updateUser({ data: { nombre } })
+    if (errMeta) {
+      btn.disabled = false
+      btn.textContent = 'Verificar'
+      mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
+      return
+    }
+  }
+
+  const upd = { whatsapp: wsp, whatsapp_verificado: true }
   if (empresa) upd.empresa_codigo = empresa
 
   const { error } = await db.from('usuarios').update(upd).eq('user_id', _bvUserId)
   if (error) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
+    btn.disabled = false
+    btn.textContent = 'Verificar'
     mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
     return
   }
 
-  if (referido) {
-    await _procesarReferidoBienvenida(referido)
-  }
+  if (!_bvSoloVerificacion && referido) await _procesarReferidoBienvenida(referido)
 
   const modal = document.getElementById('modal-bienvenida')
   if (modal) modal.style.display = 'none'
+  if (_bvCooldownTimer) clearInterval(_bvCooldownTimer)
+  if (_bvAppUser) await _iniciarAppCliente(_bvAppUser)
+}
 
-  const { data: { session } } = await db.auth.getSession()
-  if (session) {
-    verificarAnuncio()
-    cargarVipUsuario(session.user.id)
-    cargarNombreRemitente(session.user)
-    await _cargarEmpresaUsuario(session.user)
-    await _cargarCargoCancelacion(session.user)
-    await _cargarAvatarCliente(session.user)
-    iniciarTour()
-    db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).then(({ count }) => {
-      if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: session.user.id, tenant_id: _tenantIdEventos }).then(() => {})
-    })
+function _bvIniciarCooldown() {
+  if (_bvCooldownTimer) clearInterval(_bvCooldownTimer)
+  let segundos = 60
+  const btn = document.getElementById('bv-btn-reenviar')
+  btn.disabled = true
+  btn.textContent = `¿No recibiste el código? Reenviar (${segundos}s)`
+  _bvCooldownTimer = setInterval(() => {
+    segundos--
+    btn.textContent = segundos > 0 ? `¿No recibiste el código? Reenviar (${segundos}s)` : '¿No recibiste el código? Reenviar'
+    if (segundos <= 0) {
+      clearInterval(_bvCooldownTimer)
+      _bvCooldownTimer = null
+      btn.disabled = false
+    }
+  }, 1000)
+}
+
+async function _bvReenviar() {
+  const btn = document.getElementById('bv-btn-reenviar')
+  if (btn.disabled) return
+  btn.disabled = true
+  const { error } = await db.auth.signInWithOtp({ phone: _bvTelefono })
+  if (error) {
+    btn.disabled = false
+    _mostrarToastSeguridad('No pudimos reenviar el código. Intenta de nuevo.')
+    return
   }
+  _bvIniciarCooldown()
 }
 
 async function _procesarReferidoBienvenida(codigo) {
@@ -7744,16 +7833,19 @@ function _cerrarTour() {
   <div style="background:#fff;border-radius:20px;padding:32px 24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
     <div style="text-align:center;margin-bottom:24px">
       <div style="font-size:36px;margin-bottom:8px">🐆</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#0e3070;letter-spacing:1px">¡Bienvenido a GUEPACK!</div>
-      <div style="font-size:13px;color:#6b7280;margin-top:6px">Necesitamos un dato más para completar tu perfil</div>
+      <div id="bv-titulo" style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:#0e3070;letter-spacing:1px">¡Bienvenido a GUEPACK!</div>
+      <div id="bv-subtitulo" style="font-size:13px;color:#6b7280;margin-top:6px">Necesitamos un dato más para completar tu perfil</div>
     </div>
 
+    <div id="bv-datos">
+    <div id="bv-campos-perfil">
     <div style="margin-bottom:16px">
       <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
         👤 Nombre completo <span style="color:#ef4444">*</span>
       </label>
       <input id="bv-nombre" type="text" placeholder="Ej. María García López" oninput="_bvValidar()"
         style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:12px 14px;font-size:15px;font-family:inherit;outline:none;transition:border .2s">
+    </div>
     </div>
 
     <div style="margin-bottom:16px">
@@ -7765,6 +7857,7 @@ function _cerrarTour() {
       <div id="bv-wsp-hint" style="font-size:11px;color:#9ca3af;margin-top:4px">Debe tener exactamente 10 dígitos</div>
     </div>
 
+    <div id="bv-campos-opcionales">
     <div style="margin-bottom:16px">
       <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
         🏢 Código de empresa <span style="color:#9ca3af;font-weight:400;text-transform:none">(opcional)</span>
@@ -7780,11 +7873,28 @@ function _cerrarTour() {
       <input id="bv-referido" type="text" placeholder="Código de un amigo"
         style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;outline:none">
     </div>
+    </div>
 
     <button id="bv-btn-continuar" onclick="_bvGuardar()" disabled
       style="width:100%;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
       Continuar →
     </button>
+    </div>
+
+    <div id="bv-otp" style="display:none;text-align:center">
+      <div style="font-size:16px;font-weight:800;color:#374151;line-height:1.45;margin-bottom:16px">📱 Ingresa el código que te enviamos por SMS</div>
+      <input id="bv-codigo" type="tel" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Código de 4-6 dígitos"
+        oninput="this.value=this.value.replace(/[^0-9]/g,'');_bvValidarCodigo()"
+        style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:13px 14px;font-size:20px;font-family:inherit;outline:none;text-align:center;letter-spacing:5px;margin-bottom:14px">
+      <button id="bv-btn-verificar" onclick="_bvVerificar()" disabled
+        style="width:100%;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5">
+        Verificar
+      </button>
+      <button id="bv-btn-reenviar" onclick="_bvReenviar()" disabled
+        style="margin-top:14px;background:none;border:none;color:var(--color-primary);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">
+        ¿No recibiste el código? Reenviar (60s)
+      </button>
+    </div>
   </div>
 </div>
 
