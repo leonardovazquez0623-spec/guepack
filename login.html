@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="/supabase-local.js"></script>
 <script src="/config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-auth-compat.js"></script>
 <script src="/auth.js"></script>
 <script src="/tenant-config.js"></script>
 <style>
@@ -253,9 +255,23 @@
         <div id="req-especial" style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:6px"><span id="ico-especial">❌</span> Al menos 1 carácter especial (!@#$%^&*)</div>
       </div>
     </div>
-    <div class="form-group">
+    <div class="form-group" id="reg-whatsapp-group">
       <label class="form-label">WhatsApp (10 dígitos)</label>
-      <input type="tel" id="reg-whatsapp" class="form-input" placeholder="ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'')">
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <div style="position:relative;flex:1">
+          <input type="tel" id="reg-whatsapp" class="form-input" placeholder="ej. 3312345678" maxlength="10" oninput="this.value=this.value.replace(/\D/g,'');_actualizarBtnRegistro()" style="padding-right:36px">
+          <span id="reg-whatsapp-check" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#16a34a;font-weight:900">✓</span>
+        </div>
+        <button type="button" id="reg-btn-enviar-codigo" class="btn btn-primary" onclick="_regEnviarCodigo()" style="width:auto;white-space:nowrap;padding:0 12px;font-size:11px"><img src="/guepack-icons/guepack-icons/svg/46-app.svg" alt="" width="18" style="vertical-align:middle;margin-right:4px">Enviar código</button>
+      </div>
+      <div id="reg-verificado-badge" style="display:none;margin-top:7px;padding:8px 10px;border-radius:8px;background:#dcfce7;color:#15803d;font-size:12px;font-weight:800"><img src="/guepack-icons/guepack-icons/svg/26-express.svg" alt="" width="18" style="vertical-align:middle;margin-right:5px">Verificado</div>
+    </div>
+    <div id="reg-otp-wrap" class="form-group" style="display:none">
+      <label class="form-label">Código SMS</label>
+      <input type="tel" id="reg-codigo" class="form-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="_ _ _ _ _ _" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)">
+      <button type="button" id="reg-btn-verificar" class="btn btn-primary" onclick="_regVerificarCodigo()" style="margin-top:8px"><img src="/guepack-icons/guepack-icons/svg/26-express.svg" alt="" width="18" style="vertical-align:middle;margin-right:5px">Verificar código</button>
+      <button type="button" id="reg-btn-reenviar" onclick="_regReenviarCodigo()" disabled style="width:100%;margin-top:8px;background:none;border:0;color:var(--color-primary);font:700 12px Montserrat;cursor:pointer">Reenviar código en 60s</button>
+      <div id="reg-sms-error" style="display:none;margin-top:8px;color:#dc2626;font-size:12px;font-weight:700"></div>
     </div>
     <div class="form-group">
       <label class="form-label">¿Eres empresa afiliada? <span style="font-weight:600;color:#8fa3c0">(Opcional)</span></label>
@@ -269,7 +285,8 @@
       <input type="checkbox" id="acepto-terminos" style="margin-top:3px;accent-color:var(--color-primary);flex-shrink:0" onchange="_actualizarBtnRegistro()">
       <span>He leído y acepto la <a href="/privacidad.html" target="_blank" class="tenant-accent">Política de Privacidad</a> y los <a href="/condiciones.html" target="_blank" class="tenant-accent">Términos y Condiciones</a> de GUEPACK Express.</span>
     </label>
-    <button id="btn-crear-cuenta" class="btn btn-primary" onclick="registrar()" disabled style="opacity:0.5;cursor:not-allowed">Crear cuenta</button>
+    <button id="btn-crear-cuenta" class="btn btn-primary" onclick="registrar()" disabled style="opacity:0.5;cursor:not-allowed">Continuar</button>
+    <div id="recaptcha-container" style="display:none"></div>
     <div class="divider">O</div>
     <button class="btn btn-google" onclick="loginGoogle()">
       <img src="https://www.google.com/favicon.ico" width="18"> Registrarse con Google

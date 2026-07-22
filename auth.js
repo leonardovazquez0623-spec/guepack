@@ -1,4 +1,107 @@
 let tenantActualLogin = null
+let _regWhatsappVerificado = false
+let _regConfirmationResult = null
+let _regRecaptchaVerifier = null
+let _regCooldownTimer = null
+
+const FIREBASE_CONFIG_GUEPACK = {
+  apiKey: 'AIzaSyBG3EDbiS-0uswcGGBN9NyrlzpyJFOGnKo',
+  authDomain: 'guepack-app.firebaseapp.com',
+  projectId: 'guepack-app',
+  storageBucket: 'guepack-app.firebasestorage.app',
+  messagingSenderId: '912683525841',
+  appId: '1:912683525841:web:a67f014362160ea29b87f0'
+}
+
+function _firebaseAuthGuepack() {
+  if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG_GUEPACK)
+  return firebase.auth()
+}
+
+function _mensajeErrorSms(error) {
+  return ['auth/too-many-requests', 'auth/quota-exceeded'].includes(error?.code)
+    ? 'Demasiados intentos, espera un momento'
+    : '❌ Código incorrecto, intenta de nuevo'
+}
+
+function _regMostrarErrorSms(error) {
+  const el = document.getElementById('reg-sms-error')
+  if (!el) return
+  const demasiados = ['auth/too-many-requests', 'auth/quota-exceeded'].includes(error?.code)
+  el.innerHTML = demasiados
+    ? '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="18" style="vertical-align:middle;margin-right:5px">Demasiados intentos, espera un momento'
+    : '❌ Código incorrecto, intenta de nuevo'
+  el.style.display = 'block'
+}
+
+function _regIniciarCooldown() {
+  clearInterval(_regCooldownTimer)
+  let segundos = 60
+  const btn = document.getElementById('reg-btn-reenviar')
+  btn.disabled = true
+  btn.textContent = `Reenviar código en ${segundos}s`
+  _regCooldownTimer = setInterval(() => {
+    segundos--
+    btn.textContent = segundos > 0 ? `Reenviar código en ${segundos}s` : 'Reenviar código'
+    if (segundos <= 0) { clearInterval(_regCooldownTimer); btn.disabled = false }
+  }, 1000)
+}
+
+async function _regEnviarCodigo() {
+  const input = document.getElementById('reg-whatsapp')
+  const whatsapp = input.value.replace(/\D/g, '')
+  if (!/^\d{10}$/.test(whatsapp)) return showError('El WhatsApp debe tener exactamente 10 dígitos')
+  const btn = document.getElementById('reg-btn-enviar-codigo')
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  document.getElementById('reg-sms-error').style.display = 'none'
+  try {
+    const auth = _firebaseAuthGuepack()
+    if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
+    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
+    window.confirmationResult = _regConfirmationResult
+    input.readOnly = true
+    input.style.borderColor = '#16a34a'
+    document.getElementById('reg-whatsapp-check').style.display = 'block'
+    btn.style.display = 'none'
+    document.getElementById('reg-otp-wrap').style.display = 'block'
+    document.getElementById('reg-codigo').focus()
+    _regIniciarCooldown()
+  } catch (error) {
+    btn.disabled = false
+    btn.textContent = 'Enviar código'
+    _regMostrarErrorSms(error)
+  }
+}
+
+async function _regReenviarCodigo() {
+  if (_regRecaptchaVerifier) { _regRecaptchaVerifier.clear(); _regRecaptchaVerifier = null }
+  const whatsapp = document.getElementById('reg-whatsapp').value.replace(/\D/g, '')
+  try {
+    const auth = _firebaseAuthGuepack()
+    _regRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' })
+    _regConfirmationResult = await auth.signInWithPhoneNumber('+52' + whatsapp, _regRecaptchaVerifier)
+    window.confirmationResult = _regConfirmationResult
+    _regIniciarCooldown()
+  } catch (error) { _regMostrarErrorSms(error) }
+}
+
+async function _regVerificarCodigo() {
+  const code = document.getElementById('reg-codigo').value.replace(/\D/g, '')
+  if (!/^\d{6}$/.test(code)) return _regMostrarErrorSms({ code: 'auth/invalid-verification-code' })
+  const btn = document.getElementById('reg-btn-verificar')
+  btn.disabled = true
+  try {
+    await window.confirmationResult.confirm(code)
+    _regWhatsappVerificado = true
+    document.getElementById('reg-otp-wrap').style.display = 'none'
+    document.getElementById('reg-verificado-badge').style.display = 'block'
+    document.getElementById('reg-whatsapp').style.background = '#dcfce7'
+    clearInterval(_regCooldownTimer)
+    _actualizarBtnRegistro()
+  } catch (error) { btn.disabled = false; _regMostrarErrorSms(error) }
+}
 
 function urlDelTenant(ruta) { return new URL(ruta, window.location.origin).href }
 
@@ -78,7 +181,7 @@ function _checkPassword() {
 function _actualizarBtnRegistro() {
   const value = document.getElementById('reg-password').value
   const passwordOk = value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[!@#$%^&*(),.?":{}|<>]/.test(value)
-  const habilitado = passwordOk && document.getElementById('acepto-terminos')?.checked
+  const habilitado = passwordOk && _regWhatsappVerificado && document.getElementById('acepto-terminos')?.checked
   const boton = document.getElementById('btn-crear-cuenta')
   if (!boton) return
   boton.disabled = !habilitado
@@ -164,14 +267,17 @@ async function registrar() {
     email, password,
     options: {
       emailRedirectTo: urlDelTenant('/redirect.html'),
-      data: { nombre, whatsapp, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantActualLogin?.id || null, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
+      data: { nombre, whatsapp, whatsapp_verificado: true, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantActualLogin?.id || null, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
     }
   })
   if (error) return showError('Error al crear cuenta: ' + error.message)
   if (data?.user) {
     if (tenantActualLogin?.id) {
-      const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id }).eq('user_id', data.user.id)
+      const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp_verificado: true }).eq('user_id', data.user.id)
       if (errorTenant) console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
+    } else {
+      const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp_verificado: true }).eq('user_id', data.user.id)
+      if (errorVerificado) console.error('No se pudo guardar la verificación de WhatsApp:', errorVerificado)
     }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: data.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }
