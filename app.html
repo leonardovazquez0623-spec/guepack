@@ -5687,7 +5687,7 @@ async function _bvGuardar() {
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando código...'; btn.style.opacity = '0.7' }
 
   _bvTelefono = '+52' + wsp
-  const { error } = await db.auth.signInWithOtp({ phone: _bvTelefono })
+  const { error } = await db.auth.updateUser({ phone: _bvTelefono })
   if (error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Continuar →'; btn.style.opacity = '1' }
     _mostrarToastSeguridad('No pudimos enviar el código. Intenta de nuevo.')
@@ -5719,7 +5719,7 @@ async function _bvVerificar() {
   btn.disabled = true
   btn.textContent = 'Verificando...'
 
-  const { error: otpError } = await db.auth.verifyOtp({ phone: _bvTelefono, token: codigo, type: 'sms' })
+  const { error: otpError } = await db.auth.verifyOtp({ phone: _bvTelefono, token: codigo, type: 'phone_change' })
   if (otpError) {
     btn.disabled = false
     btn.textContent = 'Verificar'
@@ -5782,7 +5782,7 @@ async function _bvReenviar() {
   const btn = document.getElementById('bv-btn-reenviar')
   if (btn.disabled) return
   btn.disabled = true
-  const { error } = await db.auth.signInWithOtp({ phone: _bvTelefono })
+  const { error } = await db.auth.updateUser({ phone: _bvTelefono })
   if (error) {
     btn.disabled = false
     _mostrarToastSeguridad('No pudimos reenviar el código. Intenta de nuevo.')
