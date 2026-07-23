@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
     const { data: pedido, error: pedErr } = await supabase
       .from('pedidos')
-      .select('id, repartidor, estado, direccion_recoleccion')
+      .select('id, repartidor, estado, metodo_pago, pago_verificado, direccion_recoleccion')
       .eq('id', pedido_id)
       .single()
 
@@ -79,6 +79,27 @@ Deno.serve(async (req) => {
     if (pedErr || !pedido) {
       console.warn('[procesar-asignacion] pedido no encontrado:', pedErr?.message)
       return new Response(JSON.stringify({ skipped: true, reason: 'pedido no encontrado' }), {
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
+      })
+    }
+
+    const metodoPago = String(pedido.metodo_pago || '').toLowerCase()
+    const requierePagoVerificado =
+      metodoPago === 'tarjeta' ||
+      metodoPago === 'transferencia'
+
+    if (
+      pedido.estado !== 'Pendiente' ||
+      (requierePagoVerificado && pedido.pago_verificado !== true)
+    ) {
+      console.warn(
+        `[procesar-asignacion] pedido ${pedido_id} sin pago habilitado para asignación`
+      )
+      return new Response(JSON.stringify({
+        error: 'El pedido todavía no tiene el pago verificado',
+        estado: pedido.estado
+      }), {
+        status: 400,
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }

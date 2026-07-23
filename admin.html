@@ -3170,7 +3170,7 @@ function renderPedido(pedido) {
       <div class="order-actions">
         ${pedido.estado === 'Pendiente verificación de pago' ? `
           ${pedido.comprobante_pago ? '<button class="btn" style="background:rgba(245,158,11,0.12);color:#f59e0b" onclick="verComprobante(\'' + pedido.comprobante_pago + '\')">🧾 Ver comprobante</button>' : ''}
-          <button class="btn" style="background:rgba(34,197,94,0.15);color:var(--success)" onclick="updateStatus(${pedido.id},\'Pendiente\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">✅ Aprobar pago</button>
+          <button class="btn" style="background:rgba(34,197,94,0.15);color:var(--success)" onclick="aprobarPagoTransferencia(${pedido.id},\'${pedido.whatsapp}\',\'${pedido.nombre}\')">✅ Aprobar pago</button>
           <button class="btn" style="background:rgba(239,68,68,0.12);color:#ef4444" onclick="updateStatus(${pedido.id},\'Pago rechazado\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">❌ Rechazar pago</button>
         ` : ''}
         ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
@@ -3387,6 +3387,94 @@ async function confirmarAsignacion(id) {
 
   const modal = document.getElementById('modal-asignar')
   if (modal) modal.remove()
+  cargarPedidos()
+}
+
+async function aprobarPagoTransferencia(id, telefono, nombre) {
+  const { data: pedidoAprobado, error } = await db
+    .from('pedidos')
+    .update({
+      estado: 'Pendiente',
+      pago_verificado: true
+    })
+    .eq('id', id)
+    .eq('estado', 'Pendiente verificación de pago')
+    .eq('metodo_pago', 'transferencia')
+    .select('id, pago_verificado')
+    .maybeSingle()
+
+  if (error) {
+    console.error('[pago] Error al aprobar la transferencia:', error)
+    alert('No se pudo aprobar el pago')
+    return
+  }
+
+  if (!pedidoAprobado || pedidoAprobado.pago_verificado !== true) {
+    alert('El pedido ya no está pendiente de verificación de pago')
+    cargarPedidos()
+    return
+  }
+
+  try {
+    const { data: { session } } = await db.auth.getSession()
+
+    if (!session?.access_token) {
+      throw new Error('No existe una sesión administrativa activa')
+    }
+
+    const respuestaAsignacion = await fetch(
+      SUPABASE_URL + '/functions/v1/procesar-asignacion',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({ pedido_id: id, ronda: 1 })
+      }
+    )
+
+    if (!respuestaAsignacion.ok) {
+      const detalle = await respuestaAsignacion.text()
+      throw new Error(detalle || 'La función de asignación rechazó la solicitud')
+    }
+  } catch (errorAsignacion) {
+    console.error(
+      '[asignación] No se pudo iniciar la asignación después de aprobar la transferencia:',
+      errorAsignacion
+    )
+    alert('El pago fue aprobado, pero no se pudo iniciar la asignación automática')
+  }
+
+  if (telefono) {
+    try {
+      const mensaje =
+        'Hola ' + nombre +
+        '! Tu pago fue verificado y aprobado. Tu pedido está en proceso. - GUEPACK Express'
+
+      const respuestaNotificacion = await fetch(
+        SUPABASE_URL + '/functions/v1/notificar-cliente',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          },
+          body: JSON.stringify({ telefono, mensaje })
+        }
+      )
+
+      if (!respuestaNotificacion.ok) {
+        console.warn('[notificación] No se pudo notificar al cliente sobre la aprobación del pago')
+      }
+    } catch (errorNotificacion) {
+      console.warn(
+        '[notificación] Error al notificar al cliente sobre la aprobación del pago:',
+        errorNotificacion
+      )
+    }
+  }
+
   cargarPedidos()
 }
 

@@ -845,13 +845,23 @@ async function _aceptarPedido(pedidoId) {
     gananciaRepartidor = Math.round(gananciaBase + (kmPedido * gananciaPorKm))
   }
 
-  const { data, error } = await db.from('pedidos')
-    .update({ repartidor: _repaData.nombre, asignacion_automatica: true, ganancia_repartidor: gananciaRepartidor })
-    .eq('id', pedidoId)
-    .select()
-  console.log('[aceptar] resultado update — data:', data, '| error:', error, '| ganancia:', gananciaRepartidor)
+  const { data: filasAfectadas, error } = await db.rpc('aceptar_pedido_atomico', {
+    p_pedido_id: pedidoId,
+    p_repartidor_nombre: _repaData.nombre,
+    p_ganancia_repartidor: gananciaRepartidor
+  })
+  console.log('[aceptar] resultado RPC — filas:', filasAfectadas, '| error:', error, '| ganancia:', gananciaRepartidor)
   document.getElementById('modal-nuevo-pedido')?.remove()
-  if (error) { _toastRepa('El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
+  if (error) {
+    _toastRepa('No se pudo aceptar el pedido. Intenta de nuevo.', '#ef4444')
+    cargarPedidos(_repaData.email)
+    return
+  }
+  if (Number(filasAfectadas) === 0) {
+    _toastRepa('Este pedido ya fue tomado por otro repartidor', '#ef4444')
+    cargarPedidos(_repaData.email)
+    return
+  }
   _toastRepa('✅ Pedido GK-' + pedidoId + ' aceptado', '#22c55e')
   iniciarTracking(pedidoId, _repaUserId)
   cargarPedidos(_repaData.email)

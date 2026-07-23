@@ -3278,9 +3278,11 @@ const { data, error } = await db.from('pedidos').insert({
     return
   }
 
-  // Asignación automática — fire-and-forget, no bloquea el flujo del cliente
-  console.log('[asignacion] iniciando asignacion automatica para pedido:', folioReal)
-  _iniciarAsignacionAutomatica(data[0])
+  if (metodoPago !== 'transferencia') {
+    // Asignación automática — no bloquea el flujo del cliente
+    console.log('[asignación] iniciando asignación automática para pedido:', folioReal)
+    _iniciarAsignacionAutomatica(data[0])
+  }
 
   // Tarifa diaria: el primer pedido del día cubre todos los siguientes
   if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {

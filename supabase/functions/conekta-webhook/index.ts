@@ -72,13 +72,48 @@ serve(async (req) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  try {
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
 
+  let eventIdRegistrado: string | null = null;
+
+  try {
     const body = JSON.parse(new TextDecoder().decode(bodyBytes));
+    const eventId = body.id;
+
+    if (typeof eventId !== "string" || !eventId.trim()) {
+      console.error("Webhook de Conekta sin ID de evento");
+      return new Response("ID de evento requerido", { status: 400 });
+    }
+
+    const { error: errorIdempotencia } = await supabaseAdmin
+      .from("webhook_events_procesados")
+      .insert({ event_id: eventId });
+
+    if (errorIdempotencia) {
+      if (errorIdempotencia.code === "23505") {
+        console.log(
+          "Evento de Conekta ya reservado o procesado, se omite:",
+          eventId
+        );
+        return new Response("ok", { status: 200 });
+      }
+
+      console.error(
+        "No se pudo reservar el evento de Conekta:",
+        eventId,
+        errorIdempotencia.message
+      );
+      return new Response(
+        "No se pudo reservar el evento para procesamiento",
+        { status: 500 }
+      );
+    }
+
+    eventIdRegistrado = eventId;
+    console.log("Evento de Conekta reservado para procesamiento:", eventId);
     console.log("CONEKTA WEBHOOK EVENT:", JSON.stringify(body));
 
     const eventType = body.type;
@@ -107,8 +142,7 @@ serve(async (req) => {
           .eq("id", pedidoId);
 
         if (updateErr) {
-          console.error("Error actualizando pedido:", updateErr.message);
-          return new Response("ok", { status: 200 });
+          throw new Error(`Error actualizando pedido: ${updateErr.message}`);
         }
 
         // Dispara ronda 1 de asignacion automatica
@@ -124,10 +158,18 @@ serve(async (req) => {
               body: JSON.stringify({ pedido_id: Number(pedidoId), ronda: 1 }),
             }
           );
+
+          if (!asigRes.ok) {
+            const detalle = await asigRes.text();
+            throw new Error(
+              `Error iniciando la asignación automática: ${detalle}`
+            );
+          }
+
           const asigJson = await asigRes.json();
           console.log("procesar-asignacion respuesta:", JSON.stringify(asigJson));
         } catch (e: any) {
-          console.error("Error llamando procesar-asignacion:", e.message);
+          throw new Error(`Error llamando procesar-asignacion: ${e.message}`);
         }
 
       } else if (metadata.envio_id) {
@@ -149,8 +191,7 @@ serve(async (req) => {
           .eq("id", envioId);
 
         if (updateErr) {
-          console.error("Error actualizando pago_verificado:", updateErr.message);
-          return new Response("ok", { status: 200 });
+          throw new Error(`Error actualizando el pago verificado: ${updateErr.message}`);
         }
 
         if (envioInfo?.user_id) {
@@ -192,6 +233,8 @@ serve(async (req) => {
               error_generacion_guia: errText,
             })
             .eq("id", envioId);
+
+          throw new Error(`Skydropx no pudo generar la guía: ${errText}`);
         } else {
           const guiaJson = await guiaRes.json();
           console.log("Guia generada automaticamente:", JSON.stringify(guiaJson));
@@ -206,6 +249,27 @@ serve(async (req) => {
 
   } catch (e: any) {
     console.error("Error inesperado en webhook:", e.message);
-    return new Response("ok", { status: 200 });
+
+    if (eventIdRegistrado) {
+      const { error: errorLiberacion } = await supabaseAdmin
+        .from("webhook_events_procesados")
+        .delete()
+        .eq("event_id", eventIdRegistrado);
+
+      if (errorLiberacion) {
+        console.error(
+          "No se pudo liberar el evento para un reintento:",
+          eventIdRegistrado,
+          errorLiberacion.message
+        );
+      } else {
+        console.log(
+          "Evento liberado para permitir un reintento:",
+          eventIdRegistrado
+        );
+      }
+    }
+
+    return new Response("Error procesando el webhook", { status: 500 });
   }
 });
