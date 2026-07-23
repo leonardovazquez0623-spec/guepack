@@ -5641,7 +5641,6 @@ let _bvSoloVerificacion = false
 let _bvAppUser = null
 let _bvCooldownTimer = null
 let _bvWhatsappVerificado = false
-let _bvPermitirSinVerificar = false
 let _bvConfirmationResult = null
 let _bvRecaptchaVerifier = null
 
@@ -5656,8 +5655,6 @@ function _mostrarModalBienvenida(userId, nombrePrevio, whatsappPrevio, soloVerif
   document.getElementById('bv-btn-enviar').style.display = 'block'
   document.getElementById('bv-verificado-badge').style.display = 'none'
   _bvWhatsappVerificado = false
-  _bvPermitirSinVerificar = false
-  document.getElementById('bv-btn-sin-verificar').style.display = 'none'
   document.getElementById('bv-titulo').textContent = soloVerificacion ? 'Verifica tu WhatsApp para continuar' : '¡Bienvenido a GUEPACK!'
   document.getElementById('bv-subtitulo').textContent = soloVerificacion
     ? 'Confirma tu número para poder usar la app'
@@ -5718,10 +5715,9 @@ async function _bvFirebaseAuthTemporal() {
 
 function _bvErrorSms(error) {
   const el = document.getElementById('bv-sms-error')
-  el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">La verificación por SMS está temporalmente no disponible.<br>Por favor ingresa tu número de WhatsApp y continúa — lo verificaremos pronto.'
+  el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.'
   el.style.display = 'block'
-  _bvPermitirSinVerificar = true
-  document.getElementById('bv-btn-sin-verificar').style.display = 'block'
+  mostrarToast('❌ No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
 }
 
 async function _bvEnviarCodigo() {
@@ -5753,8 +5749,6 @@ async function _bvEnviarCodigo() {
     })
     _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
     window.confirmationResult = _bvConfirmationResult
-    _bvPermitirSinVerificar = false
-    document.getElementById('bv-btn-sin-verificar').style.display = 'none'
     const input = document.getElementById('bv-whatsapp')
     input.readOnly = true
     input.style.borderColor = '#16a34a'
@@ -5800,7 +5794,6 @@ async function _bvVerificar() {
   }
 
   _bvWhatsappVerificado = true
-  _bvPermitirSinVerificar = false
   document.getElementById('bv-otp').style.display = 'none'
   document.getElementById('bv-verificado-badge').style.display = 'block'
   document.getElementById('bv-whatsapp').style.background = '#dcfce7'
@@ -5808,9 +5801,8 @@ async function _bvVerificar() {
   _bvValidar()
 }
 
-async function _bvGuardar(verificado = true, mostrarAvisoPendiente = false) {
-  if (!verificado && !_bvPermitirSinVerificar) return
-  if (verificado && !_bvWhatsappVerificado) return
+async function _bvGuardar() {
+  if (!_bvWhatsappVerificado) return
   const btn = document.getElementById('bv-btn-continuar')
   btn.disabled = true
   btn.textContent = 'Guardando...'
@@ -5830,7 +5822,7 @@ async function _bvGuardar(verificado = true, mostrarAvisoPendiente = false) {
     }
   }
 
-  const upd = { whatsapp: wsp, whatsapp_verificado: verificado }
+  const upd = { whatsapp: wsp, whatsapp_verificado: true }
   if (empresa) upd.empresa_codigo = empresa
 
   const { error } = await db.from('usuarios').update(upd).eq('user_id', _bvUserId)
@@ -5843,20 +5835,10 @@ async function _bvGuardar(verificado = true, mostrarAvisoPendiente = false) {
 
   if (!_bvSoloVerificacion && referido) await _procesarReferidoBienvenida(referido)
 
-  if (mostrarAvisoPendiente) mostrarToast('✅ Datos guardados. Verificaremos tu WhatsApp pronto', 'success')
-
   const modal = document.getElementById('modal-bienvenida')
   if (modal) modal.style.display = 'none'
   if (_bvCooldownTimer) clearInterval(_bvCooldownTimer)
   if (_bvAppUser) await _iniciarAppCliente(_bvAppUser)
-}
-
-async function _bvContinuarSinVerificar() {
-  const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
-  const nombre = (document.getElementById('bv-nombre')?.value || '').trim()
-  if (wsp.length !== 10 || (!_bvSoloVerificacion && nombre.length < 2)) return
-  _bvTelefono = '+52' + wsp
-  await _bvGuardar(false, true)
 }
 
 function _bvIniciarCooldown() {
@@ -8003,8 +7985,6 @@ function _cerrarTour() {
       </button>
     </div>
     <div id="bv-sms-error" style="display:none;margin-top:12px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:12px;font-weight:700;line-height:1.5"></div>
-    <button id="bv-btn-sin-verificar" type="button" onclick="_bvContinuarSinVerificar()"
-      style="display:none;width:100%;margin-top:10px;padding:12px;border:1.5px solid var(--color-primary);border-radius:10px;background:white;color:var(--color-primary);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer">Continuar sin verificar</button>
     <button id="bv-btn-continuar" onclick="_bvGuardar()" disabled
       style="width:100%;margin-top:16px;background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;font-family:inherit;cursor:not-allowed;opacity:0.5;transition:all .2s">
       Continuar →

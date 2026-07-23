@@ -1,6 +1,5 @@
 let tenantActualLogin = null
 let _regWhatsappVerificado = false
-let _regPermitirSinVerificar = false
 let _regConfirmationResult = null
 let _regCooldownTimer = null
 
@@ -86,20 +85,9 @@ function _mensajeErrorSms(error) {
 function _regMostrarErrorSms(error) {
   const el = document.getElementById('reg-sms-error')
   if (!el) return
-  el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">La verificación por SMS está temporalmente no disponible.<br>Por favor ingresa tu número de WhatsApp y continúa — lo verificaremos pronto.'
+  el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.'
   el.style.display = 'block'
-  _regPermitirSinVerificar = true
-  const continuar = document.getElementById('reg-btn-sin-verificar')
-  if (continuar) continuar.style.display = 'block'
-  _actualizarBtnRegistro()
-}
-
-function _regContinuarSinVerificar() {
-  _regPermitirSinVerificar = true
-  document.getElementById('reg-otp-wrap').style.display = 'none'
-  document.getElementById('reg-whatsapp').readOnly = false
-  _actualizarBtnRegistro()
-  document.getElementById('btn-crear-cuenta')?.focus()
+  mostrarToastLogin('❌ No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
 }
 
 function _regIniciarCooldown() {
@@ -131,8 +119,6 @@ async function _regEnviarCodigo() {
       return
     }
     _regConfirmationResult = confirmationResult
-    _regPermitirSinVerificar = false
-    document.getElementById('reg-btn-sin-verificar').style.display = 'none'
     document.getElementById('reg-sms-error').style.display = 'none'
     input.readOnly = true
     input.style.borderColor = '#16a34a'
@@ -167,7 +153,6 @@ async function _regVerificarCodigo() {
     const result = await window.confirmationResult.confirm(code)
     await _firebaseAuthGuepack().signOut()
     _regWhatsappVerificado = true
-    _regPermitirSinVerificar = false
     document.getElementById('reg-otp-wrap').style.display = 'none'
     document.getElementById('reg-verificado-badge').style.display = 'block'
     document.getElementById('reg-whatsapp').style.background = '#dcfce7'
@@ -254,7 +239,7 @@ function _checkPassword() {
 function _actualizarBtnRegistro() {
   const value = document.getElementById('reg-password').value
   const passwordOk = value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /[!@#$%^&*(),.?":{}|<>]/.test(value)
-  const habilitado = passwordOk && (_regWhatsappVerificado || _regPermitirSinVerificar) && document.getElementById('acepto-terminos')?.checked
+  const habilitado = passwordOk && _regWhatsappVerificado && document.getElementById('acepto-terminos')?.checked
   const boton = document.getElementById('btn-crear-cuenta')
   if (!boton) return
   boton.disabled = !habilitado
@@ -287,9 +272,10 @@ async function loginGoogle() {
   if (error) showError('Error con Google: ' + error.message)
 }
 
-function mostrarToastLogin(msg) {
+function mostrarToastLogin(msg, tipo = 'success') {
   const toast = document.createElement('div')
-  toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#22c55e;color:white;padding:16px 28px;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center'
+  const color = tipo === 'error' ? '#dc2626' : '#22c55e'
+  toast.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${color};color:white;padding:16px 28px;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center`
   toast.textContent = msg
   document.body.appendChild(toast)
   setTimeout(() => { toast.style.transition = 'opacity .4s'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400) }, 3000)
@@ -311,6 +297,7 @@ async function recuperarPassword() {
 
 async function registrar() {
   if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
+  if (!_regWhatsappVerificado) return showError('Debes verificar tu WhatsApp antes de continuar')
   const nombre = document.getElementById('reg-nombre').value.trim()
   const email = document.getElementById('reg-email').value.trim()
   const password = document.getElementById('reg-password').value
@@ -340,21 +327,20 @@ async function registrar() {
     email, password,
     options: {
       emailRedirectTo: urlDelTenant('/redirect.html'),
-      data: { nombre, whatsapp, whatsapp_verificado: _regWhatsappVerificado, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantActualLogin?.id || null, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
+      data: { nombre, whatsapp, whatsapp_verificado: true, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantActualLogin?.id || null, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
     }
   })
   if (error) return showError('Error al crear cuenta: ' + error.message)
   if (data?.user) {
     if (tenantActualLogin?.id) {
-      const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: _regWhatsappVerificado }).eq('user_id', data.user.id)
+      const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
       if (errorTenant) console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
     } else {
-      const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp, whatsapp_verificado: _regWhatsappVerificado }).eq('user_id', data.user.id)
+      const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
       if (errorVerificado) console.error('No se pudo guardar la verificación de WhatsApp:', errorVerificado)
     }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: data.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }
-  if (!_regWhatsappVerificado) mostrarToastLogin('✅ Datos guardados. Verificaremos tu WhatsApp pronto')
   _mostrarModalCuentaCreada()
 }
 
