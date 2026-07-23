@@ -339,7 +339,7 @@ function _nacRenderResumen() {
     </div>
     <div style="border-top:1.5px solid var(--gray);padding-top:14px;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--gray-mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Paquetería</div>
-      <div style="font-size:14px;font-weight:700;font-family:Montserrat,sans-serif">${opcionSeleccionada.medalla} ${opcionSeleccionada.paqueteria}</div>
+      <div style="font-size:14px;font-weight:700;font-family:Montserrat,sans-serif">${opcionSeleccionada.medalla} ${nombrePaqueteria(opcionSeleccionada.paqueteria)}</div>
       <div style="font-size:12px;color:var(--gray-mid);font-family:Montserrat,sans-serif">${opcionSeleccionada.servicio || ''} · ${formatearDias(opcionSeleccionada.dias_min, opcionSeleccionada.dias_max)}</div>
     </div>
     <div style="border-top:1.5px solid var(--gray);padding-top:14px;display:flex;justify-content:space-between;align-items:center">

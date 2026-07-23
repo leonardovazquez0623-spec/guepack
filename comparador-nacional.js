@@ -38,12 +38,33 @@ const PAQUETERIAS_RECOLECCION_APROXIMADA = new Set([
   "quiken",
 ]);
 
+const NOMBRES_PAQUETERIA = {
+  fedex: "FedEx",
+  estafeta: "Estafeta",
+  dhl: "DHL",
+  ups: "UPS",
+  paquetexpress: "PaqueteExpress",
+  sendex: "Sendex",
+  imile: "iMile",
+  ninetynineminutes: "99minutos",
+  jtexpress: "J&T Express",
+  redpack: "Redpack",
+  ampm: "AMPM",
+  quiken: "Quiken",
+  tresguerras: "Tresguerras",
+};
+
 function normalizarPaqueteriaRecoleccion(valor) {
   return String(valor || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+function nombrePaqueteria(valor) {
+  const clave = normalizarPaqueteriaRecoleccion(valor);
+  return NOMBRES_PAQUETERIA[clave] || valor;
 }
 
 function obtenerHoraMexico() {
@@ -118,7 +139,7 @@ function renderComparador(opciones) {
         <div class="opcion-envio" data-index="${i}">
           ${badgeCarrier(op.paqueteria)}
           <div class="opcion-info">
-            <div class="opcion-paqueteria">${op.paqueteria}</div>
+            <div class="opcion-paqueteria">${nombrePaqueteria(op.paqueteria)}</div>
             <div class="opcion-servicio">${op.servicio || ""}</div>
             <div class="opcion-tiempo">${formatearDias(op.dias_min, op.dias_max)}</div>
             <div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;line-height:1.25;color:var(--gray-dark)">
