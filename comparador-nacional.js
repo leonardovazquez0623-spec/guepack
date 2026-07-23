@@ -106,13 +106,21 @@ function renderComparador(opciones) {
   contenedor.innerHTML = `
     <h3 class="comparador-titulo" style="display:flex;align-items:center;gap:6px">${typeof GUEPACK_ICONS !== 'undefined' ? '<span style="display:inline-flex;width:20px;height:20px">' + GUEPACK_ICONS.paquete + '</span>' : ''} Opciones de envío</h3>
     <div class="comparador-lista">
-      ${opciones.map((op, i) => `
+      ${opciones.map((op, i) => {
+        const recoleccionDisponible = recoleccionAproximadaDisponible(op);
+        const indicadorRecoleccion = recoleccionDisponible
+          ? `<span style="color:#1E56C7;font-weight:800" aria-hidden="true">✓</span><span>Recolección a domicilio +$${EXTRAS.recoleccion.costo.toFixed(0)}</span>`
+          : `<span style="color:#8F5158;font-weight:800" aria-hidden="true">×</span><span>Sin recolección disponible</span>`;
+        return `
         <div class="opcion-envio" data-index="${i}">
           ${badgeCarrier(op.paqueteria)}
           <div class="opcion-info">
             <div class="opcion-paqueteria">${op.paqueteria}</div>
             <div class="opcion-servicio">${op.servicio || ""}</div>
             <div class="opcion-tiempo">${formatearDias(op.dias_min, op.dias_max)}</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;line-height:1.25;color:var(--gray-dark)">
+              ${indicadorRecoleccion}
+            </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
             <div style="display:flex;align-items:center;gap:4px">
@@ -125,7 +133,8 @@ function renderComparador(opciones) {
             </button>
           </div>
         </div>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 
@@ -141,8 +150,11 @@ function formatearDias(min, max) {
 }
 
 function renderUpsell() {
-  // Seguro activo por default
+  // Seguro activo por defecto.
   extrasSeleccionados.add("seguro");
+  const recoleccionDisponible = recoleccionAproximadaDisponible(opcionSeleccionada);
+  if (recoleccionDisponible) extrasSeleccionados.add("recoleccion");
+  else extrasSeleccionados.delete("recoleccion");
 
   const contenedor = document.getElementById("upsell-envios");
   contenedor.innerHTML = `
@@ -150,21 +162,46 @@ function renderUpsell() {
     <div class="upsell-lista">
       ${Object.entries(EXTRAS).map(([key, extra]) => {
         // La cobertura real se valida con Skydropx después de generar la guía.
-        if (key === "recoleccion" && !recoleccionAproximadaDisponible(opcionSeleccionada)) return "";
+        if (key === "recoleccion" && !recoleccionDisponible) return "";
         const iconHtml = extra.icon && typeof GUEPACK_ICONS !== "undefined"
           ? `<span style="display:inline-flex;width:16px;height:16px;vertical-align:middle">${GUEPACK_ICONS[extra.icon]}</span> `
           : "";
-        const checked = key === "seguro" ? "checked" : "";
+        const checked = extrasSeleccionados.has(key) ? "checked" : "";
+        if (key === "recoleccion") {
+          return `
+          <label class="upsell-item" style="align-items:flex-start">
+            <input type="checkbox" data-extra="${key}" ${checked}/>
+            <span class="upsell-label" style="display:flex;flex-direction:column;gap:3px">
+              <span>${iconHtml}${extra.label} (+$${extra.costo.toFixed(0)})</span>
+              <span style="font-size:12px;line-height:1.35;font-weight:400;color:var(--gray-dark)">Un repartidor pasa por tu paquete, no necesitas ir a sucursal</span>
+            </span>
+          </label>`;
+        }
         return `
         <label class="upsell-item">
           <input type="checkbox" data-extra="${key}" ${checked}/>
-          <span class="upsell-label">${iconHtml}${extra.label}${key === "recoleccion" ? ` (+$${extra.costo.toFixed(0)})` : ""}</span>
-          ${key === "recoleccion" ? "" : `<span class="upsell-precio">+$${extra.costo}</span>`}
+          <span class="upsell-label">${iconHtml}${extra.label}</span>
+          <span class="upsell-precio">+$${extra.costo}</span>
         </label>`;
       }).join("")}
     </div>
-    <div class="upsell-total">
-      Total: <span id="total-envio">$${opcionSeleccionada.costo.toFixed(0)}</span>
+    <div class="upsell-total" style="display:flex;flex-direction:column;gap:5px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:400">
+        <span>Envío:</span>
+        <span>$${opcionSeleccionada.costo.toFixed(0)}</span>
+      </div>
+      <div id="desglose-recoleccion" style="display:${recoleccionDisponible ? "flex" : "none"};justify-content:space-between;font-size:13px;font-weight:400">
+        <span>Recolección a domicilio:</span>
+        <span id="total-recoleccion">+$${EXTRAS.recoleccion.costo.toFixed(0)}</span>
+      </div>
+      <div id="desglose-seguro" style="display:flex;justify-content:space-between;font-size:13px;font-weight:400">
+        <span>Protección GUEPACK:</span>
+        <span id="total-seguro">+$${EXTRAS.seguro.costo.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;padding-top:8px;border-top:1px solid var(--gray-light)">
+        <span>Total:</span>
+        <span id="total-envio">$${opcionSeleccionada.costo.toFixed(0)}</span>
+      </div>
     </div>
   `;
 
@@ -178,7 +215,7 @@ function renderUpsell() {
     });
   });
 
-  // Refleja el seguro marcado desde el primer render
+  // Refleja los servicios marcados desde el primer render.
   actualizarTotal();
 }
 
@@ -186,4 +223,18 @@ function actualizarTotal() {
   let total = opcionSeleccionada.costo;
   extrasSeleccionados.forEach(key => (total += EXTRAS[key].costo));
   document.getElementById("total-envio").textContent = `$${total.toFixed(0)}`;
+
+  const totalRecoleccion = document.getElementById("total-recoleccion");
+  if (totalRecoleccion) {
+    const recoleccionSeleccionada = extrasSeleccionados.has("recoleccion");
+    totalRecoleccion.textContent = `+$${recoleccionSeleccionada ? EXTRAS.recoleccion.costo.toFixed(0) : "0"}`;
+    document.getElementById("desglose-recoleccion").style.opacity = recoleccionSeleccionada ? "1" : "0.55";
+  }
+
+  const desgloseSeguro = document.getElementById("desglose-seguro");
+  if (desgloseSeguro) {
+    const seguroSeleccionado = extrasSeleccionados.has("seguro");
+    document.getElementById("total-seguro").textContent = `+$${seguroSeleccionado ? EXTRAS.seguro.costo.toFixed(0) : "0"}`;
+    desgloseSeguro.style.opacity = seguroSeleccionado ? "1" : "0.55";
+  }
 }
