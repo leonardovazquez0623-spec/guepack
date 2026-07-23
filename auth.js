@@ -98,6 +98,19 @@ async function _regEnviarCodigo() {
   const input = document.getElementById('reg-whatsapp')
   const whatsapp = input.value.replace(/\D/g, '')
   if (!/^\d{10}$/.test(whatsapp)) return showError('El WhatsApp debe tener exactamente 10 dígitos')
+
+  const { data: whatsappExistente, error: errorConsulta } = await db.from('usuarios')
+    .select('user_id')
+    .eq('whatsapp', whatsapp)
+    .maybeSingle()
+  if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
+  if (whatsappExistente) {
+    const errorEl = document.getElementById('reg-sms-error')
+    errorEl.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">Este número de WhatsApp ya está registrado en otra cuenta'
+    errorEl.style.display = 'block'
+    return
+  }
+
   const btn = document.getElementById('btn-enviar-codigo')
   btn.disabled = true
   btn.textContent = 'Enviando...'
