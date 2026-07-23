@@ -5736,12 +5736,11 @@ async function _bvEnviarCodigo() {
   const { data: whatsappExistente, error: errorConsulta } = await consultaDuplicado.maybeSingle()
   if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
   if (whatsappExistente) {
-    const errorEl = document.getElementById('bv-sms-error')
-    errorEl.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">Este número de WhatsApp ya está registrado en otra cuenta'
-    errorEl.style.display = 'block'
+    mostrarToast('⚠️ Este número de WhatsApp ya está registrado en otra cuenta', 'error')
     return
   }
 
+  // Solo después de descartar duplicados se crea reCAPTCHA y se intenta Firebase.
   const btn = document.getElementById('bv-btn-enviar')
   btn.disabled = true
   btn.textContent = 'Enviando...'

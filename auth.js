@@ -30,6 +30,26 @@ async function limpiarRecaptcha() {
 
 async function enviarCodigoSMS(whatsapp) {
   const boton = document.getElementById('btn-enviar-codigo')
+
+  // PASO 1: validar duplicado antes de crear reCAPTCHA o llamar a Firebase.
+  const { data: { session } } = await db.auth.getSession()
+  let consultaDuplicado = db.from('usuarios')
+    .select('user_id')
+    .eq('whatsapp', whatsapp)
+  if (session?.user?.id) consultaDuplicado = consultaDuplicado.neq('user_id', session.user.id)
+  const { data: whatsappExistente, error: errorConsulta } = await consultaDuplicado.maybeSingle()
+  if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
+  if (whatsappExistente) {
+    showError('⚠️ Este número de WhatsApp ya está registrado en otra cuenta')
+    const errorEl = document.getElementById('reg-sms-error')
+    if (errorEl) {
+      errorEl.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">Este número de WhatsApp ya está registrado en otra cuenta'
+      errorEl.style.display = 'block'
+    }
+    return null
+  }
+
+  // PASO 2: únicamente si no existe un duplicado, intentar Firebase SMS.
   try {
     if (boton) boton.disabled = true
     await limpiarRecaptcha()
@@ -47,6 +67,7 @@ async function enviarCodigoSMS(whatsapp) {
 
     window.confirmationResult = await firebase.auth().signInWithPhoneNumber(telefono, window._appVerifier)
     console.log('[SMS] código enviado correctamente')
+    return window.confirmationResult
   } catch (error) {
     console.error('[SMS] error:', error.code, error.message)
     await limpiarRecaptcha()
@@ -98,26 +119,18 @@ async function _regEnviarCodigo() {
   const input = document.getElementById('reg-whatsapp')
   const whatsapp = input.value.replace(/\D/g, '')
   if (!/^\d{10}$/.test(whatsapp)) return showError('El WhatsApp debe tener exactamente 10 dígitos')
-
-  const { data: whatsappExistente, error: errorConsulta } = await db.from('usuarios')
-    .select('user_id')
-    .eq('whatsapp', whatsapp)
-    .maybeSingle()
-  if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
-  if (whatsappExistente) {
-    const errorEl = document.getElementById('reg-sms-error')
-    errorEl.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">Este número de WhatsApp ya está registrado en otra cuenta'
-    errorEl.style.display = 'block'
-    return
-  }
-
   const btn = document.getElementById('btn-enviar-codigo')
   btn.disabled = true
   btn.textContent = 'Enviando...'
   document.getElementById('reg-sms-error').style.display = 'none'
   try {
-    await enviarCodigoSMS(whatsapp)
-    _regConfirmationResult = window.confirmationResult
+    const confirmationResult = await enviarCodigoSMS(whatsapp)
+    if (!confirmationResult) {
+      btn.disabled = false
+      btn.textContent = 'Enviar código'
+      return
+    }
+    _regConfirmationResult = confirmationResult
     _regPermitirSinVerificar = false
     document.getElementById('reg-btn-sin-verificar').style.display = 'none'
     document.getElementById('reg-sms-error').style.display = 'none'
@@ -138,8 +151,9 @@ async function _regEnviarCodigo() {
 async function _regReenviarCodigo() {
   const whatsapp = document.getElementById('reg-whatsapp').value.replace(/\D/g, '')
   try {
-    await enviarCodigoSMS(whatsapp)
-    _regConfirmationResult = window.confirmationResult
+    const confirmationResult = await enviarCodigoSMS(whatsapp)
+    if (!confirmationResult) return
+    _regConfirmationResult = confirmationResult
     _regIniciarCooldown()
   } catch (error) { _regMostrarErrorSms(error) }
 }
