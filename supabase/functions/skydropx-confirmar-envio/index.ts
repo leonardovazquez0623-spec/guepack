@@ -34,8 +34,20 @@ function normalizarPaqueteria(valor: unknown): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function recoleccionAproximadaDisponible(paqueteria: unknown): boolean {
-  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(normalizarPaqueteria(paqueteria))) return false;
+type EstadoRecoleccionAproximada = "no_disponible" | "hoy" | "siguiente_dia_habil";
+
+function obtenerEstadoRecoleccionAproximada(
+  paqueteriaValor: unknown,
+  servicioValor: unknown,
+): EstadoRecoleccionAproximada {
+  const paqueteria = normalizarPaqueteria(paqueteriaValor);
+  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return "no_disponible";
+
+  const servicio = normalizarPaqueteria(servicioValor);
+  if (
+    (paqueteria === "paquetexpress" || paqueteria === "sendex") &&
+    servicio.includes("sinrecoleccion")
+  ) return "no_disponible";
 
   const partes = new Intl.DateTimeFormat("es-MX", {
     timeZone: "America/Mexico_City",
@@ -46,7 +58,8 @@ function recoleccionAproximadaDisponible(paqueteria: unknown): boolean {
   const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
   const dia = normalizarPaqueteria(valores.weekday);
   const hora = Number(valores.hour);
-  return dia !== "sabado" && dia !== "domingo" && hora < 12;
+  const esFinDeSemana = dia === "sabado" || dia === "domingo";
+  return !esFinDeSemana && hora < 12 ? "hoy" : "siguiente_dia_habil";
 }
 
 serve(async (req) => {
@@ -128,9 +141,13 @@ serve(async (req) => {
       : [];
 
     // La regla del wizard es aproximada; Skydropx confirma la cobertura después de crear la guía.
+    const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(
+      rate.carrier_name ?? rate.provider_name,
+      rate.service_level_name ?? rate.provider_service_name,
+    );
     if (
       extrasValidos.includes("recoleccion") &&
-      (!recoleccionAproximadaDisponible(rate.carrier_name ?? rate.provider_name) || costoRecoleccion <= 0)
+      (estadoRecoleccion === "no_disponible" || costoRecoleccion <= 0)
     ) {
       extrasValidos = extrasValidos.filter(k => k !== "recoleccion");
     }

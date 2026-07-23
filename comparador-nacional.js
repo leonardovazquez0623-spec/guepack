@@ -60,22 +60,22 @@ function obtenerHoraMexico() {
   };
 }
 
-function recoleccionAproximadaDisponible(opcion) {
-  if (!opcion || EXTRAS.recoleccion.costo <= 0) return false;
+function obtenerEstadoRecoleccionAproximada(opcion) {
+  if (!opcion || EXTRAS.recoleccion.costo <= 0) return "no_disponible";
 
   const paqueteria = normalizarPaqueteriaRecoleccion(opcion.paqueteria);
-  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return false;
+  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return "no_disponible";
 
   const servicio = normalizarPaqueteriaRecoleccion(opcion.servicio);
   if (
     (paqueteria === "paquetexpress" || paqueteria === "sendex") &&
     servicio.includes("sinrecoleccion")
-  ) return false;
+  ) return "no_disponible";
 
   const horaMexico = obtenerHoraMexico();
   const diaNormalizado = normalizarPaqueteriaRecoleccion(horaMexico.dia);
   const esFinDeSemana = diaNormalizado === "sabado" || diaNormalizado === "domingo";
-  return !esFinDeSemana && horaMexico.hora < 12;
+  return !esFinDeSemana && horaMexico.hora < 12 ? "hoy" : "siguiente_dia_habil";
 }
 
 async function cotizarEnvio(origen, destino, paquete) {
@@ -107,9 +107,12 @@ function renderComparador(opciones) {
     <h3 class="comparador-titulo" style="display:flex;align-items:center;gap:6px">${typeof GUEPACK_ICONS !== 'undefined' ? '<span style="display:inline-flex;width:20px;height:20px">' + GUEPACK_ICONS.paquete + '</span>' : ''} Opciones de envío</h3>
     <div class="comparador-lista">
       ${opciones.map((op, i) => {
-        const recoleccionDisponible = recoleccionAproximadaDisponible(op);
-        const indicadorRecoleccion = recoleccionDisponible
-          ? `<span style="color:#1E56C7;font-weight:800" aria-hidden="true">✓</span><span>Recolección a domicilio +$${EXTRAS.recoleccion.costo.toFixed(0)}</span>`
+        const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(op);
+        const textoRecoleccion = estadoRecoleccion === "hoy"
+          ? `Recolección a domicilio hoy +$${EXTRAS.recoleccion.costo.toFixed(0)}`
+          : `Recolección el siguiente día hábil +$${EXTRAS.recoleccion.costo.toFixed(0)}`;
+        const indicadorRecoleccion = estadoRecoleccion !== "no_disponible"
+          ? `<span style="color:#1E56C7;font-weight:800" aria-hidden="true">✓</span><span>${textoRecoleccion}</span>`
           : `<span style="color:#8F5158;font-weight:800" aria-hidden="true">×</span><span>Sin recolección disponible</span>`;
         return `
         <div class="opcion-envio" data-index="${i}">
@@ -152,7 +155,11 @@ function formatearDias(min, max) {
 function renderUpsell() {
   // Seguro activo por defecto.
   extrasSeleccionados.add("seguro");
-  const recoleccionDisponible = recoleccionAproximadaDisponible(opcionSeleccionada);
+  const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(opcionSeleccionada);
+  const recoleccionDisponible = estadoRecoleccion !== "no_disponible";
+  const textoRecoleccion = estadoRecoleccion === "hoy"
+    ? `Recolección a domicilio hoy +$${EXTRAS.recoleccion.costo.toFixed(0)}`
+    : `Recolección el siguiente día hábil +$${EXTRAS.recoleccion.costo.toFixed(0)}`;
   if (recoleccionDisponible) extrasSeleccionados.add("recoleccion");
   else extrasSeleccionados.delete("recoleccion");
 
@@ -172,7 +179,7 @@ function renderUpsell() {
           <label class="upsell-item" style="align-items:flex-start">
             <input type="checkbox" data-extra="${key}" ${checked}/>
             <span class="upsell-label" style="display:flex;flex-direction:column;gap:3px">
-              <span>${iconHtml}${extra.label} (+$${extra.costo.toFixed(0)})</span>
+              <span>${iconHtml}${textoRecoleccion}</span>
               <span style="font-size:12px;line-height:1.35;font-weight:400;color:var(--gray-dark)">Un repartidor pasa por tu paquete, no necesitas ir a sucursal</span>
             </span>
           </label>`;
