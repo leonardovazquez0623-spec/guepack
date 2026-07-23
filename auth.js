@@ -79,7 +79,7 @@ async function enviarCodigoSMS(whatsapp) {
 function _mensajeErrorSms(error) {
   return ['auth/too-many-requests', 'auth/quota-exceeded'].includes(error?.code)
     ? 'Demasiados intentos, espera un momento'
-    : '❌ Código incorrecto, intenta de nuevo'
+    : 'Código incorrecto, intenta de nuevo'
 }
 
 function _regMostrarErrorSms(error) {
@@ -87,7 +87,7 @@ function _regMostrarErrorSms(error) {
   if (!el) return
   el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.'
   el.style.display = 'block'
-  mostrarToastLogin('❌ No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
+  mostrarToastLogin('No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
 }
 
 function _regIniciarCooldown() {
@@ -225,7 +225,10 @@ function _checkPassword() {
     especial: /[!@#$%^&*(),.?":{}|<>]/.test(value)
   }
   for (const [id, ok] of Object.entries(checks)) {
-    document.getElementById(`ico-${id}`).textContent = ok ? '✅' : '❌'
+    const icono = document.getElementById(`ico-${id}`)
+    icono.innerHTML = ok
+      ? '✅'
+      : '<img src="/guepack-icons/guepack-icons/svg/55-cerrar-x.svg" alt="" width="14" height="14" style="display:block">'
     document.getElementById(`req-${id}`).style.color = ok ? '#16a34a' : '#9ca3af'
   }
   const todoOk = Object.values(checks).every(Boolean)
@@ -275,8 +278,16 @@ async function loginGoogle() {
 function mostrarToastLogin(msg, tipo = 'success') {
   const toast = document.createElement('div')
   const color = tipo === 'error' ? '#dc2626' : '#22c55e'
-  toast.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${color};color:white;padding:16px 28px;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center`
-  toast.textContent = msg
+  toast.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${color};color:white;padding:16px 28px;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center;display:flex;align-items:center;justify-content:center;gap:8px`
+  if (tipo === 'error') {
+    const icono = document.createElement('img')
+    icono.src = '/guepack-icons/guepack-icons/svg/55-cerrar-x.svg'
+    icono.alt = ''
+    icono.width = 18
+    icono.height = 18
+    toast.appendChild(icono)
+  }
+  toast.appendChild(document.createTextNode(msg))
   document.body.appendChild(toast)
   setTimeout(() => { toast.style.transition = 'opacity .4s'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400) }, 3000)
 }

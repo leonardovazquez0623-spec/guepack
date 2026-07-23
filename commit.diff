@@ -1,0 +1,122 @@
+﻿diff --git a/comparador-nacional.js b/comparador-nacional.js
+index 47f7bbc..25cb08b 100644
+--- a/comparador-nacional.js
++++ b/comparador-nacional.js
+@@ -60,22 +60,22 @@ function obtenerHoraMexico() {
+   };
+ }
+ 
+-function recoleccionAproximadaDisponible(opcion) {
+-  if (!opcion || EXTRAS.recoleccion.costo <= 0) return false;
++function obtenerEstadoRecoleccionAproximada(opcion) {
++  if (!opcion || EXTRAS.recoleccion.costo <= 0) return "no_disponible";
+ 
+   const paqueteria = normalizarPaqueteriaRecoleccion(opcion.paqueteria);
+-  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return false;
++  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return "no_disponible";
+ 
+   const servicio = normalizarPaqueteriaRecoleccion(opcion.servicio);
+   if (
+     (paqueteria === "paquetexpress" || paqueteria === "sendex") &&
+     servicio.includes("sinrecoleccion")
+-  ) return false;
++  ) return "no_disponible";
+ 
+   const horaMexico = obtenerHoraMexico();
+   const diaNormalizado = normalizarPaqueteriaRecoleccion(horaMexico.dia);
+   const esFinDeSemana = diaNormalizado === "sabado" || diaNormalizado === "domingo";
+-  return !esFinDeSemana && horaMexico.hora < 12;
++  return !esFinDeSemana && horaMexico.hora < 12 ? "hoy" : "siguiente_dia_habil";
+ }
+ 
+ async function cotizarEnvio(origen, destino, paquete) {
+@@ -107,9 +107,12 @@ function renderComparador(opciones) {
+     <h3 class="comparador-titulo" style="display:flex;align-items:center;gap:6px">${typeof GUEPACK_ICONS !== 'undefined' ? '<span style="display:inline-flex;width:20px;height:20px">' + GUEPACK_ICONS.paquete + '</span>' : ''} Opciones de env├¡o</h3>
+     <div class="comparador-lista">
+       ${opciones.map((op, i) => {
+-        const recoleccionDisponible = recoleccionAproximadaDisponible(op);
+-        const indicadorRecoleccion = recoleccionDisponible
+-          ? `<span style="color:#1E56C7;font-weight:800" aria-hidden="true">Ô£ô</span><span>Recolecci├│n a domicilio +$${EXTRAS.recoleccion.costo.toFixed(0)}</span>`
++        const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(op);
++        const textoRecoleccion = estadoRecoleccion === "hoy"
++          ? `Recolecci├│n a domicilio hoy +$${EXTRAS.recoleccion.costo.toFixed(0)}`
++          : `Recolecci├│n el siguiente d├¡a h├íbil +$${EXTRAS.recoleccion.costo.toFixed(0)}`;
++        const indicadorRecoleccion = estadoRecoleccion !== "no_disponible"
++          ? `<span style="color:#1E56C7;font-weight:800" aria-hidden="true">Ô£ô</span><span>${textoRecoleccion}</span>`
+           : `<span style="color:#8F5158;font-weight:800" aria-hidden="true">├ù</span><span>Sin recolecci├│n disponible</span>`;
+         return `
+         <div class="opcion-envio" data-index="${i}">
+@@ -152,7 +155,11 @@ function formatearDias(min, max) {
+ function renderUpsell() {
+   // Seguro activo por defecto.
+   extrasSeleccionados.add("seguro");
+-  const recoleccionDisponible = recoleccionAproximadaDisponible(opcionSeleccionada);
++  const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(opcionSeleccionada);
++  const recoleccionDisponible = estadoRecoleccion !== "no_disponible";
++  const textoRecoleccion = estadoRecoleccion === "hoy"
++    ? `Recolecci├│n a domicilio hoy +$${EXTRAS.recoleccion.costo.toFixed(0)}`
++    : `Recolecci├│n el siguiente d├¡a h├íbil +$${EXTRAS.recoleccion.costo.toFixed(0)}`;
+   if (recoleccionDisponible) extrasSeleccionados.add("recoleccion");
+   else extrasSeleccionados.delete("recoleccion");
+ 
+@@ -172,7 +179,7 @@ function renderUpsell() {
+           <label class="upsell-item" style="align-items:flex-start">
+             <input type="checkbox" data-extra="${key}" ${checked}/>
+             <span class="upsell-label" style="display:flex;flex-direction:column;gap:3px">
+-              <span>${iconHtml}${extra.label} (+$${extra.costo.toFixed(0)})</span>
++              <span>${iconHtml}${textoRecoleccion}</span>
+               <span style="font-size:12px;line-height:1.35;font-weight:400;color:var(--gray-dark)">Un repartidor pasa por tu paquete, no necesitas ir a sucursal</span>
+             </span>
+           </label>`;
+diff --git a/supabase/functions/skydropx-confirmar-envio/index.ts b/supabase/functions/skydropx-confirmar-envio/index.ts
+index 7bd6419..2bfef96 100644
+--- a/supabase/functions/skydropx-confirmar-envio/index.ts
++++ b/supabase/functions/skydropx-confirmar-envio/index.ts
+@@ -34,8 +34,20 @@ function normalizarPaqueteria(valor: unknown): string {
+     .replace(/[^a-z0-9]/g, "");
+ }
+ 
+-function recoleccionAproximadaDisponible(paqueteria: unknown): boolean {
+-  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(normalizarPaqueteria(paqueteria))) return false;
++type EstadoRecoleccionAproximada = "no_disponible" | "hoy" | "siguiente_dia_habil";
++
++function obtenerEstadoRecoleccionAproximada(
++  paqueteriaValor: unknown,
++  servicioValor: unknown,
++): EstadoRecoleccionAproximada {
++  const paqueteria = normalizarPaqueteria(paqueteriaValor);
++  if (!PAQUETERIAS_RECOLECCION_APROXIMADA.has(paqueteria)) return "no_disponible";
++
++  const servicio = normalizarPaqueteria(servicioValor);
++  if (
++    (paqueteria === "paquetexpress" || paqueteria === "sendex") &&
++    servicio.includes("sinrecoleccion")
++  ) return "no_disponible";
+ 
+   const partes = new Intl.DateTimeFormat("es-MX", {
+     timeZone: "America/Mexico_City",
+@@ -46,7 +58,8 @@ function recoleccionAproximadaDisponible(paqueteria: unknown): boolean {
+   const valores = Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+   const dia = normalizarPaqueteria(valores.weekday);
+   const hora = Number(valores.hour);
+-  return dia !== "sabado" && dia !== "domingo" && hora < 12;
++  const esFinDeSemana = dia === "sabado" || dia === "domingo";
++  return !esFinDeSemana && hora < 12 ? "hoy" : "siguiente_dia_habil";
+ }
+ 
+ serve(async (req) => {
+@@ -128,9 +141,13 @@ serve(async (req) => {
+       : [];
+ 
+     // La regla del wizard es aproximada; Skydropx confirma la cobertura despu├®s de crear la gu├¡a.
++    const estadoRecoleccion = obtenerEstadoRecoleccionAproximada(
++      rate.carrier_name ?? rate.provider_name,
++      rate.service_level_name ?? rate.provider_service_name,
++    );
+     if (
+       extrasValidos.includes("recoleccion") &&
+-      (!recoleccionAproximadaDisponible(rate.carrier_name ?? rate.provider_name) || costoRecoleccion <= 0)
++      (estadoRecoleccion === "no_disponible" || costoRecoleccion <= 0)
+     ) {
+       extrasValidos = extrasValidos.filter(k => k !== "recoleccion");
+     }

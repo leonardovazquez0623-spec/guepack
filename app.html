@@ -1843,6 +1843,23 @@ var _rastreoChannel = null
 var _unreadChat = {}, _fcmToken = null, _cuponActivo = null, _cuponDescuento = 0
 // Modal bienvenida
 var _bvUserId = null
+
+function _iconoPanelHtml(archivo, tamano = 16) {
+  return `<img src="/guepack-icons/guepack-icons/svg/${archivo}.svg" alt="" width="${tamano}" height="${tamano}" style="display:inline-block;vertical-align:middle;flex-shrink:0">`
+}
+
+function _ponerMensajeConIcono(elemento, texto, archivo = '55-cerrar-x', tamano = 16) {
+  if (!elemento) return
+  elemento.textContent = texto
+  const icono = document.createElement('img')
+  icono.src = `/guepack-icons/guepack-icons/svg/${archivo}.svg`
+  icono.alt = ''
+  icono.width = tamano
+  icono.height = tamano
+  icono.style.cssText = 'vertical-align:middle;margin-right:6px'
+  elemento.prepend(icono)
+}
+
 // VIP catálogos
 const _VIP_NIVELES = [
   { min: 50, nivel: 'oro',    icono: '🥇', label: 'Oro VIP', bg: '#B8860B' },
@@ -1893,7 +1910,7 @@ var _TOUR_STEPS = [
     catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
     catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
     highlightClass: 'tour-highlight-white',
-    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
+    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! ' + _iconoPanelHtml('54-mapa', 18),
     modalPos: 'bottom',
     btns: [
       { label: 'Anterior',  action: 'prev', primary: false },
@@ -3024,7 +3041,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarToast('⚠️ El pago no fue completado. Puedes reintentarlo desde tu historial.', 'var(--orange)')
       setTimeout(() => showClientSection('history'), 1200)
     } else if (_pago === 'pendiente') {
-      mostrarToast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', '#f59e0b')
+      mostrarToast('Pago en proceso. Te avisaremos cuando se confirme.', '#f59e0b')
       setTimeout(() => showClientSection('history'), 1200)
     }
   }
@@ -3339,7 +3356,7 @@ async function rastrearPedido() {
   document.getElementById('rastreo-error').style.display = 'none'
 
   if (error || !data) {
-    document.getElementById('rastreo-error-text').textContent = '❌ No encontramos un pedido con ese folio en tu cuenta'
+    _ponerMensajeConIcono(document.getElementById('rastreo-error-text'), 'No encontramos un pedido con ese folio en tu cuenta')
     document.getElementById('rastreo-error').style.display = 'block'
     return
   }
@@ -3472,7 +3489,7 @@ async function _cargarNacionalesRastreo() {
       badge = `<span class="status-badge badge-transit">Generando guía...</span>`
       nota  = `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:6px">Esto puede tardar unos minutos</div>`
     } else {
-      badge = `<span class="status-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a">⏳ Pendiente de pago</span>`
+      badge = `<span class="status-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;display:inline-flex;align-items:center;gap:5px">${_iconoPanelHtml('53-reloj-arena', 14)} Pendiente de pago</span>`
       nota  = `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:6px">Revisa tu correo para completar el pago</div>`
       const horasTranscurridas = (Date.now() - new Date(e.created_at).getTime()) / (1000 * 60 * 60)
       if (horasTranscurridas >= 12) {
@@ -4123,7 +4140,7 @@ async function _cargarParadasPedido(pedidoId) {
     '<div style="font-size:10px;font-weight:900;color:#8fa3c0;letter-spacing:.8px;margin:6px 0">PARADAS</div>' +
     data.map(p => {
       const esEnDomicilio = p.estado === 'en_domicilio'
-      const icon = p.estado === 'completada' ? '✅' : esEnDomicilio ? '📍' : p.estado === 'en_camino' ? '🚚' : '⏳'
+      const icon = p.estado === 'completada' ? '✅' : esEnDomicilio ? '📍' : p.estado === 'en_camino' ? '🚚' : _iconoPanelHtml('53-reloj-arena', 15)
       const color = p.estado === 'completada' ? 'var(--success)' : esEnDomicilio ? 'var(--color-secondary)' : p.estado === 'en_camino' ? 'var(--orange)' : '#8fa3c0'
       const urlEvidencia = urlsFirmadasParadas.get(p.id)
       const evidencia = urlEvidencia
@@ -4242,7 +4259,7 @@ async function confirmarAgregarParada(pedidoId) {
 
   if (error) {
     console.error('[agregar-parada]', error)
-    mostrarToast('❌ Error al agregar parada', '#ef4444')
+    mostrarToast('Error al agregar parada', '#ef4444')
     btn.textContent = '➕ Agregar parada'; btn.disabled = false
     return
   }
@@ -4277,7 +4294,7 @@ async function compartirRastreo(id) {
       const { error } = await db.from('pedidos').update({ token_rastreo: token }).eq('id', id)
       if (error) {
         console.error('[GUEPACK] Error guardando token_rastreo:', error)
-        mostrarToast('❌ Error al generar link de rastreo', '#ef4444')
+        mostrarToast('Error al generar link de rastreo', '#ef4444')
         return
       }
       console.log('[GUEPACK] token generado y guardado')
@@ -4305,7 +4322,7 @@ async function compartirRastreo(id) {
 }
 
 var ESTADO_CONFIG = {
-  'Pendiente':                             { color: 'var(--blue)',     badge: 'badge-transit',  texto: '⏳ Estamos llamando al Guepartidor más cercano.' },
+  'Pendiente':                             { color: 'var(--blue)',     badge: 'badge-transit',  texto: _iconoPanelHtml('53-reloj-arena', 16) + ' Estamos llamando al Guepartidor más cercano.' },
   'Pendiente verificación de pago':        { color: '#f59e0b',         badge: 'badge-transit',  texto: '🧾 Revisando el comprobante con lupa y bigotes.' },
   'En camino a recoleccion':               { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🏍️ Guepartidor en camino a recolectar' },
   'Repartidor en domicilio recoleccion':   { color: 'var(--orange)',   badge: 'badge-pending',  texto: '📍 Tu Guepartidor llegó a recolectar tu paquete' },
@@ -4313,9 +4330,9 @@ var ESTADO_CONFIG = {
   'En camino a entrega':                   { color: 'var(--orange)',   badge: 'badge-pending',  texto: '🚚 Tu paquete va en camino' },
   'Repartidor en domicilio':               { color: '#ef4444',         badge: 'badge-pending',  texto: '📍 Tu GuePartidor está en tu domicilio' },
   'Entregado':                             { color: 'var(--success)',  badge: 'badge-done',     texto: '✅ ¡Listo! El GuePartidor cumplió la misión.' },
-  'Cancelado':                             { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pedido Cancelado, Ya avisamos a tu guepartidor.' },
-  'Pago rechazado':                        { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Pago rechazado' },
-  'Intento de entrega fallido':            { color: '#ef4444',         badge: 'badge-pending',  texto: '❌ Ups... este paquete se nos escapó.' },
+  'Cancelado':                             { color: '#ef4444',         badge: 'badge-pending',  texto: _iconoPanelHtml('55-cerrar-x', 16) + ' Pedido Cancelado, Ya avisamos a tu guepartidor.' },
+  'Pago rechazado':                        { color: '#ef4444',         badge: 'badge-pending',  texto: _iconoPanelHtml('55-cerrar-x', 16) + ' Pago rechazado' },
+  'Intento de entrega fallido':            { color: '#ef4444',         badge: 'badge-pending',  texto: _iconoPanelHtml('55-cerrar-x', 16) + ' Ups... este paquete se nos escapó.' },
 }
 var ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
 
@@ -4370,7 +4387,7 @@ function _crearCardHTML(id, nombreRemitente = null) {
         </div>
         <div id="pac-${id}-cancelar-container">
           <button onclick="cancelarPedido(${id})" id="pac-${id}-cancelar-btn" style="width:100%;padding:10px;background:rgba(240,90,26,0.08);color:var(--orange);border:1.5px solid rgba(240,90,26,0.3);border-radius:10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;cursor:pointer">
-            ❌ Cancelar (<span id="pac-${id}-timer">5:00</span>)
+            ${_iconoPanelHtml('55-cerrar-x', 15)} Cancelar (<span id="pac-${id}-timer">5:00</span>)
           </button>
         </div>
       </div>
@@ -4459,7 +4476,7 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, n
 function _vencerTimerCancelar(id) {
   const btn = document.getElementById('pac-' + id + '-cancelar-btn')
   if (!btn) return
-  btn.innerHTML = '❌ Cancelar pedido <small style="font-size:10px">($25 pesos)</small>'
+  btn.innerHTML = _iconoPanelHtml('55-cerrar-x', 15) + ' Cancelar pedido <small style="font-size:10px">($25 pesos)</small>'
   btn.style.background = 'rgba(239,68,68,0.15)'
   btn.style.borderColor = '#ef4444'
   btn.style.color = '#ef4444'
@@ -4521,7 +4538,7 @@ function _actualizarCard(id, estado, repartidor) {
   const textoEstado = (estado === 'Pendiente' && repartidor)
     ? '🏍️ Mensajero asignado - preparándose para salir'
     : c.texto
-  document.getElementById('pac-' + id + '-estado').textContent = textoEstado
+  document.getElementById('pac-' + id + '-estado').innerHTML = textoEstado
 
   const repaEl = document.getElementById('pac-' + id + '-repartidor')
   const chatWrap = document.getElementById('pac-' + id + '-chat-wrap')
@@ -4752,25 +4769,25 @@ async function aplicarCupon() {
   resultado.style.display = 'block'
   resultado.style.background = '#f4f6fb'
   resultado.style.color = '#666'
-  resultado.textContent = '⏳ Verificando...'
+  resultado.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Verificando...'
   const hoy = new Date().toISOString().split('T')[0]
   const { data } = await db.from('cupones').select('*').eq('codigo', codigo).single()
   if (!data) {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
-    resultado.textContent = '❌ Cupón no encontrado'
+    _ponerMensajeConIcono(resultado, 'Cupón no encontrado')
     _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   if (data.fecha_expiracion && data.fecha_expiracion < hoy) {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
-    resultado.textContent = '❌ Este cupón ha expirado'
+    _ponerMensajeConIcono(resultado, 'Este cupón ha expirado')
     _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   if (data.usos_maximos && (data.usos_actuales || 0) >= data.usos_maximos) {
     resultado.style.background = 'rgba(239,68,68,0.1)'
     resultado.style.color = '#ef4444'
-    resultado.textContent = '❌ Este cupón ya no tiene usos disponibles'
+    _ponerMensajeConIcono(resultado, 'Este cupón ya no tiene usos disponibles')
     _cuponActivo = null; _cuponDescuento = 0; updateQuote(); return
   }
   let _cuponUsosUsuario = 0
@@ -4862,7 +4879,7 @@ function _mostrarBtnTarjeta() {
 
 async function _pagarConTarjeta(pedidoId) {
   const btnSubmit = document.querySelector('#wizard-paso-3 .btn.btn-primary')
-  if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = '⏳ Procesando pago...' }
+  if (btnSubmit) { btnSubmit.disabled = true; btnSubmit.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Procesando pago...' }
   try {
     const { data: { session } } = await db.auth.getSession()
     const jwt = session?.access_token ?? SUPABASE_KEY
@@ -4877,7 +4894,7 @@ async function _pagarConTarjeta(pedidoId) {
   } catch (e) {
     console.error('[_pagarConTarjeta] error:', e)
     const esMontoBloqueado = e.message?.includes('monto mínimo') || e.message?.includes('monto máximo')
-    mostrarToast('❌ ' + (e.message || 'Error al generar el link de pago'), '#ef4444')
+    mostrarToast(e.message || 'Error al generar el link de pago', '#ef4444')
     if (!esMontoBloqueado) {
       setTimeout(() => mostrarToast('💡 Tu pedido fue guardado. Ve a Historial para reintentar el pago.', '#f59e0b'), 1800)
     }
@@ -4886,7 +4903,7 @@ async function _pagarConTarjeta(pedidoId) {
 }
 
 async function _pagarConTarjetaHistorial(pedidoId, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Procesando...' }
+  if (btn) { btn.disabled = true; btn.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Procesando...' }
   try {
     const { data: { session } } = await db.auth.getSession()
     const jwt = session?.access_token ?? SUPABASE_KEY
@@ -4900,7 +4917,7 @@ async function _pagarConTarjetaHistorial(pedidoId, btn) {
     window.location.href = json.checkout_url
   } catch (e) {
     console.error('[_pagarConTarjetaHistorial] error:', e)
-    mostrarToast('❌ ' + (e.message || 'Error al generar el link de pago'), '#ef4444')
+    mostrarToast(e.message || 'Error al generar el link de pago', '#ef4444')
     const esMontoBloqueado = e.message?.includes('monto mínimo') || e.message?.includes('monto máximo')
     if (btn) { btn.disabled = esMontoBloqueado; btn.textContent = esMontoBloqueado ? '🚫 Monto no permitido' : '💳 Completar pago' }
   }
@@ -4981,18 +4998,37 @@ function mostrarToast(texto, tipoOColor = 'default') {
   const valor = String(tipoOColor || 'default').toLowerCase().replace(/\s/g, '')
   const textoNormalizado = String(texto || '')
   let fondo = 'var(--color-primary-dark)'
+  let esError = false
+  let esAdvertencia = false
 
   if (['success', 'exito', '#22c55e', 'var(--success)'].includes(valor) || textoNormalizado.startsWith('✅')) {
     fondo = '#22c55e'
-  } else if (['error', '#ef4444'].includes(valor) || textoNormalizado.startsWith('❌')) {
+  } else if (['error', '#ef4444'].includes(valor)) {
     fondo = '#ef4444'
-  } else if (['warning', 'advertencia', '#f59e0b', 'var(--color-secondary)', 'var(--orange)'].includes(valor) || /^[⚠️⏳🟠]/u.test(textoNormalizado)) {
+    esError = true
+  } else if (['warning', 'advertencia', '#f59e0b', 'var(--color-secondary)', 'var(--orange)'].includes(valor) || /^[⚠️🟠]/u.test(textoNormalizado)) {
     fondo = '#f59e0b'
+    esAdvertencia = true
   }
 
   const toast = document.createElement('div')
-  toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background-color:${fondo};color:#ffffff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:99999;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;min-width:200px;max-width:min(360px,calc(100vw - 32px));text-align:center`
-  toast.textContent = texto
+  toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background-color:${fondo};color:#ffffff;padding:12px 20px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:99999;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;min-width:200px;max-width:min(360px,calc(100vw - 32px));text-align:center;display:flex;align-items:center;justify-content:center;gap:7px`
+  if (esError) {
+    const icono = document.createElement('img')
+    icono.src = '/guepack-icons/guepack-icons/svg/55-cerrar-x.svg'
+    icono.alt = ''
+    icono.width = 17
+    icono.height = 17
+    toast.appendChild(icono)
+  } else if (esAdvertencia) {
+    const icono = document.createElement('img')
+    icono.src = '/guepack-icons/guepack-icons/svg/53-reloj-arena.svg'
+    icono.alt = ''
+    icono.width = 17
+    icono.height = 17
+    toast.appendChild(icono)
+  }
+  toast.appendChild(document.createTextNode(textoNormalizado))
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 3000)
 }
@@ -5717,7 +5753,7 @@ function _bvErrorSms(error) {
   const el = document.getElementById('bv-sms-error')
   el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.'
   el.style.display = 'block'
-  mostrarToast('❌ No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
+  mostrarToast('No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.', 'error')
 }
 
 async function _bvEnviarCodigo() {
@@ -5817,7 +5853,7 @@ async function _bvGuardar() {
     if (errMeta) {
       btn.disabled = false
       btn.textContent = 'Continuar →'
-      mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
+      mostrarToast('Error al guardar. Intenta de nuevo.', 'error')
       return
     }
   }
@@ -5829,7 +5865,7 @@ async function _bvGuardar() {
   if (error) {
     btn.disabled = false
     btn.textContent = 'Continuar →'
-    mostrarToast('❌ Error al guardar. Intenta de nuevo.', 'error')
+    mostrarToast('Error al guardar. Intenta de nuevo.', 'error')
     return
   }
 
@@ -6174,11 +6210,11 @@ async function _subirFotoCliente(e) {
     return
   }
   const status = document.getElementById('mfp-status')
-  if (status) status.textContent = '⏳ Subiendo...'
+  if (status) status.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Subiendo...'
   const ext = file.name.split('.').pop() || 'jpg'
   const path = 'clientes/' + _clienteUserId + '.' + ext
   const { error: upError } = await db.storage.from('perfiles').upload(path, file, { upsert: true })
-  if (upError) { if (status) status.textContent = '❌ ' + upError.message; return }
+  if (upError) { _ponerMensajeConIcono(status, upError.message, '55-cerrar-x', 15); return }
   const { data: urlData } = db.storage.from('perfiles').getPublicUrl(path)
   const publicUrl = urlData.publicUrl + '?t=' + Date.now()
   await db.from('usuarios').update({ foto_perfil: urlData.publicUrl }).eq('user_id', _clienteUserId)
@@ -6558,7 +6594,7 @@ async function _cargarCreditoDrawer() {
 async function _cambiarContrasena(btn) {
   const { data: { session } } = await db.auth.getSession()
   if (!session?.user?.email) return
-  if (btn) { btn.textContent = '⏳ Enviando...'; btn.disabled = true }
+  if (btn) { btn.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Enviando...'; btn.disabled = true }
   await db.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin + '/login.html' })
   if (btn) { btn.textContent = '✅ Email enviado'; setTimeout(() => { btn.textContent = '🔑 Cambiar contraseña'; btn.disabled = false }, 3000) }
 }
@@ -7037,7 +7073,7 @@ async function _detectarZonaEntrega(place) {
     _corporativoPrecio  = null; _corporativoKm   = null
     if (result) {
       result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
-      result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de nuestra zona de entrega</span>'
+      result.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>Fuera de nuestra zona de entrega</span>'
     }
     const qb = document.getElementById('quote-display')
     if (qb) qb.style.display = 'none'
@@ -7093,7 +7129,7 @@ function _mostrarResultadoZona(el, disponible, zona) {
     el.style.background = '#fef2f2'
     el.style.border     = '1.5px solid #fca5a5'
     el.style.color      = '#dc2626'
-    el.innerHTML = '<span style="font-size:18px">❌</span><span>Lo sentimos, esta dirección está fuera de nuestra zona de cobertura</span>'
+    el.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>Lo sentimos, esta dirección está fuera de nuestra zona de cobertura</span>'
   }
 }
 
@@ -7110,14 +7146,14 @@ function _fallbackZonaCiudad(place, result) {
 
   if (noDisp) {
     result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
-    result.innerHTML = '<span style="font-size:18px">❌</span><span>Tonalá no está en nuestra zona de cobertura</span>'
+    result.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>Tonalá no está en nuestra zona de cobertura</span>'
   } else if (disponible) {
     result.style.background = '#f0fdf4'; result.style.border = '1.5px solid #86efac'; result.style.color = '#16a34a'
     result.innerHTML = '<span style="font-size:18px">✅</span><span>Dentro de cobertura · Calculando precio...</span>'
     _calcularPrecioGeneral()
   } else {
     result.style.background = '#fef2f2'; result.style.border = '1.5px solid #fca5a5'; result.style.color = '#dc2626'
-    result.innerHTML = '<span style="font-size:18px">❌</span><span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
+    result.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>Fuera de cobertura. Solo servimos GDL, Zapopan y Tlaquepaque</span>'
   }
 }
 
@@ -7174,7 +7210,7 @@ async function _calcularPrecioGeneral() {
     if (!data.routes?.[0]?.distanceMeters) { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
     km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
   } catch (e) {
-    mostrarToast('❌ Error al calcular distancia', '#ef4444')
+    mostrarToast('Error al calcular distancia', '#ef4444')
     return
   }
 
@@ -7276,7 +7312,7 @@ async function _calcularPrecioCorporativo() {
       const qb = document.getElementById('quote-display')
       if (qb) qb.style.display = 'none'
       const av = document.getElementById('zona-aviso')
-      if (av) { av.style.display = 'block'; av.style.background = '#fef2f2'; av.style.color = '#dc2626'; av.textContent = '❌ Direccion fuera de nuestra zona de entrega' }
+      if (av) { av.style.display = 'block'; av.style.background = '#fef2f2'; av.style.color = '#dc2626'; _ponerMensajeConIcono(av, 'Dirección fuera de nuestra zona de entrega') }
       mostrarToast('⚠️ El area donde deseas enviar no esta disponible para entrega. Por favor elige otra direccion dentro de nuestra zona', '#ef4444')
       return
     }
@@ -7328,7 +7364,7 @@ async function _calcularPrecioCorporativo() {
 
     _mostrarCotizacionCorporativa(km, rangos)
   } catch (e) {
-    mostrarToast('❌ Error al calcular distancia', '#ef4444')
+    mostrarToast('Error al calcular distancia', '#ef4444')
   }
 }
 
@@ -7469,7 +7505,7 @@ function _mostrarErrorRuta22(resultEl) {
   mostrarToast('⚠️ Error 22: No pudimos calcular la ruta. Verifica que las direcciones sean correctas e intenta de nuevo', 'var(--orange)')
   if (resultEl) {
     resultEl.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
-    resultEl.innerHTML = '<span style="font-size:18px">❌</span><span>Error 22: Verifica que las direcciones sean correctas e intenta de nuevo</span>'
+    resultEl.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>Error 22: Verifica que las direcciones sean correctas e intenta de nuevo</span>'
   }
 }
 
@@ -7610,7 +7646,7 @@ async function _calcularCotizacionMultiParada() {
   if (!zonaFinal) {
     if (result) {
       result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:10px;min-height:46px'
-      result.innerHTML = '<span style="font-size:18px">❌</span><span>La última parada está fuera de nuestra zona de cobertura</span>'
+      result.innerHTML = _iconoPanelHtml('55-cerrar-x', 18) + '<span>La última parada está fuera de nuestra zona de cobertura</span>'
     }
     return
   }

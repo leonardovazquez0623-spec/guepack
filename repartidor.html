@@ -592,6 +592,10 @@
 
 <script src="guepack-icons.js"></script>
 <script>
+function _iconoRepaHtml(archivo, tamano = 16) {
+  return `<img src="/guepack-icons/guepack-icons/svg/${archivo}.svg" alt="" width="${tamano}" height="${tamano}" style="display:inline-block;vertical-align:middle;flex-shrink:0">`
+}
+
 (function(){
   function _initGuepIcons(root) {
     if (typeof GUEPACK_ICONS === 'undefined') return;
@@ -657,7 +661,7 @@ async function toggleDisponible() {
 
   const { data: { session } } = await db.auth.getSession()
   if (!session) {
-    _toastRepa('❌ Sin sesión', '#ef4444')
+    _toastRepa('Sin sesión', '#ef4444')
     _toggleEnProceso = false
     if (btn) btn.disabled = false
     return
@@ -676,8 +680,8 @@ async function toggleDisponible() {
   _toggleEnProceso = false
   if (btn) btn.disabled = false
 
-  if (error) { _toastRepa('❌ Error al cambiar estado: ' + error.message, '#ef4444'); return }
-  if (!data?.length) { _toastRepa('❌ No se encontró el repartidor en BD', '#ef4444'); return }
+  if (error) { _toastRepa('Error al cambiar estado: ' + error.message, '#ef4444'); return }
+  if (!data?.length) { _toastRepa('No se encontró el repartidor en BD', '#ef4444'); return }
 
   _repaData.disponible = nuevo
   _actualizarBtnDisponible(nuevo)
@@ -779,7 +783,7 @@ async function _mostrarModalNuevoPedido(pedido) {
     const _gananciasHoy = (_hoyData || []).reduce((s, p) => s + (Number(p.ganancia_repartidor) || 0), 0)
     const _montoPedido = Number(pedido.precio) || 0
     if (_gananciasHoy < _montoPedido) {
-      _bloqueoHtml = `<div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#991b1b;text-align:left">❌ No puedes aceptar este pedido en efectivo — tus ganancias del día ($${_gananciasHoy}) son menores al monto a cobrar ($${_montoPedido})</div>`
+      _bloqueoHtml = `<div style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#991b1b;text-align:left;display:flex;align-items:flex-start;gap:6px">${_iconoRepaHtml('55-cerrar-x', 16)}<span>No puedes aceptar este pedido en efectivo — tus ganancias del día ($${_gananciasHoy}) son menores al monto a cobrar ($${_montoPedido})</span></div>`
       _aceptarBloqueado = true
     }
   }
@@ -805,7 +809,7 @@ async function _mostrarModalNuevoPedido(pedido) {
       ${_bloqueoHtml}
       <div id="modal-pedido-countdown" style="font-family:'Bebas Neue',sans-serif;font-size:56px;color:var(--color-secondary);line-height:1;margin-bottom:16px">${segsTotal}</div>
       <div style="display:flex;gap:10px">
-        <button onclick="_rechazarPedido(${pedido.id})" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#ef4444">❌ RECHAZAR</button>
+        <button onclick="_rechazarPedido(${pedido.id})" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#ef4444;display:flex;align-items:center;justify-content:center;gap:6px">${_iconoRepaHtml('55-cerrar-x', 16)} RECHAZAR</button>
         ${_aceptarBloqueado ? '' : `<button onclick="_aceptarPedido(${pedido.id})" style="flex:2;padding:14px;border:none;border-radius:12px;background:#22c55e;color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;cursor:pointer">✅ ACEPTAR</button>`}
       </div>
     </div>
@@ -847,7 +851,7 @@ async function _aceptarPedido(pedidoId) {
     .select()
   console.log('[aceptar] resultado update — data:', data, '| error:', error, '| ganancia:', gananciaRepartidor)
   document.getElementById('modal-nuevo-pedido')?.remove()
-  if (error) { _toastRepa('❌ El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
+  if (error) { _toastRepa('El pedido ya fue tomado por otro repartidor', '#ef4444'); return }
   _toastRepa('✅ Pedido GK-' + pedidoId + ' aceptado', '#22c55e')
   iniciarTracking(pedidoId, _repaUserId)
   cargarPedidos(_repaData.email)
@@ -858,7 +862,7 @@ function _rechazarPedido(pedidoId, silencioso = false) {
   document.getElementById('modal-nuevo-pedido')?.remove()
   _pedidosRechazados.add(pedidoId)
   detenerTracking()
-  if (!silencioso) _toastRepa('❌ Pedido rechazado', '#ef4444')
+  if (!silencioso) _toastRepa('Pedido rechazado', '#ef4444')
 }
 
 function _mostrarModalCancelarAsignacion(pedidoId) {
@@ -888,7 +892,7 @@ async function _cancelarAsignacion(pedidoId) {
     .select('ronda_asignacion, user_id')
     .eq('id', pedidoId)
     .single()
-  if (fetchErr) { _toastRepa('❌ Error al obtener pedido', '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
+  if (fetchErr) { _toastRepa('Error al obtener pedido', '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
 
   const { error } = await db.from('pedidos')
     .update({
@@ -900,7 +904,7 @@ async function _cancelarAsignacion(pedidoId) {
     })
     .eq('id', pedidoId)
 
-  if (error) { _toastRepa('❌ Error al cancelar: ' + error.message, '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
+  if (error) { _toastRepa('Error al cancelar: ' + error.message, '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
 
   if (pedidoActual?.user_id) {
     await _enviarPushAUsuarioRepa(pedidoActual.user_id,
@@ -1128,7 +1132,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
             <div style="display:flex;align-items:center;gap:6px">
               <span style="flex-shrink:0;font-weight:900;font-size:12px">De:</span>
               <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_recoleccion}</span>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">🗺️</a>
+              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">${_iconoRepaHtml('54-mapa', 16)}</a>
               ${pedido.foto_recoleccion
                 ? '<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#22c55e;flex-shrink:0">✅ Recolectado</span>'
                 : `<button onclick="abrirModalRecoleccion(${pedido.id})" id="btn-recoleccion-${pedido.id}" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:3px 7px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;flex-shrink:0;white-space:nowrap">Recolectado</button>`
@@ -1150,7 +1154,7 @@ localStorage.setItem('guepack_pedidos_count', data.length)
               <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
             </button>
           </div>
-          ${!['Recolectado','En camino a entrega','Repartidor en domicilio','Entregado'].includes(pedido.estado) ? `<div style="margin-bottom:8px"><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer">❌ Cancelar pedido</button></div>` : ''}
+          ${!['Recolectado','En camino a entrega','Repartidor en domicilio','Entregado'].includes(pedido.estado) ? `<div style="margin-bottom:8px"><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">${_iconoRepaHtml('55-cerrar-x', 14)} Cancelar pedido</button></div>` : ''}
           <div id="status-steps-${pedido.id}" class="status-steps"></div>
         </div>
       </div>
@@ -1360,7 +1364,7 @@ async function _subirComprobanteDeposito(input) {
   const ruta = `depositos/${_repaData.id}_${fecha}.jpg`
   const { error } = await db.storage.from('evidencias').upload(ruta, input.files[0], { contentType: 'image/jpeg', upsert: true })
   if (error) {
-    _toastRepa('❌ Error al subir comprobante', '#ef4444')
+    _toastRepa('Error al subir comprobante', '#ef4444')
     if (btn) { btn.textContent = '📎 Subir comprobante de depósito'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
     return
   }
@@ -1476,7 +1480,7 @@ function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
-      <div style="width:72px;height:72px;background:rgba(239,68,68,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:38px">❌</div>
+      <div style="width:72px;height:72px;background:rgba(239,68,68,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">${_iconoRepaHtml('55-cerrar-x', 42)}</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#ef4444;letter-spacing:1.5px;line-height:1.15;margin-bottom:10px">
         Pedido GK-${pedidoId}<br>${esPagoRechazado ? 'Pago Rechazado' : 'Cancelado'}
       </div>
@@ -1498,8 +1502,16 @@ function _mostrarModalCancelacion(pedidoId, estadoNuevo, estadoAnterior) {
 
 function _toastRepa(msg, color = 'var(--color-primary-dark)') {
   const t = document.createElement('div')
-  t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:10px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden'
-  t.textContent = msg
+  t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:' + color + ';color:white;padding:10px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.25);white-space:nowrap;max-width:90vw;text-overflow:ellipsis;overflow:hidden;display:flex;align-items:center;gap:7px'
+  if (String(color).toLowerCase() === '#ef4444') {
+    const icono = document.createElement('img')
+    icono.src = '/guepack-icons/guepack-icons/svg/55-cerrar-x.svg'
+    icono.alt = ''
+    icono.width = 17
+    icono.height = 17
+    t.appendChild(icono)
+  }
+  t.appendChild(document.createTextNode(msg))
   document.body.appendChild(t)
   setTimeout(() => t.remove(), 4000)
 }
@@ -1590,9 +1602,9 @@ function _renderBotonesNormales(pedido) {
       <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
         <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#8fa3c0;flex-shrink:0">#1</span>
         <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_entrega}</span>
-        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">🗺️</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">${_iconoRepaHtml('54-mapa', 15)}</a>
       </div>
-      <a href="${_mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
+      <a href="${_mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">${_iconoRepaHtml('54-mapa', 14)} Ver ruta completa</a>
     `
   }
 }
@@ -1646,11 +1658,11 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
           <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
           ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600;margin-top:2px">📝 ${p.instrucciones}</div>` : ''}
         </div>
-        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1;padding-top:1px">🗺️</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1;padding-top:1px">${_iconoRepaHtml('54-mapa', 15)}</a>
         <div style="flex-shrink:0">${btnHtml}</div>
       </div>`
     }).join('')}
-    <a href="${_mapsUrl1}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
+    <a href="${_mapsUrl1}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">${_iconoRepaHtml('54-mapa', 14)} Ver ruta completa</a>
   `
 
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
@@ -1720,11 +1732,11 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
           <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.direccion}</div>
           ${p.instrucciones ? `<div style="font-family:Montserrat,sans-serif;font-size:10px;color:#aaa;font-weight:600;margin-top:2px">📝 ${p.instrucciones}</div>` : ''}
         </div>
-        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1;padding-top:1px">🗺️</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1;padding-top:1px">${_iconoRepaHtml('54-mapa', 15)}</a>
         <div style="flex-shrink:0">${btnHtml}</div>
       </div>`
     }).join('')}
-    <a href="${_mapsUrlM}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">🗺️ Ver ruta completa</a>
+    <a href="${_mapsUrlM}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">${_iconoRepaHtml('54-mapa', 14)} Ver ruta completa</a>
   `
   // Iniciar timer de 5 min (repartidor) para paradas en_domicilio
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id, 5))
@@ -2483,11 +2495,23 @@ async function _subirFotoRepartidor(e) {
   const file = e.target.files[0]
   if (!file || !_repaUserId) return
   const status = document.getElementById('mfr-status')
-  if (status) status.textContent = '⏳ Subiendo...'
+  if (status) status.innerHTML = _iconoRepaHtml('53-reloj-arena', 15) + ' Subiendo...'
   const ext = file.name.split('.').pop() || 'jpg'
   const path = 'repartidores/' + _repaUserId + '.' + ext
   const { error: upError } = await db.storage.from('perfiles').upload(path, file, { upsert: true })
-  if (upError) { if (status) status.textContent = '❌ ' + upError.message; return }
+  if (upError) {
+    if (status) {
+      status.textContent = upError.message
+      const icono = document.createElement('img')
+      icono.src = '/guepack-icons/guepack-icons/svg/55-cerrar-x.svg'
+      icono.alt = ''
+      icono.width = 15
+      icono.height = 15
+      icono.style.cssText = 'vertical-align:middle;margin-right:5px'
+      status.prepend(icono)
+    }
+    return
+  }
   const { data: urlData } = db.storage.from('perfiles').getPublicUrl(path)
   const publicUrl = urlData.publicUrl + '?t=' + Date.now()
   const { data: { session } } = await db.auth.getSession()
@@ -3449,7 +3473,7 @@ function _nearestNeighbor(startLat, startLng, stops) {
 
 function _optimizarOrdenRuta() {
   const btn = document.getElementById('btn-optimizar')
-  if (btn) { btn.textContent = '⏳ Calculando...'; btn.disabled = true }
+  if (btn) { btn.innerHTML = _iconoRepaHtml('53-reloj-arena', 15) + ' Calculando...'; btn.disabled = true }
 
   setTimeout(() => {
     const stops = _buildStops()
