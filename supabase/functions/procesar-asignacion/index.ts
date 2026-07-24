@@ -25,11 +25,15 @@ Deno.serve(async (req) => {
     })
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const tokenJwt = authHeader.replace(/^Bearer\s+/i, '')
   const claveServicio = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY')
-  if (tokenJwt !== claveServicio) {
+  const usaClaveServicio = Boolean(claveServicio) && tokenJwt === claveServicio
+  let usuarioAutenticado: { id: string } | null = null
+
+  if (!usaClaveServicio) {
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
+      supabaseUrl,
       Deno.env.get('SUPABASE_ANON_KEY')!
     )
     const { data: { user }, error } = await supabaseClient.auth.getUser(tokenJwt)
@@ -39,6 +43,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
+    usuarioAutenticado = { id: user.id }
   }
 
   try {
@@ -61,16 +66,14 @@ Deno.serve(async (req) => {
 
     console.log('[procesar] pedido_id:', pedido_id, 'ronda:', ronda)
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceKey  = Deno.env.get('SERVICE_ROLE_KEY')!
-    const supabase    = createClient(supabaseUrl, serviceKey)
+    const supabase = createClient(supabaseUrl, claveServicio!)
 
     console.log(`[procesar-asignacion] pedido=${pedido_id} ronda=${ronda}`)
 
     // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
     const { data: pedido, error: pedErr } = await supabase
       .from('pedidos')
-      .select('id, repartidor, estado, metodo_pago, pago_verificado, direccion_recoleccion')
+      .select('id, user_id, repartidor, estado, metodo_pago, pago_verificado, direccion_recoleccion')
       .eq('id', pedido_id)
       .single()
 
@@ -81,6 +84,42 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ skipped: true, reason: 'pedido no encontrado' }), {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
+    }
+
+    if (!usaClaveServicio && usuarioAutenticado) {
+      const { data: perfilUsuario, error: errorPerfil } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('user_id', usuarioAutenticado.id)
+        .maybeSingle()
+
+      if (errorPerfil) {
+        console.error(
+          '[procesar-asignacion] No se pudo verificar el rol del usuario:',
+          errorPerfil.message
+        )
+        return new Response(JSON.stringify({
+          error: 'No se pudo verificar la autorización del usuario'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
+        })
+      }
+
+      const esAdministrador = perfilUsuario?.rol === 'admin'
+      const esPropietario = pedido.user_id === usuarioAutenticado.id
+
+      if (!esAdministrador && !esPropietario) {
+        console.warn(
+          `[procesar-asignacion] usuario ${usuarioAutenticado.id} intentó procesar un pedido ajeno: ${pedido_id}`
+        )
+        return new Response(JSON.stringify({
+          error: 'No tienes autorización para procesar este pedido'
+        }), {
+          status: 403,
+          headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
+        })
+      }
     }
 
     const metodoPago = String(pedido.metodo_pago || '').toLowerCase()
@@ -137,7 +176,7 @@ Deno.serve(async (req) => {
 
     if (!repas?.length) {
       console.log('[procesar-asignacion] sin repartidores — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
       return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
@@ -208,7 +247,7 @@ Deno.serve(async (req) => {
       console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
     } else {
       console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, serviceKey, pedido_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
     }
 
     return new Response(

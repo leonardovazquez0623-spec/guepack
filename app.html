@@ -1268,7 +1268,7 @@
             </div>
           </div>
 
-          <button class="btn btn-primary" onclick="submitRequest()">Solicitar Recolección →</button>
+          <button id="btn-enviar-pedido" class="btn btn-primary" onclick="submitRequest()">Solicitar Recolección →</button>
           <button class="wizard-back-btn" onclick="_irPaso(2)" style="margin-top:8px">← Atrás</button>
         </div>
 
@@ -2723,6 +2723,8 @@ async function activarNotificaciones() {
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
 if (typeof Notification !== 'undefined' && Notification.permission === 'granted') activarNotificaciones()
 var selSize = null, selZone = null, selMetodoPago = null
+let _enviandoPedido = false
+let _idempotencyKeyPedido = null
 // ── Wizard navegación ────────────────────────────────────────────────────────
 function _irPaso(n) {
   document.getElementById('wizard-paso-' + _wizardPasoActual).style.display = 'none'
@@ -3112,6 +3114,29 @@ function updateQuote() {
 }
 
 async function submitRequest() {
+  if (_enviandoPedido) return
+
+  _enviandoPedido = true
+  const botonEnviar = document.getElementById('btn-enviar-pedido')
+
+  if (botonEnviar) {
+    botonEnviar.disabled = true
+    botonEnviar.textContent = 'Enviando...'
+  }
+
+  try {
+    await _procesarSolicitudPedido()
+  } finally {
+    _enviandoPedido = false
+
+    if (botonEnviar) {
+      botonEnviar.disabled = false
+      botonEnviar.textContent = 'Solicitar Recolección →'
+    }
+  }
+}
+
+async function _procesarSolicitudPedido() {
   const sanitize = (str) => str ? String(str).trim().replace(/<[^>]*>/g, '') : ''
   if (_empresaData?.tipo_tarifa === 'diaria') selMetodoPago = 'Crédito'
   const nombre = sanitize(document.getElementById('nombre-destinatario').value)
@@ -3212,6 +3237,10 @@ if (comprobanteFile) {
 
 const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : metodoPago === 'tarjeta' ? 'Pendiente pago MP' : 'Pendiente'
 const tokenRastreo = crypto.randomUUID()
+const idempotencyKey = _idempotencyKeyPedido || crypto.randomUUID()
+
+// Conserva la misma clave mientras este formulario represente el mismo pedido
+_idempotencyKeyPedido = idempotencyKey
 
 const _kmRecorridos = _modoPaqueteria ? 0
   : _empresaData ? (_corporativoKm || 0)
@@ -3226,7 +3255,8 @@ const zonaPedido = sanitize(_modoPaqueteria
       ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
       : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km')
 
-const { data, error } = await db.from('pedidos').insert({
+let esRecuperacionDeDuplicado = false
+let { data, error } = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
     direccion_recoleccion: dir_recoleccion,
@@ -3250,7 +3280,31 @@ const { data, error } = await db.from('pedidos').insert({
     lng_entrega: _lngEntrega ?? null,
     lat_recoleccion: _latRecoleccion ?? null,
     lng_recoleccion: _lngRecoleccion ?? null,
+    idempotency_key: idempotencyKey,
   }).select()
+
+  if (error?.code === '23505') {
+    const { data: pedidoExistente, error: errorConsulta } = await db
+      .from('pedidos')
+      .select()
+      .eq('idempotency_key', idempotencyKey)
+      .single()
+
+    if (errorConsulta || !pedidoExistente) {
+      console.error(
+        '[pedido] No se pudo recuperar el pedido después de detectar un envío duplicado:',
+        errorConsulta
+      )
+    } else {
+      console.log(
+        '[pedido] Envío duplicado detectado; se continuará con el pedido existente:',
+        pedidoExistente.id
+      )
+      data = [pedidoExistente]
+      esRecuperacionDeDuplicado = true
+      error = null
+    }
+  }
 
   if (error) {
     mostrarToast('Ups... este paquete se nos escapó.', '#ef4444')
@@ -3258,27 +3312,33 @@ const { data, error } = await db.from('pedidos').insert({
     return
   }
 
-  if (_cuponActivo) {
-    db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
-    if (userId) {
-      db.from('cupones_usos').upsert(
-        { cupon_id: _cuponActivo.id, user_id: userId, usos: (_cuponActivo._usosUsuario || 0) + 1 },
-        { onConflict: 'cupon_id,user_id' }
-      ).then(() => {})
+  if (!esRecuperacionDeDuplicado) {
+    if (_cuponActivo) {
+      db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
+      if (userId) {
+        db.from('cupones_usos').upsert(
+          { cupon_id: _cuponActivo.id, user_id: userId, usos: (_cuponActivo._usosUsuario || 0) + 1 },
+          { onConflict: 'cupon_id,user_id' }
+        ).then(() => {})
+      }
     }
+    if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId, tenant_id: _tenantIdEventos }).then(() => {})
   }
-  if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId, tenant_id: _tenantIdEventos }).then(() => {})
 
   const folioReal = data[0].id
-  _pedidoTokens[folioReal] = tokenRastreo
+  const tokenRastreoGuardado = data[0].token_rastreo || tokenRastreo
+  _pedidoTokens[folioReal] = tokenRastreoGuardado
 
-  if (metodoPago === 'tarjeta') {
+  if (!esRecuperacionDeDuplicado && metodoPago === 'tarjeta') {
     // La asignación la dispara el webhook tras confirmar el pago — no iniciar aquí
     await _pagarConTarjeta(folioReal)
     return
   }
 
-  if (metodoPago !== 'transferencia') {
+  if (
+    !esRecuperacionDeDuplicado &&
+    metodoPago !== 'transferencia'
+  ) {
     // Asignación automática — no bloquea el flujo del cliente
     console.log('[asignación] iniciando asignación automática para pedido:', folioReal)
     _iniciarAsignacionAutomatica(data[0])
@@ -3290,14 +3350,18 @@ const { data, error } = await db.from('pedidos').insert({
     console.log('[tarifa-diaria] primer pedido del día creado → tarifa cubierta para pedidos posteriores')
   }
 
-  if (_cargoCancelacionPendiente > 0 && !_empresaData) {
+  if (
+    !esRecuperacionDeDuplicado &&
+    _cargoCancelacionPendiente > 0 &&
+    !_empresaData
+  ) {
     db.from('pedidos').update({ cargo_cancelacion: _cargoCancelacionPendiente }).eq('id', folioReal).then(() => {})
     db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('email', session.user.email).then(() => {})
     _cargoCancelacionPendiente = 0
   }
 
   // Guardar paradas (multi-parada): dir-entrega primero, luego las adicionales
-  if (_esMultiParada) {
+  if (!esRecuperacionDeDuplicado && _esMultiParada) {
     const paradasAdicionales = _paradasList.filter(p => p.direccion.trim())
     const paradasAInsertar = [
       {
@@ -3324,7 +3388,14 @@ const { data, error } = await db.from('pedidos').insert({
   }
   document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
-  mostrarPedidoActivo(folioReal, 'Pendiente', null, false, nombreRemitente, new Date().toISOString())
+  mostrarPedidoActivo(
+    folioReal,
+    data[0].estado || 'Pendiente',
+    null,
+    false,
+    nombreRemitente,
+    data[0].created_at || new Date().toISOString()
+  )
 resetForm()
 
 const toast = document.createElement('div')
@@ -4938,11 +5009,19 @@ async function _iniciarAsignacionAutomatica(pedido) {
   console.log('[asignacion] delegando ronda 1 a Edge Function para pedido:', pedidoId)
   try {
     const { data: { session } } = await db.auth.getSession()
-    const jwt = session?.access_token ?? SUPABASE_KEY
+
+    if (!session?.access_token) {
+      console.error(
+        '[asignación] No se inició la asignación porque no existe una sesión activa para el cliente'
+      )
+      window._asignacionEnCurso.delete(pedidoId)
+      return
+    }
+
     console.log('[asignacion] llamando edge function procesar-asignacion')
     const response = await fetch(SUPABASE_URL + '/functions/v1/procesar-asignacion', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
       body: JSON.stringify({ pedido_id: pedidoId, ronda: 1 })
     })
     console.log('[asignacion] respuesta status:', response.status)
@@ -5130,6 +5209,10 @@ function _abrirModo(modo) {
     showClientSection('nacional')
     return
   }
+
+  // Cada apertura representa la captura de un pedido nuevo
+  _idempotencyKeyPedido = crypto.randomUUID()
+
   document.getElementById('home-state').style.display = 'none'
   document.getElementById('form-state').style.display = ''
   // Ahora que form-state es visible, inicializar mapa y autocomplete de direcciones
