@@ -648,7 +648,6 @@ async function init() {
       _repartidorActual = nuevo.repartidor
       actualizarUI(nuevo)
 
-      if (cambioEstado) await _enviarPushRastreo(nuevo.id, nuevo.estado)
       if (cambioRepartidor && nuevo.repartidor) _cargarDatosRepartidor(nuevo.repartidor)
     } catch (error) {
       console.warn('[rastreo] No se pudo actualizar el estado:', error.message)
@@ -673,22 +672,6 @@ function _renderParadasRastreo(paradas) {
         ${icon} Parada ${p.orden}: <span style="font-weight:600;color:var(--text)">${p.direccion}</span>${evidencia}
       </div>`
     }).join('')
-}
-
-async function _enviarPushRastreo(pedidoId, estado) {
-  const { data: tokens } = await db.from('tokens_rastreo')
-    .select('fcm_token')
-    .eq('pedido_id', pedidoId)
-  if (!tokens?.length) return
-  const titulo = 'GK-' + pedidoId + ' actualizado'
-  const cuerpo = ESTADO_TEXTO[estado] || estado
-  await Promise.all(tokens.map(t =>
-    fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/enviar-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ token: t.fcm_token, title: titulo, body: cuerpo })
-    }).catch(() => {})
-  ))
 }
 
 async function activarNotificaciones() {
@@ -741,10 +724,23 @@ async function activarNotificaciones() {
 
     if (!fcmToken) throw new Error('no-token')
 
-    await db.from('tokens_rastreo').upsert(
-      { pedido_id: _pedidoId, fcm_token: fcmToken },
-      { onConflict: 'fcm_token' }
+    const respuestaRegistro = await fetch(
+      `${SUPABASE_URL}/functions/v1/registrar-notificacion-rastreo`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token_rastreo: _token,
+          fcm_token: fcmToken
+        })
+      }
     )
+    const resultadoRegistro = await respuestaRegistro.json().catch(() => ({}))
+    if (!respuestaRegistro.ok || resultadoRegistro.success !== true) {
+      throw new Error(
+        resultadoRegistro.error || 'No fue posible registrar las notificaciones'
+      )
+    }
 
     btn.classList.add('activo')
     btn.innerHTML = '<span class="guep-icon-inline" data-icon="entregado"></span> Notificaciones activadas'; _initGuepIcons && _initGuepIcons(btn)

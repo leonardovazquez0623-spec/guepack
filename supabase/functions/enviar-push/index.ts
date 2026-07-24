@@ -419,6 +419,7 @@ Deno.serve(async (req) => {
     let titulo = ''
     let cuerpo = ''
     let tipoFirebase = 'general'
+    let notificacionRastreo: { pedido_id: number; estado: string } | null = null
 
     if (tipoNotificacion === 'comprobante_deposito') {
       const comprobanteRuta =
@@ -638,6 +639,10 @@ Deno.serve(async (req) => {
         titulo = mensaje.titulo
         cuerpo = mensaje.cuerpo
         tipoFirebase = 'pedido'
+        notificacionRastreo = {
+          pedido_id: pedido.id,
+          estado: pedido.estado
+        }
       }
     }
 
@@ -961,6 +966,37 @@ Deno.serve(async (req) => {
       tipoFirebase,
       accessToken
     )
+
+    if (notificacionRastreo) {
+      try {
+        const respuestaRastreo = await fetch(
+          `${supabaseUrl}/functions/v1/notificar-suscriptores-rastreo`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${claveServicio}`
+            },
+            body: JSON.stringify(notificacionRastreo)
+          }
+        )
+
+        if (!respuestaRastreo.ok) {
+          const detalle = await respuestaRastreo.text().catch(() => '')
+          console.error(
+            '[enviar-push] No se pudo notificar a los suscriptores de rastreo:',
+            respuestaRastreo.status,
+            detalle
+          )
+        }
+      } catch (errorRastreo: any) {
+        console.error(
+          '[enviar-push] Error al llamar la notificación de rastreo:',
+          errorRastreo.message
+        )
+      }
+    }
+
     return respuestaJson(req, resultado)
   } catch (error: any) {
     console.error(

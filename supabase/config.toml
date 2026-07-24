@@ -427,6 +427,16 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/rastreo-publico/index.ts"
 
+[functions.registrar-notificacion-rastreo]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/registrar-notificacion-rastreo/index.ts"
+
+[functions.notificar-suscriptores-rastreo]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notificar-suscriptores-rastreo/index.ts"
+
 [functions.conekta-webhook]
 enabled = true
 verify_jwt = false
