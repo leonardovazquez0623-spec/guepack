@@ -4376,13 +4376,13 @@ async function confirmarAgregarParada(pedidoId) {
 
   const orden = maxOrden === 0 ? 2 : maxOrden + 1
 
-  const { error } = await db.from('paradas').insert({
+  const { data: paradaNueva, error } = await db.from('paradas').insert({
     pedido_id: pedidoId,
     orden,
     direccion,
     instrucciones: instInput.value.trim() || null,
     estado: 'pendiente'
-  })
+  }).select('id').single()
 
   if (error) {
     console.error('[agregar-parada]', error)
@@ -4391,14 +4391,11 @@ async function confirmarAgregarParada(pedidoId) {
     return
   }
 
-  // Push al repartidor — todos sus dispositivos
-  try {
-    const { data: ped } = await db.from('pedidos').select('repartidor').eq('id', pedidoId).single()
-    if (ped?.repartidor) {
-      const { data: repa } = await db.from('repartidores').select('email').eq('nombre', ped.repartidor).single()
-      if (repa?.email) await _enviarPushAEmail(repa.email, '📍 Nueva parada agregada a tu ruta', direccion)
-    }
-  } catch (e) { console.warn('[push-repartidor]', e) }
+  await _enviarPushTipadoCliente({
+    tipo_notificacion: 'parada_agregada',
+    pedido_id: pedidoId,
+    parada_id: paradaNueva.id
+  })
 
   document.getElementById('modal-agregar-parada').remove()
   mostrarToast('✅ Parada agregada', '#22c55e')
@@ -4957,41 +4954,42 @@ function quitarCupon() {
   mostrarToast('Cupón eliminado', '#8fa3c0')
 }
 
-async function _obtenerFcmToken() {
-  if (_fcmToken) return _fcmToken
-  const { data: { session } } = await db.auth.getSession()
-  if (!session) return null
-  const { data } = await db.from('usuarios').select('fcm_token').eq('email', session.user.email).single()
-  _fcmToken = data?.fcm_token || null
-  return _fcmToken
-}
-
-async function enviarPushNotificacion(token, titulo, cuerpo) {
-  if (!token) return
+async function _enviarPushTipadoCliente(solicitud) {
   try {
-    await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ token, title: titulo, body: cuerpo })
-    })
-  } catch (e) { console.warn('[push] error token único:', e) }
-}
+    const { data: { session } } = await db.auth.getSession()
+    if (!session?.access_token) {
+      console.error('No hay una sesión activa para enviar la notificación')
+      return false
+    }
 
-async function _enviarPushAUsuario(userId, titulo, cuerpo) {
-  if (!userId) return
-  try {
-    await fetch(SUPABASE_URL + '/functions/v1/enviar-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ user_id: userId, title: titulo, body: cuerpo })
-    })
-  } catch (e) { console.warn('[push] error a userId:', userId, e.message) }
-}
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/enviar-push',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify(solicitud)
+      }
+    )
 
-async function _enviarPushAEmail(email, titulo, cuerpo) {
-  if (!email) return
-  const { data: usr } = await db.from('usuarios').select('user_id').eq('email', email).single()
-  if (usr?.user_id) await _enviarPushAUsuario(usr.user_id, titulo, cuerpo)
+    if (!respuesta.ok) {
+      console.error(
+        'No fue posible enviar la notificación:',
+        respuesta.status,
+        await respuesta.text()
+      )
+      return false
+    }
+    return true
+  } catch (error) {
+    console.warn(
+      'Error enviando la notificación:',
+      error?.message || error
+    )
+    return false
+  }
 }
 
 // ── Asignación automática ─────────────────────────────────────────────────────
@@ -5124,8 +5122,11 @@ db.channel('cliente-mensajes-global')
     _unreadChat[pid] = (_unreadChat[pid] || 0) + 1
     const badge = document.getElementById('chat-badge-' + pid)
     if (badge) { badge.textContent = _unreadChat[pid]; badge.style.display = 'flex' }
-    const token = await _obtenerFcmToken()
-    enviarPushNotificacion(token, '💬 Nuevo mensaje', msg.texto || '...')
+    await _enviarPushTipadoCliente({
+      tipo_notificacion: 'mensaje_chat_recibido',
+      pedido_id: pid,
+      mensaje_id: msg.id
+    })
   })
   .subscribe()
 

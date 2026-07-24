@@ -1,99 +1,121 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
+import "@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const allowedOrigins = ['https://guepack.com', 'https://www.guepack.com']
+const origenesPermitidos = ['https://guepack.com', 'https://www.guepack.com']
 
-const corsHeaders = (req: Request) => {
-  const origin = req.headers.get('Origin') ?? ''
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+const encabezadosCors = (req: Request) => {
+  const origen = req.headers.get('Origin') ?? ''
+  const origenPermitido = origenesPermitidos.includes(origen)
+    ? origen
+    : origenesPermitidos[0]
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Origin': origenPermitido,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
   }
 }
 
-const firebasePrivateKey = Deno.env.get('FIREBASE_PRIVATE_KEY')!.replace(/\\n/g, '\n')
-const firebaseClientEmail = Deno.env.get('FIREBASE_CLIENT_EMAIL')!
-const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')!
+const clavePrivadaFirebase = Deno.env.get('FIREBASE_PRIVATE_KEY')!.replace(/\\n/g, '\n')
+const correoFirebase = Deno.env.get('FIREBASE_CLIENT_EMAIL')!
+const proyectoFirebase = Deno.env.get('FIREBASE_PROJECT_ID')!
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const claveAnonima = Deno.env.get('SUPABASE_ANON_KEY')!
+const clavesServicio = [
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+  Deno.env.get('SERVICE_ROLE_KEY')
+].filter((clave): clave is string => Boolean(clave))
+const claveServicio = clavesServicio[0]
 
-async function getAccessToken(): Promise<string> {
-  const now = Math.floor(Date.now() / 1000)
-  const header = { alg: 'RS256', typ: 'JWT' }
-  const tokenUri = 'https://oauth2.googleapis.com/token'
-  const payload = {
-    iss: firebaseClientEmail,
+const tiposUsuario = new Set([
+  'estado_pedido',
+  'llegada_parada',
+  'parada_agregada',
+  'mensaje_chat_recibido',
+  'asignacion_liberada'
+])
+
+const tiposInternos = new Set([
+  'interno_pedido_disponible',
+  'interno_pedido_sin_asignar',
+  'interno_pago_confirmado',
+  'interno_guia_generada'
+])
+
+function respuestaJson(req: Request, contenido: unknown, estado = 200) {
+  return new Response(JSON.stringify(contenido), {
+    status: estado,
+    headers: { ...encabezadosCors(req), 'Content-Type': 'application/json' }
+  })
+}
+
+function idValido(valor: unknown): valor is number {
+  return Number.isInteger(valor) && Number(valor) > 0
+}
+
+async function obtenerAccessToken(): Promise<string> {
+  const ahora = Math.floor(Date.now() / 1000)
+  const cabecera = { alg: 'RS256', typ: 'JWT' }
+  const urlToken = 'https://oauth2.googleapis.com/token'
+  const carga = {
+    iss: correoFirebase,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: tokenUri,
-    exp: now + 3600,
-    iat: now
+    aud: urlToken,
+    exp: ahora + 3600,
+    iat: ahora
   }
 
-  const encode = (obj: object) => btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-  const headerB64  = encode(header)
-  const payloadB64 = encode(payload)
-  const signingInput = `${headerB64}.${payloadB64}`
+  const codificar = (objeto: object) =>
+    btoa(JSON.stringify(objeto))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
 
-  const keyData = firebasePrivateKey
+  const entradaFirma = `${codificar(cabecera)}.${codificar(carga)}`
+  const datosClave = clavePrivadaFirebase
     .replace('-----BEGIN PRIVATE KEY-----\n', '')
     .replace('\n-----END PRIVATE KEY-----\n', '')
     .replace(/\n/g, '')
-
-  const binaryKey = Uint8Array.from(atob(keyData), c => c.charCodeAt(0))
-
-  let cryptoKey: CryptoKey
-  try {
-    cryptoKey = await crypto.subtle.importKey(
-      'pkcs8', binaryKey,
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false, ['sign']
-    )
-  } catch (err: any) {
-    console.error('[getAccessToken] Error importando clave privada:', err.message)
-    throw new Error('importKey falló: ' + err.message)
+  const claveBinaria = Uint8Array.from(atob(datosClave), caracter => caracter.charCodeAt(0))
+  const claveCriptografica = await crypto.subtle.importKey(
+    'pkcs8',
+    claveBinaria,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const firma = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    claveCriptografica,
+    new TextEncoder().encode(entradaFirma)
+  )
+  const firmaCodificada = btoa(
+    String.fromCharCode(...new Uint8Array(firma))
+  )
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+  const jwt = `${entradaFirma}.${firmaCodificada}`
+  const respuesta = await fetch(urlToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  })
+  const datos = await respuesta.json()
+  if (!respuesta.ok || !datos.access_token) {
+    throw new Error('Firebase no devolvió un token de acceso válido')
   }
-
-  let signature: ArrayBuffer
-  try {
-    signature = await crypto.subtle.sign(
-      'RSASSA-PKCS1-v1_5',
-      cryptoKey,
-      new TextEncoder().encode(signingInput)
-    )
-  } catch (err: any) {
-    console.error('[getAccessToken] Error firmando JWT:', err.message)
-    throw new Error('sign falló: ' + err.message)
-  }
-
-  const signatureB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-
-  const jwt = `${signingInput}.${signatureB64}`
-
-  let tokenData: any
-  try {
-    const tokenRes = await fetch(tokenUri, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
-    })
-    console.log('[getAccessToken] OAuth status:', tokenRes.status)
-    tokenData = await tokenRes.json()
-    console.log('[getAccessToken] OAuth response:', JSON.stringify(tokenData))
-    if (!tokenData.access_token) {
-      throw new Error('Respuesta sin access_token: ' + JSON.stringify(tokenData))
-    }
-  } catch (err: any) {
-    console.error('[getAccessToken] Error en fetch OAuth:', err.message)
-    throw err
-  }
-
-  return tokenData.access_token
+  return datos.access_token
 }
 
-async function sendFCMMessage(fcmToken: string, title: string, body: string, tipo: string, accessToken: string): Promise<any> {
-  const firebaseUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
-  try {
-    const firebaseResponse = await fetch(firebaseUrl, {
+async function enviarMensajeFirebase(
+  tokenFcm: string,
+  titulo: string,
+  cuerpo: string,
+  tipo: string,
+  accessToken: string
+) {
+  const respuesta = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${proyectoFirebase}/messages:send`,
+    {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,167 +123,493 @@ async function sendFCMMessage(fcmToken: string, title: string, body: string, tip
       },
       body: JSON.stringify({
         message: {
-          token: fcmToken,
-          notification: { title, body },
-          data: { titulo: title, cuerpo: body, tipo: tipo || 'general' },
-          android: { notification: { sound: 'default', channel_id: 'guepack_pedidos' } },
-          apns: { payload: { aps: { sound: 'default', 'content-available': 1 } } },
+          token: tokenFcm,
+          notification: { title: titulo, body: cuerpo },
+          data: { titulo, cuerpo, tipo: tipo || 'general' },
+          android: {
+            notification: {
+              sound: 'default',
+              channel_id: 'guepack_pedidos'
+            }
+          },
+          apns: {
+            payload: {
+              aps: { sound: 'default', 'content-available': 1 }
+            }
+          },
           webpush: {
-            notification: { title, body, icon: '/logo_icono.png', badge: '/logo_icono.png' },
+            notification: {
+              title: titulo,
+              body: cuerpo,
+              icon: '/logo_icono.png',
+              badge: '/logo_icono.png'
+            },
             fcm_options: { link: 'https://guepack.com' }
           }
         }
       })
+    }
+  )
+  return await respuesta.json()
+}
+
+async function obtenerUsuarioPorRepartidor(
+  supabaseAdmin: any,
+  nombre: string,
+  tenantId: number
+) {
+  const { data: repartidor } = await supabaseAdmin
+    .from('repartidores')
+    .select('email')
+    .eq('nombre', nombre)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  if (!repartidor?.email) return null
+
+  const { data: usuario } = await supabaseAdmin
+    .from('usuarios')
+    .select('user_id')
+    .eq('email', repartidor.email)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  return usuario?.user_id || null
+}
+
+async function obtenerRepartidorAutenticado(
+  supabaseAdmin: any,
+  usuario: any
+) {
+  const { data: perfil } = await supabaseAdmin
+    .from('usuarios')
+    .select('rol, email, tenant_id')
+    .eq('user_id', usuario.id)
+    .maybeSingle()
+  if (perfil?.rol !== 'repartidor' || !perfil.email || !perfil.tenant_id) {
+    return null
+  }
+
+  const { data: repartidor } = await supabaseAdmin
+    .from('repartidores')
+    .select('id, nombre, tenant_id')
+    .eq('email', perfil.email)
+    .eq('tenant_id', perfil.tenant_id)
+    .maybeSingle()
+  return repartidor || null
+}
+
+async function enviarAUsuarios(
+  supabaseAdmin: any,
+  usuarios: string[],
+  titulo: string,
+  cuerpo: string,
+  tipo: string,
+  accessToken: string
+) {
+  const ids = [...new Set(usuarios.filter(Boolean))]
+  if (!ids.length) return { sent: 0, results: [] }
+
+  const { data: filasTokens, error } = await supabaseAdmin
+    .from('usuarios_tokens')
+    .select('user_id, fcm_token')
+    .in('user_id', ids)
+  if (error) {
+    throw new Error(
+      'No fue posible consultar los tokens de notificación: ' + error.message
+    )
+  }
+  if (!filasTokens?.length) return { sent: 0, results: [] }
+
+  const codigosInvalidos = new Set([
+    'INVALID_REGISTRATION',
+    'UNREGISTERED',
+    'SENDER_ID_MISMATCH'
+  ])
+  const resultados = await Promise.all(
+    filasTokens.map(async ({ fcm_token }: { fcm_token: string }) => {
+      try {
+        const resultado = await enviarMensajeFirebase(
+          fcm_token,
+          titulo,
+          cuerpo,
+          tipo,
+          accessToken
+        )
+        const codigoError: string | null =
+          resultado?.error?.details?.find(
+            (detalle: any) => detalle.errorCode
+          )?.errorCode ??
+          (resultado?.error?.status === 'NOT_FOUND' ? 'UNREGISTERED' : null)
+        if (codigoError && codigosInvalidos.has(codigoError)) {
+          await supabaseAdmin
+            .from('usuarios_tokens')
+            .delete()
+            .eq('fcm_token', fcm_token)
+          return { eliminado: true, motivo: codigoError }
+        }
+        return resultado
+      } catch (error: any) {
+        return { error: error.message }
+      }
     })
-    console.log('[FCM] status:', firebaseResponse.status, '| token:', fcmToken.slice(0, 20) + '...')
-    const data = await firebaseResponse.json()
-    console.log('[FCM] response:', JSON.stringify(data))
-    return data
-  } catch (err: any) {
-    console.error('[FCM] Error llamando Firebase:', err.message)
-    throw err
+  )
+  return {
+    sent: resultados.filter(
+      (resultado: any) => !resultado?.eliminado && !resultado?.error
+    ).length,
+    results: resultados
   }
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders(req) })
+    return new Response('ok', { headers: encabezadosCors(req) })
   }
 
-  const authHeader = req.headers.get('Authorization') || ''
-  const tokenJwt = authHeader.replace(/^Bearer\s+/i, '')
-  if (!tokenJwt) {
-    return new Response(JSON.stringify({ error: 'No autorizado' }), {
-      status: 401,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
+  const tokenJwt = (req.headers.get('Authorization') || '')
+    .replace(/^Bearer\s+/i, '')
+  if (!tokenJwt) return respuestaJson(req, { error: 'No autorizado' }, 401)
+  if (!claveServicio) {
+    console.error('[enviar-push] No hay una clave de servicio configurada')
+    return respuestaJson(req, { error: 'Configuración interna incompleta' }, 500)
   }
 
-  const clavesServicio = [
-    Deno.env.get('SERVICE_ROLE_KEY'),
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  ].filter((clave): clave is string => Boolean(clave))
+  let solicitud: any
+  try {
+    solicitud = await req.json()
+  } catch (error: any) {
+    console.error('[enviar-push] Error parseando el cuerpo:', error.message)
+    return respuestaJson(req, { error: 'Cuerpo inválido' }, 400)
+  }
 
-  // Las llamadas internas pueden autenticarse directamente con una clave de servicio.
-  if (!clavesServicio.includes(tokenJwt)) {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+  const tipoNotificacion = solicitud?.tipo_notificacion
+  if (!tipoNotificacion) {
+    return respuestaJson(req, { error: 'Falta tipo_notificacion' }, 400)
+  }
+  if (
+    'user_id' in solicitud ||
+    'token' in solicitud ||
+    'title' in solicitud ||
+    'body' in solicitud
+  ) {
+    return respuestaJson(
+      req,
+      { error: 'La solicitud contiene campos de destino no permitidos' },
+      400
     )
-    const { data: { user }, error } = await supabaseClient.auth.getUser(tokenJwt)
+  }
+
+  const usaClaveServicio = clavesServicio.includes(tokenJwt)
+  const supabaseAdmin = createClient(supabaseUrl, claveServicio)
+  let usuarioAutenticado: any = null
+
+  if (usaClaveServicio) {
+    if (!tiposInternos.has(tipoNotificacion)) {
+      return respuestaJson(
+        req,
+        { error: 'Tipo de notificación interna no permitido' },
+        403
+      )
+    }
+  } else {
+    if (!tiposUsuario.has(tipoNotificacion)) {
+      return respuestaJson(
+        req,
+        { error: 'Tipo de notificación no permitido para usuarios' },
+        403
+      )
+    }
+    const supabaseUsuario = createClient(supabaseUrl, claveAnonima)
+    const { data: { user }, error } =
+      await supabaseUsuario.auth.getUser(tokenJwt)
     if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Token inválido' }), {
-        status: 401,
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-      })
+      return respuestaJson(req, { error: 'Token inválido' }, 401)
     }
+    usuarioAutenticado = user
   }
 
-  // Parsear body
-  let token: string, user_id: string, title: string, body: string, tipo: string
   try {
-    const parsed = await req.json()
-    token   = parsed.token
-    user_id = parsed.user_id
-    title   = parsed.title
-    body    = parsed.body
-    tipo    = parsed.tipo
-    console.log('[enviar-push] modo:', user_id ? 'user_id=' + user_id : 'token=' + token?.slice(0, 20) + '...', '| title:', title)
-  } catch (err: any) {
-    console.error('[enviar-push] Error parseando body:', err.message)
-    return new Response(JSON.stringify({ error: 'Body inválido', detail: err.message }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  }
+    let destinatarios: string[] = []
+    let titulo = ''
+    let cuerpo = ''
+    let tipoFirebase = 'general'
 
-  if (!title || !body) {
-    return new Response(JSON.stringify({ error: 'Faltan campos requeridos: title, body' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  }
-
-  if (!token && !user_id) {
-    return new Response(JSON.stringify({ error: 'Se requiere token o user_id' }), {
-      status: 400,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Obtener access token de Firebase
-  let accessToken: string
-  try {
-    accessToken = await getAccessToken()
-    console.log('[enviar-push] Access token obtenido OK')
-  } catch (err: any) {
-    console.error('[enviar-push] Error en getAccessToken:', err.message)
-    return new Response(JSON.stringify({ error: 'Error obteniendo token Firebase', detail: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Modo user_id: obtener todos los tokens del usuario y enviar a cada uno
-  if (user_id) {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      (Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!
-    )
-    const { data: tokenRows, error: tkErr } = await supabase
-      .from('usuarios_tokens')
-      .select('fcm_token')
-      .eq('user_id', user_id)
-    console.log('[enviar-push] tokens para user_id', user_id, ':', tokenRows?.length ?? 0, '| error:', tkErr?.message)
-
-    if (!tokenRows?.length) {
-      return new Response(JSON.stringify({ sent: 0, message: 'Sin tokens registrados para este usuario' }), {
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-      })
+    if (tipoNotificacion === 'parada_agregada') {
+      if (!idValido(solicitud.pedido_id) || !idValido(solicitud.parada_id)) {
+        return respuestaJson(req, { error: 'Identificadores inválidos' }, 400)
+      }
+      const [{ data: pedido }, { data: parada }] = await Promise.all([
+        supabaseAdmin
+          .from('pedidos')
+          .select('id, user_id, tenant_id, repartidor')
+          .eq('id', solicitud.pedido_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('paradas')
+          .select('id, pedido_id, direccion')
+          .eq('id', solicitud.parada_id)
+          .maybeSingle()
+      ])
+      if (
+        !pedido ||
+        pedido.user_id !== usuarioAutenticado.id ||
+        parada?.pedido_id !== pedido.id ||
+        !pedido.repartidor
+      ) {
+        return respuestaJson(req, { error: 'Operación no autorizada' }, 403)
+      }
+      const destinatario = await obtenerUsuarioPorRepartidor(
+        supabaseAdmin,
+        pedido.repartidor,
+        pedido.tenant_id
+      )
+      if (destinatario) destinatarios = [destinatario]
+      titulo = '📍 Nueva parada agregada a tu ruta'
+      cuerpo = parada!.direccion
+      tipoFirebase = 'pedido'
     }
 
-    const INVALID_CODES = new Set(['INVALID_REGISTRATION', 'UNREGISTERED', 'SENDER_ID_MISMATCH'])
+    if (tipoNotificacion === 'mensaje_chat_recibido') {
+      if (!idValido(solicitud.pedido_id) || !idValido(solicitud.mensaje_id)) {
+        return respuestaJson(req, { error: 'Identificadores inválidos' }, 400)
+      }
+      const [{ data: pedido }, { data: mensaje }] = await Promise.all([
+        supabaseAdmin
+          .from('pedidos')
+          .select('id, user_id')
+          .eq('id', solicitud.pedido_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('mensajes')
+          .select('id, pedido_id, de, texto, tipo')
+          .eq('id', solicitud.mensaje_id)
+          .maybeSingle()
+      ])
+      if (
+        pedido?.user_id !== usuarioAutenticado.id ||
+        mensaje?.pedido_id !== pedido?.id ||
+        mensaje?.de !== 'repartidor' ||
+        mensaje?.tipo !== 'chat'
+      ) {
+        return respuestaJson(req, { error: 'Operación no autorizada' }, 403)
+      }
+      destinatarios = [usuarioAutenticado.id]
+      titulo = '💬 Nuevo mensaje'
+      cuerpo = mensaje.texto || 'Tienes un nuevo mensaje'
+      tipoFirebase = 'chat'
+    }
 
-    const results = await Promise.all(
-      tokenRows.map(async ({ fcm_token }) => {
-        try {
-          const data = await sendFCMMessage(fcm_token, title, body, tipo, accessToken)
+    if (
+      tipoNotificacion === 'estado_pedido' ||
+      tipoNotificacion === 'llegada_parada' ||
+      tipoNotificacion === 'asignacion_liberada'
+    ) {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+      const repartidor = await obtenerRepartidorAutenticado(
+        supabaseAdmin,
+        usuarioAutenticado
+      )
+      const { data: pedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, user_id, tenant_id, repartidor, estado, nombre')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+      if (
+        !repartidor ||
+        !pedido ||
+        pedido.tenant_id !== repartidor.tenant_id ||
+        pedido.repartidor !== repartidor.nombre
+      ) {
+        return respuestaJson(req, { error: 'Operación no autorizada' }, 403)
+      }
+      destinatarios = pedido.user_id ? [pedido.user_id] : []
 
-          // Detectar token inválido por errorCode en details o por status NOT_FOUND
-          const errorCode: string | null =
-            data?.error?.details?.find((d: any) => d.errorCode)?.errorCode
-            ?? (data?.error?.status === 'NOT_FOUND' ? 'UNREGISTERED' : null)
+      if (tipoNotificacion === 'asignacion_liberada') {
+        titulo = '🔄 Buscando nuevo mensajero'
+        cuerpo = `Estamos buscando un nuevo mensajero para tu pedido GK-${pedido.id}`
+        tipoFirebase = 'pedido'
+      }
 
-          if (errorCode && INVALID_CODES.has(errorCode)) {
-            console.log(`[enviar-push] token inválido (${errorCode}) — eliminando:`, fcm_token.slice(0, 20))
-            await supabase.from('usuarios_tokens').delete().eq('fcm_token', fcm_token)
-            return { deleted: true, reason: errorCode, token: fcm_token.slice(0, 20) }
-          }
-
-          return data
-        } catch (err: any) {
-          return { error: err.message, token: fcm_token.slice(0, 20) }
+      if (tipoNotificacion === 'llegada_parada') {
+        if (!idValido(solicitud.parada_id)) {
+          return respuestaJson(req, { error: 'parada_id inválido' }, 400)
         }
-      })
+        const { data: parada } = await supabaseAdmin
+          .from('paradas')
+          .select('id, pedido_id, orden, estado')
+          .eq('id', solicitud.parada_id)
+          .maybeSingle()
+        if (
+          parada?.pedido_id !== pedido.id ||
+          parada?.estado !== 'en_domicilio'
+        ) {
+          return respuestaJson(req, { error: 'Parada no válida' }, 403)
+        }
+        titulo = '📍 GUEPACK Express'
+        cuerpo = `Tu mensajero llegó a la parada #${parada.orden}`
+        tipoFirebase = 'pedido'
+      }
+
+      if (tipoNotificacion === 'estado_pedido') {
+        const nombre = pedido.nombre ? pedido.nombre.split(' ')[0] : ''
+        const mensajes: Record<string, { titulo: string; cuerpo: string }> = {
+          'Repartidor en domicilio recoleccion': {
+            titulo: '📍 GUEPACK Express',
+            cuerpo: `Hola ${nombre}. Tu guepartidor llegó a recolectar tu paquete.`
+          },
+          'Recolectado': {
+            titulo: '📦 GUEPACK Express',
+            cuerpo: `Hola ${nombre}. Tu paquete fue recolectado, vamos en camino.`
+          },
+          'En camino a entrega': {
+            titulo: '🚚 GUEPACK Express',
+            cuerpo: `Hola ${nombre}. Tu paquete va en camino al destino.`
+          },
+          'Repartidor en domicilio': {
+            titulo: '📍 GUEPACK Express',
+            cuerpo: `Hola ${nombre}. Tu guepartidor llegó al destino, tienes 7 minutos.`
+          },
+          'Entregado': {
+            titulo: '✅ GUEPACK Express',
+            cuerpo: `Hola ${nombre}. ¡Tu paquete fue entregado! Gracias por confiar en GUEPACK.`
+          }
+        }
+        const mensaje = mensajes[pedido.estado]
+        if (!mensaje) {
+          return respuestaJson(
+            req,
+            { error: 'El estado no genera una notificación' },
+            400
+          )
+        }
+        titulo = mensaje.titulo
+        cuerpo = mensaje.cuerpo
+        tipoFirebase = 'pedido'
+      }
+    }
+
+    if (tipoNotificacion === 'interno_pedido_disponible') {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+      const { data: pedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, tenant_id, direccion_recoleccion')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+      if (!pedido) return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
+
+      const { data: repartidores } = await supabaseAdmin
+        .from('repartidores')
+        .select('email')
+        .eq('disponible', true)
+        .eq('tenant_id', pedido.tenant_id)
+      const correos = (repartidores || [])
+        .map((repartidor: any) => repartidor.email)
+        .filter(Boolean)
+      if (correos.length) {
+        const { data: usuarios } = await supabaseAdmin
+          .from('usuarios')
+          .select('user_id')
+          .in('email', correos)
+          .eq('tenant_id', pedido.tenant_id)
+        destinatarios = (usuarios || []).map(
+          (usuario: any) => usuario.user_id
+        )
+      }
+      titulo = '📦 Nuevo pedido disponible'
+      cuerpo = `GK-${pedido.id} · ${pedido.direccion_recoleccion || ''}`
+      tipoFirebase = 'pedido'
+    }
+
+    if (tipoNotificacion === 'interno_pedido_sin_asignar') {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+      const { data: pedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, tenant_id')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+      if (!pedido) return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
+
+      const { data: administradores } = await supabaseAdmin
+        .from('usuarios')
+        .select('user_id')
+        .eq('rol', 'admin')
+        .or(`tenant_id.eq.${pedido.tenant_id},es_superadmin.eq.true`)
+      destinatarios = (administradores || []).map(
+        (usuario: any) => usuario.user_id
+      )
+      titulo = `⚠️ Pedido GK-${pedido.id} sin asignar`
+      cuerpo = 'Sin repartidores disponibles — revisión manual requerida'
+      tipoFirebase = 'admin'
+    }
+
+    if (tipoNotificacion === 'interno_pago_confirmado') {
+      if (!idValido(solicitud.envio_id)) {
+        return respuestaJson(req, { error: 'envio_id inválido' }, 400)
+      }
+      const { data: envio } = await supabaseAdmin
+        .from('envios_nacionales')
+        .select('id, user_id, paqueteria, pago_verificado')
+        .eq('id', solicitud.envio_id)
+        .maybeSingle()
+      if (!envio?.pago_verificado) {
+        return respuestaJson(req, { error: 'Pago no confirmado' }, 409)
+      }
+      destinatarios = envio.user_id ? [envio.user_id] : []
+      titulo = '✅ Pago confirmado'
+      cuerpo = `Estamos generando tu guía de ${envio.paqueteria || 'paquetería'}, te avisaremos en cuanto esté lista`
+      tipoFirebase = 'envio'
+    }
+
+    if (tipoNotificacion === 'interno_guia_generada') {
+      if (!idValido(solicitud.envio_id)) {
+        return respuestaJson(req, { error: 'envio_id inválido' }, 400)
+      }
+      const { data: envio } = await supabaseAdmin
+        .from('envios_nacionales')
+        .select('id, user_id, paqueteria, numero_guia, recoleccion_request_number')
+        .eq('id', solicitud.envio_id)
+        .maybeSingle()
+      if (!envio?.numero_guia) {
+        return respuestaJson(
+          req,
+          { error: 'La guía todavía no está guardada' },
+          409
+        )
+      }
+      const recoleccionManual =
+        envio.recoleccion_request_number === 'PENDIENTE_MANUAL'
+      destinatarios = envio.user_id ? [envio.user_id] : []
+      titulo = '📦 ¡Tu guía está lista!'
+      cuerpo = recoleccionManual
+        ? `Tu guía ${envio.numero_guia} se generó correctamente, pero la recolección deberá agendarse manualmente. Nuestro equipo dará seguimiento.`
+        : `Tu envío con ${envio.paqueteria || 'la paquetería'} ya tiene número de guía: ${envio.numero_guia}. Descarga tu guía desde la app.`
+      tipoFirebase = 'envio'
+    }
+
+    const accessToken = await obtenerAccessToken()
+    const resultado = await enviarAUsuarios(
+      supabaseAdmin,
+      destinatarios,
+      titulo,
+      cuerpo,
+      tipoFirebase,
+      accessToken
     )
-
-    const sent = results.filter((r: any) => !r?.deleted && !r?.error).length
-    return new Response(JSON.stringify({ sent, results }), {
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Modo token único (backwards compatible)
-  try {
-    const firebaseData = await sendFCMMessage(token, title, body, tipo, accessToken)
-    return new Response(JSON.stringify(firebaseData), {
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
-  } catch (err: any) {
-    console.error('[enviar-push] Error llamando Firebase:', err.message)
-    return new Response(JSON.stringify({ error: 'Error llamando Firebase FCM', detail: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-    })
+    return respuestaJson(req, resultado)
+  } catch (error: any) {
+    console.error(
+      '[enviar-push] Error procesando la notificación:',
+      error.message
+    )
+    return respuestaJson(
+      req,
+      { error: 'No fue posible enviar la notificación' },
+      500
+    )
   }
 })

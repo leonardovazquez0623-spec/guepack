@@ -176,12 +176,6 @@ serve(async (req) => {
         // ── Flujo envio nacional ────────────────────────────────────────────
         const envioId = metadata.envio_id;
 
-        const { data: envioInfo } = await supabaseAdmin
-          .from("envios_nacionales")
-          .select("user_id, paqueteria")
-          .eq("id", envioId)
-          .single();
-
         const { error: updateErr } = await supabaseAdmin
           .from("envios_nacionales")
           .update({
@@ -194,21 +188,17 @@ serve(async (req) => {
           throw new Error(`Error actualizando el pago verificado: ${updateErr.message}`);
         }
 
-        if (envioInfo?.user_id) {
-          try {
-            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-push`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-              body: JSON.stringify({
-                user_id: envioInfo.user_id,
-                title: "✅ Pago confirmado",
-                body: `Estamos generando tu guía de ${envioInfo.paqueteria || "paquetería"}, te avisaremos en cuanto esté lista`,
-                tipo: "envio",
-              }),
-            });
-          } catch (e: any) {
-            console.error("Error enviando push pago confirmado:", e.message);
-          }
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-push`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+            body: JSON.stringify({
+              tipo_notificacion: "interno_pago_confirmado",
+              envio_id: Number(envioId),
+            }),
+          });
+        } catch (e: any) {
+          console.error("Error enviando push de pago confirmado:", e.message);
         }
 
         const guiaRes = await fetch(

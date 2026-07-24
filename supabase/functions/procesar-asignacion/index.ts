@@ -179,61 +179,41 @@ Deno.serve(async (req) => {
 
     if (!repas?.length) {
       console.log('[procesar-asignacion] sin repartidores — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id, pedido.tenant_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
       return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
     }
 
     // ── 4. Enviar push a repartidores ────────────────────────────────────────────
-    const emails = repas.map((r: any) => r.email).filter(Boolean)
-    console.log('[procesar-asignacion] buscando user_ids para emails:', emails)
-
-    const { data: users, error: usersErr } = await supabase
-      .from('usuarios')
-      .select('user_id, email')
-      .in('email', emails)
-      .eq('tenant_id', pedido.tenant_id)
-
-    if (usersErr) console.error('[procesar-asignacion] error query usuarios:', usersErr.message)
-    const usersConId = (users || []).filter((u: any) => u.user_id)
-    console.log(`[procesar-asignacion] user_ids encontrados: ${usersConId.length} de ${emails.length} emails`)
-    if (usersConId.length === 0) console.warn('[procesar-asignacion] ⚠️ ningún repartidor tiene user_id en usuarios — push no se enviará')
-
-    const notifBody = `GK-${pedido_id} · ${pedido.direccion_recoleccion || ''}`
-    const pushHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + Deno.env.get('SERVICE_ROLE_KEY')
-    }
-
-    await Promise.all(
-      usersConId.map(async (u: any) => {
-        try {
-          const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
-            method: 'POST',
-            headers: pushHeaders,
-            body: JSON.stringify({ user_id: u.user_id, title: '📦 Nuevo pedido disponible', body: notifBody, tipo: 'pedido' })
+    try {
+      const respuestaPush = await fetch(
+        `${supabaseUrl}/functions/v1/enviar-push`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + claveServicio
+          },
+          body: JSON.stringify({
+            tipo_notificacion: 'interno_pedido_disponible',
+            pedido_id
           })
-          const responseStatus = res.status
-          const responseBody = await res.text()
-          console.log('[procesar] resultado enviar-push:', responseStatus, responseBody)
-          let json: any = {}
-          try {
-            json = responseBody ? JSON.parse(responseBody) : {}
-          } catch {
-            json = { respuesta: responseBody }
-          }
-          if (!res.ok) {
-            console.error(`[procesar-asignacion] enviar-push HTTP ${res.status} para ${u.email}:`, JSON.stringify(json))
-          } else {
-            console.log(`[procesar-asignacion] push OK para ${u.email} — enviados: ${json.sent ?? 1}`)
-          }
-        } catch (e: any) {
-          console.error('[procesar-asignacion] fetch error a enviar-push para', u.email, ':', e.message)
         }
-      })
-    )
-    console.log(`[procesar-asignacion] push procesados para ${usersConId.length} repartidores`)
+      )
+      if (!respuestaPush.ok) {
+        console.error(
+          '[procesar-asignacion] No fue posible notificar a los repartidores:',
+          respuestaPush.status,
+          await respuestaPush.text()
+        )
+      }
+    } catch (errorPush: any) {
+      console.error(
+        '[procesar-asignacion] Error enviando la notificación:',
+        errorPush.message
+      )
+    }
 
     // ── 5. Actualizar ronda_asignacion en el pedido ──────────────────────────────
     await supabase.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido_id)
@@ -251,7 +231,7 @@ Deno.serve(async (req) => {
       console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
     } else {
       console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id, pedido.tenant_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
     }
 
     return new Response(
@@ -268,54 +248,34 @@ Deno.serve(async (req) => {
 })
 
 async function _notificarAdmins(
-  supabase: any,
+  _supabase: any,
   supabaseUrl: string,
   serviceKey: string,
-  pedidoId: number,
-  tenantId: number | null
+  pedidoId: number
 ) {
-  const { data: admins, error: admErr } = await supabase
-    .from('usuarios')
-    .select('user_id')
-    .eq('rol', 'admin')
-    .or(`tenant_id.eq.${tenantId},es_superadmin.eq.true`)
-  if (admErr) console.error('[procesar-asignacion] error query admins:', admErr.message)
-  const adminsConId = (admins || []).filter((u: any) => u.user_id)
-  console.log(`[procesar-asignacion] notificando ${adminsConId.length} admins para pedido ${pedidoId}`)
-
-  await Promise.all(
-    adminsConId.map(async (u: any) => {
-      try {
-        const res = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + Deno.env.get('SERVICE_ROLE_KEY')
-          },
-          body: JSON.stringify({
-            user_id: u.user_id,
-            title: `⚠️ Pedido GK-${pedidoId} sin asignar`,
-            body: 'Sin repartidores disponibles — revisión manual requerida',
-            tipo: 'admin'
-          })
-        })
-        const responseStatus = res.status
-        const responseBody = await res.text()
-        console.log('[procesar] resultado enviar-push:', responseStatus, responseBody)
-        let json: any = {}
-        try {
-          json = responseBody ? JSON.parse(responseBody) : {}
-        } catch {
-          json = { respuesta: responseBody }
-        }
-        if (!res.ok) {
-          console.error(`[procesar-asignacion] admin push HTTP ${res.status}:`, JSON.stringify(json))
-        } else {
-          console.log(`[procesar-asignacion] admin push OK — enviados: ${json.sent ?? 1}`)
-        }
-      } catch (e: any) {
-        console.error('[procesar-asignacion] admin fetch error:', e.message)
-      }
+  try {
+    const respuesta = await fetch(`${supabaseUrl}/functions/v1/enviar-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + serviceKey
+      },
+      body: JSON.stringify({
+        tipo_notificacion: 'interno_pedido_sin_asignar',
+        pedido_id: pedidoId
+      })
     })
-  )
+    if (!respuesta.ok) {
+      console.error(
+        '[procesar-asignacion] No fue posible notificar a los administradores:',
+        respuesta.status,
+        await respuesta.text()
+      )
+    }
+  } catch (errorPush: any) {
+    console.error(
+      '[procesar-asignacion] Error notificando a los administradores:',
+      errorPush.message
+    )
+  }
 }

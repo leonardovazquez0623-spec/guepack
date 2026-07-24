@@ -396,19 +396,14 @@ serve(async (req) => {
       }
     }
 
-    const numeroGuia = data.tracking_number ?? data.attributes?.tracking_number;
     if (envio.user_id) {
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-push`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
           body: JSON.stringify({
-            user_id: envio.user_id,
-            title: "📦 ¡Tu guía está lista!",
-            body: recoleccionPendienteManual
-              ? `Tu guía ${numeroGuia} se generó correctamente, pero la recolección deberá agendarse manualmente. Nuestro equipo dará seguimiento.`
-              : `Tu envío con ${envio.paqueteria || "la paquetería"} ya tiene número de guía: ${numeroGuia}. Descarga tu guía desde la app.`,
-            tipo: "envio",
+            tipo_notificacion: "interno_guia_generada",
+            envio_id: Number(envio_id),
           }),
         });
       } catch (e: any) {

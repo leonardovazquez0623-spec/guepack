@@ -887,6 +887,12 @@ async function _cancelarAsignacion(pedidoId) {
     .single()
   if (fetchErr) { _toastRepa('Error al obtener pedido', '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
 
+  // Se notifica antes de liberar para validar la asignación actual.
+  await _enviarPushTipadoRepartidor({
+    tipo_notificacion: 'asignacion_liberada',
+    pedido_id: pedidoId
+  })
+
   const { error } = await db.from('pedidos')
     .update({
       repartidor: null,
@@ -898,13 +904,6 @@ async function _cancelarAsignacion(pedidoId) {
     .eq('id', pedidoId)
 
   if (error) { _toastRepa('Error al cancelar: ' + error.message, '#ef4444'); _pedidosRechazados.delete(pedidoId); return }
-
-  if (pedidoActual?.user_id) {
-    await _enviarPushAUsuarioRepa(pedidoActual.user_id,
-      '🔄 Buscando nuevo mensajero',
-      'Estamos buscando un nuevo mensajero para tu pedido GK-' + pedidoId
-    )
-  }
 
   const card = document.getElementById('pedido-card-' + pedidoId)
   if (card) {
@@ -1850,14 +1849,11 @@ async function paradaEnDomicilioMulti(pedidoId, paradaId, orden) {
 
   localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
 
-  // Push al cliente
-  const { data: pedido } = await db.from('pedidos').select('user_id, nombre').eq('id', pedidoId).single()
-  if (pedido?.user_id) {
-    await _enviarPushAUsuarioRepa(pedido.user_id,
-      '📍 GUEPACK Express',
-      `Tu mensajero llegó a la parada #${orden}${pedido.nombre ? ' · ' + pedido.nombre.split(' ')[0] : ''}`
-    )
-  }
+  await _enviarPushTipadoRepartidor({
+    tipo_notificacion: 'llegada_parada',
+    pedido_id: pedidoId,
+    parada_id: paradaId
+  })
 
   const { data: { session } } = await db.auth.getSession()
   if (!session) { window.location.href = 'login.html'; return }
@@ -1929,22 +1925,17 @@ async function cambiarEstado(id, status, telefono, nombre) {
     })
   }
 
-  const mensajes = {
-    'Repartidor en domicilio recoleccion': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete.' },
-    'Recolectado':          { title: '📦 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino.' },
-    'En camino a entrega':  { title: '🚚 GUEPACK Express', body: 'Hola ' + nombre + '! Tu paquete va en camino al destino.' },
-    'Repartidor en domicilio': { title: '📍 GUEPACK Express', body: 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos.' },
-    'Entregado':            { title: '✅ GUEPACK Express', body: 'Hola ' + nombre + '! ¡Tu paquete fue entregado! Gracias por confiar en GUEPACK.' }
-  }
-
-  const msg = mensajes[status]
-  if (msg) {
-    const { data: pedido } = await db.from('pedidos').select('user_id').eq('id', id).single()
-    
-    if (pedido?.user_id) {
-      console.log('[push] enviando notificación de estado a user_id:', pedido.user_id, '| status:', status)
-      await _enviarPushAUsuarioRepa(pedido.user_id, msg.title, msg.body)
-    }
+  if ([
+    'Repartidor en domicilio recoleccion',
+    'Recolectado',
+    'En camino a entrega',
+    'Repartidor en domicilio',
+    'Entregado'
+  ].includes(status)) {
+    await _enviarPushTipadoRepartidor({
+      tipo_notificacion: 'estado_pedido',
+      pedido_id: id
+    })
   }
 
   const { data: { session } } = await db.auth.getSession()
@@ -2352,6 +2343,52 @@ async function _registrarTokenFCM(userId) {
 }
 
 if (!window._notificacionEnviada) window._notificacionEnviada = new Set()
+
+async function _enviarPushTipadoRepartidor(solicitud) {
+  const clave = JSON.stringify(solicitud)
+  if (window._notificacionEnviada.has(clave)) {
+    console.log('[push] notificación duplicada ignorada:', clave)
+    return false
+  }
+  window._notificacionEnviada.add(clave)
+  setTimeout(() => window._notificacionEnviada.delete(clave), 5000)
+
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session?.access_token) {
+      console.error('No hay una sesión activa para enviar la notificación')
+      return false
+    }
+
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/enviar-push',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify(solicitud)
+      }
+    )
+
+    if (!respuesta.ok) {
+      console.error(
+        'No fue posible enviar la notificación:',
+        respuesta.status,
+        await respuesta.text()
+      )
+      return false
+    }
+    return true
+  } catch (error) {
+    console.warn(
+      'Error enviando la notificación:',
+      error?.message || error
+    )
+    return false
+  }
+}
 
 async function _enviarPushAUsuarioRepa(userId, titulo, cuerpo) {
   if (!userId) return
