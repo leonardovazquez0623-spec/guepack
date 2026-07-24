@@ -30,7 +30,8 @@ const tiposUsuario = new Set([
   'llegada_parada',
   'parada_agregada',
   'mensaje_chat_recibido',
-  'asignacion_liberada'
+  'asignacion_liberada',
+  'comprobante_deposito'
 ])
 
 const tiposAdmin = new Set([
@@ -418,6 +419,71 @@ Deno.serve(async (req) => {
     let titulo = ''
     let cuerpo = ''
     let tipoFirebase = 'general'
+
+    if (tipoNotificacion === 'comprobante_deposito') {
+      const comprobanteRuta =
+        typeof solicitud.comprobante_ruta === 'string'
+          ? solicitud.comprobante_ruta.trim()
+          : ''
+
+      if (
+        !comprobanteRuta ||
+        comprobanteRuta.length > 300 ||
+        comprobanteRuta.includes('..')
+      ) {
+        return respuestaJson(
+          req,
+          { error: 'La ruta del comprobante no es válida' },
+          400
+        )
+      }
+
+      const repartidor = await obtenerRepartidorAutenticado(
+        supabaseAdmin,
+        usuarioAutenticado
+      )
+
+      if (!repartidor) {
+        return respuestaJson(
+          req,
+          { error: 'No se encontró un repartidor válido para esta sesión' },
+          403
+        )
+      }
+
+      const {
+        data: administradores,
+        error: errorAdministradores
+      } = await supabaseAdmin
+        .from('usuarios')
+        .select('user_id')
+        .eq('rol', 'admin')
+        .or(
+          `tenant_id.eq.${repartidor.tenant_id},es_superadmin.eq.true`
+        )
+
+      if (errorAdministradores) {
+        console.error(
+          '[enviar-push] No se pudieron consultar los administradores:',
+          errorAdministradores
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudieron obtener los destinatarios' },
+          500
+        )
+      }
+
+      destinatarios = (administradores || [])
+        .map((administrador: any) => administrador.user_id)
+        .filter(Boolean)
+
+      titulo = '🧾 Nuevo comprobante de depósito'
+      cuerpo =
+        `${repartidor.nombre || 'Un repartidor'} subió un ` +
+        'comprobante de depósito, requiere revisión'
+      tipoFirebase = 'admin'
+    }
 
     if (tipoNotificacion === 'parada_agregada') {
       if (!idValido(solicitud.pedido_id) || !idValido(solicitud.parada_id)) {

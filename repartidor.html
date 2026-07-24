@@ -1407,10 +1407,10 @@ async function _subirComprobanteDeposito(input) {
     previewEl.innerHTML = `<img src="${URL.createObjectURL(input.files[0])}" style="width:100%;border-radius:10px;max-height:160px;object-fit:cover">`
   }
   if (btn) { btn.textContent = '✅ Comprobante enviado'; btn.style.background = '#22c55e'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
-  const { data: admins } = await db.from('usuarios').select('user_id').eq('rol', 'admin')
-  await Promise.all((admins || []).filter(u => u.user_id).map(u =>
-    _enviarPushAUsuarioRepa(u.user_id, '💵 Comprobante de depósito', (_repaData.nombre || 'Repartidor') + ' subió comprobante de depósito — confirmar en admin').catch(() => {})
-  ))
+  await _enviarPushTipadoRepartidor({
+    tipo_notificacion: 'comprobante_deposito',
+    comprobante_ruta: ruta
+  })
   _toastRepa('✅ Comprobante enviado — esperando confirmación del admin', '#22c55e')
 }
 
