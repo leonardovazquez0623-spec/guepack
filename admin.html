@@ -6071,32 +6071,43 @@ async function eliminarCliente(userId) {
     overlay.remove()
 
     try {
-      const { data: pedidos } = await db.from('pedidos').select('id').eq('user_id', userId)
-      const pedidoIds = (pedidos || []).map(p => p.id)
-
-      if (pedidoIds.length > 0) {
-        await db.from('paradas').delete().in('pedido_id', pedidoIds)
-        await db.from('mensajes').delete().in('pedido_id', pedidoIds)
-        await db.from('calificaciones').delete().in('pedido_id', pedidoIds)
+      const { data: { session }, error: errorSesion } = await db.auth.getSession()
+      if (errorSesion || !session?.access_token) {
+        console.error(
+          'No hay una sesión administrativa válida para eliminar la cuenta',
+          errorSesion || ''
+        )
+        showToast('❌ Tu sesión no es válida, inicia sesión nuevamente')
+        return
       }
 
-      await db.from('pedidos').delete().eq('user_id', userId)
-      await db.from('referidos').delete().eq('user_id_referido', userId)
-      await db.from('eventos_trafico').delete().eq('user_id', userId)
-
-      const { error } = await db.from('usuarios').delete().eq('user_id', userId)
-      if (error) { showToast('❌ Error al eliminar: ' + error.message); return }
-
-      console.log('[eliminar] user_id a eliminar:', userId)
       const authRes = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/eliminar-usuario', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
         body: JSON.stringify({ user_id: userId })
       })
       const authJson = await authRes.json()
-      if (!authJson.success && authJson.error !== 'User not found') {
-        console.error('[eliminarCliente] error en auth.users:', authJson.error)
-        showToast('⚠️ Datos eliminados, pero falló auth: ' + (authJson.error || 'error desconocido'))
+
+      if (!authRes.ok || !authJson.success) {
+        if (authJson.cuenta_auth_eliminada === true) {
+          console.error(
+            'La cuenta de Authentication fue eliminada, pero quedaron datos relacionados:',
+            authJson.error
+          )
+          showToast('⚠️ Cuenta desactivada, pero quedan datos por limpiar manualmente')
+          cargarClientes()
+          return
+        }
+
+        console.error(
+          'No se pudo eliminar la cuenta:',
+          authJson.error || authRes.status
+        )
+        showToast('❌ ' + (authJson.error || 'No se pudo eliminar la cuenta'))
+        return
       }
 
       delete _clientesMap[userId]
