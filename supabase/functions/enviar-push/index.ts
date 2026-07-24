@@ -33,6 +33,12 @@ const tiposUsuario = new Set([
   'asignacion_liberada'
 ])
 
+const tiposAdmin = new Set([
+  'pedido_disponible_admin',
+  'pedido_sin_asignar_admin',
+  'notificacion_masiva_clientes'
+])
+
 const tiposInternos = new Set([
   'interno_pedido_disponible',
   'interno_pedido_sin_asignar',
@@ -197,6 +203,51 @@ async function obtenerRepartidorAutenticado(
   return repartidor || null
 }
 
+async function obtenerUsuariosRepartidoresDisponibles(
+  supabaseAdmin: any,
+  tenantId: number
+) {
+  const { data: repartidores, error: errorRepartidores } = await supabaseAdmin
+    .from('repartidores')
+    .select('email')
+    .eq('disponible', true)
+    .eq('tenant_id', tenantId)
+
+  if (errorRepartidores) {
+    throw new Error(
+      'No fue posible consultar los repartidores disponibles: ' +
+      errorRepartidores.message
+    )
+  }
+
+  const correos = [...new Set(
+    (repartidores || [])
+      .map((repartidor: any) => repartidor.email)
+      .filter(Boolean)
+  )]
+
+  if (!correos.length) return []
+
+  const { data: usuarios, error: errorUsuarios } = await supabaseAdmin
+    .from('usuarios')
+    .select('user_id')
+    .in('email', correos)
+    .eq('tenant_id', tenantId)
+
+  if (errorUsuarios) {
+    throw new Error(
+      'No fue posible consultar los usuarios repartidores: ' +
+      errorUsuarios.message
+    )
+  }
+
+  return [...new Set(
+    (usuarios || [])
+      .map((usuario: any) => usuario.user_id)
+      .filter(Boolean)
+  )] as string[]
+}
+
 async function enviarAUsuarios(
   supabaseAdmin: any,
   usuarios: string[],
@@ -301,6 +352,7 @@ Deno.serve(async (req) => {
   const usaClaveServicio = clavesServicio.includes(tokenJwt)
   const supabaseAdmin = createClient(supabaseUrl, claveServicio)
   let usuarioAutenticado: any = null
+  let perfilAdministrador: any = null
 
   if (usaClaveServicio) {
     if (!tiposInternos.has(tipoNotificacion)) {
@@ -311,7 +363,11 @@ Deno.serve(async (req) => {
       )
     }
   } else {
-    if (!tiposUsuario.has(tipoNotificacion)) {
+    const tipoPermitidoParaUsuario =
+      tiposUsuario.has(tipoNotificacion) ||
+      tiposAdmin.has(tipoNotificacion)
+
+    if (!tipoPermitidoParaUsuario) {
       return respuestaJson(
         req,
         { error: 'Tipo de notificación no permitido para usuarios' },
@@ -325,6 +381,36 @@ Deno.serve(async (req) => {
       return respuestaJson(req, { error: 'Token inválido' }, 401)
     }
     usuarioAutenticado = user
+
+    if (tiposAdmin.has(tipoNotificacion)) {
+      const { data: perfil, error: errorPerfil } = await supabaseAdmin
+        .from('usuarios')
+        .select('rol, tenant_id, es_superadmin')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (errorPerfil) {
+        console.error(
+          '[enviar-push] No se pudo consultar el perfil administrativo:',
+          errorPerfil
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudo validar el perfil administrativo' },
+          500
+        )
+      }
+
+      if (perfil?.rol !== 'admin') {
+        return respuestaJson(
+          req,
+          { error: 'Esta operación requiere permisos de administrador' },
+          403
+        )
+      }
+
+      perfilAdministrador = perfil
+    }
   }
 
   try {
@@ -500,27 +586,236 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (!pedido) return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
 
-      const { data: repartidores } = await supabaseAdmin
-        .from('repartidores')
-        .select('email')
-        .eq('disponible', true)
-        .eq('tenant_id', pedido.tenant_id)
-      const correos = (repartidores || [])
-        .map((repartidor: any) => repartidor.email)
-        .filter(Boolean)
-      if (correos.length) {
-        const { data: usuarios } = await supabaseAdmin
-          .from('usuarios')
-          .select('user_id')
-          .in('email', correos)
-          .eq('tenant_id', pedido.tenant_id)
-        destinatarios = (usuarios || []).map(
-          (usuario: any) => usuario.user_id
-        )
-      }
+      destinatarios = await obtenerUsuariosRepartidoresDisponibles(
+        supabaseAdmin,
+        pedido.tenant_id
+      )
       titulo = '📦 Nuevo pedido disponible'
       cuerpo = `GK-${pedido.id} · ${pedido.direccion_recoleccion || ''}`
       tipoFirebase = 'pedido'
+    }
+
+    if (tipoNotificacion === 'pedido_disponible_admin') {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+
+      const { data: pedido, error: errorPedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, tenant_id, direccion_recoleccion')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+
+      if (errorPedido) {
+        console.error(
+          '[enviar-push] No se pudo consultar el pedido:',
+          errorPedido
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudo consultar el pedido' },
+          500
+        )
+      }
+
+      if (!pedido) {
+        return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
+      }
+
+      const administraTenant =
+        perfilAdministrador?.es_superadmin === true ||
+        (
+          perfilAdministrador?.tenant_id != null &&
+          perfilAdministrador.tenant_id === pedido.tenant_id
+        )
+
+      if (!administraTenant) {
+        return respuestaJson(
+          req,
+          { error: 'No tienes permiso para administrar este pedido' },
+          403
+        )
+      }
+
+      destinatarios = await obtenerUsuariosRepartidoresDisponibles(
+        supabaseAdmin,
+        pedido.tenant_id
+      )
+      titulo = '📦 Nuevo pedido disponible'
+      cuerpo = `GK-${pedido.id} · ${
+        pedido.direccion_recoleccion || 'Consulta los detalles del pedido'
+      }`
+      tipoFirebase = 'pedido'
+    }
+
+    if (tipoNotificacion === 'pedido_sin_asignar_admin') {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+
+      const { data: pedido, error: errorPedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, tenant_id')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+
+      if (errorPedido) {
+        console.error(
+          '[enviar-push] No se pudo consultar el pedido:',
+          errorPedido
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudo consultar el pedido' },
+          500
+        )
+      }
+
+      if (!pedido) {
+        return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
+      }
+
+      const administraTenant =
+        perfilAdministrador?.es_superadmin === true ||
+        (
+          perfilAdministrador?.tenant_id != null &&
+          perfilAdministrador.tenant_id === pedido.tenant_id
+        )
+
+      if (!administraTenant) {
+        return respuestaJson(
+          req,
+          { error: 'No tienes permiso para administrar este pedido' },
+          403
+        )
+      }
+
+      destinatarios = [usuarioAutenticado.id]
+      titulo = `⚠️ Pedido GK-${pedido.id} sin asignar`
+      cuerpo = 'Revisión manual requerida — sin repartidores disponibles'
+      tipoFirebase = 'admin'
+    }
+
+    if (tipoNotificacion === 'notificacion_masiva_clientes') {
+      const clienteIdsOriginales = solicitud.cliente_ids
+      const tituloSolicitado =
+        typeof solicitud.titulo === 'string'
+          ? solicitud.titulo.trim()
+          : ''
+      const mensajeSolicitado =
+        typeof solicitud.mensaje === 'string'
+          ? solicitud.mensaje.trim()
+          : ''
+
+      if (
+        !Array.isArray(clienteIdsOriginales) ||
+        !clienteIdsOriginales.length
+      ) {
+        return respuestaJson(
+          req,
+          { error: 'Debes seleccionar al menos un cliente' },
+          400
+        )
+      }
+
+      const clienteIds = [...new Set(clienteIdsOriginales)]
+
+      if (
+        clienteIds.some(
+          (id: unknown) => typeof id !== 'string' || !id.trim()
+        )
+      ) {
+        return respuestaJson(
+          req,
+          {
+            error: 'La lista de clientes contiene identificadores no válidos'
+          },
+          400
+        )
+      }
+
+      if (!tituloSolicitado || tituloSolicitado.length > 100) {
+        return respuestaJson(
+          req,
+          { error: 'El título debe contener entre 1 y 100 caracteres' },
+          400
+        )
+      }
+
+      if (!mensajeSolicitado || mensajeSolicitado.length > 500) {
+        return respuestaJson(
+          req,
+          { error: 'El mensaje debe contener entre 1 y 500 caracteres' },
+          400
+        )
+      }
+
+      if (
+        /[<>]/.test(tituloSolicitado) ||
+        /[<>]/.test(mensajeSolicitado)
+      ) {
+        return respuestaJson(
+          req,
+          { error: 'El título y el mensaje deben ser texto plano, sin HTML' },
+          400
+        )
+      }
+
+      const { data: clientes, error: errorClientes } = await supabaseAdmin
+        .from('usuarios')
+        .select('user_id, rol, tenant_id')
+        .in('user_id', clienteIds)
+
+      if (errorClientes) {
+        console.error(
+          '[enviar-push] No se pudieron validar los clientes:',
+          errorClientes
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudieron validar los destinatarios' },
+          500
+        )
+      }
+
+      if ((clientes || []).length !== clienteIds.length) {
+        return respuestaJson(
+          req,
+          { error: 'Uno o más clientes no existen' },
+          400
+        )
+      }
+
+      if (
+        (clientes || []).some(
+          (cliente: any) => cliente.rol !== 'cliente'
+        )
+      ) {
+        return respuestaJson(
+          req,
+          { error: 'La lista contiene usuarios que no son clientes' },
+          400
+        )
+      }
+
+      if (
+        perfilAdministrador?.es_superadmin !== true &&
+        (clientes || []).some(
+          (cliente: any) =>
+            cliente.tenant_id !== perfilAdministrador?.tenant_id
+        )
+      ) {
+        return respuestaJson(
+          req,
+          { error: 'Uno o más clientes pertenecen a otro tenant' },
+          403
+        )
+      }
+
+      destinatarios = clienteIds as string[]
+      titulo = tituloSolicitado
+      cuerpo = mensajeSolicitado
+      tipoFirebase = 'admin'
     }
 
     if (tipoNotificacion === 'interno_pedido_sin_asignar') {
