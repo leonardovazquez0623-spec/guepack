@@ -6967,7 +6967,7 @@ function _escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
 
-function _crearGuepAutocomplete(input, { onSelect } = {}) {
+function _crearGuepAutocomplete(input, { onSelect, onInput } = {}) {
   const _tag = '[guepAC:' + (input.id || input.name || '?') + ']'
   console.log(_tag, 'init — AutocompleteSuggestion disponible:', !!window.google?.maps?.places?.AutocompleteSuggestion)
   if (!window.google?.maps?.places?.AutocompleteSuggestion) { console.warn(_tag, 'SALIENDO — AutocompleteSuggestion no existe'); return }
@@ -6980,6 +6980,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
   let _drop   = null
   let _sugs   = []
   let _activo = -1
+  let _busquedaActual = 0
 
   function _crearDrop() {
     if (_drop) return
@@ -7063,7 +7064,7 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
     if (onSelect) onSelect(legacy)
   }
 
-  async function _buscar(val) {
+  async function _buscar(val, numeroBusqueda) {
     console.log(_tag, '(b) _buscar llamado con val=', JSON.stringify(val))
     if (!val || val.length < 3) { _cerrar(); return }
     try {
@@ -7079,14 +7080,27 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
       console.log(_tag, 'locationBias:', req.locationBias, '— llamando fetchAutocompleteSuggestions')
       const { suggestions } = await google.maps.places.AutocompleteSuggestion
         .fetchAutocompleteSuggestions(req)
+      if (
+        numeroBusqueda !== _busquedaActual ||
+        input.value.trim() !== val
+      ) return
       _renderizar(suggestions || [])
-    } catch(e) { console.error(_tag, 'fetchAutocompleteSuggestions ERROR:', e); _cerrar() }
+    } catch(e) {
+      console.error(_tag, 'fetchAutocompleteSuggestions ERROR:', e)
+      if (numeroBusqueda === _busquedaActual) _cerrar()
+    }
   }
 
   input.addEventListener('input', () => {
     console.log(_tag, '(a) evento input — valor actual:', JSON.stringify(input.value))
     clearTimeout(_timer)
-    _timer = setTimeout(() => _buscar(input.value.trim()), 300)
+    _busquedaActual += 1
+    if (onInput) onInput(input.value)
+    const numeroBusqueda = _busquedaActual
+    _timer = setTimeout(
+      () => _buscar(input.value.trim(), numeroBusqueda),
+      300
+    )
   })
 
   input.addEventListener('keydown', e => {
@@ -7104,7 +7118,23 @@ function _crearGuepAutocomplete(input, { onSelect } = {}) {
     }
   })
 
-  input.addEventListener('blur', () => { setTimeout(_cerrar, 150) })
+  document.addEventListener('focusin', evento => {
+    const objetivo = evento.target
+    if (!(objetivo instanceof HTMLElement)) return
+    if (objetivo === input || _drop?.contains(objetivo)) return
+    if (objetivo.matches('input, select, textarea, [contenteditable="true"]')) {
+      _cerrar()
+    }
+  })
+  document.addEventListener('keydown', evento => {
+    if (
+      evento.key === 'Escape' &&
+      _drop &&
+      _drop.style.display !== 'none'
+    ) {
+      _cerrar()
+    }
+  })
   window.addEventListener('scroll', _posicionar, { passive: true })
   window.addEventListener('resize', _posicionar, { passive: true })
 }
@@ -7118,6 +7148,11 @@ function _initAutocompleteDirecciones() {
   if (!inputRec || !inputEnt || inputRec.dataset.acAttached) return
 
   _crearGuepAutocomplete(inputRec, {
+    onInput: () => {
+      _latRecoleccion = null
+      _lngRecoleccion = null
+      setTimeout(_actualizarMapaWizard, 50)
+    },
     onSelect: async (place) => {
       _latRecoleccion = place.geometry.location.lat()
       _lngRecoleccion = place.geometry.location.lng()
@@ -7132,6 +7167,12 @@ function _initAutocompleteDirecciones() {
   })
 
   _crearGuepAutocomplete(inputEnt, {
+    onInput: () => {
+      _entregaPlace = null
+      _latEntrega = null
+      _lngEntrega = null
+      setTimeout(_actualizarMapaWizard, 50)
+    },
     onSelect: async (place) => {
       _entregaPlace = place
       _latEntrega   = place.geometry.location.lat()
@@ -7152,6 +7193,11 @@ function _attachAutocompletePararadas() {
     const idx = parseInt(inp.id.replace('parada-dir-', ''), 10)
     if (isNaN(idx)) return
     _crearGuepAutocomplete(inp, {
+      onInput: () => {
+        if (!_paradasList[idx]) return
+        _paradasList[idx].lat = null
+        _paradasList[idx].lng = null
+      },
       onSelect: (place) => {
         const dir = place.formatted_address
         if (!dir || !_paradasList[idx]) return

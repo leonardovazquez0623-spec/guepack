@@ -420,6 +420,7 @@ async function nacConfirmarEnvioFinal() {
 
 let _nacCpDrop     = null  // div singleton (reutilizado entre los dos CP)
 let _nacCpDropTipo = null  // 'origen' | 'destino' — cuál está activo
+let _nacCpEventosGlobalesListos = false
 
 function _nacStatusEl(tipo) {
   return document.getElementById('nac-' + tipo + '-cp-status')
@@ -515,6 +516,7 @@ async function _nacConsultarColonias(cp, tipo) {
       body:    JSON.stringify({ cp }),
     })
     const data = await res.json()
+    if (inputEl.value.trim() !== cp) return
     if (!res.ok || !data.colonias?.length) {
       if (statusEl) statusEl.innerHTML = `<div style="font-size:11px;color:#ef4444;font-weight:600;margin-top:5px;font-family:Montserrat,sans-serif">CP no encontrado, verifica que esté bien escrito</div>`
       return
@@ -528,6 +530,34 @@ async function _nacConsultarColonias(cp, tipo) {
 }
 
 function nacIniciarCpListeners() {
+  if (!_nacCpEventosGlobalesListos) {
+    _nacCpEventosGlobalesListos = true
+
+    document.addEventListener('focusin', evento => {
+      if (!_nacCpDropTipo) return
+      const objetivo = evento.target
+      if (!(objetivo instanceof HTMLElement)) return
+      if (_nacCpDrop?.contains(objetivo)) return
+
+      const inputActivo = document.getElementById(
+        _nacCpDropTipo === 'origen'
+          ? 'nac-cp-origen'
+          : 'nac-cp-destino'
+      )
+      if (objetivo === inputActivo) return
+
+      if (objetivo.matches('input, select, textarea, [contenteditable="true"]')) {
+        _nacCerrarDrop()
+      }
+    })
+
+    document.addEventListener('keydown', evento => {
+      if (evento.key === 'Escape' && _nacCpDropTipo) {
+        _nacCerrarDrop()
+      }
+    })
+  }
+
   ;[['nac-cp-origen', 'origen'], ['nac-cp-destino', 'destino']].forEach(([inputId, tipo]) => {
     const input = document.getElementById(inputId)
     if (!input || input.dataset.cpListenerAttached) return
@@ -550,7 +580,6 @@ function nacIniciarCpListeners() {
         _timer = setTimeout(() => _nacConsultarColonias(val, tipo), 400)
       }
     })
-    input.addEventListener('blur', () => setTimeout(_nacCerrarDrop, 150))
   })
 }
 
