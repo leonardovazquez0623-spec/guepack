@@ -2958,7 +2958,7 @@ function _mostrarDesglose() {
   document.body.appendChild(overlay)
 }
 
-function selectMetodoPago(mp) {
+async function selectMetodoPago(mp) {
   selMetodoPago = mp;
   document.querySelectorAll('.mp-option').forEach(o => o.classList.remove('selected'));
   const idSuffix = mp === 'Crédito' ? 'credito' : mp
@@ -2968,20 +2968,74 @@ function selectMetodoPago(mp) {
   if (dtEl) dtEl.style.display = mp === 'transferencia' ? 'block' : 'none';
   const hintEl = document.getElementById('hint-tarjeta')
   if (hintEl) hintEl.style.display = mp === 'tarjeta' ? 'block' : 'none';
+
+  if (mp === 'transferencia') {
+    await _cargarDatosBancariosTransferencia()
+  }
 }
 
-function _aplicarDatosBancariosTenant(tenant) {
-  if (!tenant) return
+let _datosBancariosTenant = null
+let _promesaDatosBancariosTenant = null
+
+async function _obtenerDatosBancariosTenant() {
+  if (_datosBancariosTenant) return _datosBancariosTenant
+  if (_promesaDatosBancariosTenant) return _promesaDatosBancariosTenant
+
+  _promesaDatosBancariosTenant = (async () => {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) {
+      throw new Error('No hay una sesión activa para consultar los datos bancarios')
+    }
+
+    const { data, error } = await db.rpc('obtener_datos_bancarios_tenant')
+    if (error) throw error
+
+    const datos = Array.isArray(data) ? data[0] : data
+    if (!datos) {
+      throw new Error('No hay datos bancarios configurados para tu tenant')
+    }
+
+    _datosBancariosTenant = datos
+    return datos
+  })()
+
+  try {
+    return await _promesaDatosBancariosTenant
+  } finally {
+    _promesaDatosBancariosTenant = null
+  }
+}
+
+function _aplicarDatosBancariosTransferencia(datos) {
   const banco = document.getElementById('transferencia-banco')
   const clabe = document.getElementById('transferencia-clabe')
   const titular = document.getElementById('transferencia-titular')
-  if (banco) banco.textContent = tenant.banco_nombre || 'No configurado'
-  if (clabe) clabe.textContent = tenant.banco_clabe || 'No configurada'
-  if (titular) titular.textContent = tenant.banco_titular || 'No configurado'
+  if (banco) banco.textContent = datos?.banco_nombre || 'No configurado'
+  if (clabe) clabe.textContent = datos?.banco_clabe || 'No configurada'
+  if (titular) titular.textContent = datos?.banco_titular || 'No configurado'
 }
 
-window.addEventListener('tenant-config-aplicada', evento => _aplicarDatosBancariosTenant(evento.detail))
-window.tenantConfigReady?.then(_aplicarDatosBancariosTenant)
+async function _cargarDatosBancariosTransferencia() {
+  if (!_datosBancariosTenant) {
+    _aplicarDatosBancariosTransferencia({
+      banco_nombre: 'Cargando...',
+      banco_clabe: 'Cargando...',
+      banco_titular: 'Cargando...'
+    })
+  }
+
+  try {
+    const datos = await _obtenerDatosBancariosTenant()
+    _aplicarDatosBancariosTransferencia(datos)
+  } catch (error) {
+    console.error(
+      'No fue posible cargar los datos bancarios del tenant:',
+      error?.message || error
+    )
+    _aplicarDatosBancariosTransferencia(null)
+    mostrarToast('No fue posible cargar los datos bancarios', '#c24155')
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('guepack_actualizada')) {
@@ -3032,9 +3086,9 @@ document.addEventListener('DOMContentLoaded', () => {
       mostrarToast('⚠️ El pago no fue completado. Puedes intentarlo de nuevo.', 'var(--orange)')
     }
   }
-  // ── Retorno desde checkout de Mercado Pago (pedidos locales) ────────────
-  const _pedidoIdMP = _params.get('pedido_id')
-  if (_pago && _pedidoIdMP) {
+  // ── Retorno desde checkout de pago para pedidos locales ─────────────────
+  const _pedidoIdPago = _params.get('pedido_id')
+  if (_pago && _pedidoIdPago) {
     history.replaceState({}, '', window.location.pathname)
     if (_pago === 'exitoso') {
       mostrarToast('✅ ¡Pago recibido! Tu pedido está siendo procesado.', '#22c55e')

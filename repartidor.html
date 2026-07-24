@@ -829,28 +829,11 @@ async function _aceptarPedido(pedidoId) {
   clearInterval(_modalCountdownTimer)
   if (!_repaData) return
   console.log('[aceptar] pedidoId:', pedidoId)
-  console.log('[aceptar] nombre repartidor (_repaData.nombre):', _repaData.nombre)
-  console.log('[aceptar] _repaData completo:', _repaData)
-  // Calcular ganancia basada en la config del repartidor y km del pedido
-  const { data: pedidoData } = await db.from('pedidos').select('km_recorridos, precio, zona').eq('id', pedidoId).single()
-  const kmPedido       = Number(pedidoData?.km_recorridos) || 0
-  const esTarifaDiaria = (pedidoData?.zona || '').includes('Tarifa diaria')
-  const gananciaBase   = Number(_repaData.ganancia_base)          || 20
-  const gananciaPorKm  = Number(_repaData.ganancia_por_km)        || 5
-  const gananciaDiaria = Number(_repaData.ganancia_tarifa_diaria) || 40
-  let gananciaRepartidor = 0
-  if (esTarifaDiaria) {
-    gananciaRepartidor = Math.round(Number(pedidoData?.precio || 0) * gananciaDiaria / 100)
-  } else {
-    gananciaRepartidor = Math.round(gananciaBase + (kmPedido * gananciaPorKm))
-  }
 
   const { data: filasAfectadas, error } = await db.rpc('aceptar_pedido_atomico', {
-    p_pedido_id: pedidoId,
-    p_repartidor_nombre: _repaData.nombre,
-    p_ganancia_repartidor: gananciaRepartidor
+    p_pedido_id: pedidoId
   })
-  console.log('[aceptar] resultado RPC — filas:', filasAfectadas, '| error:', error, '| ganancia:', gananciaRepartidor)
+  console.log('[aceptar] resultado RPC — filas:', filasAfectadas, '| error:', error)
   document.getElementById('modal-nuevo-pedido')?.remove()
   if (error) {
     _toastRepa('No se pudo aceptar el pedido. Intenta de nuevo.', '#ef4444')
@@ -1277,25 +1260,71 @@ function _cargarMenuLateral() {
   }
   _cargarCalificacion()
   _cargarGanancias(_repaData.nombre)
-  _renderEfectivoDrawer()
+  void _renderEfectivoDrawer()
   _renderProgresoDrawer()
 }
 
-function _renderEfectivoDrawer() {
+let _datosBancariosRepartidor = null
+let _promesaDatosBancariosRepartidor = null
+
+async function _obtenerDatosBancariosRepartidor() {
+  if (_datosBancariosRepartidor) return _datosBancariosRepartidor
+  if (_promesaDatosBancariosRepartidor) return _promesaDatosBancariosRepartidor
+
+  _promesaDatosBancariosRepartidor = (async () => {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) {
+      throw new Error('No hay una sesión activa para consultar los datos bancarios')
+    }
+
+    const { data, error } = await db.rpc('obtener_datos_bancarios_tenant')
+    if (error) throw error
+
+    const datos = Array.isArray(data) ? data[0] : data
+    if (!datos) {
+      throw new Error('No hay datos bancarios configurados para tu tenant')
+    }
+
+    _datosBancariosRepartidor = datos
+    return datos
+  })()
+
+  try {
+    return await _promesaDatosBancariosRepartidor
+  } finally {
+    _promesaDatosBancariosRepartidor = null
+  }
+}
+
+async function _renderEfectivoDrawer() {
   const cont = document.getElementById('drawer-efectivo-body')
   if (!cont || !_repaData) return
-  let tenant = window.tenantConfig || null
-  if (!tenant) {
-    try {
-      tenant = JSON.parse(sessionStorage.getItem('tenant_config') || 'null')
-    } catch (_) {}
-  }
-  const escaparDato = valor => String(valor || '').replace(/[&<>"']/g, caracter => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caracter])
-  const bancoNombre = escaparDato(tenant?.banco_nombre || 'No configurado')
-  const bancoClabe = escaparDato(tenant?.banco_clabe || 'No configurada')
-  const bancoTitular = escaparDato(tenant?.banco_titular || 'No configurado')
+
   const acum = Number(_repaData.efectivo_acumulado) || 0
   const bloqueado = _repaData.bloqueado_efectivo === true || acum >= 300
+  let datosBancarios = null
+
+  if (bloqueado) {
+    cont.innerHTML = `
+      <div style="padding:16px;text-align:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#64748b">
+        Cargando datos para depósito...
+      </div>
+    `
+
+    try {
+      datosBancarios = await _obtenerDatosBancariosRepartidor()
+    } catch (error) {
+      console.error(
+        'No fue posible cargar los datos bancarios para depósito:',
+        error?.message || error
+      )
+    }
+  }
+
+  const escaparDato = valor => String(valor || '').replace(/[&<>"']/g, caracter => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[caracter])
+  const bancoNombre = escaparDato(datosBancarios?.banco_nombre || 'No configurado')
+  const bancoClabe = escaparDato(datosBancarios?.banco_clabe || 'No configurada')
+  const bancoTitular = escaparDato(datosBancarios?.banco_titular || 'No configurado')
   const pct = Math.min((acum / 300) * 100, 100)
   const barColor = pct >= 100 ? '#ef4444' : pct >= 50 ? '#f59e0b' : '#22c55e'
   cont.innerHTML = `
@@ -1338,10 +1367,6 @@ function _renderEfectivoDrawer() {
     ` : ''}
   `
 }
-
-window.addEventListener('tenant-config-aplicada', () => {
-  if (_repaData) _renderEfectivoDrawer()
-})
 
 function _renderProgresoDrawer() {
   const cont = document.getElementById('drawer-progreso-body')

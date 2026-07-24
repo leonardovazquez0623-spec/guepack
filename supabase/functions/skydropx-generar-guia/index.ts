@@ -134,7 +134,43 @@ serve(async (req) => {
       return json({ error: "Falta la cotización o la tarifa seleccionada" }, 400);
     }
 
-    const token = await getSkydropxToken(supabaseAdmin);
+    const estadoAnterior = envio.estado;
+    const { data: reservaGuia, error: errorReserva } = await supabaseAdmin
+      .from("envios_nacionales")
+      .update({ estado: "generando_guia" })
+      .eq("id", envio_id)
+      .neq("estado", "generando_guia")
+      .is("numero_guia", null)
+      .select("id")
+      .maybeSingle();
+
+    if (errorReserva) {
+      console.error("[skydropx-generar-guia] No se pudo reservar la generación de guía:", errorReserva.message);
+      return json({ error: "No se pudo iniciar la generación de la guía" }, 500);
+    }
+
+    if (!reservaGuia) {
+      return json({
+        error: "Ya hay una generación de guía en curso para este envío, intenta de nuevo en unos segundos",
+      }, 409);
+    }
+
+    const liberarReservaGuia = async (motivo: string) => {
+      const { error: errorLiberarReserva } = await supabaseAdmin
+        .from("envios_nacionales")
+        .update({ estado: estadoAnterior })
+        .eq("id", envio_id)
+        .eq("estado", "generando_guia")
+        .is("numero_guia", null);
+
+      if (errorLiberarReserva) {
+        console.error(
+          `[skydropx-generar-guia] No se pudo liberar la reserva ${motivo}:`,
+          errorLiberarReserva.message,
+        );
+      }
+    };
+
     const host = skydropxHost();
 
     // 2. Crea el envío (guía) en Skydropx
@@ -142,6 +178,7 @@ serve(async (req) => {
       shipment: {
         quotation_id: envio.skydropx_quotation_id,
         rate_id: envio.skydropx_rate_id,
+        unique_shipment: true,
         address_from: {
           name: envio.origen_nombre,
           street1: envio.origen_calle,
@@ -179,21 +216,49 @@ serve(async (req) => {
       },
     };
 
-    const res = await fetch(`${host}/api/v1/shipments`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(shipmentPayload),
-    });
+    let token: string;
+    let res: Response;
+    try {
+      token = await getSkydropxToken(supabaseAdmin);
+      res = await fetch(`${host}/api/v1/shipments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(shipmentPayload),
+      });
+    } catch (e: any) {
+      await liberarReservaGuia("después de un error de conexión con Skydropx");
+      return json({
+        error: "No fue posible comunicarse con Skydropx",
+        detail: e.message,
+      }, 502);
+    }
 
     if (!res.ok) {
       const errText = await res.text();
+      await liberarReservaGuia("después del rechazo de Skydropx");
+
+      if (res.status === 409) {
+        return json({
+          error: "Ya hay una generación de guía en curso para este envío, intenta de nuevo en unos segundos",
+        }, 409);
+      }
+
       return json({ error: "Skydropx rechazó la creación del envío", detail: errText }, 502);
     }
 
-    const shipment = await res.json();
+    let shipment: any;
+    try {
+      shipment = await res.json();
+    } catch (e: any) {
+      await liberarReservaGuia("después de recibir una respuesta inválida de Skydropx");
+      return json({
+        error: "Skydropx respondió sin datos válidos de la guía",
+        detail: e.message,
+      }, 502);
+    }
     const data = shipment.data ?? shipment;
 
     // 3. Guarda todo en Supabase
@@ -208,7 +273,37 @@ serve(async (req) => {
       })
       .eq("id", envio_id);
 
-    if (updateErr) return json({ error: "Guía creada pero falló guardar en BD", detail: updateErr.message }, 500);
+    if (updateErr) {
+      const numeroGuiaGenerada = data.tracking_number ?? data.attributes?.tracking_number;
+      const idEnvioSkydropx = data.id;
+      const detalleError =
+        `Guía creada en Skydropx pero no guardada localmente. ` +
+        `numero_guia=${numeroGuiaGenerada ?? "no devuelto"}, ` +
+        `skydropx_shipment_id=${idEnvioSkydropx ?? "no devuelto"}, ` +
+        `motivo=${updateErr.message}`;
+
+      console.error("[skydropx-generar-guia]", detalleError);
+
+      const { error: errorMarcarRevision } = await supabaseAdmin
+        .from("envios_nacionales")
+        .update({
+          estado: "guia_generada_pendiente_guardado",
+          error_generacion_guia: detalleError,
+        })
+        .eq("id", envio_id)
+        .eq("estado", "generando_guia");
+
+      if (errorMarcarRevision) {
+        console.error(
+          "[skydropx-generar-guia] Tampoco fue posible marcar el envío para revisión manual:",
+          errorMarcarRevision.message,
+        );
+      }
+
+      return json({
+        error: "La guía fue creada, pero no se pudo guardar localmente. Se requiere revisión manual.",
+      }, 500);
+    }
 
     let recoleccionPendienteManual = false;
 

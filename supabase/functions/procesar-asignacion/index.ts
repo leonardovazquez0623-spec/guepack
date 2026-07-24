@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     // ── 1. Verificar si ya fue aceptado ─────────────────────────────────────────
     const { data: pedido, error: pedErr } = await supabase
       .from('pedidos')
-      .select('id, user_id, repartidor, estado, metodo_pago, pago_verificado, direccion_recoleccion')
+      .select('id, user_id, tenant_id, repartidor, estado, metodo_pago, pago_verificado, direccion_recoleccion')
       .eq('id', pedido_id)
       .single()
 
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     if (!usaClaveServicio && usuarioAutenticado) {
       const { data: perfilUsuario, error: errorPerfil } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('rol, tenant_id, es_superadmin')
         .eq('user_id', usuarioAutenticado.id)
         .maybeSingle()
 
@@ -106,7 +106,9 @@ Deno.serve(async (req) => {
         })
       }
 
-      const esAdministrador = perfilUsuario?.rol === 'admin'
+      const esAdministrador = perfilUsuario?.rol === 'admin' &&
+        (perfilUsuario.tenant_id === pedido.tenant_id ||
+          perfilUsuario.es_superadmin === true)
       const esPropietario = pedido.user_id === usuarioAutenticado.id
 
       if (!esAdministrador && !esPropietario) {
@@ -171,12 +173,13 @@ Deno.serve(async (req) => {
       .from('repartidores')
       .select('email, nombre')
       .eq('disponible', true)
+      .eq('tenant_id', pedido.tenant_id)
     console.log(`[procesar-asignacion] repartidores disponibles: ${repas?.length ?? 0}`)
     console.log('[procesar] repartidores disponibles:', repas?.length, repas)
 
     if (!repas?.length) {
       console.log('[procesar-asignacion] sin repartidores — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id, pedido.tenant_id)
       return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
@@ -190,6 +193,7 @@ Deno.serve(async (req) => {
       .from('usuarios')
       .select('user_id, email')
       .in('email', emails)
+      .eq('tenant_id', pedido.tenant_id)
 
     if (usersErr) console.error('[procesar-asignacion] error query usuarios:', usersErr.message)
     const usersConId = (users || []).filter((u: any) => u.user_id)
@@ -247,7 +251,7 @@ Deno.serve(async (req) => {
       console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
     } else {
       console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
+      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id, pedido.tenant_id)
     }
 
     return new Response(
@@ -263,11 +267,18 @@ Deno.serve(async (req) => {
   }
 })
 
-async function _notificarAdmins(supabase: any, supabaseUrl: string, serviceKey: string, pedidoId: number) {
+async function _notificarAdmins(
+  supabase: any,
+  supabaseUrl: string,
+  serviceKey: string,
+  pedidoId: number,
+  tenantId: number | null
+) {
   const { data: admins, error: admErr } = await supabase
     .from('usuarios')
     .select('user_id')
     .eq('rol', 'admin')
+    .or(`tenant_id.eq.${tenantId},es_superadmin.eq.true`)
   if (admErr) console.error('[procesar-asignacion] error query admins:', admErr.message)
   const adminsConId = (admins || []).filter((u: any) => u.user_id)
   console.log(`[procesar-asignacion] notificando ${adminsConId.length} admins para pedido ${pedidoId}`)

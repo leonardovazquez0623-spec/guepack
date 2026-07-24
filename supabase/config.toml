@@ -432,11 +432,6 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/conekta-webhook/index.ts"
 
-[functions.mercadopago-webhook]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/mercadopago-webhook/index.ts"
-
 [functions.onboarding-tenant]
 enabled = true
 verify_jwt = true

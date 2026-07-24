@@ -166,12 +166,12 @@
   async function consultarTenant(identificador) {
     const columna = identificador.tipo === 'dominio' ? 'dominio' : 'slug'
     const consulta = new URLSearchParams({
-      select: 'id,nombre,slug,dominio,plan,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,banco_clabe,banco_nombre,banco_titular,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
+      select: 'id,nombre,slug,dominio,plan,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
       [columna]: `eq.${identificador.valor}`,
       activo: 'eq.true',
       limit: '1'
     })
-    const respuesta = await fetch(`${SUPABASE_URL_TENANT}/rest/v1/tenants?${consulta.toString()}`, {
+    const respuesta = await fetch(`${SUPABASE_URL_TENANT}/rest/v1/tenants_publico?${consulta.toString()}`, {
       headers: {
         apikey: SUPABASE_KEY_TENANT,
         Authorization: `Bearer ${SUPABASE_KEY_TENANT}`
