@@ -92,6 +92,10 @@ serve(async (req) => {
     const internalSecret = Deno.env.get("INTERNAL_FUNCTIONS_SECRET");
     const isInternal = internalSecret &&
       req.headers.get("x-internal-secret") === internalSecret;
+    let perfilAdministrador: {
+      tenant_id: number | null;
+      es_superadmin: boolean;
+    } | null = null;
 
     if (!isInternal) {
       const authHeader = req.headers.get("Authorization");
@@ -103,12 +107,22 @@ serve(async (req) => {
       const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
       if (userErr || !user) return json({ error: "No autorizado" }, 401);
 
-      const { data: perfil } = await supabaseAdmin
+      const { data: perfil, error: errorPerfil } = await supabaseAdmin
         .from("usuarios")
-        .select("rol")
+        .select("rol, tenant_id, es_superadmin")
         .eq("user_id", user.id)
         .single();
-      if (perfil?.rol !== "admin") return json({ error: "Acceso restringido a administradores" }, 403);
+      if (errorPerfil || perfil?.rol !== "admin") {
+        return json(
+          { error: "Acceso restringido a administradores" },
+          403,
+        );
+      }
+
+      perfilAdministrador = {
+        tenant_id: perfil.tenant_id,
+        es_superadmin: perfil.es_superadmin === true,
+      };
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -123,6 +137,27 @@ serve(async (req) => {
       .single();
 
     if (fetchErr || !envio) return json({ error: "Envío no encontrado" }, 404);
+
+    if (!isInternal && perfilAdministrador?.es_superadmin !== true) {
+      const { data: propietario, error: errorPropietario } =
+        await supabaseAdmin
+          .from("usuarios")
+          .select("tenant_id")
+          .eq("user_id", envio.user_id)
+          .maybeSingle();
+
+      const perteneceAlMismoTenant =
+        !errorPropietario &&
+        perfilAdministrador?.tenant_id != null &&
+        propietario?.tenant_id === perfilAdministrador.tenant_id;
+
+      if (!perteneceAlMismoTenant) {
+        return json(
+          { error: "No tienes autorización para generar la guía de este envío" },
+          403,
+        );
+      }
+    }
 
     if (!envio.pago_verificado) {
       return json({ error: "El pago aún no ha sido verificado. No se puede generar la guía." }, 409);

@@ -1829,7 +1829,7 @@ var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
 var _latRecoleccion = null, _lngRecoleccion = null
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
 var _precioGeneralTotal = null, _precioGeneralKm = null
-var _preciosGeneralesData = null, _rangosGeneralesData = null
+var _preciosGeneralesData = null, _rangosGeneralesData = null, _preciosGeneralesPromise = null
 var _limiteCiudadCoords = undefined, _cargoCancelacionPendiente = 0
 var _modoPaqueteria = null, _rangosPaqueteria = null, _paqueteriaPrecio = null, _tarifaDiariaYaCubierta = false
 // Pedidos / historial / paradas
@@ -3159,7 +3159,6 @@ function updateQuote() {
   }
   if (_empresaData) return  // corporativo sin km aún — esperar dirección
   // General: recalcular con caché; si no hay caché pero hay km, recalcular completo
-  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
   if (_precioGeneralKm != null && _preciosGeneralesData && _rangosGeneralesData) {
     _mostrarCotizacionGeneral(_precioGeneralKm, _preciosGeneralesData, _rangosGeneralesData)
   } else if (_precioGeneralKm != null) {
@@ -5207,6 +5206,8 @@ function resetForm() {
   _latRecoleccion = null
   _lngRecoleccion = null
   _precioGeneralTotal = null
+  _preciosGeneralesData = null
+  _preciosGeneralesPromise = null
   _precioGeneralKm = null
   if (_empresaData?.tipo_tarifa === 'diaria') _mostrarCotizacionDiaria()
   document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'))
@@ -7403,10 +7404,52 @@ async function _calcularPrecioGeneral() {
   _mostrarCotizacionGeneral(km, precios, rangos || [])
 }
 
+async function _asegurarPreciosGeneralesCotizacion() {
+  if (_preciosGeneralesData) return _preciosGeneralesData
+  if (!_preciosGeneralesPromise) {
+    _preciosGeneralesPromise = db
+      .from('precios_generales')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[precio] No se pudo cargar el cargo general de paquete grande:', error)
+          return null
+        }
+        if (data) _preciosGeneralesData = data
+        return data
+      })
+      .finally(() => { _preciosGeneralesPromise = null })
+  }
+  return _preciosGeneralesPromise
+}
+
+function _obtenerCargoPaqueteGrande(empresa = null) {
+  const valorEmpresa = empresa?.cargo_paquete_grande
+  if (
+    valorEmpresa != null &&
+    String(valorEmpresa).trim() !== '' &&
+    Number.isFinite(Number(valorEmpresa))
+  ) {
+    return Math.max(0, Number(valorEmpresa))
+  }
+
+  const valorGeneral = _preciosGeneralesData?.cargo_paquete_grande
+  if (
+    valorGeneral != null &&
+    String(valorGeneral).trim() !== '' &&
+    Number.isFinite(Number(valorGeneral))
+  ) {
+    return Math.max(0, Number(valorGeneral))
+  }
+
+  return 0
+}
+
 function _mostrarCotizacionGeneral(km, precios, rangos) {
   _preciosGeneralesData = precios
   _rangosGeneralesData  = rangos || []
-  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
 
   const precioKmExtra = Number(precios.precio_km_extra) || 13
   const iva           = Number(precios.iva)            || 0.16
@@ -7429,7 +7472,8 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
     }
   }
 
-  const cargoGrande = selSize === 'grande' ? 30 : 0
+  const cargoGrande = selSize === 'grande' ? _obtenerCargoPaqueteGrande() : 0
+  console.log('[precio] cargo grande aplicado:', cargoGrande > 0 ? '$' + cargoGrande : 'no aplica')
   let subtotal = precioBase + cargoGrande
 
   // Descuento VIP — solo usuarios sin cuenta corporativa, antes del IVA y del cupón
@@ -7470,7 +7514,7 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
   if (quoteDetail) {
     const lineas = ['📍 Distancia: ' + km + ' km', desgloseRango]
     if (kmExtra > 0) lineas.push('➕ Extra: ' + kmExtra.toFixed(1) + ' km × $' + precioKmExtra + ' = $' + (kmExtra * precioKmExtra).toFixed(2))
-    if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$30')
+    if (cargoGrande > 0) lineas.push('📦 Cargo paquete grande: +$' + cargoGrande.toFixed(2))
     if (linVip) lineas.push(linVip)
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
@@ -7537,16 +7581,20 @@ async function _calcularPrecioCorporativo() {
     const km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
 
     if (_empresaData?.tipo_tarifa === 'diaria') {
-      const { data: precios } = await db.from('precios_generales').select('*').limit(1).maybeSingle()
+      const precios = await _asegurarPreciosGeneralesCotizacion()
       _mostrarCotizacionDiaria(km, precios)
       return
     }
 
-    let rangos = []
-    if (_empresaData?.tipo_tarifa === 'km') {
-      const { data: r } = await db.from('rangos_precio_empresa').select('*').eq('empresa_id', _empresaData.id).order('km_desde')
-      rangos = r || []
+    const [preciosGenerales, respuestaRangos] = await Promise.all([
+      _asegurarPreciosGeneralesCotizacion(),
+      db.from('rangos_precio_empresa').select('*').eq('empresa_id', _empresaData.id).order('km_desde')
+    ])
+    if (!preciosGenerales) {
+      mostrarToast('⚠️ No hay precios generales configurados', 'var(--orange)')
+      return
     }
+    const rangos = respuestaRangos.data || []
 
     _mostrarCotizacionCorporativa(km, rangos)
   } catch (e) {
@@ -7556,7 +7604,6 @@ async function _calcularPrecioCorporativo() {
 
 function _mostrarCotizacionCorporativa(km, rangos = []) {
   _corporativoRangos = rangos
-  console.log('[precio] cargo grande aplicado:', selSize === 'grande' ? '$30' : 'no aplica')
   const e   = _empresaData
   const iva = e.iva || 0.16
 
@@ -7588,10 +7635,11 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
     desglose    = '📍 ' + km + ' km · Subtotal $' + precio_base.toFixed(2)
   }
 
-  const cargoGrande = selSize === 'grande' ? 30 : 0
+  const cargoGrande = selSize === 'grande' ? _obtenerCargoPaqueteGrande(e) : 0
+  console.log('[precio] cargo grande aplicado:', cargoGrande > 0 ? '$' + cargoGrande : 'no aplica')
   if (cargoGrande > 0) {
     precio_base += cargoGrande
-    desglose += ' · 📦 Cargo paquete grande: +$30'
+    desglose += ' · 📦 Cargo paquete grande: +$' + cargoGrande.toFixed(2)
   }
   const subtotalConIva   = Math.round(precio_base * (1 + iva) * 100) / 100
   const cargoCancelacion = _cargoCancelacionPendiente || 0
@@ -7842,6 +7890,11 @@ async function _calcularCotizacionMultiParada() {
   _zonaData = zonaFinal
   selZone = zonaFinal.nombre
 
+  const preciosGenerales = await _asegurarPreciosGeneralesCotizacion()
+  if (!preciosGenerales) {
+    mostrarToast('⚠️ No hay precios generales configurados', 'var(--orange)')
+    return
+  }
   _actualizarPrecioMultiParada(totalParadas, kmTotal, zonaFinal)
 }
 
@@ -7886,11 +7939,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
     desglose = 'Zona: ' + zona.nombre + ' | Paradas: ' + totalParadas + ' | KM totales: ' + kmTotal + ' | Total: $' + total
   }
 
-  const cargoGrandeMP = selSize === 'grande' ? 30 : 0
-  console.log('[precio] cargo grande aplicado:', cargoGrandeMP > 0 ? '$30' : 'no aplica')
+  const cargoGrandeMP = selSize === 'grande' ? _obtenerCargoPaqueteGrande(_empresaData) : 0
+  console.log('[precio] cargo grande aplicado:', cargoGrandeMP > 0 ? '$' + cargoGrandeMP : 'no aplica')
   if (cargoGrandeMP > 0) {
     total += cargoGrandeMP
-    desglose += ' | 📦 Cargo paquete grande: +$30'
+    desglose += ' | 📦 Cargo paquete grande: +$' + cargoGrandeMP.toFixed(2)
   }
   const cargoCancelacionMP = _cargoCancelacionPendiente || 0
   if (cargoCancelacionMP > 0) {

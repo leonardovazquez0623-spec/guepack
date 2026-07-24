@@ -1,5 +1,5 @@
 // supabase/functions/actualizar-config-guias/index.ts
-// Solo admins pueden cambiar los márgenes de guías nacionales.
+// Solo superadministradores pueden cambiar los márgenes globales de guías nacionales.
 
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -33,7 +33,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Auth + verificación de rol admin (mismo patrón que skydropx-generar-guia)
+    // Autenticación y verificación de superadministrador.
     const authHeader = req.headers.get("Authorization");
     const supabaseUser = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -43,12 +43,24 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
     if (userErr || !user) return json({ error: "No autorizado" }, 401);
 
-    const { data: perfil } = await supabaseAdmin
+    const { data: perfil, error: errorPerfil } = await supabaseAdmin
       .from("usuarios")
-      .select("rol")
+      .select("rol, es_superadmin")
       .eq("user_id", user.id)
       .single();
-    if (perfil?.rol !== "admin") return json({ error: "Acceso restringido a administradores" }, 403);
+    if (
+      errorPerfil ||
+      perfil?.rol !== "admin" ||
+      perfil.es_superadmin !== true
+    ) {
+      return json(
+        {
+          error:
+            "Solo un superadministrador puede modificar la configuración global de guías",
+        },
+        403,
+      );
+    }
 
     // Parseo y validación estricta
     const body = await req.json();
@@ -84,4 +96,3 @@ serve(async (req) => {
     return json({ error: e.message }, 500);
   }
 });
-

@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
         km_minimo: 5,
         precio_km_extra: 13,
         iva: 0.16,
+        cargo_paquete_grande: 30,
       })
       if (error) throw error
     }

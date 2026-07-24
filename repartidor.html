@@ -3286,6 +3286,56 @@ function _estadoRecoleccionPedido(pedido) {
   return { estado, yaRecolectado: estadosPostRecoleccion.has(estado), valido: true }
 }
 
+const _TOLERANCIA_RUTA_CERRADA_KM = 0.04
+
+function _esUltimaParadaBloqueadaPorRutaCerrada(pedido, paradas, paradaActual) {
+  if (!Array.isArray(paradas) || paradas.length < 2) return false
+
+  const ordenesValidos = paradas
+    .map(parada => Number(parada?.orden))
+    .filter(Number.isFinite)
+  if (!ordenesValidos.length) return false
+
+  const ordenActual = Number(paradaActual?.orden)
+  const ordenMaximo = Math.max(...ordenesValidos)
+  if (!Number.isFinite(ordenActual) || ordenActual !== ordenMaximo) return false
+
+  const coordenadasOriginales = [
+    pedido?.lat_recoleccion,
+    pedido?.lng_recoleccion,
+    paradaActual?.lat,
+    paradaActual?.lng
+  ]
+  const coordenadasValidas = coordenadasOriginales.every(valor =>
+    valor != null &&
+    String(valor).trim() !== '' &&
+    Number.isFinite(Number(valor))
+  )
+
+  // Sin coordenadas confiables, la ruta se trata como abierta para no bloquear entregas.
+  if (!coordenadasValidas) return false
+
+  const [
+    latRecoleccion,
+    lngRecoleccion,
+    latUltimaParada,
+    lngUltimaParada
+  ] = coordenadasOriginales.map(Number)
+
+  const distanciaRecoleccionKm = _haversine(
+    latRecoleccion,
+    lngRecoleccion,
+    latUltimaParada,
+    lngUltimaParada
+  )
+  if (distanciaRecoleccionKm > _TOLERANCIA_RUTA_CERRADA_KM) return false
+
+  return paradas.some(parada =>
+    parada.id !== paradaActual.id &&
+    parada.estado !== 'completada'
+  )
+}
+
 function _proximaParada() {
   const candidates = []
   const recoleccionesBloqueantes = []
@@ -3313,6 +3363,7 @@ function _proximaParada() {
       pars.forEach(par => {
         if (par.estado === 'completada') return  // excluir completadas
         if (par.lat == null || par.lng == null) return
+        if (_esUltimaParadaBloqueadaPorRutaCerrada(p, pars, par)) return
         candidates.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
           direccion: par.direccion, lat: par.lat, lng: par.lng, orden: par.orden })
       })
