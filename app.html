@@ -6907,8 +6907,8 @@ async function _cargarReferidosDrawer() {
   const el = document.getElementById('drawer-referidos-lista')
   if (!el) return
   const { data } = await db.from('referidos')
-    .select('referido_email, referido_nombre, estado, created_at')
-    .eq('referidor_user_id', _clienteUserId)
+    .select('id, created_at, codigo_referido, user_id_referidor, user_id_referido, estado, envios_ganados, referido_nombre')
+    .eq('user_id_referidor', _clienteUserId)
     .order('created_at', { ascending: false })
   if (!data || !data.length) {
     el.innerHTML = '<div style="color:#c0c8d8;font-family:Montserrat,sans-serif">Sin referidos aún</div>'
@@ -6917,7 +6917,7 @@ async function _cargarReferidosDrawer() {
   const col = { pendiente: '#f59e0b', aprobado: '#22c55e', rechazado: '#ef4444' }
   el.innerHTML = data.map(r => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f2f6">
-      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--color-primary-dark);font-weight:600">${r.referido_nombre || r.referido_email}</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--color-primary-dark);font-weight:600">${r.referido_nombre || 'Usuario referido'}</div>
       <div style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:20px;background:${col[r.estado] || '#888'}20;color:${col[r.estado] || '#888'};font-family:Montserrat,sans-serif">${r.estado}</div>
     </div>`).join('')
 }
