@@ -3388,7 +3388,13 @@ async function _procesarSolicitudPedido() {
   const _pv = _paradasList.filter(p => p.direccion.trim())
   const _esMultiParada = _pv.length > 0
 
-  const precioFinal = _modoPaqueteria ? _paqueteriaPrecio : _empresaData ? _corporativoPrecio : _esMultiParada ? _multiParadaPrecio : _precioGeneralTotal
+  const precioFinal = _modoPaqueteria
+    ? _paqueteriaPrecio
+    : _esMultiParada
+      ? _multiParadaPrecio
+      : _empresaData
+        ? _corporativoPrecio
+        : _precioGeneralTotal
   console.log('[validacion] precio:', precioFinal)
   console.log('[validacion] tamanio:', selSize)
   console.log('[validacion] fecha:', fecha)
@@ -3398,9 +3404,11 @@ async function _procesarSolicitudPedido() {
   console.log('[validacion] _tarifaDiariaYaCubierta:', _tarifaDiariaYaCubierta, '| _corporativoPrecio:', _corporativoPrecio, '| _empresaData:', !!_empresaData)
   const zonaOK = _modoPaqueteria
     ? _paqueteriaPrecio != null
-    : _empresaData
-      ? (_tarifaDiariaYaCubierta || _corporativoPrecio != null)
-      : _esMultiParada ? _multiParadaPrecio != null : _precioGeneralTotal != null
+    : _esMultiParada
+      ? _multiParadaPrecio != null
+      : _empresaData
+        ? (_tarifaDiariaYaCubierta || _corporativoPrecio != null)
+        : _precioGeneralTotal != null
   if (!nombre || !whatsapp || !dir_recoleccion || (!_modoPaqueteria && !dir_entrega) || !fecha || !selSize || !zonaOK || !metodoPago) {
     const t = document.createElement('div')
     t.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--orange);color:white;padding:12px 20px;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);text-align:center;max-width:300px;animation:fadeIn .3s ease'
@@ -3484,9 +3492,11 @@ const idempotencyKey = _idempotencyKeyPedido || crypto.randomUUID()
 _idempotencyKeyPedido = idempotencyKey
 
 const _kmRecorridos = _modoPaqueteria ? 0
-  : _empresaData ? (_corporativoKm || 0)
-  : _esMultiParada ? (_multiParadaKm || 0)
-  : (_precioGeneralKm || 0)
+  : _esMultiParada
+    ? (_multiParadaKm || 0)
+    : _empresaData
+      ? (_corporativoKm || 0)
+      : (_precioGeneralKm || 0)
 
 const zonaPedido = sanitize(_modoPaqueteria
   ? (_modoPaqueteria === 'paqueteria' ? 'Recolección paquetería' : 'Recolección Mercado Libre')
@@ -3513,11 +3523,142 @@ const esCaminoTarifaDiaria =
   !_modoPaqueteria &&
   _empresaData.tipo_tarifa === 'diaria'
 
+const esCaminoMultiparada =
+  _esMultiParada &&
+  !_modoPaqueteria
+
 let esRecuperacionDeDuplicado = false
 let data = null
 let error = null
 
-if (esCaminoPrecioGeneral) {
+if (esCaminoMultiparada) {
+  if (!session?.access_token) {
+    console.error(
+      '[pedido] No hay una sesión válida para crear el pedido multiparada'
+    )
+    mostrarToast(
+      'Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.',
+      '#ef4444'
+    )
+    return
+  }
+
+  const paradasAdicionales = _paradasList
+    .filter(p => p.direccion.trim())
+
+  const paradasPedido = [
+    {
+      orden: 1,
+      direccion: dir_entrega,
+      instrucciones: null,
+      lat: _latEntrega ?? null,
+      lng: _lngEntrega ?? null
+    },
+    ...paradasAdicionales.map((parada, indice) => ({
+      orden: indice + 2,
+      direccion: sanitize(parada.direccion),
+      instrucciones: sanitize(parada.instrucciones) || null,
+      lat: parada.lat ?? null,
+      lng: parada.lng ?? null
+    }))
+  ]
+
+  const payloadPedidoMultiparada = {
+    nombre: nombre,
+    nombre_remitente: nombreRemitente || null,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    fecha: sanitize(fecha),
+    tamanio: sanitize(selSize),
+    instrucciones: instrucciones || null,
+    // Preserva exactamente "Crédito" para corporativos cuando corresponda.
+    metodo_pago: metodoPago,
+    comprobante_pago: sanitize(comprobanteUrl) || null,
+    km_recorridos: _kmRecorridos,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
+    idempotency_key: idempotencyKey,
+    paradas: paradasPedido,
+    // Los cupones multiparada solo aplican a clientes sin empresa.
+    ...(!_empresaData
+      ? { cupon_codigo: sanitize(_cuponActivo?.codigo) || null }
+      : {})
+  }
+
+  let respuestaFuncion
+
+  try {
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/crear-pedido-local',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(payloadPedidoMultiparada)
+      }
+    )
+
+    try {
+      respuestaFuncion = await respuesta.json()
+    } catch {
+      respuestaFuncion = null
+    }
+
+    if (!respuesta.ok) {
+      const mensaje =
+        respuestaFuncion?.error ||
+        'No pudimos crear el pedido multiparada. Intenta nuevamente.'
+
+      console.error(
+        '[pedido] crear-pedido-local rechazó la solicitud multiparada:',
+        respuesta.status,
+        mensaje
+      )
+      mostrarToast(mensaje, '#ef4444')
+      return
+    }
+  } catch (errorFuncion) {
+    console.error(
+      '[pedido] No se pudo conectar con crear-pedido-local para el pedido multiparada:',
+      errorFuncion
+    )
+    mostrarToast(
+      'No pudimos conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  if (
+    !Array.isArray(respuestaFuncion?.data) ||
+    !respuestaFuncion.data[0] ||
+    !Array.isArray(respuestaFuncion?.paradas)
+  ) {
+    console.error(
+      '[pedido] crear-pedido-local devolvió una respuesta multiparada incompleta:',
+      respuestaFuncion
+    )
+    mostrarToast(
+      'El pedido fue procesado, pero no pudimos recuperar el resultado. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  data = respuestaFuncion.data
+  esRecuperacionDeDuplicado =
+    respuestaFuncion.es_recuperacion_de_duplicado === true
+
+  if (esRecuperacionDeDuplicado) {
+    console.log(
+      '[pedido] La función recuperó un pedido multiparada existente:',
+      data[0].id
+    )
+  }
+} else if (esCaminoPrecioGeneral) {
   if (!session?.access_token) {
     console.error('[pedido] No hay una sesión válida para crear el pedido general')
     mostrarToast('Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.', '#ef4444')
@@ -3868,8 +4009,14 @@ if (error) {
 
 if (!esRecuperacionDeDuplicado) {
     // Precio general consume el cupón en la RPC. Ningún camino corporativo
-    // usa ni consume cupones desde el navegador.
-    if (_cuponActivo && !esCaminoPrecioGeneral && !_empresaData) {
+    // usa ni consume cupones desde el navegador. Multiparada normal también
+    // lo consume atómicamente dentro de su RPC.
+    if (
+      _cuponActivo &&
+      !esCaminoPrecioGeneral &&
+      !esCaminoMultiparada &&
+      !_empresaData
+    ) {
       db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
       if (userId) {
         db.from('cupones_usos').upsert(
@@ -3902,7 +4049,16 @@ if (
 
 // La RPC es la fuente de verdad; sincronizar la UX local después de recibir
 // una creación o recuperación exitosa de tarifa diaria.
-if (esCaminoTarifaDiaria && !_tarifaDiariaYaCubierta) {
+if (
+  (
+    esCaminoTarifaDiaria ||
+    (
+      esCaminoMultiparada &&
+      _empresaData?.tipo_tarifa === 'diaria'
+    )
+  ) &&
+  !_tarifaDiariaYaCubierta
+) {
   _tarifaDiariaYaCubierta = true
   console.log(
     '[tarifa-diaria] pedido diario confirmado → tarifa cubierta para pedidos posteriores'
@@ -3912,12 +4068,18 @@ if (esCaminoTarifaDiaria && !_tarifaDiariaYaCubierta) {
 if (
   !esRecuperacionDeDuplicado &&
   _cargoCancelacionPendiente > 0 &&
-  (esCaminoCorporativo || esCaminoTarifaDiaria || !_empresaData)
+  (
+    esCaminoCorporativo ||
+    esCaminoTarifaDiaria ||
+    esCaminoMultiparada ||
+    !_empresaData
+  )
 ) {
   if (
     esCaminoPrecioGeneral ||
     esCaminoCorporativo ||
-    esCaminoTarifaDiaria
+    esCaminoTarifaDiaria ||
+    esCaminoMultiparada
   ) {
     // La RPC ya guardó y limpió el cargo; solo sincronizar el estado local.
     _cargoCancelacionPendiente = 0
@@ -3929,7 +4091,13 @@ if (
 }
 
 // Guardar paradas (multi-parada): dir-entrega primero, luego las adicionales
-if (!esRecuperacionDeDuplicado && _esMultiParada) {
+// El camino atómico ya guarda todas sus paradas dentro de la RPC. Este bloque
+// se conserva únicamente para cualquier flujo multiparada legado futuro.
+if (
+  !esRecuperacionDeDuplicado &&
+  _esMultiParada &&
+  !esCaminoMultiparada
+) {
     const paradasAdicionales = _paradasList.filter(p => p.direccion.trim())
     const paradasAInsertar = [
       {

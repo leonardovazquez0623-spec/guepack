@@ -18,7 +18,17 @@ type Zona = {
   id: number | string;
   nombre: string;
   coordenadas: unknown;
+  precio_sobre?: number | string | null;
+  precio_grande?: number | string | null;
+  precio_por_km?: number | string | null;
   poligono?: Punto[];
+};
+type ParadaSolicitud = {
+  orden: number;
+  direccion: string;
+  instrucciones: string | null;
+  lat: number;
+  lng: number;
 };
 type Rango = {
   km_desde: number | string | null;
@@ -141,6 +151,44 @@ function longitud(valor: unknown, campo: string) {
   return resultado;
 }
 
+function validarParadas(valor: unknown): ParadaSolicitud[] | null {
+  if (valor === null || valor === undefined) return null;
+  if (!Array.isArray(valor)) {
+    throw new Error("Las paradas no tienen un formato válido");
+  }
+  if (valor.length < 2) {
+    throw new Error("Un pedido multiparada debe incluir al menos 2 paradas");
+  }
+  if (valor.length > 8) {
+    throw new Error("Un pedido multiparada admite como máximo 8 paradas");
+  }
+
+  return valor.map((elemento, indice) => {
+    if (!esObjeto(elemento)) {
+      throw new Error(`La parada ${indice + 1} no tiene un formato válido`);
+    }
+    const orden = numero(elemento.orden, `paradas[${indice}].orden`);
+    if (!Number.isInteger(orden) || orden !== indice + 1) {
+      throw new Error("Las paradas deben tener órdenes consecutivos desde 1");
+    }
+    return {
+      orden,
+      direccion: requerido(
+        elemento.direccion,
+        `paradas[${indice}].direccion`,
+        300,
+      ),
+      instrucciones: opcional(
+        elemento.instrucciones,
+        `paradas[${indice}].instrucciones`,
+        500,
+      ),
+      lat: latitud(elemento.lat, `paradas[${indice}].lat`),
+      lng: longitud(elemento.lng, `paradas[${indice}].lng`),
+    };
+  });
+}
+
 function uuid(valor: unknown, campo: string) {
   const texto = requerido(valor, campo, 100);
   if (
@@ -186,11 +234,6 @@ function nombreValido(valor: unknown, campo: string) {
 }
 
 function alcanceValido(cuerpo: Objeto) {
-  if (Array.isArray(cuerpo.paradas) && cuerpo.paradas.length > 0) {
-    throw new Error(
-      "Los pedidos con paradas adicionales todavía no están disponibles en este flujo",
-    );
-  }
   const activo = (valor: unknown) =>
     valor === true || (typeof valor === "string" && valor.trim() !== "");
   if (activo(cuerpo.modo_paqueteria)) {
@@ -418,6 +461,48 @@ function estadoInicial(metodo: string) {
 }
 
 function errorRpc(mensaje: string) {
+  if (mensaje.includes("LIMITE_CIUDAD_NO_CONFIGURADO")) {
+    return [
+      503,
+      "La cobertura corporativa no está configurada. Contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("ULTIMA_PARADA_FUERA_LIMITE_CIUDAD")) {
+    return [
+      422,
+      "La última parada está fuera del límite de cobertura de la ciudad.",
+    ] as const;
+  }
+  if (mensaje.includes("ZONA_ULTIMA_PARADA_NO_DISPONIBLE")) {
+    return [
+      422,
+      "La última parada no está dentro de una zona de servicio disponible.",
+    ] as const;
+  }
+  if (mensaje.includes("PARADAS_INVALIDAS")) {
+    return [422, "La información de las paradas no es válida."] as const;
+  }
+  if (mensaje.includes("MAXIMO_PARADAS_EXCEDIDO")) {
+    return [422, "Un pedido puede incluir como máximo 8 paradas."] as const;
+  }
+  if (mensaje.includes("DISTANCIA_MULTIPARADA_CAMBIO")) {
+    return [
+      409,
+      "La distancia de la ruta cambió. Vuelve a cotizar el envío.",
+    ] as const;
+  }
+  if (mensaje.includes("CONFIGURACION_ZONA_INVALIDA")) {
+    return [
+      422,
+      "La tarifa de la zona no está configurada correctamente. Contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_MULTIPARADA_CAMBIO")) {
+    return [
+      409,
+      "La tarifa multiparada cambió mientras creábamos el pedido. Vuelve a cotizar.",
+    ] as const;
+  }
   if (mensaje.includes("EMPRESA_CORPORATIVA_NO_ENCONTRADA")) {
     return [
       403,
@@ -589,11 +674,11 @@ Deno.serve(async (req) => {
       "direccion_recoleccion",
       300,
     );
-    const direccionEntrega = requerido(
-      cuerpo.direccion_entrega,
-      "direccion_entrega",
-      300,
-    );
+    const paradas = validarParadas(cuerpo.paradas);
+    const esMultiparada = paradas !== null;
+    const direccionEntrega = esMultiparada
+      ? paradas[0].direccion
+      : requerido(cuerpo.direccion_entrega, "direccion_entrega", 300);
     const instrucciones = opcional(cuerpo.instrucciones, "instrucciones", 500);
     const fecha = fechaValida(cuerpo.fecha);
     const tamanio = requerido(cuerpo.tamanio, "tamanio", 20).toLowerCase();
@@ -615,8 +700,12 @@ Deno.serve(async (req) => {
     const claveIdempotencia = uuid(cuerpo.idempotency_key, "idempotency_key");
     const latRecoleccion = latitud(cuerpo.lat_recoleccion, "lat_recoleccion");
     const lngRecoleccion = longitud(cuerpo.lng_recoleccion, "lng_recoleccion");
-    const latEntrega = latitud(cuerpo.lat_entrega, "lat_entrega");
-    const lngEntrega = longitud(cuerpo.lng_entrega, "lng_entrega");
+    const latEntrega = esMultiparada
+      ? paradas[0].lat
+      : latitud(cuerpo.lat_entrega, "lat_entrega");
+    const lngEntrega = esMultiparada
+      ? paradas[0].lng
+      : longitud(cuerpo.lng_entrega, "lng_entrega");
     const km = kilometros(numero(cuerpo.km_recorridos, "km_recorridos"));
     const codigoCupon =
       opcional(cuerpo.cupon_codigo, "cupon_codigo", 50)?.toUpperCase() ?? null;
@@ -629,10 +718,17 @@ Deno.serve(async (req) => {
       lat: latEntrega,
       lng: lngEntrega,
     };
-    const distanciaHaversine = haversine(
-      puntoRecoleccion,
-      puntoEntrega,
-    );
+    const distanciaHaversine = esMultiparada
+      ? paradas.reduce(
+        (acumulado, parada, indice) =>
+          acumulado +
+          haversine(
+            indice === 0 ? puntoRecoleccion : paradas[indice - 1],
+            parada,
+          ),
+        0,
+      )
+      : haversine(puntoRecoleccion, puntoEntrega);
 
     validarDistancia(km, distanciaHaversine);
 
@@ -667,7 +763,9 @@ Deno.serve(async (req) => {
     const { data: zonas, error: falloZonas } = await admin.from(
       "zonas_cobertura",
     )
-      .select("id, nombre, coordenadas").eq("tenant_id", tenant).eq(
+      .select(
+        "id, nombre, coordenadas, precio_sobre, precio_grande, precio_por_km",
+      ).eq("tenant_id", tenant).eq(
         "activa",
         true,
       );
@@ -684,20 +782,334 @@ Deno.serve(async (req) => {
       z.nombre.trim().toUpperCase() !== "LIMITE CIUDAD"
     );
     if (
-      !operativas.length ||
-      (limite && !puntoEnPoligono(latEntrega, lngEntrega, limite.poligono))
+      !esMultiparada &&
+      (!operativas.length ||
+        (limite && !puntoEnPoligono(latEntrega, lngEntrega, limite.poligono)))
     ) {
       return responder(req, { error: ERROR_COBERTURA }, 422);
     }
-    const zona = operativas.find((z) =>
-      puntoEnPoligono(latEntrega, lngEntrega, z.poligono)
-    );
-    if (!zona) return responder(req, { error: ERROR_COBERTURA }, 422);
+    const puntoFinal = esMultiparada
+      ? paradas[paradas.length - 1]
+      : puntoEntrega;
+    let zona: Zona & { poligono: Punto[] };
+    if (esMultiparada && esCorporativo) {
+      if (!limite) {
+        return responder(req, {
+          error:
+            "La cobertura corporativa no está configurada. Contacta a soporte.",
+        }, 503);
+      }
+      if (!puntoEnPoligono(puntoFinal.lat, puntoFinal.lng, limite.poligono)) {
+        return responder(req, {
+          error: "La última parada está fuera del límite de cobertura.",
+        }, 422);
+      }
+      zona = limite;
+    } else {
+      const zonaEncontrada = operativas.find((z) =>
+        puntoEnPoligono(puntoFinal.lat, puntoFinal.lng, z.poligono)
+      );
+      if (!zonaEncontrada) {
+        return responder(
+          req,
+          {
+            error: esMultiparada
+              ? "La última parada no está dentro de una zona de servicio disponible."
+              : ERROR_COBERTURA,
+          },
+          422,
+        );
+      }
+      zona = zonaEncontrada;
+    }
 
     const cargoCancelacion = Math.max(
       0,
       dinero(Number(perfil.cargo_cancelacion) || 0),
     );
+
+    if (esMultiparada) {
+      let precioMultiparada = 0;
+
+      if (esCorporativo) {
+        if (codigoCupon) {
+          return responder(req, {
+            error:
+              "Los cupones no aplican a pedidos corporativos. Retira el cupón y vuelve a intentar.",
+          }, 409);
+        }
+
+        const { data: empresaData, error: falloEmpresa } = await admin
+          .from("empresas_afiliadas")
+          .select(
+            "id, codigo, activa, tipo_tarifa, tarifa_diaria, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande",
+          )
+          .eq("tenant_id", tenant)
+          .eq("codigo", empresaCodigo)
+          .maybeSingle();
+        if (falloEmpresa) {
+          throw new Error("No pudimos verificar la cuenta corporativa");
+        }
+        if (!empresaData) {
+          return responder(req, {
+            error:
+              "No encontramos la empresa corporativa asociada a tu cuenta.",
+          }, 403);
+        }
+
+        const empresa = empresaData as EmpresaCorporativa;
+        if (empresa.activa !== true) {
+          return responder(req, {
+            error:
+              "La cuenta corporativa está inactiva. Contacta al administrador de tu empresa.",
+          }, 403);
+        }
+        const tipoTarifa = typeof empresa.tipo_tarifa === "string"
+          ? empresa.tipo_tarifa.trim().toLowerCase()
+          : "";
+        if (!tipoTarifa) {
+          return responder(req, {
+            error:
+              "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+          }, 422);
+        }
+
+        if (tipoTarifa === "diaria") {
+          if (metodo !== "Crédito") {
+            return responder(req, {
+              error:
+                "Los pedidos de tarifa diaria deben utilizar el método de pago Crédito.",
+            }, 422);
+          }
+          const desdePrevisualizacion = new Date(
+            Date.now() - 48 * 60 * 60 * 1000,
+          ).toISOString();
+          const { data: pedidosDiarios, error: falloPedidosDiarios } =
+            await admin
+              .from("pedidos")
+              .select("created_at")
+              .eq("tenant_id", tenant)
+              .eq("empresa_codigo", empresaCodigo)
+              .eq("metodo_pago", "Crédito")
+              .neq("estado", "Cancelado")
+              .eq("credito_cobrado", false)
+              .gte("created_at", desdePrevisualizacion);
+          if (falloPedidosDiarios) {
+            return responder(req, {
+              error:
+                "No pudimos verificar la tarifa diaria. Intenta nuevamente.",
+            }, 503);
+          }
+          const fechaMexico = hoyMexico();
+          const tarifaCubierta = (
+            (pedidosDiarios || []) as PedidoCoberturaDiaria[]
+          ).some((pedido) => {
+            const fechaPedido = new Date(pedido.created_at);
+            return !Number.isNaN(fechaPedido.getTime()) &&
+              hoyMexico(fechaPedido) === fechaMexico;
+          });
+          try {
+            precioMultiparada = calcularPrecioTarifaDiaria(
+              empresa,
+              tarifaCubierta,
+              cargoCancelacion,
+            );
+          } catch {
+            return responder(req, {
+              error:
+                "La tarifa diaria no está configurada correctamente. Contacta a soporte.",
+            }, 422);
+          }
+        } else {
+          const promesaRangos = admin.from("rangos_precio_empresa")
+            .select("km_desde, km_hasta, precio")
+            .eq("empresa_id", empresa.id)
+            .order("km_desde");
+          const promesaCargoGeneral =
+            tamanio === "grande" && empresa.cargo_paquete_grande === null
+              ? admin.from("precios_generales")
+                .select("cargo_paquete_grande")
+                .eq("tenant_id", tenant)
+                .maybeSingle()
+              : Promise.resolve({ data: null, error: null });
+          const [respuestaRangos, respuestaCargoGeneral] = await Promise.all([
+            promesaRangos,
+            promesaCargoGeneral,
+          ]);
+          if (respuestaRangos.error || respuestaCargoGeneral.error) {
+            throw new Error("No pudimos verificar la tarifa corporativa");
+          }
+          try {
+            const datosCargo = esObjeto(respuestaCargoGeneral.data)
+              ? respuestaCargoGeneral.data
+              : null;
+            precioMultiparada = calcularPrecioCorporativo(
+              empresa,
+              (respuestaRangos.data || []) as Rango[],
+              km,
+              tamanio,
+              datosCargo?.cargo_paquete_grande,
+              cargoCancelacion,
+            );
+          } catch {
+            return responder(req, {
+              error:
+                "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+            }, 422);
+          }
+        }
+      } else {
+        const precioBase = Number(
+          tamanio === "sobre" ? zona.precio_sobre : zona.precio_grande,
+        );
+        const precioPorKm = zona.precio_por_km === null ||
+            zona.precio_por_km === undefined
+          ? 0
+          : Number(zona.precio_por_km);
+        if (
+          !Number.isFinite(precioBase) || precioBase < 0 ||
+          !Number.isFinite(precioPorKm) || precioPorKm < 0
+        ) {
+          return responder(req, {
+            error:
+              "La tarifa de la zona no está configurada correctamente. Contacta a soporte.",
+          }, 422);
+        }
+
+        let subtotal = precioPorKm > 0
+          ? dinero(precioBase + km * precioPorKm)
+          : dinero(precioBase + (paradas.length - 1) * 30);
+        if (tamanio === "grande") {
+          const { data: preciosGenerales, error: falloPreciosGenerales } =
+            await admin.from("precios_generales")
+              .select("cargo_paquete_grande")
+              .eq("tenant_id", tenant)
+              .maybeSingle();
+          const cargoGrande = Number(preciosGenerales?.cargo_paquete_grande);
+          if (
+            falloPreciosGenerales || !Number.isFinite(cargoGrande) ||
+            cargoGrande < 0
+          ) {
+            return responder(req, {
+              error:
+                "La tarifa de paquete grande no está configurada correctamente.",
+            }, 422);
+          }
+          subtotal = dinero(subtotal + cargoGrande);
+        }
+        const totalAntesCupon = dinero(subtotal + cargoCancelacion);
+        let descuentoCupon = 0;
+        if (codigoCupon) {
+          const { data, error } = await admin.from("cupones")
+            .select(
+              "id, codigo, tipo, descuento, fecha_expiracion, usos_maximos, usos_actuales, usos_por_usuario",
+            )
+            .eq("tenant_id", tenant)
+            .eq("codigo", codigoCupon)
+            .maybeSingle();
+          if (error) throw new Error("No pudimos validar el cupón");
+          if (!data) {
+            return responder(req, {
+              error: "El cupón no está disponible",
+            }, 409);
+          }
+          const cupon = data as Cupon;
+          if (cupon.fecha_expiracion && cupon.fecha_expiracion < hoyMexico()) {
+            return responder(req, { error: "Este cupón ha expirado" }, 409);
+          }
+          if (
+            cupon.usos_maximos !== null &&
+            Number(cupon.usos_actuales || 0) >= cupon.usos_maximos
+          ) {
+            return responder(req, {
+              error: "Este cupón ya no tiene usos disponibles",
+            }, 409);
+          }
+          if (cupon.usos_por_usuario !== null) {
+            const { data: uso, error: falloUso } = await admin
+              .from("cupones_usos")
+              .select("usos")
+              .eq("cupon_id", cupon.id)
+              .eq("user_id", user.id)
+              .maybeSingle();
+            if (falloUso) throw new Error("No pudimos validar el cupón");
+            if (Number(uso?.usos || 0) >= cupon.usos_por_usuario) {
+              return responder(req, {
+                error: "Ya alcanzaste el límite de uso de este cupón",
+              }, 409);
+            }
+          }
+          const valor = Number(cupon.descuento);
+          if (!Number.isFinite(valor) || valor < 0) {
+            throw new Error("El cupón no está configurado correctamente");
+          }
+          if (cupon.tipo === "porcentaje") {
+            if (valor > 100) {
+              throw new Error("El cupón no está configurado correctamente");
+            }
+            descuentoCupon = dinero(totalAntesCupon * valor / 100);
+          } else if (cupon.tipo === "fijo" || cupon.tipo === "monto") {
+            descuentoCupon = Math.min(totalAntesCupon, valor);
+          } else {
+            throw new Error("El cupón no está configurado correctamente");
+          }
+        }
+        precioMultiparada = Math.max(
+          0,
+          dinero(totalAntesCupon - descuentoCupon),
+        );
+      }
+
+      const tokenRastreo = crypto.randomUUID();
+      const { data: resultadoRpc, error: falloRpc } = await admin.rpc(
+        "crear_pedido_multiparada_atomico",
+        {
+          p_user_id: user.id,
+          p_tenant_id: tenant,
+          p_idempotency_key: claveIdempotencia,
+          p_nombre: nombre,
+          p_nombre_remitente: nombreRemitente,
+          p_whatsapp: whatsapp,
+          p_direccion_recoleccion: direccionRecoleccion,
+          p_fecha: fecha,
+          p_tamanio: tamanio,
+          p_precio_cotizado: precioMultiparada,
+          p_estado: estadoInicial(metodo),
+          p_instrucciones: instrucciones,
+          p_metodo_pago: metodo,
+          p_comprobante_pago: comprobante,
+          p_token_rastreo: tokenRastreo,
+          p_km_recorridos: km,
+          p_lat_recoleccion: latRecoleccion,
+          p_lng_recoleccion: lngRecoleccion,
+          p_cargo_cancelacion: cargoCancelacion,
+          p_cupon_codigo: esCorporativo ? null : codigoCupon,
+          p_paradas: paradas,
+        },
+      );
+      if (falloRpc) {
+        console.error(
+          "[crear-pedido-local] La creación multiparada atómica falló:",
+          falloRpc.message,
+        );
+        const [estado, mensaje] = errorRpc(falloRpc.message);
+        return responder(req, { error: mensaje }, estado);
+      }
+      const resultado = Array.isArray(resultadoRpc) ? resultadoRpc[0] : null;
+      if (
+        !resultado || !esObjeto(resultado.pedido) ||
+        !Array.isArray(resultado.paradas)
+      ) {
+        throw new Error(
+          "El pedido multiparada fue procesado, pero no pudimos recuperar el resultado",
+        );
+      }
+      return responder(req, {
+        data: [resultado.pedido],
+        paradas: resultado.paradas,
+        es_recuperacion_de_duplicado: resultado.es_recuperacion === true,
+      });
+    }
 
     if (esCorporativo) {
       if (codigoCupon) {
