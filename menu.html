@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172554">
+  <title>Menú</title>
+  <style>
+    :root {
+      --color-primary: #1d4ed8;
+      --color-primary-dark: #172554;
+      --color-primary-light: #eff6ff;
+      --color-secondary: #f97316;
+      --color-secondary-dark: #c2410c;
+      --color-secondary-light: #fff7ed;
+      --surface: #ffffff;
+      --background: #f7f7f4;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --danger: #dc2626;
+      --success: #15803d;
+      --shadow: 0 12px 30px rgba(15, 23, 42, .12);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--background);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, textarea, select { font: inherit; }
+    input, textarea, select { font-size: 16px; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .58; }
+
+    .site-header {
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      background:
+        radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--color-secondary) 72%, transparent), transparent 34%),
+        linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+      padding: max(20px, env(safe-area-inset-top)) 18px 28px;
+    }
+    .site-header::after {
+      content: "";
+      position: absolute;
+      right: -55px;
+      bottom: -80px;
+      width: 210px;
+      height: 210px;
+      border: 28px solid rgba(255, 255, 255, .08);
+      border-radius: 50%;
+    }
+    .header-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: min(1100px, 100%);
+      margin: auto;
+    }
+    .tenant-logo {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 auto;
+      padding: 6px;
+      border-radius: 18px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .16);
+    }
+    .eyebrow {
+      margin: 0 0 3px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .75;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(23px, 7vw, 34px);
+      line-height: 1.08;
+    }
+    .branch-address {
+      margin: 5px 0 0;
+      font-size: 14px;
+      opacity: .82;
+    }
+
+    main {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+      padding: 18px 16px 110px;
+    }
+    .category-tabs {
+      position: sticky;
+      z-index: 10;
+      top: 0;
+      display: flex;
+      gap: 9px;
+      overflow-x: auto;
+      margin: 0 -16px 20px;
+      padding: 12px 16px;
+      scrollbar-width: none;
+      background: color-mix(in srgb, var(--background) 94%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .category-tabs::-webkit-scrollbar { display: none; }
+    .category-tab {
+      flex: 0 0 auto;
+      min-height: 42px;
+      padding: 9px 16px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--surface);
+      font-weight: 750;
+    }
+    .category-tab.active {
+      border-color: var(--color-primary);
+      color: #fff;
+      background: var(--color-primary);
+    }
+    .category-section { scroll-margin-top: 82px; margin-bottom: 30px; }
+    .category-heading { margin: 0 0 14px; font-size: 23px; }
+    .product-grid { display: grid; gap: 14px; }
+    .product-card {
+      display: grid;
+      grid-template-columns: 108px minmax(0, 1fr);
+      min-height: 150px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, .22);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 4px 15px rgba(15, 23, 42, .055);
+    }
+    .product-image {
+      width: 100%;
+      height: 100%;
+      min-height: 150px;
+      object-fit: cover;
+      background: var(--color-primary-light);
+    }
+    .product-placeholder {
+      display: grid;
+      min-height: 150px;
+      place-items: center;
+      color: var(--color-primary);
+      background: linear-gradient(145deg, var(--color-primary-light), var(--color-secondary-light));
+      font-size: 38px;
+    }
+    .product-content {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      padding: 14px;
+    }
+    .product-name { margin: 0; font-size: 17px; line-height: 1.2; }
+    .product-description {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 7px 0 10px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .product-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: auto;
+    }
+    .price { font-size: 18px; font-weight: 850; color: var(--color-primary-dark); }
+    .add-button, .primary-button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 13px;
+      color: #fff;
+      background: var(--color-primary);
+      font-weight: 800;
+    }
+    .add-button { padding: 9px 13px; font-size: 14px; }
+    .add-button:active, .primary-button:active { transform: translateY(1px); }
+
+    .empty, .loading {
+      padding: 42px 20px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      text-align: center;
+      background: var(--surface);
+    }
+    .loading-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin: 0 3px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      animation: pulse 1s infinite alternate;
+    }
+    .loading-dot:nth-child(2) { animation-delay: .2s; }
+    .loading-dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes pulse { to { opacity: .22; transform: translateY(-5px); } }
+
+    .cart-fab {
+      position: fixed;
+      z-index: 30;
+      right: 16px;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      min-height: 58px;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 17px;
+      border: 0;
+      border-radius: 18px;
+      color: #fff;
+      background: var(--color-primary-dark);
+      box-shadow: var(--shadow);
+      font-weight: 850;
+    }
+    .cart-count {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--color-primary-dark);
+      background: var(--color-secondary);
+      font-size: 13px;
+    }
+
+    .overlay {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      visibility: hidden;
+      background: rgba(15, 23, 42, .48);
+      opacity: 0;
+      transition: opacity .2s, visibility .2s;
+    }
+    .overlay.open { visibility: visible; opacity: 1; }
+    .drawer {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      max-height: min(88vh, 820px);
+      overflow-y: auto;
+      padding: 20px 16px max(22px, env(safe-area-inset-bottom));
+      border-radius: 26px 26px 0 0;
+      background: var(--surface);
+      transform: translateY(102%);
+      transition: transform .25s ease;
+    }
+    .overlay.open .drawer { transform: translateY(0); }
+    .drawer-handle {
+      width: 46px;
+      height: 5px;
+      margin: -8px auto 15px;
+      border-radius: 99px;
+      background: var(--border);
+    }
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 16px;
+    }
+    .drawer-header h2 { margin: 0; font-size: 23px; }
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      color: var(--text);
+      background: var(--surface);
+      font-size: 22px;
+    }
+    .cart-item {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cart-item-image {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: var(--color-primary-light);
+    }
+    .cart-item h3 { margin: 0 0 4px; font-size: 16px; }
+    .cart-item-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .quantity {
+      display: inline-flex;
+      align-items: center;
+      overflow: hidden;
+      margin-top: 9px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+    }
+    .quantity button {
+      width: 36px;
+      height: 34px;
+      border: 0;
+      color: var(--color-primary);
+      background: var(--color-primary-light);
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .quantity span { min-width: 35px; text-align: center; font-weight: 800; }
+    .item-note {
+      width: 100%;
+      min-height: 44px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      color: var(--text);
+      background: #fafafa;
+    }
+    .summary {
+      display: grid;
+      gap: 9px;
+      padding: 17px 0;
+    }
+    .summary-row { display: flex; justify-content: space-between; gap: 16px; }
+    .summary-row.total {
+      padding-top: 11px;
+      border-top: 1px solid var(--border);
+      font-size: 19px;
+      font-weight: 850;
+    }
+    .primary-button { width: 100%; padding: 13px 18px; }
+
+    .checkout-view[hidden], .cart-view[hidden] { display: none; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .form-control {
+      width: 100%;
+      min-height: 50px;
+      padding: 12px 13px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      outline: none;
+      color: var(--text);
+      background: #fff;
+    }
+    .form-control:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+    }
+    .payment-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .payment-option {
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      font-weight: 750;
+    }
+    .payment-option:has(input:checked) {
+      border-color: var(--color-primary);
+      color: var(--color-primary-dark);
+      background: var(--color-primary-light);
+    }
+    .quote-status {
+      min-height: 46px;
+      margin: 12px 0;
+      padding: 12px;
+      border-radius: 12px;
+      color: var(--muted);
+      background: #f8fafc;
+      font-size: 14px;
+    }
+    .quote-status.success { color: var(--success); background: #f0fdf4; }
+    .quote-status.error { color: var(--danger); background: #fef2f2; }
+    .back-button {
+      border: 0;
+      color: var(--color-primary);
+      background: transparent;
+      font-weight: 800;
+    }
+    .toast {
+      position: fixed;
+      z-index: 100;
+      right: 16px;
+      bottom: 92px;
+      left: 16px;
+      visibility: hidden;
+      max-width: 480px;
+      margin: auto;
+      padding: 13px 16px;
+      border-radius: 13px;
+      color: #fff;
+      background: #1f2937;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: .2s;
+    }
+    .toast.show { visibility: visible; opacity: 1; transform: translateY(0); }
+
+    @media (min-width: 680px) {
+      main { padding-inline: 24px; }
+      .category-tabs { margin-inline: -24px; padding-inline: 24px; }
+      .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .drawer {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: auto;
+        width: min(470px, 100%);
+        max-height: none;
+        border-radius: 0;
+        transform: translateX(102%);
+      }
+      .overlay.open .drawer { transform: translateX(0); }
+      .drawer-handle { display: none; }
+    }
+
+    @media (min-width: 960px) {
+      .product-card { grid-template-columns: 150px minmax(0, 1fr); }
+      .product-image, .product-placeholder { min-height: 170px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-content">
+      <img id="tenant-logo" class="tenant-logo" data-tenant-logo src="/logo_principal.png" alt="Logo">
+      <div>
+        <p class="eyebrow">Menú en línea</p>
+        <h1 id="branch-name">Cargando sucursal…</h1>
+        <p id="branch-address" class="branch-address"></p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <nav id="category-tabs" class="category-tabs" aria-label="Categorías del menú"></nav>
+    <div id="menu-content" class="loading" aria-live="polite">
+      Cargando menú <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+    </div>
+  </main>
+
+  <button id="cart-fab" class="cart-fab" type="button" aria-label="Abrir carrito">
+    <span aria-hidden="true">🛒</span>
+    <span>Ver carrito</span>
+    <span id="cart-count" class="cart-count">0</span>
+  </button>
+
+  <div id="cart-overlay" class="overlay" aria-hidden="true">
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <div class="drawer-handle"></div>
+
+      <section id="cart-view" class="cart-view">
+        <div class="drawer-header">
+          <h2 id="drawer-title">Tu orden</h2>
+          <button class="icon-button" type="button" data-close aria-label="Cerrar">×</button>
+        </div>
+        <div id="cart-items"></div>
+        <div class="summary">
+          <div class="summary-row"><span>Subtotal</span><strong id="cart-subtotal">$0.00</strong></div>
+        </div>
+        <button id="checkout-button" class="primary-button" type="button">Ordenar</button>
+      </section>
+
+      <section id="checkout-view" class="checkout-view" hidden>
+        <div class="drawer-header">
+          <div>
+            <button id="back-to-cart" class="back-button" type="button">← Volver</button>
+            <h2>Entrega</h2>
+          </div>
+          <button class="icon-button" type="button" data-close aria-label="Cerrar">×</button>
+        </div>
+
+        <form id="checkout-form">
+          <div class="form-group">
+            <label for="customer-name">Nombre de quien recibe</label>
+            <input id="customer-name" class="form-control" type="text" maxlength="100" autocomplete="name" required>
+          </div>
+          <div class="form-group">
+            <label for="customer-phone">WhatsApp</label>
+            <input id="customer-phone" class="form-control" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" required>
+          </div>
+          <div class="form-group">
+            <label for="delivery-address">Dirección de entrega</label>
+            <input id="delivery-address" class="form-control" type="text" maxlength="300" autocomplete="street-address" placeholder="Calle, número y colonia" required>
+          </div>
+          <div class="form-group">
+            <label for="delivery-notes">Indicaciones de entrega</label>
+            <textarea id="delivery-notes" class="form-control" maxlength="500" rows="3" placeholder="Referencias, portón, timbre…"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Método de pago</label>
+            <div class="payment-options">
+              <label class="payment-option"><input type="radio" name="payment" value="efectivo" checked> Efectivo</label>
+              <label class="payment-option"><input type="radio" name="payment" value="transferencia"> Transferencia</label>
+            </div>
+          </div>
+
+          <div id="quote-status" class="quote-status">Selecciona una dirección válida para calcular el envío.</div>
+          <div class="summary">
+            <div class="summary-row"><span>Productos</span><strong id="checkout-subtotal">$0.00</strong></div>
+            <div class="summary-row"><span>Envío</span><strong id="shipping-cost">—</strong></div>
+            <div class="summary-row total"><span>Total</span><strong id="checkout-total">$0.00</strong></div>
+          </div>
+          <button id="confirm-order" class="primary-button" type="submit" disabled>Confirmar orden</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/supabase-local.js"></script>
+  <script src="tenant-config.js"></script>
+  <script>
+    (() => {
+      'use strict'
+
+      const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
+      const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
+      const GOOGLE_ROUTES_KEY = 'AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A'
+      const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      const PARAMETROS = new URLSearchParams(location.search)
+      const SUCURSAL_SOLICITADA = PARAMETROS.get('sucursal') || '1'
+      const CLAVE_CARRITO = `guepack-menu-cart:${SUCURSAL_SOLICITADA}`
+
+      const estado = {
+        tenant: null,
+        sucursal: null,
+        categorias: [],
+        productos: [],
+        carrito: new Map(),
+        latEntrega: null,
+        lngEntrega: null,
+        km: null,
+        costoEnvio: null,
+        cotizando: false,
+        enviando: false
+      }
+
+      const elementos = {
+        branchName: document.getElementById('branch-name'),
+        branchAddress: document.getElementById('branch-address'),
+        tabs: document.getElementById('category-tabs'),
+        menu: document.getElementById('menu-content'),
+        fab: document.getElementById('cart-fab'),
+        count: document.getElementById('cart-count'),
+        overlay: document.getElementById('cart-overlay'),
+        cartView: document.getElementById('cart-view'),
+        checkoutView: document.getElementById('checkout-view'),
+        cartItems: document.getElementById('cart-items'),
+        cartSubtotal: document.getElementById('cart-subtotal'),
+        checkoutSubtotal: document.getElementById('checkout-subtotal'),
+        shippingCost: document.getElementById('shipping-cost'),
+        checkoutTotal: document.getElementById('checkout-total'),
+        checkoutButton: document.getElementById('checkout-button'),
+        backButton: document.getElementById('back-to-cart'),
+        form: document.getElementById('checkout-form'),
+        address: document.getElementById('delivery-address'),
+        quoteStatus: document.getElementById('quote-status'),
+        confirm: document.getElementById('confirm-order'),
+        toast: document.getElementById('toast')
+      }
+
+      const texto = valor => String(valor ?? '').trim()
+      const dinero = valor => Math.round((Number(valor) + Number.EPSILON) * 100) / 100
+      const moneda = valor => new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(Number(valor) || 0)
+      const idRegistro = registro => registro.id ?? registro.codigo
+      const tenantId = () => estado.tenant?.id
+      const precioProducto = producto => Number(producto.precio ?? producto.precio_venta ?? 0)
+      const categoriaProducto = producto =>
+        producto.categoria_id ?? producto.menu_categoria_id ?? producto.categoria ?? 'otros'
+      const imagenProducto = producto =>
+        texto(producto.imagen_url ?? producto.foto_url ?? producto.imagen)
+
+      function mostrarToast(mensaje, error = false) {
+        elementos.toast.textContent = mensaje
+        elementos.toast.style.background = error ? '#dc2626' : '#1f2937'
+        elementos.toast.classList.add('show')
+        clearTimeout(mostrarToast.temporizador)
+        mostrarToast.temporizador = setTimeout(() => {
+          elementos.toast.classList.remove('show')
+        }, 3500)
+      }
+
+      function guardarCarrito() {
+        try {
+          localStorage.setItem(CLAVE_CARRITO, JSON.stringify([...estado.carrito.values()]))
+        } catch (error) {
+          console.warn('[menu] No se pudo guardar el carrito:', error)
+        }
+      }
+
+      function recuperarCarrito() {
+        try {
+          const guardado = JSON.parse(localStorage.getItem(CLAVE_CARRITO) || '[]')
+          if (!Array.isArray(guardado)) return
+          guardado.forEach(item => {
+            if (item?.producto?.id != null && Number(item.cantidad) > 0) {
+              estado.carrito.set(String(item.producto.id), {
+                producto: item.producto,
+                cantidad: Math.min(99, Math.floor(Number(item.cantidad))),
+                notas: texto(item.notas).slice(0, 300)
+              })
+            }
+          })
+        } catch (_) {
+          localStorage.removeItem(CLAVE_CARRITO)
+        }
+      }
+
+      async function consultarTabla(candidatos, configurar) {
+        let ultimoError = null
+        for (const tabla of candidatos) {
+          let consulta = db.from(tabla).select('*')
+          consulta = configurar(consulta)
+          const respuesta = await consulta
+          if (!respuesta.error) return { tabla, data: respuesta.data || [] }
+          ultimoError = respuesta.error
+          if (!['42P01', 'PGRST205'].includes(respuesta.error.code)) break
+        }
+        throw ultimoError || new Error('No se encontró la información solicitada')
+      }
+
+      async function cargarSucursal() {
+        const respuesta = await consultarTabla(['sucursales'], consulta =>
+          consulta
+            .eq('tenant_id', tenantId())
+            .eq('id', SUCURSAL_SOLICITADA)
+            .limit(1)
+        )
+        const sucursal = respuesta.data[0]
+        if (!sucursal) throw new Error('La sucursal solicitada no existe o no está disponible')
+        if (sucursal.activa === false) throw new Error('Esta sucursal no está disponible')
+        estado.sucursal = sucursal
+        elementos.branchName.textContent = texto(sucursal.nombre) || `Sucursal ${SUCURSAL_SOLICITADA}`
+        elementos.branchAddress.textContent = texto(sucursal.direccion)
+      }
+
+      async function cargarMenu() {
+        const [categoriasRespuesta, productosRespuesta] = await Promise.all([
+          consultarTabla(['categorias_menu', 'menu_categorias'], consulta =>
+            consulta.eq('tenant_id', tenantId()).order('orden', { ascending: true })
+          ),
+          consultarTabla(['productos_menu', 'productos'], consulta =>
+            consulta
+              .eq('tenant_id', tenantId())
+              .eq('sucursal_id', idRegistro(estado.sucursal))
+              .order('orden', { ascending: true })
+          )
+        ])
+
+        estado.categorias = categoriasRespuesta.data.filter(item => item.activa !== false)
+        estado.productos = productosRespuesta.data.filter(item =>
+          item.activo !== false && item.disponible !== false
+        )
+        renderizarMenu()
+      }
+
+      function crearImagen(producto, clase) {
+        const url = imagenProducto(producto)
+        if (!url) {
+          const placeholder = document.createElement('div')
+          placeholder.className = 'product-placeholder'
+          placeholder.textContent = '☕'
+          return placeholder
+        }
+        const imagen = document.createElement('img')
+        imagen.className = clase
+        imagen.src = url
+        imagen.alt = texto(producto.nombre) || 'Producto'
+        imagen.loading = 'lazy'
+        imagen.addEventListener('error', () => {
+          imagen.removeAttribute('src')
+          imagen.alt = 'Imagen no disponible'
+        }, { once: true })
+        return imagen
+      }
+
+      function renderizarMenu() {
+        elementos.menu.className = ''
+        elementos.menu.replaceChildren()
+        elementos.tabs.replaceChildren()
+
+        if (!estado.productos.length) {
+          elementos.menu.className = 'empty'
+          elementos.menu.textContent = 'No hay productos disponibles en esta sucursal por el momento.'
+          return
+        }
+
+        const categorias = estado.categorias.length
+          ? estado.categorias
+          : [{ id: 'otros', nombre: 'Menú', orden: 1 }]
+
+        categorias.forEach((categoria, indice) => {
+          const categoriaId = String(idRegistro(categoria))
+          const productos = estado.productos.filter(producto =>
+            String(categoriaProducto(producto)) === categoriaId ||
+            (!estado.categorias.length && categoriaId === 'otros')
+          )
+          if (!productos.length) return
+
+          const seccionId = `categoria-${categoriaId.replace(/[^a-zA-Z0-9_-]/g, '')}`
+          const tab = document.createElement('button')
+          tab.type = 'button'
+          tab.className = `category-tab${indice === 0 ? ' active' : ''}`
+          tab.textContent = texto(categoria.nombre) || 'Categoría'
+          tab.addEventListener('click', () => {
+            document.getElementById(seccionId)?.scrollIntoView({ behavior: 'smooth' })
+            elementos.tabs.querySelectorAll('.category-tab').forEach(item => item.classList.remove('active'))
+            tab.classList.add('active')
+          })
+          elementos.tabs.appendChild(tab)
+
+          const seccion = document.createElement('section')
+          seccion.className = 'category-section'
+          seccion.id = seccionId
+          const titulo = document.createElement('h2')
+          titulo.className = 'category-heading'
+          titulo.textContent = texto(categoria.nombre) || 'Menú'
+          const grid = document.createElement('div')
+          grid.className = 'product-grid'
+
+          productos.forEach(producto => {
+            const tarjeta = document.createElement('article')
+            tarjeta.className = 'product-card'
+            tarjeta.appendChild(crearImagen(producto, 'product-image'))
+
+            const contenido = document.createElement('div')
+            contenido.className = 'product-content'
+            const nombre = document.createElement('h3')
+            nombre.className = 'product-name'
+            nombre.textContent = texto(producto.nombre)
+            const descripcion = document.createElement('p')
+            descripcion.className = 'product-description'
+            descripcion.textContent = texto(producto.descripcion) || 'Preparado al momento.'
+            const pie = document.createElement('div')
+            pie.className = 'product-footer'
+            const precio = document.createElement('span')
+            precio.className = 'price'
+            precio.textContent = moneda(precioProducto(producto))
+            const agregar = document.createElement('button')
+            agregar.type = 'button'
+            agregar.className = 'add-button'
+            agregar.textContent = 'Agregar'
+            agregar.addEventListener('click', () => agregarProducto(producto))
+            pie.append(precio, agregar)
+            contenido.append(nombre, descripcion, pie)
+            tarjeta.appendChild(contenido)
+            grid.appendChild(tarjeta)
+          })
+
+          seccion.append(titulo, grid)
+          elementos.menu.appendChild(seccion)
+        })
+      }
+
+      function agregarProducto(producto) {
+        const clave = String(idRegistro(producto))
+        const actual = estado.carrito.get(clave)
+        estado.carrito.set(clave, {
+          producto,
+          cantidad: Math.min(99, (actual?.cantidad || 0) + 1),
+          notas: actual?.notas || ''
+        })
+        actualizarCarrito()
+        mostrarToast(`${texto(producto.nombre)} agregado al carrito`)
+      }
+
+      function cambiarCantidad(clave, diferencia) {
+        const item = estado.carrito.get(clave)
+        if (!item) return
+        item.cantidad += diferencia
+        if (item.cantidad <= 0) estado.carrito.delete(clave)
+        else item.cantidad = Math.min(99, item.cantidad)
+        actualizarCarrito()
+      }
+
+      function subtotalCarrito() {
+        return dinero([...estado.carrito.values()].reduce(
+          (total, item) => total + precioProducto(item.producto) * item.cantidad,
+          0
+        ))
+      }
+
+      function actualizarCarrito() {
+        guardarCarrito()
+        elementos.cartItems.replaceChildren()
+        const items = [...estado.carrito.entries()]
+        const cantidad = items.reduce((total, [, item]) => total + item.cantidad, 0)
+        const subtotal = subtotalCarrito()
+        elementos.count.textContent = String(cantidad)
+        elementos.cartSubtotal.textContent = moneda(subtotal)
+        elementos.checkoutSubtotal.textContent = moneda(subtotal)
+        elementos.checkoutTotal.textContent = moneda(subtotal + (estado.costoEnvio || 0))
+        elementos.checkoutButton.disabled = items.length === 0
+
+        if (!items.length) {
+          const vacio = document.createElement('div')
+          vacio.className = 'empty'
+          vacio.textContent = 'Tu carrito está vacío. Agrega algo rico del menú.'
+          elementos.cartItems.appendChild(vacio)
+          return
+        }
+
+        items.forEach(([clave, item]) => {
+          const fila = document.createElement('article')
+          fila.className = 'cart-item'
+          const imagen = crearImagen(item.producto, 'cart-item-image')
+          const detalle = document.createElement('div')
+          const linea = document.createElement('div')
+          linea.className = 'cart-item-line'
+          const nombre = document.createElement('h3')
+          nombre.textContent = texto(item.producto.nombre)
+          const total = document.createElement('strong')
+          total.textContent = moneda(precioProducto(item.producto) * item.cantidad)
+          linea.append(nombre, total)
+
+          const controles = document.createElement('div')
+          controles.className = 'quantity'
+          const menos = document.createElement('button')
+          menos.type = 'button'
+          menos.textContent = '−'
+          menos.setAttribute('aria-label', `Quitar ${texto(item.producto.nombre)}`)
+          menos.addEventListener('click', () => cambiarCantidad(clave, -1))
+          const valor = document.createElement('span')
+          valor.textContent = String(item.cantidad)
+          const mas = document.createElement('button')
+          mas.type = 'button'
+          mas.textContent = '+'
+          mas.setAttribute('aria-label', `Agregar ${texto(item.producto.nombre)}`)
+          mas.addEventListener('click', () => cambiarCantidad(clave, 1))
+          controles.append(menos, valor, mas)
+
+          const notas = document.createElement('textarea')
+          notas.className = 'item-note'
+          notas.rows = 2
+          notas.maxLength = 300
+          notas.placeholder = 'Notas: sin azúcar, extra caliente…'
+          notas.value = item.notas
+          notas.addEventListener('input', () => {
+            item.notas = notas.value.slice(0, 300)
+            guardarCarrito()
+          })
+          detalle.append(linea, controles, notas)
+          fila.append(imagen, detalle)
+          elementos.cartItems.appendChild(fila)
+        })
+      }
+
+      function abrirCarrito() {
+        elementos.overlay.classList.add('open')
+        elementos.overlay.setAttribute('aria-hidden', 'false')
+        document.body.style.overflow = 'hidden'
+      }
+
+      function cerrarCarrito() {
+        elementos.overlay.classList.remove('open')
+        elementos.overlay.setAttribute('aria-hidden', 'true')
+        document.body.style.overflow = ''
+      }
+
+      async function comenzarCheckout() {
+        if (!estado.carrito.size) return
+        const { data: { session } } = await db.auth.getSession()
+        if (!session) {
+          sessionStorage.setItem('menu_checkout_pendiente', location.href)
+          const retorno = encodeURIComponent(location.href)
+          location.href = `login.html?redirect=${retorno}`
+          return
+        }
+        elementos.cartView.hidden = true
+        elementos.checkoutView.hidden = false
+        const metadata = session.user.user_metadata || {}
+        document.getElementById('customer-name').value =
+          texto(metadata.nombre || metadata.full_name)
+        document.getElementById('customer-phone').value =
+          texto(metadata.whatsapp || metadata.phone).replace(/\D/g, '').slice(-10)
+        setTimeout(() => elementos.address.focus(), 100)
+      }
+
+      function volverAlCarrito() {
+        elementos.checkoutView.hidden = true
+        elementos.cartView.hidden = false
+      }
+
+      function invalidarCotizacion() {
+        estado.latEntrega = null
+        estado.lngEntrega = null
+        estado.km = null
+        estado.costoEnvio = null
+        elementos.shippingCost.textContent = '—'
+        elementos.quoteStatus.className = 'quote-status'
+        elementos.quoteStatus.textContent = 'Selecciona una dirección válida para calcular el envío.'
+        elementos.confirm.disabled = true
+        actualizarCarrito()
+      }
+
+      function instalarAutocomplete() {
+        if (!window.google?.maps?.places || instalarAutocomplete.instalado) return
+        instalarAutocomplete.instalado = true
+        const autocomplete = new google.maps.places.Autocomplete(elementos.address, {
+          componentRestrictions: { country: 'mx' },
+          fields: ['formatted_address', 'geometry']
+        })
+        autocomplete.addListener('place_changed', async () => {
+          const lugar = autocomplete.getPlace()
+          if (!lugar.geometry?.location) {
+            invalidarCotizacion()
+            mostrarToast('Selecciona una dirección de la lista.', true)
+            return
+          }
+          elementos.address.value = lugar.formatted_address || elementos.address.value
+          estado.latEntrega = lugar.geometry.location.lat()
+          estado.lngEntrega = lugar.geometry.location.lng()
+          await calcularEnvio()
+        })
+      }
+
+      window.iniciarMapaMenu = instalarAutocomplete
+
+      async function calcularEnvio() {
+        if (estado.cotizando || estado.latEntrega == null || estado.lngEntrega == null) return
+        estado.cotizando = true
+        elementos.confirm.disabled = true
+        elementos.quoteStatus.className = 'quote-status'
+        elementos.quoteStatus.textContent = 'Calculando ruta y costo de envío…'
+
+        try {
+          const origenLat = Number(
+            estado.sucursal.lat ?? estado.sucursal.latitud ?? estado.sucursal.latitude
+          )
+          const origenLng = Number(
+            estado.sucursal.lng ?? estado.sucursal.longitud ?? estado.sucursal.longitude
+          )
+          const origen = Number.isFinite(origenLat) && Number.isFinite(origenLng)
+            ? { location: { latLng: { latitude: origenLat, longitude: origenLng } } }
+            : { address: texto(estado.sucursal.direccion) }
+
+          if (!origen.location && !origen.address) {
+            throw new Error('La sucursal no tiene una ubicación configurada')
+          }
+
+          const respuestaRuta = await fetch(
+            'https://routes.googleapis.com/directions/v2:computeRoutes',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': GOOGLE_ROUTES_KEY,
+                'X-Goog-FieldMask': 'routes.distanceMeters'
+              },
+              body: JSON.stringify({
+                origin: origen,
+                destination: {
+                  location: {
+                    latLng: {
+                      latitude: estado.latEntrega,
+                      longitude: estado.lngEntrega
+                    }
+                  }
+                },
+                travelMode: 'DRIVE'
+              })
+            }
+          )
+          const ruta = await respuestaRuta.json()
+          if (!respuestaRuta.ok || !ruta.routes?.[0]?.distanceMeters) {
+            throw new Error('No pudimos calcular una ruta para esa dirección')
+          }
+          estado.km = Math.round(ruta.routes[0].distanceMeters / 100) / 10
+
+          const [preciosRespuesta, rangosRespuesta] = await Promise.all([
+            db.from('precios_generales')
+              .select('precio_km_extra, iva')
+              .eq('tenant_id', tenantId())
+              .maybeSingle(),
+            db.from('rangos_precio_general')
+              .select('km_desde, km_hasta, precio')
+              .eq('tenant_id', tenantId())
+              .order('km_desde')
+          ])
+          if (preciosRespuesta.error || rangosRespuesta.error) {
+            throw new Error('No pudimos consultar la tarifa de envío')
+          }
+          const precios = preciosRespuesta.data
+          const rangos = rangosRespuesta.data || []
+          if (!precios || !rangos.length) {
+            throw new Error('No hay una tarifa de envío configurada')
+          }
+
+          let rango = rangos.find(item =>
+            Number(item.km_desde || 0) <= estado.km &&
+            (item.km_hasta == null || estado.km <= Number(item.km_hasta))
+          )
+          if (!rango) rango = rangos[rangos.length - 1]
+          let base = Number(rango.precio)
+          const desde = Number(rango.km_desde || 0)
+          if (rango.km_hasta == null && estado.km > desde) {
+            const extra = Math.round((estado.km - desde) * 10) / 10
+            base += extra * Number(precios.precio_km_extra)
+          }
+          const iva = Number(precios.iva)
+          if (![base, iva].every(Number.isFinite) || base < 0 || iva < 0) {
+            throw new Error('La tarifa de envío no está configurada correctamente')
+          }
+          estado.costoEnvio = dinero(base + dinero(base * iva))
+          elementos.shippingCost.textContent = moneda(estado.costoEnvio)
+          elementos.quoteStatus.className = 'quote-status success'
+          elementos.quoteStatus.textContent =
+            `Entrega de ${estado.km.toFixed(1)} km calculada correctamente.`
+          elementos.confirm.disabled = false
+          actualizarCarrito()
+        } catch (error) {
+          estado.costoEnvio = null
+          elementos.shippingCost.textContent = '—'
+          elementos.quoteStatus.className = 'quote-status error'
+          elementos.quoteStatus.textContent =
+            error instanceof Error ? error.message : 'No pudimos calcular el envío.'
+        } finally {
+          estado.cotizando = false
+        }
+      }
+
+      async function crearPedido(evento) {
+        evento.preventDefault()
+        if (estado.enviando || !estado.carrito.size || estado.costoEnvio == null) return
+
+        const { data: { session } } = await db.auth.getSession()
+        if (!session) {
+          location.href = `login.html?redirect=${encodeURIComponent(location.href)}`
+          return
+        }
+        const nombre = texto(document.getElementById('customer-name').value)
+        const whatsapp = texto(document.getElementById('customer-phone').value).replace(/\D/g, '')
+        const direccion = texto(elementos.address.value)
+        const instrucciones = texto(document.getElementById('delivery-notes').value)
+        const metodo = document.querySelector('input[name="payment"]:checked')?.value
+        if (!nombre || !direccion || !/^\d{10}$/.test(whatsapp)) {
+          mostrarToast('Completa nombre, WhatsApp y dirección de entrega.', true)
+          return
+        }
+
+        estado.enviando = true
+        elementos.confirm.disabled = true
+        elementos.confirm.textContent = 'Creando orden…'
+        const subtotal = subtotalCarrito()
+        const total = dinero(subtotal + estado.costoEnvio)
+        const token = crypto.randomUUID()
+        const idempotencyKey = crypto.randomUUID()
+
+        try {
+          const pedido = {
+            nombre,
+            whatsapp,
+            direccion_recoleccion: texto(estado.sucursal.direccion),
+            direccion_entrega: direccion,
+            fecha: new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'America/Mexico_City',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            }).format(new Date()),
+            tamanio: 'sobre',
+            zona: `Menú · ${texto(estado.sucursal.nombre)} · ${estado.km} km`,
+            precio: Math.round(total),
+            estado: metodo === 'transferencia'
+              ? 'Pendiente verificación de pago'
+              : 'Pendiente',
+            user_id: session.user.id,
+            tenant_id: tenantId(),
+            instrucciones: instrucciones || null,
+            metodo_pago: metodo,
+            token_rastreo: token,
+            km_recorridos: estado.km,
+            lat_recoleccion: Number(
+              estado.sucursal.lat ?? estado.sucursal.latitud ?? estado.sucursal.latitude
+            ) || null,
+            lng_recoleccion: Number(
+              estado.sucursal.lng ?? estado.sucursal.longitud ?? estado.sucursal.longitude
+            ) || null,
+            lat_entrega: estado.latEntrega,
+            lng_entrega: estado.lngEntrega,
+            idempotency_key: idempotencyKey
+          }
+
+          const { data: pedidoCreado, error: errorPedido } = await db
+            .from('pedidos')
+            .insert(pedido)
+            .select('id, token_rastreo')
+            .single()
+          if (errorPedido) throw errorPedido
+
+          const items = [...estado.carrito.values()].map(item => ({
+            pedido_id: pedidoCreado.id,
+            tenant_id: tenantId(),
+            producto_id: idRegistro(item.producto),
+            nombre_producto: texto(item.producto.nombre),
+            precio_unitario: dinero(precioProducto(item.producto)),
+            cantidad: item.cantidad,
+            notas: item.notas || null,
+            subtotal: dinero(precioProducto(item.producto) * item.cantidad)
+          }))
+          const { error: errorItems } = await db.from('pedido_items').insert(items)
+          if (errorItems) {
+            await db.from('pedidos').delete().eq('id', pedidoCreado.id)
+            throw errorItems
+          }
+
+          estado.carrito.clear()
+          guardarCarrito()
+          actualizarCarrito()
+          cerrarCarrito()
+          mostrarToast(`Orden GK-${pedidoCreado.id} creada correctamente`)
+        } catch (error) {
+          console.error('[menu] No se pudo crear la orden:', error)
+          mostrarToast(
+            error?.message || 'No pudimos crear la orden. Intenta nuevamente.',
+            true
+          )
+        } finally {
+          estado.enviando = false
+          elementos.confirm.textContent = 'Confirmar orden'
+          elementos.confirm.disabled = estado.costoEnvio == null
+        }
+      }
+
+      async function iniciar() {
+        recuperarCarrito()
+        actualizarCarrito()
+        try {
+          estado.tenant = await window.tenantConfigReady
+          if (!estado.tenant?.id) throw new Error('No pudimos identificar el comercio')
+          await cargarSucursal()
+          await cargarMenu()
+        } catch (error) {
+          console.error('[menu] Error de inicialización:', error)
+          elementos.menu.className = 'empty'
+          elementos.menu.textContent =
+            error instanceof Error ? error.message : 'No pudimos cargar el menú.'
+        }
+      }
+
+      elementos.fab.addEventListener('click', abrirCarrito)
+      elementos.overlay.querySelectorAll('[data-close]').forEach(boton =>
+        boton.addEventListener('click', cerrarCarrito)
+      )
+      elementos.overlay.addEventListener('click', evento => {
+        if (evento.target === elementos.overlay) cerrarCarrito()
+      })
+      elementos.checkoutButton.addEventListener('click', comenzarCheckout)
+      elementos.backButton.addEventListener('click', volverAlCarrito)
+      elementos.address.addEventListener('input', invalidarCotizacion)
+      elementos.form.addEventListener('submit', crearPedido)
+      document.addEventListener('keydown', evento => {
+        if (evento.key === 'Escape') cerrarCarrito()
+      })
+      window.addEventListener('tenant-config-aplicada', evento => {
+        const tenant = evento.detail
+        const logo = texto(tenant?.logo_url)
+        if (logo) document.getElementById('tenant-logo').src = logo
+      })
+
+      iniciar()
+    })()
+  </script>
+  <script
+    async
+    defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBclxmzg5BHupGCWm7MtK5Gd33hjOmk59A&libraries=places&callback=iniciarMapaMenu">
+  </script>
+</body>
+</html>
