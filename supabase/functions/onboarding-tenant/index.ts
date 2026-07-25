@@ -168,9 +168,11 @@ Deno.serve(async (req) => {
       tenant_id: tenantId,
       estado: estadoConfiguracion,
     })
-  } catch (error) {
-    const mensaje = error instanceof Error ? error.message : 'Error desconocido'
-    console.error('[onboarding-tenant] Error:', mensaje)
+  } catch (err) {
+    const mensaje = err instanceof Error ? err.message : 'Error desconocido'
+    console.error('[onboarding-tenant] Error completo:', JSON.stringify(err))
+    console.error('[onboarding-tenant] mensaje:', err instanceof Error ? err.message : mensaje)
+    console.error('[onboarding-tenant] stack:', err instanceof Error ? err.stack : undefined)
     return responder(req, { error: 'No fue posible configurar el tenant', detalle: mensaje }, 500)
   }
 })

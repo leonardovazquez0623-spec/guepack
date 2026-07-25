@@ -310,7 +310,10 @@
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
+  global: {
+    fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' })
+  }
 })
 
 let tenants = []
@@ -1044,10 +1047,8 @@ async function eliminarTenant(id, modal) {
     return
   }
   modal.remove()
-  tenants = tenants.filter(item => String(item.id) !== String(id))
-  renderizarEstadisticas()
-  renderizarTenants()
   mostrarToast('✅ Tenant eliminado')
+  await cargarTenants()
 }
 
 async function cerrarSesion() {
