@@ -318,6 +318,21 @@
   }
   #btn-centrar-mapa.visible { display:flex; }
 
+  #btn-ruta-sugerida {
+    position:fixed; bottom:208px; right:12px;
+    z-index:513;
+    width:48px; height:48px; padding:0;
+    border:2px solid white; border-radius:50%;
+    background:#1E56C7;
+    box-shadow:0 4px 12px rgba(0,0,0,0.22);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .2s, transform .2s;
+  }
+  #btn-ruta-sugerida img { filter:brightness(0) invert(1); }
+  #btn-ruta-sugerida.inactivo { background:#c65b63; }
+  #btn-ruta-sugerida:active { transform:scale(.94); }
+  #btn-centrar-mapa.visible { bottom:264px; }
+
   /* Pins del mapa */
   .mapa-pin-dot {
     width:26px; height:26px;
@@ -462,6 +477,9 @@
 <div id="vista-mapa-wrap">
   <div id="mapa-legend"></div>
   <div id="mapa-repartidor"></div>
+  <button id="btn-ruta-sugerida" type="button" onclick="_alternarRutaSugerida()" aria-label="Ocultar ruta sugerida" aria-pressed="true" title="Mostrar u ocultar ruta sugerida">
+    <img src="/guepack-icons/guepack-icons/svg/54-mapa.svg" alt="" width="24" height="24">
+  </button>
   <button id="btn-centrar-mapa" onclick="_centrarEnRepartidor(true)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg> Centrar</button>
   <div id="mapa-sheet">
     <div id="mapa-sheet-handle" onclick="_toggleSheet()"></div>
@@ -2625,6 +2643,8 @@ let _rutaSugeridaUltimoExito = 0
 let _rutaSugeridaUltimoDestino = null
 let _rutaSugeridaEnVueloPos = null
 let _rutaSugeridaEnVueloDestino = null
+const _RUTA_SUGERIDA_VISIBLE_KEY = 'guepack_ruta_sugerida_visible'
+let _rutaSugeridaVisible = localStorage.getItem(_RUTA_SUGERIDA_VISIBLE_KEY) !== 'false'
 const _estadosPedidoAdvertidos = new Set()
 const _RUTA_SUGERIDA_SOURCE = 'ruta-parada-sugerida'
 const _RUTA_SUGERIDA_LAYER = 'ruta-parada-sugerida-linea'
@@ -2851,6 +2871,7 @@ function _toggleSheet() {
 async function _initMapaRepartidor() {
   if (_mapaIniciado) return
   _mapaIniciado = true
+  _actualizarBotonRutaSugerida()
 
   const { data: cfgToken, error: cfgErr } = await db.from('config_app').select('value').eq('key', 'mapbox_token').single()
   if (cfgErr || !cfgToken?.value) {
@@ -3067,22 +3088,17 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
   const legend  = document.getElementById('mapa-legend')
   if (!body) return
 
-  // Totales para el subtítulo
-  let totalRec = pedidos.length
-  let totalEnt = 0
-  pedidos.forEach(p => {
-    const pars = paradasPorPedido[p.id]
-    totalEnt += pars?.length || (p.lat_entrega != null ? 1 : 0)
-  })
+  const pendientes = _paradasPendientes(pedidos, paradasPorPedido)
+  const totalRec = pendientes.filter(parada => parada.tipo === 'rec').length
+  const totalEnt = pendientes.filter(parada => parada.tipo === 'ent').length
   if (countEl) countEl.textContent =
     `${totalRec} recolección${totalRec !== 1 ? 'es' : ''} · ${totalEnt} entrega${totalEnt !== 1 ? 's' : ''} · orden sugerido`
 
-  // Agrupar por nombre_mostrar
   const grupos = {}
-  pedidos.forEach(p => {
-    const g = p.nombre_mostrar || p.nombre
-    if (!grupos[g]) grupos[g] = { pedidos: [], tipo: p.tipo_cliente }
-    grupos[g].pedidos.push(p)
+  pendientes.forEach(parada => {
+    const grupo = parada.nombreMostrar || parada.clienteNombre || 'Cliente'
+    if (!grupos[grupo]) grupos[grupo] = { paradas: [], tipo: parada.tipoCliente }
+    grupos[grupo].paradas.push(parada)
   })
 
   // Actualizar leyenda
@@ -3090,15 +3106,13 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
   for (const [g, info] of Object.entries(grupos)) {
     const c = _colorGrupo(g)
     const t = info.tipo === 'empresa' ? 'empresa' : 'cliente'
-    const cnt = info.pedidos.reduce((acc, p) => {
-      return acc + ((paradasPorPedido[p.id]?.length) || (p.lat_entrega != null ? 1 : 0))
-    }, 0)
+    const cnt = info.paradas.length
     lgHtml += `<div class="lg-row"><span class="lg-sw" style="background:${c}"></span>${g} (${cnt}) · ${t}</div>`
   }
   if (legend) { legend.innerHTML = lgHtml; legend.style.display = lgHtml ? '' : 'none' }
 
-  if (pedidos.length === 0) {
-    body.innerHTML = '<div style="font-family:Montserrat,sans-serif;font-size:12px;color:#9aa3b2;padding:8px 0">Sin pedidos activos</div>'
+  if (!pendientes.length) {
+    body.innerHTML = '<div style="font-family:Montserrat,sans-serif;font-size:12px;color:#9aa3b2;padding:8px 0">Sin paradas pendientes</div>'
     return
   }
 
@@ -3106,10 +3120,8 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
   for (const [g, info] of Object.entries(grupos)) {
     const color     = _colorGrupo(g)
     const tipoLabel = info.tipo === 'empresa' ? 'Empresa' : 'Cliente'
-    let rCnt = info.pedidos.length
-    let eCnt = info.pedidos.reduce((acc, p) => {
-      return acc + ((paradasPorPedido[p.id]?.length) || (p.lat_entrega != null ? 1 : 0))
-    }, 0)
+    const rCnt = info.paradas.filter(parada => parada.tipo === 'rec').length
+    const eCnt = info.paradas.filter(parada => parada.tipo === 'ent').length
 
     html += `<div class="ms-group">
       <div class="ms-group-header">
@@ -3119,30 +3131,13 @@ function _renderSheetPedidos(pedidos, paradasPorPedido) {
         <span class="ms-count-right">${rCnt} recolección${rCnt!==1?'es':''} · ${eCnt} entrega${eCnt!==1?'s':''}</span>
       </div>`
 
-    info.pedidos.forEach(p => {
-      const pars = paradasPorPedido[p.id]
-      // Fila recolección
+    info.paradas.forEach(parada => {
+      const esRecoleccion = parada.tipo === 'rec'
       html += `<div class="ms-stop">
-        <div class="ms-idx sq" style="background:${color}">R</div>
-        <div class="ms-addr">${p.direccion_recoleccion || '—'}</div>
-        <span class="ms-tag rec">Recolección</span>
+        <div class="ms-idx${esRecoleccion ? ' sq' : ''}" style="background:${color}">${esRecoleccion ? 'R' : parada.orden || '1'}</div>
+        <div class="ms-addr">${parada.direccion}</div>
+        <span class="ms-tag ${esRecoleccion ? 'rec' : 'ent'}">${esRecoleccion ? 'Recolección' : 'Entrega'}</span>
       </div>`
-      // Filas entrega
-      if (pars?.length) {
-        pars.forEach(par => {
-          html += `<div class="ms-stop">
-            <div class="ms-idx" style="background:${color}">${par.orden}</div>
-            <div class="ms-addr">${par.direccion || '—'}</div>
-            <span class="ms-tag ent">Entrega</span>
-          </div>`
-        })
-      } else {
-        html += `<div class="ms-stop">
-          <div class="ms-idx" style="background:${color}">1</div>
-          <div class="ms-addr">${p.direccion_entrega || '—'}</div>
-          <span class="ms-tag ent">Entrega</span>
-        </div>`
-      }
     })
     html += `</div>`
   }
@@ -3286,7 +3281,77 @@ function _estadoRecoleccionPedido(pedido) {
   return { estado, yaRecolectado: estadosPostRecoleccion.has(estado), valido: true }
 }
 
-const _TOLERANCIA_RUTA_CERRADA_KM = 0.04
+// Tolerancia temporal más generosa por el bug conocido de ubicaciones
+// guardadas con coordenadas imprecisas. Puede reducirse al corregir ese origen.
+const _TOLERANCIA_RUTA_CERRADA_KM = 0.15
+
+function _normalizarDireccionRuta(valor) {
+  return String(valor || '')
+    .trim()
+    .toLocaleLowerCase('es-MX')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function _tieneCoordenadasRuta(parada) {
+  return [parada?.lat, parada?.lng].every(valor =>
+    valor != null &&
+    String(valor).trim() !== '' &&
+    Number.isFinite(Number(valor))
+  )
+}
+
+function _esMismaUbicacionRuta(pedido, parada) {
+  const placeIdRecoleccion =
+    pedido?.place_id_recoleccion ||
+    pedido?.recoleccion_place_id ||
+    null
+  const placeIdParada =
+    parada?.place_id ||
+    parada?.place_id_entrega ||
+    null
+
+  // Si ambos identificadores existen, son la fuente de verdad.
+  if (placeIdRecoleccion && placeIdParada) {
+    return String(placeIdRecoleccion) === String(placeIdParada)
+  }
+
+  // Actualmente no se guarda place_id; comparar el texto normalizado.
+  const direccionRecoleccion = _normalizarDireccionRuta(pedido?.direccion_recoleccion)
+  const direccionParada = _normalizarDireccionRuta(parada?.direccion)
+  if (
+    direccionRecoleccion &&
+    direccionParada &&
+    direccionRecoleccion === direccionParada
+  ) {
+    return true
+  }
+
+  const coordenadas = [
+    pedido?.lat_recoleccion,
+    pedido?.lng_recoleccion,
+    parada?.lat,
+    parada?.lng
+  ]
+  const coordenadasValidas = coordenadas.every(valor =>
+    valor != null &&
+    String(valor).trim() !== '' &&
+    Number.isFinite(Number(valor))
+  )
+
+  // Si no fue posible confirmar la coincidencia, se trata como ruta abierta.
+  if (!coordenadasValidas) return false
+
+  return _haversine(
+    Number(pedido.lat_recoleccion),
+    Number(pedido.lng_recoleccion),
+    Number(parada.lat),
+    Number(parada.lng)
+  ) <= _TOLERANCIA_RUTA_CERRADA_KM
+}
 
 function _esUltimaParadaBloqueadaPorRutaCerrada(pedido, paradas, paradaActual) {
   if (!Array.isArray(paradas) || paradas.length < 2) return false
@@ -3300,35 +3365,7 @@ function _esUltimaParadaBloqueadaPorRutaCerrada(pedido, paradas, paradaActual) {
   const ordenMaximo = Math.max(...ordenesValidos)
   if (!Number.isFinite(ordenActual) || ordenActual !== ordenMaximo) return false
 
-  const coordenadasOriginales = [
-    pedido?.lat_recoleccion,
-    pedido?.lng_recoleccion,
-    paradaActual?.lat,
-    paradaActual?.lng
-  ]
-  const coordenadasValidas = coordenadasOriginales.every(valor =>
-    valor != null &&
-    String(valor).trim() !== '' &&
-    Number.isFinite(Number(valor))
-  )
-
-  // Sin coordenadas confiables, la ruta se trata como abierta para no bloquear entregas.
-  if (!coordenadasValidas) return false
-
-  const [
-    latRecoleccion,
-    lngRecoleccion,
-    latUltimaParada,
-    lngUltimaParada
-  ] = coordenadasOriginales.map(Number)
-
-  const distanciaRecoleccionKm = _haversine(
-    latRecoleccion,
-    lngRecoleccion,
-    latUltimaParada,
-    lngUltimaParada
-  )
-  if (distanciaRecoleccionKm > _TOLERANCIA_RUTA_CERRADA_KM) return false
+  if (!_esMismaUbicacionRuta(pedido, paradaActual)) return false
 
   return paradas.some(parada =>
     parada.id !== paradaActual.id &&
@@ -3336,42 +3373,100 @@ function _esUltimaParadaBloqueadaPorRutaCerrada(pedido, paradas, paradaActual) {
   )
 }
 
-function _proximaParada() {
-  const candidates = []
-  const recoleccionesBloqueantes = []
-  Object.values(_pedidosRep).forEach(p => {
-    const { yaRecolectado } = _estadoRecoleccionPedido(p)
-    const pars = _todasParadas[p.id] || []
-    if (!yaRecolectado && p.lat_recoleccion != null && p.lng_recoleccion != null) {
-      candidates.push({ tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
-        direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion })
+function _paradasPendientes(
+  pedidos = _mapaLastPedidos,
+  paradasPorPedido = _mapaLastParadas
+) {
+  const pendientes = []
+
+  ;(pedidos || []).forEach(pedido => {
+    const color = _colorGrupo(pedido.nombre_mostrar || pedido.nombre)
+    const { yaRecolectado } = _estadoRecoleccionPedido(pedido)
+    const paradas = paradasPorPedido?.[pedido.id] || []
+    const tieneEntregaPendiente = paradas.length
+      ? paradas.some(parada => parada.estado !== 'completada')
+      : pedido.estado !== 'Entregado'
+
+    if (!yaRecolectado && tieneEntregaPendiente) {
+      pendientes.push({
+        key: 'rec-' + pedido.id,
+        tipo: 'rec',
+        type: 'rec',
+        pedidoId: pedido.id,
+        clienteNombre: pedido.nombre,
+        nombreMostrar: pedido.nombre_mostrar || pedido.nombre,
+        tipoCliente: pedido.tipo_cliente || (pedido.empresa_codigo ? 'empresa' : 'individual'),
+        direccion: pedido.direccion_recoleccion || '—',
+        addr: pedido.direccion_recoleccion || '—',
+        lat: pedido.lat_recoleccion,
+        lng: pedido.lng_recoleccion,
+        color,
+        bloqueadaPorRecoleccion: false
+      })
     }
-    // No se puede entregar un pedido que todavía no ha sido recolectado.
-    if (!yaRecolectado) {
-      const tieneEntregaPendiente = pars.length
-        ? pars.some(par => par.estado !== 'completada')
-        : p.estado !== 'Entregado'
-      if (tieneEntregaPendiente) {
-        recoleccionesBloqueantes.push({
-          tipo: 'rec', pedidoId: p.id, clienteNombre: p.nombre,
-          direccion: p.direccion_recoleccion, lat: p.lat_recoleccion, lng: p.lng_recoleccion
+
+    if (paradas.length) {
+      paradas.forEach(parada => {
+        if (parada.estado === 'completada') return
+        if (_esUltimaParadaBloqueadaPorRutaCerrada(pedido, paradas, parada)) return
+
+        pendientes.push({
+          key: 'par-' + parada.id,
+          tipo: 'ent',
+          type: 'par',
+          pedidoId: pedido.id,
+          paradaId: parada.id,
+          orden: parada.orden,
+          clienteNombre: pedido.nombre,
+          nombreMostrar: pedido.nombre_mostrar || pedido.nombre,
+          tipoCliente: pedido.tipo_cliente || (pedido.empresa_codigo ? 'empresa' : 'individual'),
+          direccion: parada.direccion || '—',
+          addr: parada.direccion || '—',
+          lat: parada.lat,
+          lng: parada.lng,
+          color,
+          bloqueadaPorRecoleccion: !yaRecolectado
         })
-      }
+      })
       return
     }
-    if (pars.length) {
-      pars.forEach(par => {
-        if (par.estado === 'completada') return  // excluir completadas
-        if (par.lat == null || par.lng == null) return
-        if (_esUltimaParadaBloqueadaPorRutaCerrada(p, pars, par)) return
-        candidates.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
-          direccion: par.direccion, lat: par.lat, lng: par.lng, orden: par.orden })
+
+    if (pedido.estado !== 'Entregado') {
+      pendientes.push({
+        key: 'ent-' + pedido.id,
+        tipo: 'ent',
+        type: 'par',
+        pedidoId: pedido.id,
+        orden: 1,
+        clienteNombre: pedido.nombre,
+        nombreMostrar: pedido.nombre_mostrar || pedido.nombre,
+        tipoCliente: pedido.tipo_cliente || (pedido.empresa_codigo ? 'empresa' : 'individual'),
+        direccion: pedido.direccion_entrega || '—',
+        addr: pedido.direccion_entrega || '—',
+        lat: pedido.lat_entrega,
+        lng: pedido.lng_entrega,
+        color,
+        bloqueadaPorRecoleccion: !yaRecolectado
       })
-    } else if (p.lat_entrega != null && p.lng_entrega != null) {
-      candidates.push({ tipo: 'ent', pedidoId: p.id, clienteNombre: p.nombre,
-        direccion: p.direccion_entrega, lat: p.lat_entrega, lng: p.lng_entrega })
     }
   })
+
+  return pendientes
+}
+
+function _proximaParada() {
+  const pendientes = _paradasPendientes(
+    Object.values(_pedidosRep),
+    _todasParadas
+  )
+  const candidates = pendientes.filter(parada =>
+    !parada.bloqueadaPorRecoleccion &&
+    _tieneCoordenadasRuta(parada)
+  )
+  const recoleccionesBloqueantes = pendientes.filter(parada =>
+    parada.tipo === 'rec'
+  )
+
   if (!candidates.length) {
     if (!recoleccionesBloqueantes.length) return null
     const ubicables = recoleccionesBloqueantes.filter(s => s.lat != null && s.lng != null)
@@ -3434,11 +3529,51 @@ function _asegurarCapaRutaSugerida() {
       id: _RUTA_SUGERIDA_LAYER,
       type: 'line',
       source: _RUTA_SUGERIDA_SOURCE,
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+        visibility: _rutaSugeridaVisible ? 'visible' : 'none'
+      },
       paint: { 'line-color': '#1E56C7', 'line-width': 5, 'line-opacity': 0.9 }
     })
   }
   return true
+}
+
+function _actualizarBotonRutaSugerida() {
+  const boton = document.getElementById('btn-ruta-sugerida')
+  if (!boton) return
+
+  boton.classList.toggle('inactivo', !_rutaSugeridaVisible)
+  boton.setAttribute('aria-pressed', String(_rutaSugeridaVisible))
+  boton.setAttribute(
+    'aria-label',
+    _rutaSugeridaVisible ? 'Ocultar ruta sugerida' : 'Mostrar ruta sugerida'
+  )
+}
+
+function _aplicarVisibilidadRutaSugerida() {
+  if (!_mapboxMap?.getLayer(_RUTA_SUGERIDA_LAYER)) return
+  _mapboxMap.setLayoutProperty(
+    _RUTA_SUGERIDA_LAYER,
+    'visibility',
+    _rutaSugeridaVisible ? 'visible' : 'none'
+  )
+}
+
+function _alternarRutaSugerida() {
+  _rutaSugeridaVisible = !_rutaSugeridaVisible
+  localStorage.setItem(_RUTA_SUGERIDA_VISIBLE_KEY, String(_rutaSugeridaVisible))
+  _actualizarBotonRutaSugerida()
+  _aplicarVisibilidadRutaSugerida()
+
+  if (!_rutaSugeridaVisible) {
+    clearTimeout(_rutaSugeridaTimer)
+    if (_rutaSugeridaAbort) _rutaSugeridaAbort.abort()
+    return
+  }
+
+  _programarRutaSugerida(_proximaParada())
 }
 
 function _limpiarRutaSugerida() {
@@ -3454,6 +3589,7 @@ function _limpiarRutaSugerida() {
 
 function _programarRutaSugerida(parada) {
   clearTimeout(_rutaSugeridaTimer)
+  if (!_rutaSugeridaVisible) return
   const tieneCoordenadas = Number.isFinite(Number(parada?.lat)) && Number.isFinite(Number(parada?.lng))
   if (!parada || !tieneCoordenadas || !_currentGPS || !_mapboxMap || !mapboxgl.accessToken) {
     if (!parada || !tieneCoordenadas) _limpiarRutaSugerida()
@@ -3464,11 +3600,13 @@ function _programarRutaSugerida(parada) {
 }
 
 async function _actualizarRutaSugerida(parada) {
+  if (!_rutaSugeridaVisible) return
   if (!_currentGPS || !_mapboxMap || !mapboxgl.accessToken) return
   if (!_asegurarCapaRutaSugerida()) {
     _mapboxMap.once('load', () => _programarRutaSugerida(_proximaParada()))
     return
   }
+  _aplicarVisibilidadRutaSugerida()
 
   const posicionSolicitud = { lat: Number(_currentGPS.lat), lng: Number(_currentGPS.lng) }
   const destinoSolicitud = `${parada.tipo}:${parada.pedidoId}:${parada.orden || ''}:${parada.lat},${parada.lng}`
@@ -3531,30 +3669,10 @@ function _haversine(lat1, lng1, lat2, lng2) {
 }
 
 function _buildStops() {
-  const stops = []
-  _mapaLastPedidos.forEach(p => {
-    const color = _colorGrupo(p.nombre_mostrar || p.nombre)
-    if (p.lat_recoleccion != null && p.lng_recoleccion != null) {
-      stops.push({ key: 'rec-' + p.id, type: 'rec', pedidoId: p.id,
-        lat: p.lat_recoleccion, lng: p.lng_recoleccion,
-        addr: p.direccion_recoleccion || '—', color })
-    }
-    const pars = _mapaLastParadas[p.id]
-    if (pars?.length) {
-      pars.forEach(par => {
-        if (par.lat != null && par.lng != null) {
-          stops.push({ key: 'par-' + par.id, type: 'par', pedidoId: p.id,
-            lat: par.lat, lng: par.lng,
-            addr: par.direccion || '—', color })
-        }
-      })
-    } else if (p.lat_entrega != null && p.lng_entrega != null) {
-      stops.push({ key: 'ent-' + p.id, type: 'par', pedidoId: p.id,
-        lat: p.lat_entrega, lng: p.lng_entrega,
-        addr: p.direccion_entrega || '—', color })
-    }
-  })
-  return stops
+  return _paradasPendientes(
+    _mapaLastPedidos,
+    _mapaLastParadas
+  ).filter(_tieneCoordenadasRuta)
 }
 
 function _nearestNeighbor(startLat, startLng, stops) {
