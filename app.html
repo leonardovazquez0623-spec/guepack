@@ -1877,6 +1877,7 @@ const _NIVEL_ORDEN = { normal: 0, bronce: 1, plata: 2, oro: 3 }
 // Cliente / perfil
 var _clienteUserId = null, _clienteEmail = '', _clienteFotoUrl = null
 var _clienteCodigoReferido = null, _clienteNombre = '', _clienteWhatsapp = ''
+var _clienteNombrePerfil = '', _clienteApellidoPerfil = ''
 var _clienteWhatsappEditado = false, _clienteTotalPedidos = 0, _clienteNivelVip = 'normal', _clienteEnviosGratis = 0
 // Varios
 var _calStars = 0, _gdlBounds = null
@@ -2051,11 +2052,29 @@ async function _posponerrPwaBanner(userId) {
 // ── Verificar sesión ──
 let _tenantIdEventos = null
 
-async function _iniciarAppCliente(user) {
+async function _iniciarAppCliente(user, perfilInicial = null) {
+  let perfilNombre = perfilInicial
+  if (
+    !perfilNombre ||
+    perfilNombre.nombre === undefined ||
+    perfilNombre.apellido === undefined
+  ) {
+    const { data, error } = await db.from('usuarios')
+      .select('nombre, apellido')
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      console.error('[perfil] No se pudo consultar el nombre del usuario:', error)
+    } else {
+      perfilNombre = data
+    }
+  }
+
   verificarAnuncio()
   _solicitarPermisoNotificaciones()
   cargarVipUsuario(user.id)
-  cargarNombreRemitente(user)
+  cargarNombreRemitente(user, perfilNombre)
   await _cargarEmpresaUsuario(user)
   _actualizarVisibilidadAgregarParada()
   await _cargarCargoCancelacion(user)
@@ -2065,6 +2084,10 @@ async function _iniciarAppCliente(user) {
   db.from('pedidos').select('id', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => {
     if (count > 0) db.from('eventos_trafico').insert({ tipo: 'retorno', user_id: user.id, tenant_id: _tenantIdEventos }).then(() => {})
   })
+
+  if (_perfilSinNombreCompleto(perfilNombre)) {
+    mostrarModalNombre(user.id)
+  }
 }
 
 async function verificarSesion() {
@@ -2081,7 +2104,7 @@ async function verificarSesion() {
   }
 
   const { data: usuario } = await db.from('usuarios')
-    .select('rol, whatsapp, whatsapp_verificado, tenant_id')
+    .select('rol, whatsapp, whatsapp_verificado, tenant_id, nombre, apellido')
     .eq('user_id', session.user.id)
     .single()
 
@@ -2107,7 +2130,7 @@ async function verificarSesion() {
     return
   }
 
-  await _iniciarAppCliente(session.user)
+  await _iniciarAppCliente(session.user, usuario)
 }
 
 async function _cargarEmpresaUsuario(user) {
@@ -2383,15 +2406,156 @@ function _suscribirEmpresaRealtime(empresa) {
     .subscribe()
 }
 
-function cargarNombreRemitente(user) {
-  const nombre = user?.user_metadata?.nombre || user?.email || ''
+function _perfilSinNombreCompleto(perfil) {
+  const nombre = String(perfil?.nombre || '').trim()
+  const apellido = String(perfil?.apellido || '').trim()
+  return !nombre || !apellido || nombre.includes('@')
+}
+
+function _actualizarNombreVisible(nombre, apellido) {
+  const nombreLimpio = String(nombre || '').trim()
+  const apellidoLimpio = String(apellido || '').trim()
+  const nombreCompleto = [nombreLimpio, apellidoLimpio].filter(Boolean).join(' ')
+
+  _clienteNombrePerfil = nombreLimpio
+  _clienteApellidoPerfil = apellidoLimpio
+  _clienteNombre = nombreCompleto
+
+  const saludo = document.getElementById('header-saludo')
+  if (saludo) {
+    saludo.textContent = nombreLimpio
+      ? 'Hola, ' + nombreLimpio + ' 👋'
+      : 'Hola 👋'
+  }
+
+  const nombreDrawer = document.getElementById('drawer-nombre-cliente')
+  if (nombreDrawer) {
+    nombreDrawer.textContent = nombreCompleto || _maskEmail(_clienteEmail)
+  }
+
+  const campoRemitente = document.getElementById('nombre-remitente')
+  if (campoRemitente && nombreCompleto) {
+    campoRemitente.value = nombreCompleto
+  }
+}
+
+function cargarNombreRemitente(user, perfil = null) {
+  const nombrePerfil = String(
+    perfil?.nombre ?? _clienteNombrePerfil ?? ''
+  ).trim()
+  const apellidoPerfil = String(
+    perfil?.apellido ?? _clienteApellidoPerfil ?? ''
+  ).trim()
+  const perfilEfectivo = {
+    nombre: nombrePerfil,
+    apellido: apellidoPerfil
+  }
+  const nombre = [nombrePerfil, apellidoPerfil].filter(Boolean).join(' ') ||
+    user?.user_metadata?.nombre ||
+    user?.email ||
+    ''
   const campo = document.getElementById('nombre-remitente')
   if (campo) campo.value = nombre
-  const saludo = document.getElementById('header-saludo')
-  if (saludo && nombre) {
-    const primerNombre = nombre.split(' ')[0]
-    saludo.textContent = 'Hola, ' + primerNombre + ' 👋'
+
+  if (!_perfilSinNombreCompleto(perfilEfectivo)) {
+    _actualizarNombreVisible(nombrePerfil, apellidoPerfil)
+  } else {
+    _clienteNombre = ''
+    const saludo = document.getElementById('header-saludo')
+    if (saludo) saludo.textContent = 'Hola 👋'
   }
+}
+
+function mostrarModalNombre(userId) {
+  if (document.getElementById('modal-actualizar-nombre')) return
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-actualizar-nombre'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(10,24,52,0.72);z-index:30000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box'
+  modal.innerHTML = `
+    <div style="width:100%;max-width:390px;background:white;border-radius:22px;padding:26px 22px;box-shadow:0 18px 55px rgba(0,0,0,0.28);box-sizing:border-box">
+      <div style="font-size:42px;text-align:center;margin-bottom:10px">🐆</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;line-height:1.45;color:var(--color-primary-dark);text-align:center;margin-bottom:20px">
+        Nuestro Gatito arañó varias líneas de código,<br>
+        ¡Vuelve a agregar tu nombre!
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <label style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--color-primary-dark)">
+          Nombre *
+          <input id="modal-nombre-input" type="text" maxlength="100" autocomplete="given-name"
+            style="width:100%;margin-top:6px;padding:12px;border:1.5px solid #dbe3f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:16px;box-sizing:border-box;outline:none">
+        </label>
+        <label style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;color:var(--color-primary-dark)">
+          Apellido *
+          <input id="modal-apellido-input" type="text" maxlength="100" autocomplete="family-name"
+            style="width:100%;margin-top:6px;padding:12px;border:1.5px solid #dbe3f0;border-radius:10px;font-family:Montserrat,sans-serif;font-size:16px;box-sizing:border-box;outline:none">
+        </label>
+      </div>
+      <div id="modal-nombre-error" style="display:none;color:#dc2626;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;margin-bottom:12px;text-align:center"></div>
+      <button id="modal-nombre-boton" type="button"
+        style="width:100%;padding:13px;border:none;border-radius:11px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-size:14px;font-weight:900;cursor:pointer">
+        Actualizar nombre
+      </button>
+    </div>`
+
+  document.body.appendChild(modal)
+
+  const nombreInput = document.getElementById('modal-nombre-input')
+  const apellidoInput = document.getElementById('modal-apellido-input')
+  const boton = document.getElementById('modal-nombre-boton')
+  const errorEl = document.getElementById('modal-nombre-error')
+
+  const actualizar = async () => {
+    const nombre = nombreInput.value.trim()
+    const apellido = apellidoInput.value.trim()
+    const patronNombre = /^[\p{L}\s.'-]+$/u
+
+    errorEl.style.display = 'none'
+
+    if (!nombre || !apellido) {
+      errorEl.textContent = 'Nombre y apellido son obligatorios'
+      errorEl.style.display = 'block'
+      return
+    }
+
+    if (!patronNombre.test(nombre) || !patronNombre.test(apellido)) {
+      errorEl.textContent = 'Usa solo letras, espacios, apóstrofes o guiones'
+      errorEl.style.display = 'block'
+      return
+    }
+
+    boton.disabled = true
+    boton.textContent = 'Actualizando...'
+
+    const { data, error } = await db.from('usuarios')
+      .update({ nombre, apellido })
+      .eq('user_id', userId)
+      .select('nombre, apellido')
+      .single()
+
+    if (error || !data) {
+      console.error('[perfil] No se pudo actualizar el nombre:', error)
+      errorEl.textContent = 'No pudimos actualizar tu nombre. Intenta nuevamente.'
+      errorEl.style.display = 'block'
+      boton.disabled = false
+      boton.textContent = 'Actualizar nombre'
+      return
+    }
+
+    _actualizarNombreVisible(data.nombre, data.apellido)
+    mostrarToast('✅ ¡Nombre actualizado!', '#22c55e')
+    modal.remove()
+  }
+
+  boton.addEventListener('click', actualizar)
+  nombreInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') apellidoInput.focus()
+  })
+  apellidoInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') actualizar()
+  })
+
+  setTimeout(() => nombreInput.focus(), 100)
 }
 
 function _actualizarBadgeHeader() {
@@ -6578,7 +6742,7 @@ async function _abrirDrawer() {
     <div style="background:linear-gradient(145deg,var(--color-primary-dark) 0%,var(--color-primary) 100%);padding:28px 20px 22px;position:relative;flex-shrink:0;text-align:center">
       <button onclick="_cerrarDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;z-index:1">✕</button>
       <div id="drawer-foto-avatar" onclick="_abrirModalFotoCliente()" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);overflow:hidden;cursor:pointer;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;flex-shrink:0">${avatarHtml}</div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:white;line-height:1.2;margin-bottom:3px">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
+      <div id="drawer-nombre-cliente" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;color:white;line-height:1.2;margin-bottom:3px">${_clienteNombre || _maskEmail(_clienteEmail)}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.58);font-family:Montserrat,sans-serif;font-weight:600;margin-bottom:10px">${_maskEmail(_clienteEmail)}</div>
       <span style="display:inline-block;padding:3px 12px;background:${_vipBg[nivel]};color:white;border-radius:20px;font-size:10px;font-weight:900;font-family:Montserrat,sans-serif;border:1px solid rgba(255,255,255,0.3);backdrop-filter:blur(4px)">${_vipLabels[nivel]}</span>
     </div>
