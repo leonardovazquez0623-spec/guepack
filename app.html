@@ -3308,8 +3308,110 @@ const zonaPedido = sanitize(_modoPaqueteria
       ? ((_multiParadaZonaData?.nombre || _zonaData?.nombre || 'Multi-parada') + ' · ' + _multiParadaKm + ' km · ' + (1 + _pv.length) + ' paradas')
       : (_zonaData?.nombre || 'GDL') + ' · ' + _precioGeneralKm + ' km')
 
+const esCaminoPrecioGeneral =
+  !_empresaData &&
+  !_esMultiParada &&
+  !_modoPaqueteria
+
 let esRecuperacionDeDuplicado = false
-let { data, error } = await db.from('pedidos').insert({
+let data = null
+let error = null
+
+if (esCaminoPrecioGeneral) {
+  if (!session?.access_token) {
+    console.error('[pedido] No hay una sesión válida para crear el pedido general')
+    mostrarToast('Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.', '#ef4444')
+    return
+  }
+
+  const payloadPedidoGeneral = {
+    nombre: nombre,
+    nombre_remitente: nombreRemitente || null,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    direccion_entrega: direccionEntregaGuardada,
+    fecha: sanitize(fecha),
+    tamanio: sanitize(selSize),
+    instrucciones: instrucciones || null,
+    metodo_pago: sanitize(metodoPago),
+    comprobante_pago: sanitize(comprobanteUrl) || null,
+    cupon_codigo: sanitize(_cuponActivo?.codigo) || null,
+    km_recorridos: _kmRecorridos,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
+    lat_entrega: _latEntrega ?? null,
+    lng_entrega: _lngEntrega ?? null,
+    idempotency_key: idempotencyKey
+  }
+
+  let respuestaFuncion
+
+  try {
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/crear-pedido-local',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(payloadPedidoGeneral)
+      }
+    )
+
+    try {
+      respuestaFuncion = await respuesta.json()
+    } catch {
+      respuestaFuncion = null
+    }
+
+    if (!respuesta.ok) {
+      const mensaje = respuestaFuncion?.error || 'No pudimos crear el pedido. Intenta nuevamente.'
+      console.error(
+        '[pedido] crear-pedido-local rechazó la solicitud:',
+        respuesta.status,
+        mensaje
+      )
+      mostrarToast(mensaje, '#ef4444')
+      return
+    }
+  } catch (errorFuncion) {
+    console.error(
+      '[pedido] No se pudo conectar con crear-pedido-local:',
+      errorFuncion
+    )
+    mostrarToast(
+      'No pudimos conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  if (!Array.isArray(respuestaFuncion?.data) || !respuestaFuncion.data[0]) {
+    console.error(
+      '[pedido] crear-pedido-local devolvió una respuesta incompleta:',
+      respuestaFuncion
+    )
+    mostrarToast(
+      'El pedido fue procesado, pero no pudimos recuperar el resultado. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  data = respuestaFuncion.data
+  esRecuperacionDeDuplicado =
+    respuestaFuncion.es_recuperacion_de_duplicado === true
+
+  if (esRecuperacionDeDuplicado) {
+    console.log(
+      '[pedido] La función recuperó un pedido existente:',
+      data[0].id
+    )
+  }
+} else {
+  const resultadoInsert = await db.from('pedidos').insert({
     nombre: nombre,
     whatsapp: whatsapp,
     direccion_recoleccion: dir_recoleccion,
@@ -3336,6 +3438,9 @@ let { data, error } = await db.from('pedidos').insert({
     idempotency_key: idempotencyKey,
   }).select()
 
+  data = resultadoInsert.data
+  error = resultadoInsert.error
+
   if (error?.code === '23505') {
     const { data: pedidoExistente, error: errorConsulta } = await db
       .from('pedidos')
@@ -3358,15 +3463,17 @@ let { data, error } = await db.from('pedidos').insert({
       error = null
     }
   }
+}
 
-  if (error) {
-    mostrarToast('Ups... este paquete se nos escapó.', '#ef4444')
-    console.error(error)
-    return
-  }
+if (error) {
+  mostrarToast('Ups... este paquete se nos escapó.', '#ef4444')
+  console.error(error)
+  return
+}
 
-  if (!esRecuperacionDeDuplicado) {
-    if (_cuponActivo) {
+if (!esRecuperacionDeDuplicado) {
+    // En precio general, crear-pedido-local consume el cupón de forma atómica.
+    if (_cuponActivo && !esCaminoPrecioGeneral) {
       db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
       if (userId) {
         db.from('cupones_usos').upsert(
@@ -3376,45 +3483,50 @@ let { data, error } = await db.from('pedidos').insert({
       }
     }
     if (userId) db.from('eventos_trafico').insert({ tipo: 'pedido', user_id: userId, tenant_id: _tenantIdEventos }).then(() => {})
-  }
+}
 
-  const folioReal = data[0].id
-  const tokenRastreoGuardado = data[0].token_rastreo || tokenRastreo
-  _pedidoTokens[folioReal] = tokenRastreoGuardado
+const folioReal = data[0].id
+const tokenRastreoGuardado = data[0].token_rastreo || tokenRastreo
+_pedidoTokens[folioReal] = tokenRastreoGuardado
 
-  if (!esRecuperacionDeDuplicado && metodoPago === 'tarjeta') {
-    // La asignación la dispara el webhook tras confirmar el pago — no iniciar aquí
-    await _pagarConTarjeta(folioReal)
-    return
-  }
+if (!esRecuperacionDeDuplicado && metodoPago === 'tarjeta') {
+  // La asignación la dispara el webhook tras confirmar el pago — no iniciar aquí
+  await _pagarConTarjeta(folioReal)
+  return
+}
 
-  if (
-    !esRecuperacionDeDuplicado &&
-    metodoPago !== 'transferencia'
-  ) {
-    // Asignación automática — no bloquea el flujo del cliente
-    console.log('[asignación] iniciando asignación automática para pedido:', folioReal)
-    _iniciarAsignacionAutomatica(data[0])
-  }
+if (
+  !esRecuperacionDeDuplicado &&
+  metodoPago !== 'transferencia'
+) {
+  // Asignación automática — no bloquea el flujo del cliente
+  console.log('[asignación] iniciando asignación automática para pedido:', folioReal)
+  _iniciarAsignacionAutomatica(data[0])
+}
 
-  // Tarifa diaria: el primer pedido del día cubre todos los siguientes
-  if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
-    _tarifaDiariaYaCubierta = true
-    console.log('[tarifa-diaria] primer pedido del día creado → tarifa cubierta para pedidos posteriores')
-  }
+// Tarifa diaria: el primer pedido del día cubre todos los siguientes
+if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
+  _tarifaDiariaYaCubierta = true
+  console.log('[tarifa-diaria] primer pedido del día creado → tarifa cubierta para pedidos posteriores')
+}
 
-  if (
-    !esRecuperacionDeDuplicado &&
-    _cargoCancelacionPendiente > 0 &&
-    !_empresaData
-  ) {
+if (
+  !esRecuperacionDeDuplicado &&
+  _cargoCancelacionPendiente > 0 &&
+  !_empresaData
+) {
+  if (esCaminoPrecioGeneral) {
+    // La RPC ya guardó y limpió el cargo; solo sincronizar el estado local.
+    _cargoCancelacionPendiente = 0
+  } else {
     db.from('pedidos').update({ cargo_cancelacion: _cargoCancelacionPendiente }).eq('id', folioReal).then(() => {})
     db.from('usuarios').update({ cargo_cancelacion: 0 }).eq('email', session.user.email).then(() => {})
     _cargoCancelacionPendiente = 0
   }
+}
 
-  // Guardar paradas (multi-parada): dir-entrega primero, luego las adicionales
-  if (!esRecuperacionDeDuplicado && _esMultiParada) {
+// Guardar paradas (multi-parada): dir-entrega primero, luego las adicionales
+if (!esRecuperacionDeDuplicado && _esMultiParada) {
     const paradasAdicionales = _paradasList.filter(p => p.direccion.trim())
     const paradasAInsertar = [
       {
@@ -3438,17 +3550,17 @@ let { data, error } = await db.from('pedidos').insert({
     ]
     console.log('[paradas] a insertar:', paradasAInsertar)
     await db.from('paradas').insert(paradasAInsertar)
-  }
-  document.getElementById('folio-number').textContent = 'GK-' + folioReal
+}
+document.getElementById('folio-number').textContent = 'GK-' + folioReal
 
-  mostrarPedidoActivo(
-    folioReal,
-    data[0].estado || 'Pendiente',
-    null,
-    false,
-    nombreRemitente,
-    data[0].created_at || new Date().toISOString()
-  )
+mostrarPedidoActivo(
+  folioReal,
+  data[0].estado || 'Pendiente',
+  null,
+  false,
+  nombreRemitente,
+  data[0].created_at || new Date().toISOString()
+)
 resetForm()
 
 const toast = document.createElement('div')
