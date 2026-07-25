@@ -103,10 +103,16 @@ function opcional(
 }
 
 function numero(valor: unknown, campo: string) {
+  if (valor === null || valor === undefined || valor === "") {
+    throw new Error(`El campo ${campo} es obligatorio`);
+  }
+
   const resultado = typeof valor === "number" ? valor : Number(valor);
+
   if (!Number.isFinite(resultado)) {
     throw new Error(`El campo ${campo} no es válido`);
   }
+
   return resultado;
 }
 
@@ -567,13 +573,20 @@ Deno.serve(async (req) => {
     const codigoCupon =
       opcional(cuerpo.cupon_codigo, "cupon_codigo", 50)?.toUpperCase() ?? null;
 
-    validarDistancia(
-      km,
-      haversine(
-        { lat: latRecoleccion, lng: lngRecoleccion },
-        { lat: latEntrega, lng: lngEntrega },
-      ),
+    const puntoRecoleccion = {
+      lat: latRecoleccion,
+      lng: lngRecoleccion,
+    };
+    const puntoEntrega = {
+      lat: latEntrega,
+      lng: lngEntrega,
+    };
+    const distanciaHaversine = haversine(
+      puntoRecoleccion,
+      puntoEntrega,
     );
+
+    validarDistancia(km, distanciaHaversine);
 
     const admin = createClient(url, servicio, {
       auth: { persistSession: false, autoRefreshToken: false },

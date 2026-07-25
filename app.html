@@ -1827,6 +1827,7 @@ var _zonaData = null, _empresaData = null, _empresaUsuario = null
 var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
 var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
 var _latRecoleccion = null, _lngRecoleccion = null
+var _geocodificandoRecoleccion = false
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
 var _precioGeneralTotal = null, _precioGeneralKm = null
 var _preciosGeneralesData = null, _rangosGeneralesData = null, _preciosGeneralesPromise = null
@@ -2921,6 +2922,14 @@ function _actualizarBarraProgreso() {
 }
 
 function _wizardContinuar(paso) {
+  if (paso === 1 && _geocodificandoRecoleccion) {
+    mostrarToast(
+      'Estamos validando la dirección de recolección. Espera un momento.',
+      '#f59e0b'
+    )
+    return
+  }
+
   if (paso === 1) {
     const nombre = document.getElementById('nombre-destinatario').value.trim()
     const remitente = document.getElementById('nombre-remitente').value.trim()
@@ -3331,6 +3340,14 @@ function updateQuote() {
 }
 
 async function submitRequest() {
+  if (_geocodificandoRecoleccion) {
+    mostrarToast(
+      'Estamos validando la dirección de recolección. Espera un momento.',
+      '#f59e0b'
+    )
+    return
+  }
+
   if (_enviandoPedido) return
 
   _enviandoPedido = true
@@ -4231,17 +4248,57 @@ function usarDireccion(inputId, direccion, lat, lng) {
     }
   } else if (inputId === 'dir-recoleccion') {
     if (lat != null && lng != null) {
-      _latRecoleccion = lat
-      _lngRecoleccion = lng
-    } else if (window.google?.maps) {
+      _latRecoleccion = Number(lat)
+      _lngRecoleccion = Number(lng)
+      _geocodificandoRecoleccion = false
+    } else {
+      // No reutilizar coordenadas pertenecientes a una selección anterior.
+      _latRecoleccion = null
+      _lngRecoleccion = null
+
+      if (!window.google?.maps) {
+        _geocodificandoRecoleccion = false
+        mostrarToast(
+          'No fue posible validar la ubicación de la dirección guardada.',
+          '#ef4444'
+        )
+        return
+      }
+
+      _geocodificandoRecoleccion = true
+
       new google.maps.Geocoder().geocode({ address: direccion }, (res, st) => {
-        if (st === 'OK' && res[0]?.geometry) {
+        try {
+          if (st !== 'OK' || !res[0]?.geometry) {
+            _latRecoleccion = null
+            _lngRecoleccion = null
+            mostrarToast(
+              'No pudimos ubicar la dirección guardada. Selecciona una dirección válida.',
+              '#ef4444'
+            )
+            return
+          }
+
           _latRecoleccion = res[0].geometry.location.lat()
           _lngRecoleccion = res[0].geometry.location.lng()
+          // updateQuote() reutiliza kilómetros ya calculados
+          // (_corporativoKm/_precioGeneralKm/_multiParadaKm); si la
+          // geocodificación resuelve antes de que exista una distancia
+          // calculada, la cotización visible podría no actualizarse hasta
+          // la siguiente acción del usuario. Caso raro, pendiente de mejora
+          // si se detecta en producción.
+          updateQuote()
+          setTimeout(_actualizarMapaWizard, 100)
+        } finally {
+          _geocodificandoRecoleccion = false
         }
       })
+
+      // El mapa y la cotización esperan el resultado del geocodificador.
+      return
     }
-    if (_empresaData && _entregaPlace) _calcularPrecioCorporativo()
+
+    updateQuote()
     setTimeout(_actualizarMapaWizard, 50)
   } else if (inputId.startsWith('parada-dir-')) {
     const idx = parseInt(inputId.replace('parada-dir-', ''), 10)
@@ -5683,6 +5740,8 @@ function _preLlenarDireccionModo(modo) {
           if (modo === 'enviar') {
             const el = document.getElementById('dir-recoleccion')
             if (el) el.value = dir
+            _latRecoleccion = latitude
+            _lngRecoleccion = longitude
             const linkRec = document.getElementById('link-ajustar-gps-rec')
             if (linkRec) linkRec.style.display = ''
             setTimeout(_actualizarMapaWizard, 50)
@@ -5757,6 +5816,8 @@ function _activarAjusteGps(tipo) {
       if (tipo === 'rec') {
         const el = document.getElementById('dir-recoleccion')
         if (el) el.value = dir
+        _latRecoleccion = lat
+        _lngRecoleccion = lng
       } else {
         const el = document.getElementById('dir-entrega')
         if (el) el.value = dir
