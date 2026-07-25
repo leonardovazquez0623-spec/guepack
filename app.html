@@ -3446,10 +3446,10 @@ const { data: { session } } = await db.auth.getSession()
 const userId = session?.user?.id
 const precioBase = _modoPaqueteria
   ? _paqueteriaPrecio
-  : _empresaData
-    ? _corporativoPrecio
-    : _esMultiParada
-      ? _multiParadaPrecio
+  : _esMultiParada
+    ? _multiParadaPrecio
+    : _empresaData
+      ? _corporativoPrecio
       : _precioGeneralTotal
 const precio = precioBase  // descuento de cupón ya está incluido en _precioGeneralTotal
 
