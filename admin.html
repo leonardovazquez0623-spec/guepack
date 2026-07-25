@@ -2412,15 +2412,14 @@ async function cargarReferidos() {
 
   // Clientes con envíos gratis
   const { data: clientes } = await db.from('usuarios')
-    .select('email, nombre, envios_gratis')
+    .select('email, envios_gratis')
     .gt('envios_gratis', 0)
     .order('envios_gratis', { ascending: false })
   const elCli = document.getElementById('lista-envios-gratis')
   elCli.innerHTML = clientes?.length ? clientes.map(c => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f4f6fb;border-radius:10px;margin-bottom:6px">
       <div>
-        <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif">${c.nombre || c.email}</div>
-        <div style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif">${c.email}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--color-primary-dark);font-family:Montserrat,sans-serif">${c.email}</div>
       </div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--color-secondary);line-height:1">${c.envios_gratis} <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#8fa3c0">gratis</span></div>
     </div>`).join('')
