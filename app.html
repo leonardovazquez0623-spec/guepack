@@ -3507,6 +3507,12 @@ const esCaminoCorporativo =
   !_modoPaqueteria &&
   _empresaData.tipo_tarifa !== 'diaria'
 
+const esCaminoTarifaDiaria =
+  !!_empresaData &&
+  !_esMultiParada &&
+  !_modoPaqueteria &&
+  _empresaData.tipo_tarifa === 'diaria'
+
 let esRecuperacionDeDuplicado = false
 let data = null
 let error = null
@@ -3698,6 +3704,107 @@ if (esCaminoPrecioGeneral) {
       data[0].id
     )
   }
+} else if (esCaminoTarifaDiaria) {
+  if (!session?.access_token) {
+    console.error('[pedido] No hay una sesión válida para crear el pedido de tarifa diaria')
+    mostrarToast(
+      'Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.',
+      '#ef4444'
+    )
+    return
+  }
+
+  const payloadPedidoTarifaDiaria = {
+    nombre: nombre,
+    nombre_remitente: nombreRemitente || null,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    direccion_entrega: direccionEntregaGuardada,
+    fecha: sanitize(fecha),
+    tamanio: sanitize(selSize),
+    instrucciones: instrucciones || null,
+    // En tarifa diaria debe ser exactamente "Crédito", pero se envía el
+    // valor real para que el servidor detecte cualquier inconsistencia.
+    metodo_pago: metodoPago,
+    comprobante_pago: sanitize(comprobanteUrl) || null,
+    // Los pedidos corporativos de tarifa diaria no envían cupon_codigo.
+    km_recorridos: _kmRecorridos,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
+    lat_entrega: _latEntrega ?? null,
+    lng_entrega: _lngEntrega ?? null,
+    idempotency_key: idempotencyKey
+  }
+
+  let respuestaFuncion
+
+  try {
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/crear-pedido-local',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(payloadPedidoTarifaDiaria)
+      }
+    )
+
+    try {
+      respuestaFuncion = await respuesta.json()
+    } catch {
+      respuestaFuncion = null
+    }
+
+    if (!respuesta.ok) {
+      const mensaje =
+        respuestaFuncion?.error ||
+        'No pudimos crear el pedido. Intenta nuevamente.'
+
+      console.error(
+        '[pedido] crear-pedido-local rechazó la solicitud de tarifa diaria:',
+        respuesta.status,
+        mensaje
+      )
+      mostrarToast(mensaje, '#ef4444')
+      return
+    }
+  } catch (errorFuncion) {
+    console.error(
+      '[pedido] No se pudo conectar con crear-pedido-local para el pedido de tarifa diaria:',
+      errorFuncion
+    )
+    mostrarToast(
+      'No pudimos conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  if (!Array.isArray(respuestaFuncion?.data) || !respuestaFuncion.data[0]) {
+    console.error(
+      '[pedido] crear-pedido-local devolvió una respuesta de tarifa diaria incompleta:',
+      respuestaFuncion
+    )
+    mostrarToast(
+      'El pedido fue procesado, pero no pudimos recuperar el resultado. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  data = respuestaFuncion.data
+  esRecuperacionDeDuplicado =
+    respuestaFuncion.es_recuperacion_de_duplicado === true
+
+  if (esRecuperacionDeDuplicado) {
+    console.log(
+      '[pedido] La función recuperó un pedido de tarifa diaria existente:',
+      data[0].id
+    )
+  }
 } else {
   const resultadoInsert = await db.from('pedidos').insert({
     nombre: nombre,
@@ -3760,8 +3867,9 @@ if (error) {
 }
 
 if (!esRecuperacionDeDuplicado) {
-    // Precio general consume el cupón en la RPC. Corporativo nunca usa cupón.
-    if (_cuponActivo && !esCaminoPrecioGeneral && !esCaminoCorporativo) {
+    // Precio general consume el cupón en la RPC. Ningún camino corporativo
+    // usa ni consume cupones desde el navegador.
+    if (_cuponActivo && !esCaminoPrecioGeneral && !_empresaData) {
       db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
       if (userId) {
         db.from('cupones_usos').upsert(
@@ -3792,18 +3900,25 @@ if (
   _iniciarAsignacionAutomatica(data[0])
 }
 
-// Tarifa diaria: el primer pedido del día cubre todos los siguientes
-if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
+// La RPC es la fuente de verdad; sincronizar la UX local después de recibir
+// una creación o recuperación exitosa de tarifa diaria.
+if (esCaminoTarifaDiaria && !_tarifaDiariaYaCubierta) {
   _tarifaDiariaYaCubierta = true
-  console.log('[tarifa-diaria] primer pedido del día creado → tarifa cubierta para pedidos posteriores')
+  console.log(
+    '[tarifa-diaria] pedido diario confirmado → tarifa cubierta para pedidos posteriores'
+  )
 }
 
 if (
   !esRecuperacionDeDuplicado &&
   _cargoCancelacionPendiente > 0 &&
-  (esCaminoCorporativo || !_empresaData)
+  (esCaminoCorporativo || esCaminoTarifaDiaria || !_empresaData)
 ) {
-  if (esCaminoPrecioGeneral || esCaminoCorporativo) {
+  if (
+    esCaminoPrecioGeneral ||
+    esCaminoCorporativo ||
+    esCaminoTarifaDiaria
+  ) {
     // La RPC ya guardó y limpió el cargo; solo sincronizar el estado local.
     _cargoCancelacionPendiente = 0
   } else {

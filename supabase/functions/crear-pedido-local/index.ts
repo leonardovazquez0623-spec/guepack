@@ -30,12 +30,16 @@ type EmpresaCorporativa = {
   codigo: string;
   activa: boolean | null;
   tipo_tarifa: string | null;
+  tarifa_diaria: number | string | null;
   tarifa_km: number | string | null;
   tarifa_minima: number | string | null;
   km_minimo: number | string | null;
   tarifa_base_extra: number | string | null;
   iva: number | string | null;
   cargo_paquete_grande: number | string | null;
+};
+type PedidoCoberturaDiaria = {
+  created_at: string;
 };
 type Cupon = {
   id: number | string;
@@ -148,13 +152,13 @@ function uuid(valor: unknown, campo: string) {
   return texto;
 }
 
-function hoyMexico() {
+function hoyMexico(fecha = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Mexico_City",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(fecha);
 }
 
 function fechaValida(valor: unknown) {
@@ -389,6 +393,23 @@ function calcularPrecioCorporativo(
   return dinero(subtotal + ivaCalculado + cargoCancelacion);
 }
 
+function calcularPrecioTarifaDiaria(
+  empresa: EmpresaCorporativa,
+  tarifaCubierta: boolean,
+  cargoCancelacion: number,
+) {
+  // Conserva el fallback histórico de tarifa diaria cuando no está definida.
+  const tarifaDiaria = empresa.tarifa_diaria === null
+    ? 380
+    : numeroConfigurado(empresa.tarifa_diaria, "tarifa_diaria");
+  const iva = numeroConfigurado(empresa.iva, "iva", { maximo: 1 });
+
+  const base = tarifaCubierta ? 0 : dinero(tarifaDiaria * (1 + iva));
+
+  // VIP y cargo_paquete_grande no participan en tarifa diaria.
+  return dinero(base + cargoCancelacion);
+}
+
 function estadoInicial(metodo: string) {
   if (metodo === "transferencia") return "Pendiente verificación de pago";
   if (metodo === "tarjeta") return "Pendiente pago MP";
@@ -415,10 +436,37 @@ function errorRpc(mensaje: string) {
       "La tarifa diaria todavía no está disponible en este flujo.",
     ] as const;
   }
+  if (mensaje.includes("FLUJO_TARIFA_DIARIA_REQUERIDO")) {
+    return [
+      409,
+      "La cuenta ya no utiliza tarifa diaria. Vuelve a cotizar el pedido.",
+    ] as const;
+  }
+  if (mensaje.includes("METODO_PAGO_TARIFA_DIARIA_INVALIDO")) {
+    return [
+      422,
+      "Los pedidos de tarifa diaria deben utilizar el método de pago Crédito.",
+    ] as const;
+  }
   if (mensaje.includes("CUPON_NO_PERMITIDO_CORPORATIVO")) {
     return [
       409,
       "Los cupones no aplican a pedidos corporativos. Retira el cupón y vuelve a intentar.",
+    ] as const;
+  }
+  if (
+    mensaje.includes("CONFIGURACION_TARIFA_DIARIA_INVALIDA") ||
+    mensaje.includes("CARGO_CANCELACION_INVALIDO")
+  ) {
+    return [
+      422,
+      "La tarifa diaria no está configurada correctamente. Contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_DIARIA_CAMBIO")) {
+    return [
+      409,
+      "La tarifa diaria cambió mientras creábamos el pedido. Vuelve a cotizar.",
     ] as const;
   }
   if (
@@ -664,7 +712,7 @@ Deno.serve(async (req) => {
       const { data: empresaData, error: falloEmpresa } = await admin
         .from("empresas_afiliadas")
         .select(
-          "id, codigo, activa, tipo_tarifa, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande",
+          "id, codigo, activa, tipo_tarifa, tarifa_diaria, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande",
         )
         .eq("tenant_id", tenant)
         .eq("codigo", empresaCodigo)
@@ -701,9 +749,124 @@ Deno.serve(async (req) => {
         }, 422);
       }
       if (tipoTarifa === "diaria") {
+        if (metodo !== "Crédito") {
+          return responder(req, {
+            error:
+              "Los pedidos de tarifa diaria deben utilizar el método de pago Crédito.",
+          }, 422);
+        }
+
+        /*
+         * Previsualización únicamente: consulta candidatos recientes y compara
+         * su fecha civil en America/Mexico_City. La RPC conserva la última
+         * palabra y realiza la reserva atómica.
+         *
+         * El margen de 48 horas cubre por completo la jornada local actual
+         * sin depender de la zona horaria configurada en la base.
+         */
+        const desdePrevisualizacion = new Date(
+          Date.now() - 48 * 60 * 60 * 1000,
+        ).toISOString();
+
+        const { data: pedidosDiarios, error: falloPedidosDiarios } = await admin
+          .from("pedidos")
+          .select("created_at")
+          .eq("tenant_id", tenant)
+          .eq("empresa_codigo", empresaCodigo)
+          .eq("metodo_pago", "Crédito")
+          .neq("estado", "Cancelado")
+          .eq("credito_cobrado", false)
+          .gte("created_at", desdePrevisualizacion);
+
+        if (falloPedidosDiarios) {
+          console.error(
+            "[crear-pedido-local] No se pudo previsualizar la cobertura diaria:",
+            falloPedidosDiarios.message,
+          );
+          return responder(req, {
+            error: "No pudimos verificar la tarifa diaria. Intenta nuevamente.",
+          }, 503);
+        }
+
+        const fechaMexico = hoyMexico();
+        const tarifaCubierta = (
+          (pedidosDiarios || []) as PedidoCoberturaDiaria[]
+        ).some((pedido) => {
+          const fechaPedido = new Date(pedido.created_at);
+          return !Number.isNaN(fechaPedido.getTime()) &&
+            hoyMexico(fechaPedido) === fechaMexico;
+        });
+
+        let precioTarifaDiaria: number;
+        try {
+          precioTarifaDiaria = calcularPrecioTarifaDiaria(
+            empresa,
+            tarifaCubierta,
+            cargoCancelacion,
+          );
+        } catch (errorConfiguracion) {
+          console.error(
+            "[crear-pedido-local] Configuración de tarifa diaria inválida:",
+            errorConfiguracion instanceof Error
+              ? errorConfiguracion.message
+              : String(errorConfiguracion),
+          );
+          return responder(req, {
+            error:
+              "La tarifa diaria no está configurada correctamente. Contacta a soporte.",
+          }, 422);
+        }
+
+        const tokenRastreo = crypto.randomUUID();
+        const { data: resultadoRpc, error: falloRpc } = await admin.rpc(
+          "crear_pedido_tarifa_diaria_atomico",
+          {
+            p_user_id: user.id,
+            p_tenant_id: tenant,
+            p_idempotency_key: claveIdempotencia,
+            p_nombre: nombre,
+            p_nombre_remitente: nombreRemitente,
+            p_whatsapp: whatsapp,
+            p_direccion_recoleccion: direccionRecoleccion,
+            p_direccion_entrega: direccionEntrega,
+            p_fecha: fecha,
+            p_tamanio: tamanio,
+            p_zona: "Corporativo · Tarifa diaria",
+            p_precio_cotizado: precioTarifaDiaria,
+            p_estado: estadoInicial(metodo),
+            p_instrucciones: instrucciones,
+            p_metodo_pago: metodo,
+            p_comprobante_pago: comprobante,
+            p_token_rastreo: tokenRastreo,
+            p_km_recorridos: km,
+            p_lat_recoleccion: latRecoleccion,
+            p_lng_recoleccion: lngRecoleccion,
+            p_lat_entrega: latEntrega,
+            p_lng_entrega: lngEntrega,
+            p_cargo_cancelacion: cargoCancelacion,
+            p_cupon_codigo: null,
+          },
+        );
+
+        if (falloRpc) {
+          console.error(
+            "[crear-pedido-local] La creación de tarifa diaria atómica falló:",
+            falloRpc.message,
+          );
+          const [estado, mensaje] = errorRpc(falloRpc.message);
+          return responder(req, { error: mensaje }, estado);
+        }
+
+        const resultado = Array.isArray(resultadoRpc) ? resultadoRpc[0] : null;
+        if (!resultado || !esObjeto(resultado.pedido)) {
+          throw new Error(
+            "El pedido de tarifa diaria fue procesado, pero no pudimos recuperar el resultado",
+          );
+        }
         return responder(req, {
-          error: "La tarifa diaria todavía no está disponible en este flujo.",
-        }, 409);
+          data: [resultado.pedido],
+          es_recuperacion_de_duplicado: resultado.es_recuperacion === true,
+        });
       }
 
       const promesaRangos = admin.from("rangos_precio_empresa")
