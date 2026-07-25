@@ -3,7 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ORIGENES = ["https://guepack.com", "https://www.guepack.com"];
 const TAMANIOS = new Set(["sobre", "grande"]);
-const METODOS_PAGO = new Set(["efectivo", "transferencia", "tarjeta"]);
+const METODOS_PAGO = new Map<string, string>([
+  ["efectivo", "efectivo"],
+  ["transferencia", "transferencia"],
+  ["tarjeta", "tarjeta"],
+  ["crédito", "Crédito"],
+]);
 const ERROR_COBERTURA =
   "No pudimos verificar la cobertura para esa dirección. Intenta de nuevo o contacta a soporte.";
 
@@ -19,6 +24,18 @@ type Rango = {
   km_desde: number | string | null;
   km_hasta: number | string | null;
   precio: number | string | null;
+};
+type EmpresaCorporativa = {
+  id: number | string;
+  codigo: string;
+  activa: boolean | null;
+  tipo_tarifa: string | null;
+  tarifa_km: number | string | null;
+  tarifa_minima: number | string | null;
+  km_minimo: number | string | null;
+  tarifa_base_extra: number | string | null;
+  iva: number | string | null;
+  cargo_paquete_grande: number | string | null;
 };
 type Cupon = {
   id: number | string;
@@ -255,13 +272,171 @@ function porcentajeVip(nivel: unknown) {
   ] || 0;
 }
 
+function numeroConfigurado(
+  valor: unknown,
+  campo: string,
+  opciones: { maximo?: number } = {},
+) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    (typeof valor === "string" && valor.trim() === "")
+  ) {
+    throw new Error(`La configuración corporativa no tiene ${campo}`);
+  }
+  const resultado = Number(valor);
+  if (
+    !Number.isFinite(resultado) ||
+    resultado < 0 ||
+    (opciones.maximo !== undefined && resultado > opciones.maximo)
+  ) {
+    throw new Error(
+      `La configuración corporativa de ${campo} no es válida`,
+    );
+  }
+  return resultado;
+}
+
+function calcularPrecioCorporativo(
+  empresa: EmpresaCorporativa,
+  rangosRecibidos: Rango[],
+  km: number,
+  tamanio: string,
+  cargoGrandeGeneral: unknown,
+  cargoCancelacion: number,
+) {
+  // Fase 2 es estricta incluso cuando la empresa utiliza rangos.
+  const tarifaKm = numeroConfigurado(empresa.tarifa_km, "tarifa_km");
+  const tarifaMinima = numeroConfigurado(
+    empresa.tarifa_minima,
+    "tarifa_minima",
+  );
+  const kmMinimo = numeroConfigurado(empresa.km_minimo, "km_minimo");
+  const tarifaBaseExtra = numeroConfigurado(
+    empresa.tarifa_base_extra,
+    "tarifa_base_extra",
+  );
+  const iva = numeroConfigurado(empresa.iva, "iva", { maximo: 1 });
+
+  const rangos = [...rangosRecibidos].sort((a, b) =>
+    Number(a.km_desde) - Number(b.km_desde)
+  );
+  for (const rango of rangos) {
+    const desde = numeroConfigurado(rango.km_desde, "km_desde");
+    numeroConfigurado(rango.precio, "precio de rango");
+    const hasta = rango.km_hasta === null
+      ? null
+      : numeroConfigurado(rango.km_hasta, "km_hasta");
+    if (hasta !== null && hasta < desde) {
+      throw new Error(
+        "La configuración corporativa contiene un rango inválido",
+      );
+    }
+  }
+
+  let precioBase: number;
+  if (rangos.length > 0) {
+    let rango = rangos.find((actual) => {
+      const desde = Number(actual.km_desde);
+      const hasta = actual.km_hasta === null ? null : Number(actual.km_hasta);
+      return desde <= km && (hasta === null || km <= hasta);
+    });
+
+    /*
+     * Compatibilidad con el cotizador frontend actual:
+     * si ningún rango coincide, se utiliza el último rango configurado.
+     * Cuando ese último rango es cerrado, se cobra únicamente su precio,
+     * sin sumar kilómetros excedentes. Esta particularidad se conserva
+     * intencionalmente en Fase 2 para no cambiar el precio ya mostrado al
+     * cliente; revisar por separado si debe tratarse como rango abierto.
+     */
+    if (!rango) rango = rangos[rangos.length - 1];
+
+    const desde = Number(rango.km_desde);
+    const hasta = rango.km_hasta === null ? null : Number(rango.km_hasta);
+    precioBase = Number(rango.precio);
+    if (hasta === null && km > desde) {
+      precioBase += kilometros(km - desde) * tarifaKm;
+    }
+  } else {
+    precioBase = km <= kmMinimo
+      ? tarifaMinima
+      : tarifaBaseExtra + tarifaKm * (km - kmMinimo);
+  }
+
+  let cargoGrande = 0;
+  if (tamanio === "grande") {
+    cargoGrande = empresa.cargo_paquete_grande !== null
+      ? numeroConfigurado(
+        empresa.cargo_paquete_grande,
+        "cargo_paquete_grande",
+      )
+      : numeroConfigurado(
+        cargoGrandeGeneral,
+        "cargo_paquete_grande general",
+      );
+  }
+
+  const subtotal = dinero(precioBase + cargoGrande);
+  // VIP no se calcula ni se aplica al camino corporativo.
+  const ivaCalculado = dinero(subtotal * iva);
+  return dinero(subtotal + ivaCalculado + cargoCancelacion);
+}
+
 function estadoInicial(metodo: string) {
   if (metodo === "transferencia") return "Pendiente verificación de pago";
   if (metodo === "tarjeta") return "Pendiente pago MP";
+  if (metodo === "Crédito") return "Pendiente";
   return "Pendiente";
 }
 
 function errorRpc(mensaje: string) {
+  if (mensaje.includes("EMPRESA_CORPORATIVA_NO_ENCONTRADA")) {
+    return [
+      403,
+      "No encontramos la empresa corporativa asociada a tu cuenta.",
+    ] as const;
+  }
+  if (mensaje.includes("EMPRESA_CORPORATIVA_INACTIVA")) {
+    return [
+      403,
+      "La cuenta corporativa está inactiva. Contacta al administrador de tu empresa.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_DIARIA_NO_SOPORTADA")) {
+    return [
+      409,
+      "La tarifa diaria todavía no está disponible en este flujo.",
+    ] as const;
+  }
+  if (mensaje.includes("CUPON_NO_PERMITIDO_CORPORATIVO")) {
+    return [
+      409,
+      "Los cupones no aplican a pedidos corporativos. Retira el cupón y vuelve a intentar.",
+    ] as const;
+  }
+  if (
+    mensaje.includes("CONFIGURACION_CORPORATIVA_INVALIDA") ||
+    mensaje.includes("CONFIGURACION_RANGOS_EMPRESA_INVALIDA") ||
+    mensaje.includes("CONFIGURACION_CARGO_GRANDE_INVALIDA")
+  ) {
+    return [
+      422,
+      "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_CORPORATIVA_CAMBIO")) {
+    return [
+      409,
+      "La tarifa corporativa cambió mientras creábamos el pedido. Vuelve a cotizar.",
+    ] as const;
+  }
+  if (mensaje.includes("CLAVE_IDEMPOTENCIA_EN_USO")) {
+    return [
+      409,
+      "La clave de esta solicitud ya fue utilizada por otro pedido.",
+    ] as const;
+  }
   if (mensaje.includes("CUPON_AGOTADO")) {
     return [409, "Este cupón ya no tiene usos disponibles"] as const;
   }
@@ -371,9 +546,15 @@ Deno.serve(async (req) => {
     if (!TAMANIOS.has(tamanio)) {
       throw new Error("El tamaño de paquete no es válido");
     }
-    const metodo = requerido(cuerpo.metodo_pago, "metodo_pago", 30)
-      .toLowerCase();
-    if (!METODOS_PAGO.has(metodo)) {
+    const metodoRecibido = requerido(
+      cuerpo.metodo_pago,
+      "metodo_pago",
+      30,
+    );
+    const metodo = METODOS_PAGO.get(
+      metodoRecibido.toLocaleLowerCase("es-MX"),
+    );
+    if (!metodo) {
       throw new Error("El método de pago no es válido");
     }
     const comprobante = comprobanteValido(cuerpo.comprobante_pago, metodo);
@@ -408,18 +589,19 @@ Deno.serve(async (req) => {
         error: "No pudimos determinar la cuenta del pedido",
       }, 403);
     }
-    if (
-      (typeof perfil.empresa_codigo === "string" &&
-        perfil.empresa_codigo.trim()) ||
-      (typeof user.user_metadata?.empresa_codigo === "string" &&
-        user.user_metadata.empresa_codigo.trim())
-    ) {
+    // usuarios.empresa_codigo es la única fuente de verdad. La metadata
+    // de Auth no participa en la selección del camino.
+    const empresaCodigo = typeof perfil.empresa_codigo === "string"
+      ? perfil.empresa_codigo.trim()
+      : "";
+    const esCorporativo = empresaCodigo.length > 0;
+    const tenant = perfil.tenant_id;
+    if (!esCorporativo && metodo === "Crédito") {
       return responder(req, {
         error:
-          "Este pedido pertenece al flujo corporativo. Vuelve a cotizarlo desde tu cuenta de empresa.",
-      }, 409);
+          "El método Crédito solo está disponible para cuentas corporativas.",
+      }, 403);
     }
-    const tenant = perfil.tenant_id;
 
     const { data: zonas, error: falloZonas } = await admin.from(
       "zonas_cobertura",
@@ -450,6 +632,174 @@ Deno.serve(async (req) => {
       puntoEnPoligono(latEntrega, lngEntrega, z.poligono)
     );
     if (!zona) return responder(req, { error: ERROR_COBERTURA }, 422);
+
+    const cargoCancelacion = Math.max(
+      0,
+      dinero(Number(perfil.cargo_cancelacion) || 0),
+    );
+
+    if (esCorporativo) {
+      if (codigoCupon) {
+        return responder(req, {
+          error:
+            "Los cupones no aplican a pedidos corporativos. Retira el cupón y vuelve a intentar.",
+        }, 409);
+      }
+
+      // Primero resuelve la empresa por tenant + código del usuario.
+      // Solo después consulta rangos por el empresa_id resultante.
+      const { data: empresaData, error: falloEmpresa } = await admin
+        .from("empresas_afiliadas")
+        .select(
+          "id, codigo, activa, tipo_tarifa, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande",
+        )
+        .eq("tenant_id", tenant)
+        .eq("codigo", empresaCodigo)
+        .maybeSingle();
+
+      if (falloEmpresa) {
+        console.error(
+          "[crear-pedido-local] No se pudo resolver la empresa:",
+          falloEmpresa.message,
+        );
+        throw new Error("No pudimos verificar la cuenta corporativa");
+      }
+      if (!empresaData) {
+        return responder(req, {
+          error: "No encontramos la empresa corporativa asociada a tu cuenta.",
+        }, 403);
+      }
+
+      const empresa = empresaData as EmpresaCorporativa;
+      if (empresa.activa !== true) {
+        return responder(req, {
+          error:
+            "La cuenta corporativa está inactiva. Contacta al administrador de tu empresa.",
+        }, 403);
+      }
+
+      const tipoTarifa = typeof empresa.tipo_tarifa === "string"
+        ? empresa.tipo_tarifa.trim().toLowerCase()
+        : "";
+      if (!tipoTarifa) {
+        return responder(req, {
+          error:
+            "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+        }, 422);
+      }
+      if (tipoTarifa === "diaria") {
+        return responder(req, {
+          error: "La tarifa diaria todavía no está disponible en este flujo.",
+        }, 409);
+      }
+
+      const promesaRangos = admin.from("rangos_precio_empresa")
+        .select("km_desde, km_hasta, precio")
+        .eq("empresa_id", empresa.id)
+        .order("km_desde");
+      const promesaCargoGeneral =
+        tamanio === "grande" && empresa.cargo_paquete_grande === null
+          ? admin.from("precios_generales")
+            .select("cargo_paquete_grande")
+            .eq("tenant_id", tenant)
+            .maybeSingle()
+          : Promise.resolve({ data: null, error: null });
+
+      const [respuestaRangos, respuestaCargoGeneral] = await Promise.all([
+        promesaRangos,
+        promesaCargoGeneral,
+      ]);
+      if (respuestaRangos.error) {
+        console.error(
+          "[crear-pedido-local] No se pudieron cargar los rangos corporativos:",
+          respuestaRangos.error.message,
+        );
+        throw new Error("No pudimos verificar la tarifa corporativa");
+      }
+      if (respuestaCargoGeneral.error) {
+        console.error(
+          "[crear-pedido-local] No se pudo cargar el cargo general:",
+          respuestaCargoGeneral.error.message,
+        );
+        throw new Error("No pudimos verificar el cargo de paquete grande");
+      }
+
+      let precioCorporativo: number;
+      try {
+        const datosCargo = esObjeto(respuestaCargoGeneral.data)
+          ? respuestaCargoGeneral.data
+          : null;
+        precioCorporativo = calcularPrecioCorporativo(
+          empresa,
+          (respuestaRangos.data || []) as Rango[],
+          km,
+          tamanio,
+          datosCargo?.cargo_paquete_grande,
+          cargoCancelacion,
+        );
+      } catch (errorConfiguracion) {
+        console.error(
+          "[crear-pedido-local] Configuración corporativa inválida:",
+          errorConfiguracion instanceof Error
+            ? errorConfiguracion.message
+            : String(errorConfiguracion),
+        );
+        return responder(req, {
+          error:
+            "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+        }, 422);
+      }
+
+      const tokenRastreo = crypto.randomUUID();
+      const { data: resultadoRpc, error: falloRpc } = await admin.rpc(
+        "crear_pedido_corporativo_atomico",
+        {
+          p_user_id: user.id,
+          p_tenant_id: tenant,
+          p_idempotency_key: claveIdempotencia,
+          p_nombre: nombre,
+          p_nombre_remitente: nombreRemitente,
+          p_whatsapp: whatsapp,
+          p_direccion_recoleccion: direccionRecoleccion,
+          p_direccion_entrega: direccionEntrega,
+          p_fecha: fecha,
+          p_tamanio: tamanio,
+          p_zona: `${zona.nombre} · ${km} km`,
+          p_precio_cotizado: precioCorporativo,
+          p_estado: estadoInicial(metodo),
+          p_instrucciones: instrucciones,
+          p_metodo_pago: metodo,
+          p_comprobante_pago: comprobante,
+          p_token_rastreo: tokenRastreo,
+          p_km_recorridos: km,
+          p_lat_recoleccion: latRecoleccion,
+          p_lng_recoleccion: lngRecoleccion,
+          p_lat_entrega: latEntrega,
+          p_lng_entrega: lngEntrega,
+          p_cargo_cancelacion: cargoCancelacion,
+          p_cupon_codigo: null,
+        },
+      );
+      if (falloRpc) {
+        console.error(
+          "[crear-pedido-local] La creación corporativa atómica falló:",
+          falloRpc.message,
+        );
+        const [estado, mensaje] = errorRpc(falloRpc.message);
+        return responder(req, { error: mensaje }, estado);
+      }
+
+      const resultado = Array.isArray(resultadoRpc) ? resultadoRpc[0] : null;
+      if (!resultado || !esObjeto(resultado.pedido)) {
+        throw new Error(
+          "El pedido corporativo fue procesado, pero no pudimos recuperar el resultado",
+        );
+      }
+      return responder(req, {
+        data: [resultado.pedido],
+        es_recuperacion_de_duplicado: resultado.es_recuperacion === true,
+      });
+    }
 
     const [consultaPrecios, consultaRangos] = await Promise.all([
       admin.from("precios_generales")
@@ -505,10 +855,6 @@ Deno.serve(async (req) => {
       (tamanio === "grande" ? cargoGrandeConfigurado : 0);
     subtotal = dinero(
       subtotal - dinero(subtotal * porcentajeVip(perfil.nivel_vip)),
-    );
-    const cargoCancelacion = Math.max(
-      0,
-      dinero(Number(perfil.cargo_cancelacion) || 0),
     );
     const totalAntesCupon = dinero(
       subtotal + dinero(subtotal * iva) + cargoCancelacion,

@@ -3484,6 +3484,12 @@ const esCaminoPrecioGeneral =
   !_esMultiParada &&
   !_modoPaqueteria
 
+const esCaminoCorporativo =
+  !!_empresaData &&
+  !_esMultiParada &&
+  !_modoPaqueteria &&
+  _empresaData.tipo_tarifa !== 'diaria'
+
 let esRecuperacionDeDuplicado = false
 let data = null
 let error = null
@@ -3581,6 +3587,100 @@ if (esCaminoPrecioGeneral) {
       data[0].id
     )
   }
+} else if (esCaminoCorporativo) {
+  if (!session?.access_token) {
+    console.error('[pedido] No hay una sesión válida para crear el pedido corporativo')
+    mostrarToast('Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.', '#ef4444')
+    return
+  }
+
+  const payloadPedidoCorporativo = {
+    nombre: nombre,
+    nombre_remitente: nombreRemitente || null,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    direccion_entrega: direccionEntregaGuardada,
+    fecha: sanitize(fecha),
+    tamanio: sanitize(selSize),
+    instrucciones: instrucciones || null,
+    // Preserva exactamente "Crédito" cuando fue seleccionado.
+    metodo_pago: metodoPago,
+    comprobante_pago: sanitize(comprobanteUrl) || null,
+    // Los pedidos corporativos no envían cupon_codigo.
+    km_recorridos: _kmRecorridos,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
+    lat_entrega: _latEntrega ?? null,
+    lng_entrega: _lngEntrega ?? null,
+    idempotency_key: idempotencyKey
+  }
+
+  let respuestaFuncion
+
+  try {
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/crear-pedido-local',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(payloadPedidoCorporativo)
+      }
+    )
+
+    try {
+      respuestaFuncion = await respuesta.json()
+    } catch {
+      respuestaFuncion = null
+    }
+
+    if (!respuesta.ok) {
+      const mensaje = respuestaFuncion?.error || 'No pudimos crear el pedido. Intenta nuevamente.'
+      console.error(
+        '[pedido] crear-pedido-local rechazó la solicitud corporativa:',
+        respuesta.status,
+        mensaje
+      )
+      mostrarToast(mensaje, '#ef4444')
+      return
+    }
+  } catch (errorFuncion) {
+    console.error(
+      '[pedido] No se pudo conectar con crear-pedido-local para el pedido corporativo:',
+      errorFuncion
+    )
+    mostrarToast(
+      'No pudimos conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  if (!Array.isArray(respuestaFuncion?.data) || !respuestaFuncion.data[0]) {
+    console.error(
+      '[pedido] crear-pedido-local devolvió una respuesta corporativa incompleta:',
+      respuestaFuncion
+    )
+    mostrarToast(
+      'El pedido fue procesado, pero no pudimos recuperar el resultado. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  data = respuestaFuncion.data
+  esRecuperacionDeDuplicado =
+    respuestaFuncion.es_recuperacion_de_duplicado === true
+
+  if (esRecuperacionDeDuplicado) {
+    console.log(
+      '[pedido] La función recuperó un pedido corporativo existente:',
+      data[0].id
+    )
+  }
 } else {
   const resultadoInsert = await db.from('pedidos').insert({
     nombre: nombre,
@@ -3643,8 +3743,8 @@ if (error) {
 }
 
 if (!esRecuperacionDeDuplicado) {
-    // En precio general, crear-pedido-local consume el cupón de forma atómica.
-    if (_cuponActivo && !esCaminoPrecioGeneral) {
+    // Precio general consume el cupón en la RPC. Corporativo nunca usa cupón.
+    if (_cuponActivo && !esCaminoPrecioGeneral && !esCaminoCorporativo) {
       db.from('cupones').update({ usos_actuales: (_cuponActivo.usos_actuales || 0) + 1 }).eq('id', _cuponActivo.id).then(() => {})
       if (userId) {
         db.from('cupones_usos').upsert(
@@ -3684,9 +3784,9 @@ if (_empresaData?.tipo_tarifa === 'diaria' && !_tarifaDiariaYaCubierta) {
 if (
   !esRecuperacionDeDuplicado &&
   _cargoCancelacionPendiente > 0 &&
-  !_empresaData
+  (esCaminoCorporativo || !_empresaData)
 ) {
-  if (esCaminoPrecioGeneral) {
+  if (esCaminoPrecioGeneral || esCaminoCorporativo) {
     // La RPC ya guardó y limpió el cargo; solo sincronizar el estado local.
     _cargoCancelacionPendiente = 0
   } else {
@@ -6499,7 +6599,10 @@ async function _verificarReferidoAlLlegarBronce(userId) {
 // ── Avatar de perfil (cliente) ────────────────────────────────────────────────
 
 async function _cargarCargoCancelacion(user) {
-  if (_empresaData) return  // corporativos: el cargo se registra en pedidos, no en usuarios
+  // Normalmente los corporativos registran la cancelación como un pedido
+  // separado. Aun así, un cliente normal puede conservar un cargo pendiente
+  // si posteriormente se le asigna una empresa, por lo que también se carga
+  // para mostrarlo en la cotización corporativa por distancia.
   const { data } = await db.from('usuarios').select('cargo_cancelacion').eq('email', user.email).maybeSingle()
   _cargoCancelacionPendiente = Number(data?.cargo_cancelacion) || 0
 }
@@ -8228,7 +8331,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
     total += cargoGrandeMP
     desglose += ' | 📦 Cargo paquete grande: +$' + cargoGrandeMP.toFixed(2)
   }
-  const cargoCancelacionMP = _cargoCancelacionPendiente || 0
+  // Multiparada corporativa continúa en el flujo legado hasta su propia fase.
+  // No incorporar aquí un cargo heredado que ese flujo todavía no limpia.
+  const cargoCancelacionMP = !_empresaData
+    ? (_cargoCancelacionPendiente || 0)
+    : 0
   if (cargoCancelacionMP > 0) {
     total += cargoCancelacionMP
     desglose += ' | ⚠️ Cargo cancelación pendiente: +$' + cargoCancelacionMP
