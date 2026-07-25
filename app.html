@@ -3448,8 +3448,15 @@ if (comprobanteFile) {
   const tmpId = Date.now()
   const rutaComprobante = `comprobantes/${tmpId}.${ext}`
   const { error: upError } = await db.storage.from('evidencias').upload(rutaComprobante, comprobanteFile, { upsert: true })
-  if (upError) console.error('Error subiendo comprobante:', upError)
-  else comprobanteUrl = rutaComprobante
+  if (upError) {
+    console.error('Error al subir el comprobante de pago:', upError)
+    mostrarToast(
+      'No pudimos subir tu comprobante. Intenta nuevamente antes de enviar el pedido.',
+      '#ef4444'
+    )
+    return
+  }
+  comprobanteUrl = rutaComprobante
 }
 
 const estadoInicial = metodoPago === 'transferencia' ? 'Pendiente verificación de pago' : metodoPago === 'tarjeta' ? 'Pendiente pago MP' : 'Pendiente'
