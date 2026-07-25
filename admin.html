@@ -4651,7 +4651,7 @@ async function cargarCargosConcelacion() {
 
   const [resultadoClientes, resultadoCorporativos] = await Promise.all([
     db.from('usuarios')
-      .select('user_id, email, nombre, cargo_cancelacion')
+      .select('user_id, email, cargo_cancelacion')
       .is('empresa_codigo', null)
       .gt('cargo_cancelacion', 0),
     db.from('pedidos')
@@ -4682,7 +4682,7 @@ async function cargarCargosConcelacion() {
   const cargosClientes = (resultadoClientes.data || []).map(usuario => ({
     tipo: 'normal',
     referencia: usuario.user_id,
-    cliente: usuario.nombre || usuario.email || 'Cliente',
+    cliente: usuario.email || 'Cliente',
     detalle: usuario.email || 'Cliente normal',
     cargo: Number(usuario.cargo_cancelacion) || 0,
     created_at: null
