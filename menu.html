@@ -678,10 +678,10 @@
 
       async function cargarMenu() {
         const [categoriasRespuesta, productosRespuesta] = await Promise.all([
-          consultarTabla(['categorias_menu', 'menu_categorias'], consulta =>
+          consultarTabla(['menu_categorias'], consulta =>
             consulta.eq('tenant_id', tenantId()).order('orden', { ascending: true })
           ),
-          consultarTabla(['productos_menu', 'productos'], consulta =>
+          consultarTabla(['menu_productos'], consulta =>
             consulta
               .eq('tenant_id', tenantId())
               .eq('sucursal_id', idRegistro(estado.sucursal))
