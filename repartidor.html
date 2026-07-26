@@ -962,17 +962,21 @@ async function verificarRolRepartidor(intentos = 0) {
     return null
   }
 
-  const { data: usuario } = await db.from('usuarios')
+  const tenantConfigurado = await (window.tenantConfigReady || Promise.resolve(window.tenantConfig))
+  const tenantId = tenantConfigurado?.id || window.tenantConfig?.id || 1
+  const { data: rolTenant, error: errorRolTenant } = await db.from('usuario_tenant_roles')
     .select('rol')
     .eq('user_id', session.user.id)
-    .single()
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
 
-  if (usuario?.rol !== 'repartidor') {
+  if (errorRolTenant || rolTenant?.rol !== 'repartidor') {
     if (intentos < 5) {
       await new Promise(r => setTimeout(r, 800))
       return verificarRolRepartidor(intentos + 1)
     }
-    window.location.href = usuario?.rol === 'admin' ? 'admin.html' : 'login.html'
+    if (errorRolTenant) console.error('No fue posible verificar el rol del repartidor en el tenant:', errorRolTenant)
+    window.location.href = rolTenant?.rol === 'admin' ? 'admin.html' : 'login.html'
     return null
   }
 
@@ -1057,14 +1061,19 @@ async function init() {
         window.location.href = 'login.html?error=email_no_verificado'
         return
       }
-      const { data: usuario } = await db.from('usuarios')
+      const tenantConfigurado = await (window.tenantConfigReady || Promise.resolve(window.tenantConfig))
+      const tenantId = tenantConfigurado?.id || window.tenantConfig?.id || 1
+      const { data: rolTenant, error: errorRolTenant } = await db.from('usuario_tenant_roles')
         .select('rol')
         .eq('user_id', session.user.id)
-        .single()
-      if (usuario?.rol === 'repartidor') {
+        .eq('tenant_id', tenantId)
+        .maybeSingle()
+      if (rolTenant?.rol === 'repartidor') {
         await _continuarCargaApp(session)
-      } else if (usuario?.rol) {
-        window.location.href = usuario.rol === 'admin' ? 'admin.html' : 'login.html'
+      } else if (rolTenant?.rol) {
+        window.location.href = rolTenant.rol === 'admin' ? 'admin.html' : 'login.html'
+      } else if (errorRolTenant) {
+        console.error('No fue posible verificar el rol del repartidor en el tenant:', errorRolTenant)
       }
     }
   })

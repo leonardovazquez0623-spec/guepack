@@ -2524,15 +2524,24 @@ async function init() {
     return
   }
   const { data: adminData, error: errorUsuarioAdmin } = await dbBase.from('usuarios')
-    .select('rol, es_superadmin, tenant_id')
+    .select('es_superadmin, tenant_id')
     .eq('user_id', session.user.id)
     .single()
   if (errorUsuarioAdmin) {
     console.error('No fue posible obtener el tenant del administrador:', errorUsuarioAdmin)
   }
-  if (!adminData || adminData.rol !== 'admin') { window.location.href = 'login.html'; return; }
+  const tenantConfigurado = await (window.tenantConfigReady || Promise.resolve(window.tenantConfig))
+  TENANT_ID = tenantConfigurado?.id || window.tenantConfig?.id || adminData?.tenant_id || 1
+  const { data: rolTenant, error: errorRolTenant } = await dbBase.from('usuario_tenant_roles')
+    .select('rol')
+    .eq('user_id', session.user.id)
+    .eq('tenant_id', TENANT_ID)
+    .maybeSingle()
+  if (errorRolTenant) {
+    console.error('No fue posible verificar el rol del administrador en el tenant:', errorRolTenant)
+  }
+  if (rolTenant?.rol !== 'admin') { window.location.href = 'login.html'; return; }
 
-  TENANT_ID = adminData?.tenant_id || 1
   ES_SUPERADMIN = adminData?.es_superadmin || false
   console.log('[tenant] Administrador cargado para tenant_id:', TENANT_ID, '| superadmin:', ES_SUPERADMIN)
 

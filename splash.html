@@ -71,6 +71,7 @@
 </div>
 
 <script src="/supabase-local.js"></script>
+<script src="/tenant-config.js"></script>
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
@@ -121,18 +122,33 @@ async function init() {
   await promesaEsperaSplash
 
   if (session) {
-    const { data: usuario, error } = await db.from('usuarios')
+    const tenant = await promesaTenant
+    const tenantId = tenant?.id || window.tenantConfig?.id || 1
+    let { data: rolData, error } = await db.from('usuario_tenant_roles')
       .select('rol')
       .eq('user_id', session.user.id)
-      .single()
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
 
     if (error) {
-      console.warn('[auth] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
+      console.warn('[auth] No fue posible consultar el rol del tenant:', error.message)
     }
 
-    if (usuario?.rol === 'admin') {
+    if (!rolData) {
+      const { error: errorCrearRol } = await db.from('usuario_tenant_roles').insert({
+        user_id: session.user.id,
+        tenant_id: tenantId,
+        rol: 'cliente'
+      })
+      if (errorCrearRol && errorCrearRol.code !== '23505') {
+        console.error('[auth] No fue posible crear el rol cliente del tenant:', errorCrearRol)
+      }
+      rolData = { rol: 'cliente' }
+    }
+
+    if (rolData.rol === 'admin') {
       window.location.href = 'admin.html'
-    } else if (usuario?.rol === 'repartidor') {
+    } else if (rolData.rol === 'repartidor') {
       window.location.href = 'repartidor.html'
     } else {
       window.location.href = 'app.html'
