@@ -151,6 +151,94 @@
   .sidebar-item:hover .guep-icon-inline { opacity: 1; }
   .sidebar-item.active .guep-icon-inline { filter: brightness(0) invert(1); opacity: 1; }
 
+  /* Contactos landing */
+  #tab-contactos {
+    background: #fff;
+    border: 1px solid rgba(13,58,138,.08);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 8px 28px rgba(26,79,160,.09);
+  }
+  .contactos-toolbar { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-bottom:20px; }
+  .contactos-heading { min-width:0; }
+  .contactos-title {
+    display:flex; align-items:center; gap:7px; color:var(--color-primary-dark);
+    font-family:Montserrat,sans-serif; font-size:17px; font-weight:900; line-height:1.3;
+  }
+  .contactos-title .modulo-icono { flex:0 0 auto; margin-right:0; }
+  .contactos-subtitle { max-width:520px; margin-top:5px; color:#7387a5; font-size:11px; font-weight:600; line-height:1.5; }
+  .contactos-filtros {
+    display:grid; grid-template-columns:minmax(120px,1fr) minmax(120px,1fr) auto;
+    align-items:center; gap:8px; flex:0 0 auto;
+  }
+  .contactos-select {
+    min-height:38px; padding:7px 30px 7px 11px; border:1.5px solid #dce4f0;
+    border-radius:10px; outline:none; background:#f7f9fc; color:var(--color-primary-dark);
+    font-family:Montserrat,sans-serif; font-size:11px; font-weight:700; cursor:pointer;
+    transition:border-color .2s, background .2s, box-shadow .2s;
+  }
+  .contactos-select:focus { border-color:var(--color-primary); background:#fff; box-shadow:0 0 0 3px rgba(30,86,199,.1); }
+  .contactos-refresh {
+    min-height:38px; padding:8px 14px; border-radius:10px; white-space:nowrap;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .contactos-refresh:hover { transform:translateY(-1px); box-shadow:0 5px 12px rgba(13,58,138,.2); }
+  #contactos-lista { display:flex; flex-direction:column; gap:12px; }
+  .contacto-card {
+    display:flex; flex-direction:column; gap:12px; padding:18px 20px; border-radius:14px;
+    overflow:hidden; box-shadow:0 3px 12px rgba(13,58,138,.05);
+    transition:background .2s, border-color .2s, box-shadow .2s, transform .2s;
+  }
+  .contacto-card:hover { transform:translateY(-1px); box-shadow:0 7px 20px rgba(13,58,138,.1); }
+  .contacto-header, .contacto-identidad, .contacto-meta { display:flex; align-items:center; }
+  .contacto-header { justify-content:space-between; gap:14px; }
+  .contacto-identidad { min-width:0; gap:8px; flex-wrap:wrap; }
+  .contacto-meta { flex:0 0 auto; gap:9px; }
+  .contacto-nombre {
+    max-width:100%; color:var(--color-primary-dark); font-family:Montserrat,sans-serif;
+    font-size:13px; font-weight:900; overflow-wrap:anywhere;
+  }
+  .contacto-chip, .contacto-nuevo { border-radius:999px; font-family:Montserrat,sans-serif; line-height:1.2; white-space:nowrap; }
+  .contacto-chip { padding:4px 10px; font-size:10px; font-weight:700; }
+  .contacto-nuevo { padding:4px 8px; background:#fff3cd; color:#a94b08; font-size:9px; font-weight:900; letter-spacing:.35px; }
+  .contacto-fecha { color:#788da9; font-family:Montserrat,sans-serif; font-size:10px; white-space:nowrap; }
+  .contacto-leido-btn {
+    min-height:34px; padding:6px 11px; border:1.5px solid #22c55e; border-radius:9px;
+    background:#f0fdf4; color:#15803d; font-family:Montserrat,sans-serif;
+    font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap;
+  }
+  .contacto-leido-btn:hover { background:#dcfce7; }
+  .contacto-email { min-width:0; color:#4b5e78; font-size:12px; }
+  .contacto-email a { color:var(--color-primary-dark); font-weight:700; overflow-wrap:anywhere; text-decoration:none; }
+  .contacto-email a:hover { text-decoration:underline; }
+  .contacto-mensaje {
+    padding:12px 14px; border:1px solid #e9eef5; border-radius:10px; background:#f8fafc;
+    color:#4b5e78; font-size:12px; line-height:1.65; overflow-wrap:anywhere; white-space:pre-wrap;
+  }
+
+  @media (max-width: 767px) {
+    #tab-contactos { margin:0; padding:17px 14px; border-radius:16px; }
+    .contactos-toolbar { align-items:stretch; flex-direction:column; gap:15px; margin-bottom:17px; }
+    .contactos-title { align-items:flex-start; font-size:15px; }
+    .contactos-subtitle { margin-top:6px; line-height:1.55; }
+    .contactos-filtros { grid-template-columns:minmax(0,1fr) minmax(0,1fr); width:100%; }
+    .contactos-select { width:100%; min-width:0; }
+    .contactos-refresh { grid-column:1 / -1; width:100%; min-height:42px; }
+    #contactos-lista { gap:10px; }
+    .contacto-card { gap:11px; padding:15px 14px; }
+    .contacto-card:hover { transform:none; }
+    .contacto-header { align-items:stretch; flex-direction:column; gap:11px; }
+    .contacto-meta { justify-content:space-between; width:100%; padding-top:10px; border-top:1px solid #e6ebf3; }
+    .contacto-leido-btn { min-height:38px; padding-inline:12px; }
+    .contacto-mensaje { padding:11px 12px; }
+  }
+  @media (max-width: 370px) {
+    .contactos-filtros { grid-template-columns:1fr; }
+    .contactos-refresh { grid-column:auto; }
+    .contacto-meta { align-items:stretch; flex-direction:column; }
+    .contacto-leido-btn { width:100%; }
+  }
+
   @media (min-width: 768px) {
     body { display: flex; flex-direction: row; align-items: flex-start; }
 
@@ -1217,27 +1305,27 @@ function initMapsAdmin() {
 
 <!-- TAB CONTACTOS LANDING -->
 <div id="tab-contactos" class="tab-content">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-    <div>
-      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;color:var(--color-primary-dark)"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos desde la Landing</div>
-      <div style="font-size:11px;color:#8fa3c0;margin-top:2px">Empresas y repartidores que enviaron formulario en guepack.com</div>
+  <div class="contactos-toolbar">
+    <div class="contactos-heading">
+      <div class="contactos-title"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/14-mensajes.svg" alt="">Contactos desde la Landing</div>
+      <div class="contactos-subtitle">Empresas y repartidores que enviaron formulario en guepack.com</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <select id="filtro-contactos-tipo" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:var(--color-primary-dark);cursor:pointer;outline:none">
+    <div class="contactos-filtros">
+      <select id="filtro-contactos-tipo" class="contactos-select" onchange="cargarContactos()">
         <option value="">Todos</option>
         <option value="empresa">Empresas</option>
         <option value="repartidor">Repartidores</option>
         <option value="otro">Otros</option>
       </select>
-      <select id="filtro-contactos-leido" onchange="cargarContactos()" style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;border:2px solid #e0e6f0;border-radius:8px;padding:6px 10px;background:#f4f6fb;color:var(--color-primary-dark);cursor:pointer;outline:none">
+      <select id="filtro-contactos-leido" class="contactos-select" onchange="cargarContactos()">
         <option value="">Todos</option>
         <option value="false">No leídos</option>
         <option value="true">Leídos</option>
       </select>
-      <button onclick="cargarContactos()" class="btn btn-secondary" style="font-size:11px;padding:7px 14px">🔄 Actualizar</button>
+      <button onclick="cargarContactos()" class="btn btn-secondary contactos-refresh">🔄 Actualizar</button>
     </div>
   </div>
-  <div id="contactos-lista" style="display:flex;flex-direction:column;gap:10px">
+  <div id="contactos-lista">
     <div style="text-align:center;padding:40px;color:#8fa3c0;font-size:13px">Cargando contactos…</div>
   </div>
 </div>
@@ -6553,20 +6641,20 @@ async function cargarContactos() {
     const bg    = c.leido ? '#f4f6fb' : '#fff'
     const borde = c.leido ? '#e0e6f0' : 'var(--color-primary-dark)'
     return `
-    <div id="contacto-${c.id}" style="background:${bg};border:1.5px solid ${borde};border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;transition:background .2s">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--color-primary-dark)">${c.nombre || '—'}</span>
-          <span style="font-size:10px;font-weight:700;font-family:Montserrat,sans-serif;background:${c.tipo==='empresa'?'#eff6ff':'#f0fdf4'};color:${c.tipo==='empresa'?'var(--color-primary-dark)':'#15803d'};border-radius:20px;padding:3px 10px">${chip}</span>
-          ${!c.leido ? '<span style="font-size:9px;font-weight:900;font-family:Montserrat,sans-serif;background:#fff3cd;color:#b45309;border-radius:20px;padding:3px 8px">NUEVO</span>' : ''}
+    <div id="contacto-${c.id}" class="contacto-card" style="background:${bg};border:1.5px solid ${borde}">
+      <div class="contacto-header">
+        <div class="contacto-identidad">
+          <span class="contacto-nombre">${c.nombre || '—'}</span>
+          <span class="contacto-chip" style="background:${c.tipo==='empresa'?'#eff6ff':'#f0fdf4'};color:${c.tipo==='empresa'?'var(--color-primary-dark)':'#15803d'}">${chip}</span>
+          ${!c.leido ? '<span class="contacto-nuevo">NUEVO</span>' : ''}
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:10px;color:#8fa3c0;font-family:Montserrat,sans-serif">${fecha}</span>
-          ${!c.leido ? `<button onclick="marcarContactoLeido('${c.id}')" style="font-size:10px;font-family:Montserrat,sans-serif;font-weight:700;background:#f0fdf4;border:1.5px solid #22c55e;color:#15803d;border-radius:8px;padding:5px 10px;cursor:pointer">✓ Marcar leído</button>` : ''}
+        <div class="contacto-meta">
+          <span class="contacto-fecha">${fecha}</span>
+          ${!c.leido ? `<button onclick="marcarContactoLeido('${c.id}')" class="contacto-leido-btn">✓ Marcar leído</button>` : ''}
         </div>
       </div>
-      <div style="font-size:12px;color:#4b5e78"><a href="mailto:${c.email}" style="color:var(--color-primary-dark);text-decoration:none;font-weight:700">${c.email || '—'}</a></div>
-      <div style="font-size:12px;color:#4b5e78;line-height:1.6;background:#f8fafc;border-radius:8px;padding:10px 12px;white-space:pre-wrap">${c.mensaje || '—'}</div>
+      <div class="contacto-email"><a href="mailto:${c.email}">${c.email || '—'}</a></div>
+      <div class="contacto-mensaje">${c.mensaje || '—'}</div>
     </div>`
   }).join('')
 }

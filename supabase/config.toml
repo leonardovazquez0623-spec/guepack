@@ -451,3 +451,8 @@ entrypoint = "./functions/onboarding-tenant/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/crear-pedido-local/index.ts"
+
+[functions.enviar-campana-reactivacion]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/enviar-campana-reactivacion/index.ts"
