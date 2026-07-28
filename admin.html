@@ -5972,42 +5972,134 @@ function actualizarConteoCuentasSinVerificar(total) {
 
 function eliminarCuentaSinVerificar(userId, email) {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+    console.error(
+      '[cuentas sin verificar] Identificador de usuario inválido:',
+      userId
+    )
     showToast('❌ Identificador de usuario inválido')
     return
   }
+
   const overlay = document.createElement('div')
   overlay.id = 'modal-eliminar-sin-verificar'
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px'
   overlay.innerHTML = `
     <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:#dc2626;margin-bottom:9px">Eliminar cuenta sin verificar</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:var(--color-primary-dark);line-height:1.6;margin-bottom:10px">¿Eliminar <strong>${escaparHtmlAdmin(email)}</strong> de la tabla de usuarios?</div>
-      <div style="background:#fff7ed;color:#9a3412;border-radius:9px;padding:10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;line-height:1.5;margin-bottom:18px">Después deberás eliminar también la cuenta desde Authentication → Users en Supabase.</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:650;color:var(--color-primary-dark);line-height:1.6;margin-bottom:10px">¿Eliminar completamente la cuenta <strong>${escaparHtmlAdmin(email)}</strong>?</div>
+      <div style="background:#fff7ed;color:#9a3412;border-radius:9px;padding:10px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;line-height:1.5;margin-bottom:18px">Se eliminarán la cuenta de acceso y sus datos relacionados. Esta acción no se puede deshacer.</div>
       <div style="display:flex;gap:9px">
         <button id="cancelar-cuenta-sin-verificar" style="flex:1;padding:11px;border:none;border-radius:9px;background:#f4f6fb;color:#8fa3c0;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Cancelar</button>
         <button id="confirmar-cuenta-sin-verificar" style="flex:1;padding:11px;border:none;border-radius:9px;background:#dc2626;color:white;font-family:Montserrat,sans-serif;font-weight:900;cursor:pointer">Eliminar</button>
       </div>
     </div>`
+
   overlay.querySelector('#cancelar-cuenta-sin-verificar').onclick = () => overlay.remove()
+
   overlay.querySelector('#confirmar-cuenta-sin-verificar').onclick = async () => {
     const boton = overlay.querySelector('#confirmar-cuenta-sin-verificar')
     boton.disabled = true
     boton.textContent = 'Eliminando...'
-    const { error } = await db.from('usuarios').delete().eq('user_id', userId)
-    if (error) {
-      console.error('Error al eliminar cuenta sin verificar:', error)
-      showToast('❌ No se pudo eliminar la cuenta')
-      boton.disabled = false
-      boton.textContent = 'Eliminar'
-      return
+
+    try {
+      const {
+        data: { session },
+        error: errorSesion
+      } = await db.auth.getSession()
+
+      if (errorSesion || !session?.access_token) {
+        console.error(
+          '[cuentas sin verificar] No hay una sesión administrativa válida:',
+          errorSesion || ''
+        )
+        showToast('❌ Tu sesión no es válida, inicia sesión nuevamente')
+        return
+      }
+
+      const respuesta = await fetch(
+        'https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/eliminar-usuario',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + session.access_token
+          },
+          body: JSON.stringify({
+            user_id: userId
+          })
+        }
+      )
+
+      let resultado
+      try {
+        resultado = await respuesta.json()
+      } catch {
+        resultado = null
+      }
+
+      if (!respuesta.ok || resultado?.success !== true) {
+        if (resultado?.cuenta_auth_eliminada === true) {
+          console.error(
+            '[cuentas sin verificar] Authentication fue eliminado, pero quedaron datos relacionados:',
+            resultado?.error || respuesta.status
+          )
+          showToast(
+            '⚠️ Cuenta desactivada, pero quedan datos por limpiar manualmente'
+          )
+          cargarCuentasSinVerificar()
+          return
+        }
+
+        console.error(
+          '[cuentas sin verificar] No se pudo eliminar la cuenta:',
+          resultado?.error || respuesta.status
+        )
+        showToast(
+          '❌ ' +
+          (
+            resultado?.error ||
+            'No se pudo eliminar la cuenta'
+          )
+        )
+        return
+      }
+
+      overlay.remove()
+      document
+        .getElementById(`cuenta-sin-verificar-${userId}`)
+        ?.remove()
+
+      if (resultado.usuario_auth_ya_inexistente === true) {
+        showToast('✅ Usuario huérfano eliminado correctamente')
+      } else {
+        showToast('✅ Cuenta eliminada correctamente')
+      }
+
+      _adminLog('cuenta_sin_verificar_eliminada', {
+        user_id: userId,
+        email,
+        usuario_auth_ya_inexistente:
+          resultado.usuario_auth_ya_inexistente === true
+      })
+
+      cargarCuentasSinVerificar()
+      cargarClientes()
+    } catch (error) {
+      console.error(
+        '[cuentas sin verificar] Error inesperado al eliminar la cuenta:',
+        error
+      )
+      showToast('❌ Error al eliminar la cuenta')
+    } finally {
+      if (document.body.contains(boton)) {
+        boton.disabled = false
+        boton.textContent = 'Eliminar'
+      }
     }
-    overlay.remove()
-    document.getElementById(`cuenta-sin-verificar-${userId}`)?.remove()
-    showToast('✅ Cuenta eliminada de usuarios')
-    mostrarInstruccionEliminarAuth(email)
-    cargarCuentasSinVerificar()
   }
+
   overlay.addEventListener('click', evento => { if (evento.target === overlay) overlay.remove() })
+
   document.body.appendChild(overlay)
 }
 
