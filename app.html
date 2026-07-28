@@ -1828,6 +1828,7 @@ var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
 var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
 var _latRecoleccion = null, _lngRecoleccion = null
 var _geocodificandoRecoleccion = false
+var _geocodificandoEntrega = false, _geocodificacionEntregaSecuencia = 0
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
 var _precioGeneralTotal = null, _precioGeneralKm = null
 var _preciosGeneralesData = null, _rangosGeneralesData = null, _preciosGeneralesPromise = null
@@ -1836,7 +1837,7 @@ var _modoPaqueteria = null, _rangosPaqueteria = null, _paqueteriaPrecio = null, 
 // Pedidos / historial / paradas
 var _pedidos = {}, _pedidoTokens = {}, _historialPedidosMap = {}, _historialParadasMap = {}
 var _historialFiltro = 'todos', _historialDataAll = [], _historialCalificadosSet = new Set()
-var _paradasList = [], _debounceMultiParada = null
+var _paradasList = [], _debounceMultiParada = null, _geocodificacionParadaSecuencia = 0
 // Chat de pedidos
 var _chatChannel = null, _chatPedidoId = null, _chatRol = null
 var _rastreoChannel = null
@@ -2929,6 +2930,7 @@ function _wizardContinuar(paso) {
     )
     return
   }
+  if (paso === 1 && !_validarCoordenadasParadasAntesDeContinuar()) return
 
   if (paso === 1) {
     const nombre = document.getElementById('nombre-destinatario').value.trim()
@@ -3347,6 +3349,7 @@ async function submitRequest() {
     )
     return
   }
+  if (!_validarCoordenadasParadasAntesDeContinuar()) return
 
   if (_enviandoPedido) return
 
@@ -4505,8 +4508,10 @@ function usarDireccion(inputId, direccion, lat, lng) {
   if (inputId === 'dir-entrega') {
     if (lat != null && lng != null) {
       // Coordenadas guardadas disponibles: actualizar mapa de inmediato
-      _latEntrega = lat
-      _lngEntrega = lng
+      _geocodificacionEntregaSecuencia += 1
+      _geocodificandoEntrega = false
+      _latEntrega = Number(lat)
+      _lngEntrega = Number(lng)
       setTimeout(_actualizarMapaWizard, 50)
       // Geocodificar en segundo plano solo para detección de zona
       if (window.google?.maps) {
@@ -4518,16 +4523,8 @@ function usarDireccion(inputId, direccion, lat, lng) {
         })
       }
     } else if (window.google?.maps) {
-      // Sin coords guardadas: geocodificar y luego actualizar mapa
-      new google.maps.Geocoder().geocode({ address: direccion }, function(results, status) {
-        if (status !== 'OK' || !results[0]) return
-        const place = results[0]
-        _entregaPlace = place
-        _latEntrega = place.geometry.location.lat()
-        _lngEntrega = place.geometry.location.lng()
-        _detectarZonaEntrega(place)
-        setTimeout(_actualizarMapaWizard, 50)
-      })
+      // Sin coords guardadas: bloquear el avance hasta terminar la geocodificación.
+      _geocodificarEntregaPrincipal(direccion)
     }
   } else if (inputId === 'dir-recoleccion') {
     if (lat != null && lng != null) {
@@ -4585,11 +4582,18 @@ function usarDireccion(inputId, direccion, lat, lng) {
     setTimeout(_actualizarMapaWizard, 50)
   } else if (inputId.startsWith('parada-dir-')) {
     const idx = parseInt(inputId.replace('parada-dir-', ''), 10)
-    if (lat != null && lng != null && _paradasList[idx]) {
-      _paradasList[idx].lat = lat
-      _paradasList[idx].lng = lng
+    const parada = _paradasList[idx]
+    if (!parada) return
+
+    _paradaDirChange(idx, direccion, true)
+    if (lat != null && lng != null) {
+      _invalidarGeocodificacionParada(parada)
+      parada.lat = Number(lat)
+      parada.lng = Number(lng)
+      _calcularCotizacionMultiParada()
+    } else {
+      _geocodificarParada(parada, direccion)
     }
-    _paradaDirChange(idx, direccion)
     setTimeout(_actualizarMapaWizard, 50)
   }
 }
@@ -4749,8 +4753,157 @@ function seleccionarFecha(opcion) {
 
 // ── Paradas múltiples ────────────────────────────────────────────────────────
 
-function _paradaDirChange(idx, val) {
-  _paradasList[idx].direccion = val
+function _coordenadasParadaValidas(parada) {
+  return [parada?.lat, parada?.lng].every(valor =>
+    valor != null &&
+    String(valor).trim() !== '' &&
+    Number.isFinite(Number(valor))
+  )
+}
+
+function _invalidarGeocodificacionParada(parada) {
+  if (!parada) return
+  parada.geocodificacionId = ++_geocodificacionParadaSecuencia
+  parada.geocodificando = false
+}
+
+function _geocodificarEntregaPrincipal(direccion) {
+  if (!direccion?.trim()) return
+  if (!window.google?.maps) {
+    _geocodificandoEntrega = false
+    mostrarToast(
+      'No fue posible validar la ubicación de la entrega principal.',
+      '#ef4444'
+    )
+    return
+  }
+
+  const geocodificacionId = ++_geocodificacionEntregaSecuencia
+  _geocodificandoEntrega = true
+  _latEntrega = null
+  _lngEntrega = null
+
+  new google.maps.Geocoder().geocode(
+    { address: direccion.trim() },
+    (resultados, estado) => {
+      if (geocodificacionId !== _geocodificacionEntregaSecuencia) return
+
+      try {
+        if (estado !== 'OK' || !resultados[0]?.geometry?.location) {
+          mostrarToast(
+            'No pudimos ubicar la entrega principal. Selecciona una dirección válida.',
+            '#ef4444'
+          )
+          return
+        }
+
+        _entregaPlace = resultados[0]
+        _latEntrega = resultados[0].geometry.location.lat()
+        _lngEntrega = resultados[0].geometry.location.lng()
+        _detectarZonaEntrega(resultados[0])
+        _calcularCotizacionMultiParada()
+        setTimeout(_actualizarMapaWizard, 50)
+      } finally {
+        _geocodificandoEntrega = false
+      }
+    }
+  )
+}
+
+function _geocodificarParada(parada, direccion) {
+  if (!parada || !direccion?.trim()) return
+  if (!window.google?.maps) {
+    parada.geocodificando = false
+    mostrarToast(
+      'No fue posible validar la ubicación de una parada. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  const geocodificacionId = ++_geocodificacionParadaSecuencia
+  parada.geocodificacionId = geocodificacionId
+  parada.geocodificando = true
+  parada.lat = null
+  parada.lng = null
+
+  new google.maps.Geocoder().geocode(
+    { address: direccion.trim() },
+    (resultados, estado) => {
+      // La parada puede haberse editado, eliminado o reordenado mientras esperaba.
+      if (
+        parada.geocodificacionId !== geocodificacionId ||
+        !_paradasList.includes(parada)
+      ) return
+
+      try {
+        if (estado !== 'OK' || !resultados[0]?.geometry?.location) {
+          mostrarToast(
+            'No pudimos ubicar una de las paradas. Selecciona una dirección válida.',
+            '#ef4444'
+          )
+          return
+        }
+
+        parada.lat = resultados[0].geometry.location.lat()
+        parada.lng = resultados[0].geometry.location.lng()
+        _calcularCotizacionMultiParada()
+        setTimeout(_actualizarMapaWizard, 50)
+      } finally {
+        parada.geocodificando = false
+      }
+    }
+  )
+}
+
+function _validarCoordenadasParadasAntesDeContinuar() {
+  const paradasConDireccion = _paradasList.filter(
+    parada => parada?.direccion?.trim()
+  )
+  if (!paradasConDireccion.length) return true
+
+  let hayPendientes = false
+  const direccionEntrega = document.getElementById('dir-entrega')?.value?.trim()
+  const entregaPrincipalValida = _coordenadasParadaValidas({
+    lat: _latEntrega,
+    lng: _lngEntrega
+  })
+  if (!entregaPrincipalValida) {
+    hayPendientes = true
+    if (!_geocodificandoEntrega && direccionEntrega) {
+      _geocodificarEntregaPrincipal(direccionEntrega)
+    }
+  }
+
+  paradasConDireccion.forEach(parada => {
+    if (_coordenadasParadaValidas(parada)) return
+    hayPendientes = true
+    if (!parada.geocodificando) {
+      _geocodificarParada(parada, parada.direccion)
+    }
+  })
+
+  if (hayPendientes) {
+    mostrarToast(
+      'Estamos validando las ubicaciones de las paradas. Espera un momento.',
+      '#f59e0b'
+    )
+    return false
+  }
+
+  return true
+}
+
+function _paradaDirChange(idx, val, conservarCoordenadas = false) {
+  const parada = _paradasList[idx]
+  if (!parada) return
+
+  if (!conservarCoordenadas && parada.direccion !== val) {
+    _invalidarGeocodificacionParada(parada)
+    parada.lat = null
+    parada.lng = null
+  }
+  parada.direccion = val
   clearTimeout(_debounceMultiParada)
   if (val.trim().length > 6) {
     _debounceMultiParada = setTimeout(_calcularCotizacionMultiParada, 700)
@@ -4759,7 +4912,14 @@ function _paradaDirChange(idx, val) {
 
 function agregarParada() {
   const idx = _paradasList.length
-  _paradasList.push({ direccion: '', instrucciones: '', lat: null, lng: null })
+  _paradasList.push({
+    direccion: '',
+    instrucciones: '',
+    lat: null,
+    lng: null,
+    geocodificando: false,
+    geocodificacionId: 0
+  })
   const cont = document.getElementById('paradas-container')
   const div = document.createElement('div')
   div.id = 'parada-item-' + idx
@@ -5926,6 +6086,8 @@ function resetForm() {
   _entregaPlace = null
   _latEntrega = null
   _lngEntrega = null
+  _geocodificandoEntrega = false
+  _geocodificacionEntregaSecuencia += 1
   _latRecoleccion = null
   _lngRecoleccion = null
   _precioGeneralTotal = null
@@ -6092,6 +6254,12 @@ function _activarAjusteGps(tipo) {
     const pos = pin.getPosition()
     const lat = pos.lat()
     const lng = pos.lng()
+    if (tipo === 'ent') {
+      _geocodificacionEntregaSecuencia += 1
+      _geocodificandoEntrega = false
+      _latEntrega = lat
+      _lngEntrega = lng
+    }
     new google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
       if (status !== 'OK' || !results[0]) return
       const place = results[0]
@@ -7899,12 +8067,16 @@ function _initAutocompleteDirecciones() {
 
   _crearGuepAutocomplete(inputEnt, {
     onInput: () => {
+      _geocodificacionEntregaSecuencia += 1
+      _geocodificandoEntrega = false
       _entregaPlace = null
       _latEntrega = null
       _lngEntrega = null
       setTimeout(_actualizarMapaWizard, 50)
     },
     onSelect: async (place) => {
+      _geocodificacionEntregaSecuencia += 1
+      _geocodificandoEntrega = false
       _entregaPlace = place
       _latEntrega   = place.geometry.location.lat()
       _lngEntrega   = place.geometry.location.lng()
@@ -7926,17 +8098,24 @@ function _attachAutocompletePararadas() {
     _crearGuepAutocomplete(inp, {
       onInput: () => {
         if (!_paradasList[idx]) return
+        _invalidarGeocodificacionParada(_paradasList[idx])
         _paradasList[idx].lat = null
         _paradasList[idx].lng = null
       },
       onSelect: (place) => {
         const dir = place.formatted_address
         if (!dir || !_paradasList[idx]) return
-        _paradasList[idx].direccion = dir
+        const parada = _paradasList[idx]
+        _invalidarGeocodificacionParada(parada)
+        parada.direccion = dir
         inp.value = dir
-        _paradasList[idx].lat = place.geometry.location.lat()
-        _paradasList[idx].lng = place.geometry.location.lng()
-        _calcularCotizacionMultiParada()
+        parada.lat = place.geometry.location.lat()
+        parada.lng = place.geometry.location.lng()
+        if (_coordenadasParadaValidas(parada) && parada.lat !== 0 && parada.lng !== 0) {
+          _calcularCotizacionMultiParada()
+        } else {
+          _geocodificarParada(parada, dir)
+        }
         setTimeout(_actualizarMapaWizard, 50)
       }
     })
