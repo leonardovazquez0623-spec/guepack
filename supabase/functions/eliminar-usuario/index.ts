@@ -37,6 +37,23 @@ function esUuid(valor: unknown): valor is string {
   )
 }
 
+function esUsuarioAuthInexistente(error: any) {
+  const estado = Number(error?.status)
+  const codigo = String(error?.code || '').trim().toLowerCase()
+  const mensaje = String(error?.message || '').trim().toLowerCase()
+
+  return (
+    codigo === 'user_not_found' ||
+    (
+      estado === 404 &&
+      (
+        mensaje.includes('user not found') ||
+        mensaje.includes('usuario no encontrado')
+      )
+    )
+  )
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: encabezadosCors(req) })
@@ -234,7 +251,10 @@ Deno.serve(async (req) => {
     const { error: errorAuth } =
       await supabaseAdmin.auth.admin.deleteUser(userIdObjetivo)
 
-    if (errorAuth) {
+    const usuarioAuthInexistente =
+      errorAuth != null && esUsuarioAuthInexistente(errorAuth)
+
+    if (errorAuth && !usuarioAuthInexistente) {
       console.error(
         '[eliminar-usuario] No se pudo eliminar la cuenta de autenticación:',
         errorAuth.message
@@ -248,6 +268,13 @@ Deno.serve(async (req) => {
             'No se eliminó la cuenta porque Authentication rechazó la operación'
         },
         500
+      )
+    }
+
+    if (usuarioAuthInexistente) {
+      console.log(
+        '[eliminar-usuario] La cuenta no existe en Authentication; se continuará con la limpieza del usuario huérfano:',
+        userIdObjetivo
       )
     }
 
@@ -363,12 +390,21 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(
-      '[eliminar-usuario] Usuario y datos relacionados eliminados correctamente'
-    )
+    if (usuarioAuthInexistente) {
+      console.log(
+        '[eliminar-usuario] Usuario huérfano y datos relacionados eliminados correctamente:',
+        userIdObjetivo
+      )
+    } else {
+      console.log(
+        '[eliminar-usuario] Usuario y datos relacionados eliminados correctamente'
+      )
+    }
+
     return respuestaJson(req, {
       success: true,
-      cuenta_auth_eliminada: true
+      cuenta_auth_eliminada: true,
+      usuario_auth_ya_inexistente: usuarioAuthInexistente
     })
   } catch (error: any) {
     console.error(

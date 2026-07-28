@@ -8586,8 +8586,12 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
 }
 
 function _mostrarCotizacionDiaria(km = null, precios = null) {
-  const e      = _empresaData
-  const tarifa = Number(e.tarifa_diaria) || 380
+  const e           = _empresaData
+  const tarifaBase  = Number(e.tarifa_diaria) || 380
+  const ivaEmpresa  = Number(e.iva) || 0
+  const tarifaTotal = Math.round(
+    tarifaBase * (1 + ivaEmpresa) * 100
+  ) / 100
   _corporativoKm = km
 
   const quoteAmount = document.getElementById('quote-amount')
@@ -8608,7 +8612,7 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
     return
   }
 
-  _corporativoPrecio = tarifa
+  _corporativoPrecio = tarifaTotal
 
   // Calcular precio por KM con precios_generales para comparar
   let precioKm = null
@@ -8624,19 +8628,21 @@ function _mostrarCotizacionDiaria(km = null, precios = null) {
   }
 
   if (quoteAmount) {
-    if (precioKm !== null && precioKm > tarifa) {
-      quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + precioKm.toFixed(2) + '</span>$' + tarifa.toFixed(2) + '</span>'
+    if (precioKm !== null && precioKm > tarifaTotal) {
+      quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + precioKm.toFixed(2) + '</span>$' + tarifaTotal.toFixed(2) + '</span>'
     } else {
-      quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+      quoteAmount.innerHTML = '$' + tarifaTotal.toFixed(2)
     }
   }
 
   if (quoteDetail) {
     const lineas = []
     if (km !== null) lineas.push('📍 Distancia: ' + km + ' km')
-    if (precioKm !== null && precioKm > tarifa) lineas.push('💰 Precio estimado: <s>$' + precioKm.toFixed(2) + '</s>')
-    lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
-    lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
+    if (precioKm !== null && precioKm > tarifaTotal) {
+      lineas.push('💰 Precio estimado: <s>$' + precioKm.toFixed(2) + '</s>')
+    }
+    lineas.push('📅 Tarifa diaria corporativa: $' + tarifaTotal.toFixed(2))
+    lineas.push('✅ Total: $' + tarifaTotal.toFixed(2))
     quoteDetail.innerHTML = lineas.join('<br>')
   }
 
@@ -8872,7 +8878,11 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 
   // Tarifa diaria corporativa: comparar precio calculado vs tarifa fija
   if (_empresaData?.tipo_tarifa === 'diaria') {
-    const tarifa = Number(_empresaData.tarifa_diaria) || 380
+    const tarifaBase = Number(_empresaData.tarifa_diaria) || 380
+    const ivaEmpresa = Number(_empresaData.iva) || 0
+    const tarifaTotal = Math.round(
+      tarifaBase * (1 + ivaEmpresa) * 100
+    ) / 100
 
     if (_tarifaDiariaYaCubierta) {
       _multiParadaPrecio = 0
@@ -8888,25 +8898,27 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
       return
     }
 
-    _multiParadaPrecio = tarifa
-    _corporativoPrecio = tarifa
+    _multiParadaPrecio = tarifaTotal
+    _corporativoPrecio = tarifaTotal
 
     if (result) {
       result.style.cssText = 'padding:13px 14px;border-radius:10px;background:#e0f2fe;border:1.5px solid #7dd3fc;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#0369a1;display:flex;align-items:center;gap:10px;min-height:46px'
       result.innerHTML = '<span style="font-size:18px">📅</span><div><div>' + _empresaData.nombre + '</div><div style="font-size:10px;opacity:.65;margin-top:2px">' + kmTotal + ' km · ' + totalParadas + ' paradas</div></div>'
     }
     if (quoteAmount) {
-      if (total > tarifa) {
-        quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + total.toFixed(2) + '</span>$' + tarifa.toFixed(2) + '</span>'
+      if (total > tarifaTotal) {
+        quoteAmount.innerHTML = '<span style="display:flex;align-items:baseline;gap:8px"><span style="font-size:60%;color:rgba(255,255,255,0.45);text-decoration:line-through">$' + total.toFixed(2) + '</span>$' + tarifaTotal.toFixed(2) + '</span>'
       } else {
-        quoteAmount.innerHTML = '$' + tarifa.toFixed(2)
+        quoteAmount.innerHTML = '$' + tarifaTotal.toFixed(2)
       }
     }
     if (quoteDetail) {
       const lineas = ['📍 Distancia: ' + kmTotal + ' km · ' + totalParadas + ' paradas']
-      if (total > tarifa) lineas.push('💰 Precio estimado: <s>$' + total.toFixed(2) + '</s>')
-      lineas.push('📅 Tarifa diaria corporativa: $' + tarifa.toFixed(0))
-      lineas.push('✅ Total: $' + tarifa.toFixed(2) + ' + IVA')
+      if (total > tarifaTotal) {
+        lineas.push('💰 Precio estimado: <s>$' + total.toFixed(2) + '</s>')
+      }
+      lineas.push('📅 Tarifa diaria corporativa: $' + tarifaTotal.toFixed(2))
+      lineas.push('✅ Total: $' + tarifaTotal.toFixed(2))
       quoteDetail.innerHTML = lineas.join('<br>')
     }
     if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .3s ease' }
