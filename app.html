@@ -138,6 +138,25 @@
   .home-greeting { position:relative; z-index:1; background:var(--color-primary-dark); border-radius:12px; padding:8px 12px; }
   .home-greeting-name { color:white; font-family:'Montserrat',sans-serif; font-size:20px; font-weight:700; line-height:1.2; }
   .home-greeting-sub { color:rgba(255,255,255,0.72); font-size:13px; font-weight:600; margin-top:3px; }
+  .home-empresa-indicator {
+    display:none;
+    align-items:center;
+    gap:8px;
+    margin:0 0 12px;
+    padding:9px 12px;
+    border:1px solid rgba(13,58,138,.14);
+    border-left:3px solid var(--color-secondary);
+    border-radius:10px;
+    background:var(--color-primary-light);
+    color:var(--color-primary-dark);
+    font-family:'Montserrat',sans-serif;
+    font-size:11px;
+    font-weight:700;
+    line-height:1.4;
+    overflow-wrap:anywhere;
+  }
+  .home-empresa-indicator.visible { display:flex; }
+  .home-empresa-icon { flex:0 0 auto; font-size:15px; line-height:1; }
   /* ── HERO CARD ── */
   .hero-card { background:linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-dark) 55%,var(--color-primary) 100%); border-radius:20px; margin:0 0 14px; padding:20px 0 20px 20px; display:flex; align-items:flex-end; overflow:visible; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 6px 24px rgba(14,32,85,0.28); position:relative; min-height:160px; }
   .hero-content { flex:1; min-width:0; position:relative; z-index:1; }
@@ -968,6 +987,11 @@
 
       <!-- HOME -->
       <div id="home-state" style="padding-top:12px">
+
+        <div id="home-empresa-indicator" class="home-empresa-indicator" aria-live="polite">
+          <span class="home-empresa-icon" aria-hidden="true">🏢</span>
+          <span id="home-empresa-nombre"></span>
+        </div>
 
         <!-- HERO ENVIAR -->
         <div class="hero-card" onclick="_abrirModo('enviar')">
@@ -2149,6 +2173,7 @@ async function _cargarEmpresaUsuario(user) {
   if (!empresa) return
   _empresaData    = empresa
   _empresaUsuario = empresa
+  _actualizarIndicadorEmpresa()
   console.log('[empresa] _empresaUsuario asignado:', _empresaUsuario)
   // Ocultar cupón — nunca aplica a cuentas corporativas
   const cuponCard = document.getElementById('cupon-card')
@@ -2200,6 +2225,23 @@ async function _cargarEmpresaUsuario(user) {
   if (empresa.permite_paqueterias || empresa.permite_mercado_libre) _mostrarTogglesPaqueteria(empresa)
   _actualizarVisibilidadAgregarParada()
   _suscribirEmpresaRealtime(empresa)
+}
+
+function _actualizarIndicadorEmpresa() {
+  const indicador = document.getElementById('home-empresa-indicator')
+  const nombre = document.getElementById('home-empresa-nombre')
+  const empresaNombre = String(_empresaData?.nombre || '').trim()
+
+  if (!indicador || !nombre) return
+
+  if (!empresaNombre) {
+    nombre.textContent = ''
+    indicador.classList.remove('visible')
+    return
+  }
+
+  nombre.textContent = 'Empresa: ' + empresaNombre
+  indicador.classList.add('visible')
 }
 
 function _bloquearFormularioEmpresa() {
@@ -2394,6 +2436,7 @@ function _suscribirEmpresaRealtime(empresa) {
       const prev = { ..._empresaUsuario }
       Object.assign(_empresaUsuario, payload.new)
       _empresaData = _empresaUsuario
+      _actualizarIndicadorEmpresa()
 
       if (prev.permite_paradas !== _empresaUsuario.permite_paradas) {
         console.log('[empresa-realtime] permite_paradas:', prev.permite_paradas, '→', _empresaUsuario.permite_paradas)
