@@ -665,6 +665,41 @@ let _pedidosCancelacionNotificados = new Set()
 let _modalCountdownTimer = null
 let _toggleEnProceso     = false  // evita que cargarPedidos sobreescriba el botón durante el toggle
 let _realtimeSuscrito    = false
+let _interaccionTactilActiva = false
+let _renderPendiente = null
+let _finInteraccionTactilTimer = null
+
+document.addEventListener('touchstart', () => {
+  clearTimeout(_finInteraccionTactilTimer)
+  _interaccionTactilActiva = true
+}, { passive: true })
+
+document.addEventListener('touchend', event => {
+  // Si todavía queda otro dedo sobre la pantalla, la interacción continúa.
+  if (event.touches.length > 0) return
+
+  clearTimeout(_finInteraccionTactilTimer)
+  _finInteraccionTactilTimer = setTimeout(() => {
+    _interaccionTactilActiva = false
+
+    if (_renderPendiente) {
+      const emailPendiente = _renderPendiente
+      _renderPendiente = null
+      cargarPedidos(emailPendiente)
+    }
+  }, 300)
+}, { passive: true })
+
+function _solicitarRenderPedidos(email) {
+  if (!email) return
+
+  if (_interaccionTactilActiva) {
+    _renderPendiente = email
+    return
+  }
+
+  cargarPedidos(email)
+}
 
 // ── Disponibilidad ──────────────────────────────────────────────────────────
 
@@ -1838,10 +1873,8 @@ function _subscribirParadasRealtime(pedido) {
   const pid = pedido.id
   if (_paradasChannels[pid]) db.removeChannel(_paradasChannels[pid])
   _paradasChannels[pid] = db.channel('paradas-repa-' + pid)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + pid }, async payload => {
-      const { data: todasParadas } = await db.from('paradas').select('*').eq('pedido_id', pid).order('orden')
-      if (!todasParadas) return
-      _renderParadasRepartidor(pid, todasParadas, _pedidosRep[pid])
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + pid }, payload => {
+      _solicitarRenderPedidos(_repaData?.email)
       _toastRepa('📍 Nueva parada: ' + payload.new.direccion)
       if (navigator.vibrate) navigator.vibrate([100, 50, 200])
     })
@@ -2441,8 +2474,8 @@ setInterval(async () => {
   console.log('Auto-refresh ejecutando...')
   const { data: { session } } = await db.auth.getSession()
   console.log('Session: activa')
-  if (session) cargarPedidos(session.user.email)
-}, 10000)
+  if (session) _solicitarRenderPedidos(session.user.email)
+}, 30000)
 
 // ── Avatar de perfil (repartidor) ────────────────────────────────────────────
 
