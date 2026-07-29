@@ -262,12 +262,8 @@ async function redirigirSegunRol() {
     .maybeSingle()
   if (error) console.error('No se pudo consultar el rol del usuario en el tenant:', error)
   if (!rolData) {
-    const { error: errorRol } = await db.from('usuario_tenant_roles').insert({
-      user_id: session.user.id,
-      tenant_id: tenantId,
-      rol: 'cliente'
-    })
-    if (errorRol && errorRol.code !== '23505') console.error('No se pudo crear el rol cliente del tenant:', errorRol)
+    const { error: errorRol } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
+    if (errorRol) console.error('No se pudo crear el rol cliente del tenant:', errorRol)
     rolData = { rol: 'cliente' }
   }
   window.location.href = rolData.rol === 'admin' ? 'admin.html' : rolData.rol === 'repartidor' ? 'repartidor.html' : 'app.html'
@@ -368,12 +364,8 @@ async function registrar() {
       const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
       if (errorVerificado) console.error('No se pudo guardar la verificación de WhatsApp:', errorVerificado)
     }
-    const { error: errorRolTenant } = await db.from('usuario_tenant_roles').insert({
-      user_id: data.user.id,
-      tenant_id: tenantId,
-      rol: 'cliente'
-    })
-    if (errorRolTenant && errorRolTenant.code !== '23505') {
+    const { error: errorRolTenant } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
+    if (errorRolTenant) {
       console.error('No se pudo crear el rol cliente del usuario en el tenant:', errorRolTenant)
     }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: data.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})

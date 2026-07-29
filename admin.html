@@ -5375,23 +5375,23 @@ async function guardarPreciosGenerales() {
   }
 
   const iva = ivaPorc / 100
-  const { data: existing } = await db.from('precios_generales').select('id').limit(1).maybeSingle()
-  const payload = { tarifa_base, km_minimo, precio_km_extra, iva, cargo_paquete_grande }
-  let error
-  if (existing) {
-    ;({ error } = await db.from('precios_generales').update(payload).eq('id', existing.id))
-  } else {
-    ;({ error } = await db.from('precios_generales').insert({ ...payload, tenant_id: TENANT_ID }))
-  }
+  const rangosPayload = _pgRangos.map(r => ({
+    km_desde: r.km_desde,
+    km_hasta: r.km_hasta ?? null,
+    precio: r.precio
+  }))
+
+  const { error } = await db.rpc('admin_guardar_precios_generales', {
+    p_tenant_id: TENANT_ID,
+    p_tarifa_base: tarifa_base,
+    p_km_minimo: km_minimo,
+    p_precio_km_extra: precio_km_extra,
+    p_iva: iva,
+    p_cargo_paquete_grande: cargo_paquete_grande,
+    p_rangos: rangosPayload
+  })
+
   if (error) { showToast('❌ Error al guardar: ' + error.message); return }
-
-  // Borrar rangos anteriores e insertar los nuevos
-  const { error: delErr } = await db.from('rangos_precio_general').delete().not('id', 'is', null)
-  if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
-
-  const rows = _pgRangos.map(r => ({ tenant_id: TENANT_ID, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
-  const { error: insErr } = await db.from('rangos_precio_general').insert(rows)
-  if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
 
   showToast('✅ Rangos guardados')
   cargarPreciosGenerales()
