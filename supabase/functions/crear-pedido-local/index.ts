@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ORIGENES = ["https://guepack.com", "https://www.guepack.com"];
 const TAMANIOS = new Set(["sobre", "grande"]);
+const MODOS_PAQUETERIA = new Set(["paqueteria", "mercado_libre"]);
 const METODOS_PAGO = new Map<string, string>([
   ["efectivo", "efectivo"],
   ["transferencia", "transferencia"],
@@ -35,6 +36,18 @@ type Rango = {
   km_hasta: number | string | null;
   precio: number | string | null;
 };
+type RangoPaqueteria = {
+  tipo: string | null;
+  cantidad_desde: number | string | null;
+  cantidad_hasta: number | string | null;
+  precio: number | string | null;
+};
+type RangoPaqueteriaNormalizado = {
+  tipo: "Bolsa" | "Caja";
+  desde: number;
+  hasta: number | null;
+  precio: number;
+};
 type EmpresaCorporativa = {
   id: number | string;
   codigo: string;
@@ -47,6 +60,8 @@ type EmpresaCorporativa = {
   tarifa_base_extra: number | string | null;
   iva: number | string | null;
   cargo_paquete_grande: number | string | null;
+  permite_paqueterias: boolean | null;
+  permite_mercado_libre: boolean | null;
 };
 type PedidoCoberturaDiaria = {
   created_at: string;
@@ -151,6 +166,71 @@ function longitud(valor: unknown, campo: string) {
   return resultado;
 }
 
+function cantidadPaqueteria(valor: unknown, campo: string) {
+  const cantidad = numero(valor, campo);
+  if (!Number.isInteger(cantidad) || cantidad < 0 || cantidad > 5) {
+    throw new Error(`${campo} debe ser un número entero entre 0 y 5`);
+  }
+  return cantidad;
+}
+
+function modoPaqueteria(valor: unknown) {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const modo = requerido(valor, "modo", 30).toLowerCase();
+  if (!MODOS_PAQUETERIA.has(modo)) {
+    throw new Error("El modo de paquetería no es válido");
+  }
+  return modo as "paqueteria" | "mercado_libre";
+}
+
+/*
+ * Replica la precedencia de crear_pedido_paqueteria_atomico:
+ * 1. menor cantidad_desde;
+ * 2. menor cantidad_hasta, dejando rangos abiertos al final;
+ * 3. menor precio como desempate final.
+ */
+function seleccionarRangoPaqueteria(
+  rangos: RangoPaqueteria[],
+  tipo: "Bolsa" | "Caja",
+  cantidad: number,
+): RangoPaqueteriaNormalizado | null {
+  if (cantidad <= 0) return null;
+
+  const candidatos = rangos
+    .map((rango): RangoPaqueteriaNormalizado | null => {
+      const desde = Number(rango.cantidad_desde);
+      const hasta = rango.cantidad_hasta === null
+        ? null
+        : Number(rango.cantidad_hasta);
+      const precio = Number(rango.precio);
+      if (
+        rango.tipo !== tipo ||
+        !Number.isFinite(desde) ||
+        !Number.isFinite(precio) ||
+        desde < 0 ||
+        precio < 0 ||
+        (hasta !== null && (!Number.isFinite(hasta) || hasta < desde))
+      ) {
+        return null;
+      }
+      return { tipo, desde, hasta, precio };
+    })
+    .filter(
+      (rango): rango is RangoPaqueteriaNormalizado =>
+        rango !== null &&
+        cantidad >= rango.desde &&
+        (rango.hasta === null || cantidad <= rango.hasta),
+    )
+    .sort((a, b) =>
+      a.desde - b.desde ||
+      (a.hasta ?? Number.POSITIVE_INFINITY) -
+        (b.hasta ?? Number.POSITIVE_INFINITY) ||
+      a.precio - b.precio
+    );
+
+  return candidatos[0] ?? null;
+}
+
 function validarParadas(valor: unknown): ParadaSolicitud[] | null {
   if (valor === null || valor === undefined) return null;
   if (!Array.isArray(valor)) {
@@ -238,12 +318,12 @@ function alcanceValido(cuerpo: Objeto) {
     valor === true || (typeof valor === "string" && valor.trim() !== "");
   if (activo(cuerpo.modo_paqueteria)) {
     throw new Error(
-      "Los pedidos de paquetería todavía no están disponibles en este flujo",
+      'Utiliza modo: "paqueteria" para este tipo de pedido',
     );
   }
   if (activo(cuerpo.modo_mercadolibre)) {
     throw new Error(
-      "Los pedidos de Mercado Libre todavía no están disponibles en este flujo",
+      'Utiliza modo: "mercado_libre" para este tipo de pedido',
     );
   }
 }
@@ -461,6 +541,63 @@ function estadoInicial(metodo: string) {
 }
 
 function errorRpc(mensaje: string) {
+  if (mensaje.includes("SERVICIO_PAQUETERIA_INVALIDO")) {
+    return [
+      422,
+      "El servicio de paquetería seleccionado no es válido.",
+    ] as const;
+  }
+  if (mensaje.includes("CANTIDAD_BOLSAS_INVALIDA")) {
+    return [
+      422,
+      "La cantidad de bolsas debe ser un número entero entre 0 y 5.",
+    ] as const;
+  }
+  if (mensaje.includes("CANTIDAD_CAJAS_INVALIDA")) {
+    return [
+      422,
+      "La cantidad de cajas debe ser un número entero entre 0 y 5.",
+    ] as const;
+  }
+  if (mensaje.includes("CANTIDADES_PAQUETERIA_REQUERIDAS")) {
+    return [422, "Ingresa al menos una bolsa o una caja."] as const;
+  }
+  if (mensaje.includes("COORDENADAS_RECOLECCION_INVALIDAS")) {
+    return [
+      422,
+      "No pudimos validar la ubicación de recolección. Ajusta la dirección e intenta nuevamente.",
+    ] as const;
+  }
+  if (mensaje.includes("PAQUETERIA_NO_PERMITIDA")) {
+    return [
+      403,
+      "Tu empresa no tiene habilitados los envíos a paquetería.",
+    ] as const;
+  }
+  if (mensaje.includes("MERCADO_LIBRE_NO_PERMITIDO")) {
+    return [
+      403,
+      "Tu empresa no tiene habilitados los envíos a Mercado Libre.",
+    ] as const;
+  }
+  if (mensaje.includes("RANGO_BOLSAS_NO_ENCONTRADO")) {
+    return [
+      422,
+      "La cantidad de bolsas no coincide con una tarifa configurada. Ingresa una cantidad válida o contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("RANGO_CAJAS_NO_ENCONTRADO")) {
+    return [
+      422,
+      "La cantidad de cajas no coincide con una tarifa configurada. Ingresa una cantidad válida o contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_PAQUETERIA_CAMBIO")) {
+    return [
+      409,
+      "La tarifa de paquetería cambió mientras creábamos el pedido. Vuelve a cotizar.",
+    ] as const;
+  }
   if (mensaje.includes("LIMITE_CIUDAD_NO_CONFIGURADO")) {
     return [
       503,
@@ -654,6 +791,8 @@ Deno.serve(async (req) => {
 
   try {
     alcanceValido(cuerpo);
+    const modo = modoPaqueteria(cuerpo.modo);
+    const esModoPaqueteria = modo !== null;
     const nombre = nombreValido(cuerpo.nombre, "nombre");
     const nombreRemitente = opcional(
       cuerpo.nombre_remitente,
@@ -674,16 +813,40 @@ Deno.serve(async (req) => {
       "direccion_recoleccion",
       300,
     );
-    const paradas = validarParadas(cuerpo.paradas);
+    if (
+      esModoPaqueteria &&
+      cuerpo.paradas !== null &&
+      cuerpo.paradas !== undefined
+    ) {
+      throw new Error(
+        "Los pedidos de paquetería no admiten destinos ni paradas",
+      );
+    }
+    const paradas = esModoPaqueteria
+      ? null
+      : validarParadas(cuerpo.paradas);
     const esMultiparada = paradas !== null;
-    const direccionEntrega = esMultiparada
+    const direccionEntrega = esModoPaqueteria
+      ? null
+      : esMultiparada
       ? paradas[0].direccion
       : requerido(cuerpo.direccion_entrega, "direccion_entrega", 300);
     const instrucciones = opcional(cuerpo.instrucciones, "instrucciones", 500);
     const fecha = fechaValida(cuerpo.fecha);
-    const tamanio = requerido(cuerpo.tamanio, "tamanio", 20).toLowerCase();
+    const tamanio = esModoPaqueteria
+      ? "sobre"
+      : requerido(cuerpo.tamanio, "tamanio", 20).toLowerCase();
     if (!TAMANIOS.has(tamanio)) {
       throw new Error("El tamaño de paquete no es válido");
+    }
+    const bolsas = esModoPaqueteria
+      ? cantidadPaqueteria(cuerpo.bolsas, "bolsas")
+      : 0;
+    const cajas = esModoPaqueteria
+      ? cantidadPaqueteria(cuerpo.cajas, "cajas")
+      : 0;
+    if (esModoPaqueteria && bolsas === 0 && cajas === 0) {
+      throw new Error("Ingresa al menos una bolsa o una caja");
     }
     const metodoRecibido = requerido(
       cuerpo.metodo_pago,
@@ -700,13 +863,19 @@ Deno.serve(async (req) => {
     const claveIdempotencia = uuid(cuerpo.idempotency_key, "idempotency_key");
     const latRecoleccion = latitud(cuerpo.lat_recoleccion, "lat_recoleccion");
     const lngRecoleccion = longitud(cuerpo.lng_recoleccion, "lng_recoleccion");
-    const latEntrega = esMultiparada
+    const latEntrega = esModoPaqueteria
+      ? null
+      : esMultiparada
       ? paradas[0].lat
       : latitud(cuerpo.lat_entrega, "lat_entrega");
-    const lngEntrega = esMultiparada
+    const lngEntrega = esModoPaqueteria
+      ? null
+      : esMultiparada
       ? paradas[0].lng
       : longitud(cuerpo.lng_entrega, "lng_entrega");
-    const km = kilometros(numero(cuerpo.km_recorridos, "km_recorridos"));
+    const km = esModoPaqueteria
+      ? 0
+      : kilometros(numero(cuerpo.km_recorridos, "km_recorridos"));
     const codigoCupon =
       opcional(cuerpo.cupon_codigo, "cupon_codigo", 50)?.toUpperCase() ?? null;
 
@@ -714,23 +883,26 @@ Deno.serve(async (req) => {
       lat: latRecoleccion,
       lng: lngRecoleccion,
     };
-    const puntoEntrega = {
-      lat: latEntrega,
-      lng: lngEntrega,
-    };
-    const distanciaHaversine = esMultiparada
-      ? paradas.reduce(
-        (acumulado, parada, indice) =>
-          acumulado +
-          haversine(
-            indice === 0 ? puntoRecoleccion : paradas[indice - 1],
-            parada,
-          ),
-        0,
-      )
-      : haversine(puntoRecoleccion, puntoEntrega);
-
-    validarDistancia(km, distanciaHaversine);
+    const puntoEntrega: Punto | null = esModoPaqueteria
+      ? null
+      : {
+        lat: latEntrega as number,
+        lng: lngEntrega as number,
+      };
+    if (!esModoPaqueteria && puntoEntrega) {
+      const distanciaHaversine = esMultiparada
+        ? paradas.reduce(
+          (acumulado, parada, indice) =>
+            acumulado +
+            haversine(
+              indice === 0 ? puntoRecoleccion : paradas[indice - 1],
+              parada,
+            ),
+          0,
+        )
+        : haversine(puntoRecoleccion, puntoEntrega);
+      validarDistancia(km, distanciaHaversine);
+    }
 
     const admin = createClient(url, servicio, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -760,6 +932,183 @@ Deno.serve(async (req) => {
       }, 403);
     }
 
+    const cargoCancelacion = Math.max(
+      0,
+      dinero(Number(perfil.cargo_cancelacion) || 0),
+    );
+
+    /*
+     * Paquetería y Mercado Libre son caminos corporativos de solo
+     * recolección. Retorna antes de consultar zonas o validar cobertura.
+     */
+    if (esModoPaqueteria) {
+      if (!esCorporativo) {
+        return responder(req, {
+          error:
+            "Este servicio está disponible únicamente para cuentas corporativas.",
+        }, 403);
+      }
+      if (codigoCupon) {
+        return responder(req, {
+          error:
+            "Los cupones no aplican a pedidos corporativos. Retira el cupón y vuelve a intentar.",
+        }, 409);
+      }
+
+      const { data: empresaData, error: falloEmpresa } = await admin
+        .from("empresas_afiliadas")
+        .select(
+          "id, codigo, activa, tipo_tarifa, tarifa_diaria, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande, permite_paqueterias, permite_mercado_libre",
+        )
+        .eq("tenant_id", tenant)
+        .eq("codigo", empresaCodigo)
+        .maybeSingle();
+      if (falloEmpresa) {
+        console.error(
+          "[crear-pedido-local] No se pudo resolver la empresa para paquetería:",
+          falloEmpresa.message,
+        );
+        throw new Error("No pudimos verificar la cuenta corporativa");
+      }
+      if (!empresaData) {
+        return responder(req, {
+          error:
+            "No encontramos la empresa corporativa asociada a tu cuenta.",
+        }, 403);
+      }
+
+      const empresa = empresaData as EmpresaCorporativa;
+      if (empresa.activa !== true) {
+        return responder(req, {
+          error:
+            "La cuenta corporativa está inactiva. Contacta al administrador de tu empresa.",
+        }, 403);
+      }
+      if (modo === "paqueteria" && empresa.permite_paqueterias !== true) {
+        return responder(req, {
+          error:
+            "Tu empresa no tiene habilitados los envíos a paquetería.",
+        }, 403);
+      }
+      if (
+        modo === "mercado_libre" &&
+        empresa.permite_mercado_libre !== true
+      ) {
+        return responder(req, {
+          error:
+            "Tu empresa no tiene habilitados los envíos a Mercado Libre.",
+        }, 403);
+      }
+
+      let ivaEmpresa: number;
+      try {
+        ivaEmpresa = numeroConfigurado(empresa.iva, "iva", { maximo: 1 });
+      } catch (errorConfiguracion) {
+        console.error(
+          "[crear-pedido-local] IVA corporativo inválido para paquetería:",
+          errorConfiguracion instanceof Error
+            ? errorConfiguracion.message
+            : String(errorConfiguracion),
+        );
+        return responder(req, {
+          error:
+            "La tarifa de paquetería no está configurada correctamente. Contacta a soporte.",
+        }, 422);
+      }
+
+      const { data: rangosData, error: falloRangos } = await admin
+        .from("rangos_paqueteria")
+        .select("tipo, cantidad_desde, cantidad_hasta, precio")
+        .eq("empresa_id", empresa.id)
+        .eq("servicio", modo)
+        .order("cantidad_desde", { ascending: true })
+        .order("cantidad_hasta", { ascending: true, nullsFirst: false })
+        .order("precio", { ascending: true });
+      if (falloRangos) {
+        console.error(
+          "[crear-pedido-local] No se pudieron consultar los rangos de paquetería:",
+          falloRangos.message,
+        );
+        throw new Error("No pudimos verificar la tarifa de paquetería");
+      }
+
+      const rangos = (rangosData || []) as RangoPaqueteria[];
+      const rangoBolsas = seleccionarRangoPaqueteria(
+        rangos,
+        "Bolsa",
+        bolsas,
+      );
+      const rangoCajas = seleccionarRangoPaqueteria(rangos, "Caja", cajas);
+      if (bolsas > 0 && !rangoBolsas) {
+        return responder(req, {
+          error:
+            "La cantidad de bolsas no coincide con una tarifa configurada. Ingresa una cantidad válida o contacta a soporte.",
+        }, 422);
+      }
+      if (cajas > 0 && !rangoCajas) {
+        return responder(req, {
+          error:
+            "La cantidad de cajas no coincide con una tarifa configurada. Ingresa una cantidad válida o contacta a soporte.",
+        }, 422);
+      }
+
+      const subtotalPaqueteria = dinero(
+        (rangoBolsas?.precio ?? 0) + (rangoCajas?.precio ?? 0),
+      );
+      const ivaPaqueteria = dinero(subtotalPaqueteria * ivaEmpresa);
+      const precioPaqueteria = dinero(
+        subtotalPaqueteria + ivaPaqueteria + cargoCancelacion,
+      );
+      const tokenRastreo = crypto.randomUUID();
+      const estado = estadoInicial(metodo);
+      const { data: resultadoRpc, error: falloRpc } = await admin.rpc(
+        "crear_pedido_paqueteria_atomico",
+        {
+          p_user_id: user.id,
+          p_tenant_id: tenant,
+          p_idempotency_key: claveIdempotencia,
+          p_servicio: modo,
+          p_bolsas: bolsas,
+          p_cajas: cajas,
+          p_nombre: nombre,
+          p_nombre_remitente: nombreRemitente,
+          p_whatsapp: whatsapp,
+          p_direccion_recoleccion: direccionRecoleccion,
+          p_fecha: fecha,
+          p_instrucciones: instrucciones,
+          p_metodo_pago: metodo,
+          p_comprobante_pago: comprobante,
+          p_estado: estado,
+          p_token_rastreo: tokenRastreo,
+          p_lat_recoleccion: latRecoleccion,
+          p_lng_recoleccion: lngRecoleccion,
+          p_precio_cotizado: precioPaqueteria,
+          p_cargo_cancelacion: cargoCancelacion,
+          p_cupon_codigo: codigoCupon,
+        },
+      );
+      if (falloRpc) {
+        console.error(
+          "[crear-pedido-local] La creación de paquetería atómica falló:",
+          falloRpc.message,
+        );
+        const [estadoError, mensaje] = errorRpc(falloRpc.message);
+        return responder(req, { error: mensaje }, estadoError);
+      }
+
+      const resultado = Array.isArray(resultadoRpc) ? resultadoRpc[0] : null;
+      if (!resultado || !esObjeto(resultado.pedido)) {
+        throw new Error(
+          "El pedido de paquetería fue procesado, pero no pudimos recuperar el resultado",
+        );
+      }
+      return responder(req, {
+        data: [resultado.pedido],
+        es_recuperacion_de_duplicado:
+          resultado.es_recuperacion === true,
+      });
+    }
+
     const { data: zonas, error: falloZonas } = await admin.from(
       "zonas_cobertura",
     )
@@ -784,13 +1133,18 @@ Deno.serve(async (req) => {
     if (
       !esMultiparada &&
       (!operativas.length ||
-        (limite && !puntoEnPoligono(latEntrega, lngEntrega, limite.poligono)))
+        (limite &&
+          !puntoEnPoligono(
+            latEntrega as number,
+            lngEntrega as number,
+            limite.poligono,
+          )))
     ) {
       return responder(req, { error: ERROR_COBERTURA }, 422);
     }
     const puntoFinal = esMultiparada
       ? paradas[paradas.length - 1]
-      : puntoEntrega;
+      : puntoEntrega as Punto;
     let zona: Zona & { poligono: Punto[] };
     if (esMultiparada && esCorporativo) {
       if (!limite) {
@@ -822,11 +1176,6 @@ Deno.serve(async (req) => {
       }
       zona = zonaEncontrada;
     }
-
-    const cargoCancelacion = Math.max(
-      0,
-      dinero(Number(perfil.cargo_cancelacion) || 0),
-    );
 
     if (esMultiparada) {
       let precioMultiparada = 0;

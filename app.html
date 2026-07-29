@@ -3557,6 +3557,8 @@ const esCaminoPrecioGeneral =
   !_esMultiParada &&
   !_modoPaqueteria
 
+const esCaminoPaqueteria = !!_modoPaqueteria
+
 const esCaminoCorporativo =
   !!_empresaData &&
   !_esMultiParada &&
@@ -3577,7 +3579,111 @@ let esRecuperacionDeDuplicado = false
 let data = null
 let error = null
 
-if (esCaminoMultiparada) {
+if (esCaminoPaqueteria) {
+  if (!session?.access_token) {
+    console.error(
+      '[pedido] No hay una sesión válida para crear el pedido de paquetería'
+    )
+    mostrarToast(
+      'Tu sesión expiró. Inicia sesión nuevamente para crear el pedido.',
+      '#ef4444'
+    )
+    return
+  }
+
+  const bolsas =
+    parseInt(document.getElementById('paqueteria-bolsas')?.value) || 0
+  const cajas =
+    parseInt(document.getElementById('paqueteria-cajas')?.value) || 0
+
+  const payloadPedidoPaqueteria = {
+    modo: _modoPaqueteria,
+    nombre: nombre,
+    nombre_remitente: nombreRemitente || null,
+    whatsapp: whatsapp,
+    direccion_recoleccion: dir_recoleccion,
+    fecha: sanitize(fecha),
+    instrucciones: instrucciones || null,
+    // Preserva exactamente "Crédito" cuando fue seleccionado.
+    metodo_pago: metodoPago,
+    comprobante_pago: sanitize(comprobanteUrl) || null,
+    bolsas: bolsas,
+    cajas: cajas,
+    lat_recoleccion: _latRecoleccion ?? null,
+    lng_recoleccion: _lngRecoleccion ?? null,
+    idempotency_key: idempotencyKey
+  }
+
+  let respuestaFuncion
+
+  try {
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/crear-pedido-local',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify(payloadPedidoPaqueteria)
+      }
+    )
+
+    try {
+      respuestaFuncion = await respuesta.json()
+    } catch {
+      respuestaFuncion = null
+    }
+
+    if (!respuesta.ok) {
+      const mensaje =
+        respuestaFuncion?.error ||
+        'No pudimos crear el pedido de paquetería. Intenta nuevamente.'
+
+      console.error(
+        '[pedido] crear-pedido-local rechazó la solicitud de paquetería:',
+        respuesta.status,
+        mensaje
+      )
+      mostrarToast(mensaje, '#ef4444')
+      return
+    }
+  } catch (errorFuncion) {
+    console.error(
+      '[pedido] No se pudo conectar con crear-pedido-local para el pedido de paquetería:',
+      errorFuncion
+    )
+    mostrarToast(
+      'No pudimos conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  if (!Array.isArray(respuestaFuncion?.data) || !respuestaFuncion.data[0]) {
+    console.error(
+      '[pedido] crear-pedido-local devolvió una respuesta de paquetería incompleta:',
+      respuestaFuncion
+    )
+    mostrarToast(
+      'El pedido fue procesado, pero no pudimos recuperar el resultado. Intenta nuevamente.',
+      '#ef4444'
+    )
+    return
+  }
+
+  data = respuestaFuncion.data
+  esRecuperacionDeDuplicado =
+    respuestaFuncion.es_recuperacion_de_duplicado === true
+
+  if (esRecuperacionDeDuplicado) {
+    console.log(
+      '[pedido] La función recuperó un pedido de paquetería existente:',
+      data[0].id
+    )
+  }
+} else if (esCaminoMultiparada) {
   if (!session?.access_token) {
     console.error(
       '[pedido] No hay una sesión válida para crear el pedido multiparada'
@@ -4115,6 +4221,7 @@ if (
   !esRecuperacionDeDuplicado &&
   _cargoCancelacionPendiente > 0 &&
   (
+    esCaminoPaqueteria ||
     esCaminoCorporativo ||
     esCaminoTarifaDiaria ||
     esCaminoMultiparada ||
@@ -4123,6 +4230,7 @@ if (
 ) {
   if (
     esCaminoPrecioGeneral ||
+    esCaminoPaqueteria ||
     esCaminoCorporativo ||
     esCaminoTarifaDiaria ||
     esCaminoMultiparada
@@ -4142,6 +4250,7 @@ if (
 if (
   !esRecuperacionDeDuplicado &&
   _esMultiParada &&
+  !esCaminoPaqueteria &&
   !esCaminoMultiparada
 ) {
     const paradasAdicionales = _paradasList.filter(p => p.direccion.trim())
