@@ -5419,13 +5419,86 @@ async function cargarZonas() {
           '<span class="toggle-slider"></span>' +
         '</label>' +
       '</div>' +
-      '<div style="display:flex;gap:6px;margin-top:10px">' +
-        '<button onclick="zonaEditar(\'' + z.id + '\')" style="flex:1;padding:7px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✏️ Editar</button>' +
-        '<button onclick="zonaEditarPoligono(\'' + z.id + '\')" style="flex:1;padding:7px;background:var(--gray);color:var(--text);border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🖊️ Polígono</button>' +
-        '<button onclick="zonaEliminar(\'' + z.id + '\',\'' + (z.nombre||'').replace(/'/g,"\\\'") + '\')" style="flex:1;padding:7px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️</button>' +
+      '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' +
+        '<button onclick="zonaEditar(\'' + z.id + '\')" style="flex:1 1 90px;padding:7px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">✏️ Editar</button>' +
+        '<button onclick="zonaEditarPoligono(\'' + z.id + '\')" style="flex:1 1 90px;padding:7px;background:var(--gray);color:var(--text);border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🖊️ Polígono</button>' +
+        '<button onclick="zonaDuplicar(\'' + z.id + '\')" style="flex:1 1 90px;padding:7px;background:var(--color-primary-light);color:var(--color-primary-dark);border:1px solid #c7d7f5;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">📋 Duplicar</button>' +
+        '<button onclick="zonaEliminar(\'' + z.id + '\',\'' + (z.nombre||'').replace(/'/g,"\\\'") + '\')" style="flex:1 1 90px;padding:7px;background:#ef4444;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer">🗑️ Eliminar</button>' +
       '</div>' +
     '</div>'
   }).join('')
+}
+
+async function zonaDuplicar(id) {
+  const { data: zona, error: zonaError } = await db
+    .from('zonas_cobertura')
+    .select('tenant_id,nombre,color,coordenadas,precio_sobre,precio_grande,precio_por_km')
+    .eq('id', id)
+    .single()
+
+  if (zonaError || !zona) {
+    showToast('❌ No se pudo cargar la zona original')
+    return
+  }
+
+  const nombreIngresado = prompt(
+    'Nombre para la copia de la zona:',
+    (zona.nombre || 'Zona') + ' copia'
+  )
+
+  if (nombreIngresado === null) return
+
+  const nuevoNombre = nombreIngresado.trim()
+  if (!nuevoNombre) {
+    showToast('⚠️ El nombre de la zona no puede estar vacío')
+    return
+  }
+
+  const tenantId = zona.tenant_id ?? TENANT_ID
+  const { data: zonasTenant, error: nombresError } = await db
+    .from('zonas_cobertura')
+    .select('nombre')
+    .eq('tenant_id', tenantId)
+
+  if (nombresError) {
+    showToast('❌ No se pudo validar el nombre de la zona')
+    return
+  }
+
+  const nombreDuplicado = (zonasTenant || []).some(function(zonaExistente) {
+    return String(zonaExistente.nombre || '').trim().localeCompare(
+      nuevoNombre,
+      'es',
+      { sensitivity: 'base' }
+    ) === 0
+  })
+
+  if (nombreDuplicado) {
+    showToast('⚠️ Ya existe una zona con ese nombre')
+    return
+  }
+
+  const { error: insertError } = await db
+    .from('zonas_cobertura')
+    .insert({
+      tenant_id: tenantId,
+      nombre: nuevoNombre,
+      color: zona.color,
+      coordenadas: zona.coordenadas,
+      precio_sobre: zona.precio_sobre,
+      precio_grande: zona.precio_grande,
+      precio_por_km: zona.precio_por_km,
+      activa: true
+    })
+
+  if (insertError) {
+    showToast('❌ Error al duplicar: ' + insertError.message)
+    return
+  }
+
+  await cargarZonas()
+  _cargarZonasEnMapa()
+  showToast('✅ Zona duplicada correctamente')
 }
 
 function zonaFormOpen(zona) {
