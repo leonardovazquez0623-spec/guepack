@@ -3324,7 +3324,7 @@ function renderPedido(pedido) {
           <button class="btn" style="background:rgba(34,197,94,0.15);color:var(--success)" onclick="aprobarPagoTransferencia(${pedido.id},\'${pedido.whatsapp}\',\'${pedido.nombre}\')">✅ Aprobar pago</button>
           <button class="btn" style="background:rgba(239,68,68,0.12);color:#ef4444" onclick="updateStatus(${pedido.id},\'Pago rechazado\',\'${pedido.whatsapp}\',\'${pedido.nombre}\')">❌ Rechazar pago</button>
         ` : ''}
-        ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
+        ${(pedido.estado === 'Pendiente' && !pedido.repartidor) ? '<button class="btn btn-secondary" onclick="asignarRepartidor(' + pedido.id + ')">Asignar repartidor</button>' : ''}
         ${esPedidoAbandonado(pedido) ? `<button class="btn" style="background:#dc2626;color:white" onclick="confirmarEliminarAbandonado(${pedido.id})">🗑️ Eliminar abandonado</button>` : ''}
         ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn" style="background:rgba(34,197,94,0.1);color:var(--success)" onclick="updateStatus(' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
         ${pedido.foto_evidencia ? '<button class="btn btn-secondary" onclick="verEvidencia(\'' + pedido.foto_evidencia + '\',\'' + (pedido.firma_evidencia || '') + '\')">📸 Ver evidencia</button>' : ''}
