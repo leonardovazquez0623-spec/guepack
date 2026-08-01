@@ -456,3 +456,8 @@ entrypoint = "./functions/crear-pedido-local/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/enviar-campana-reactivacion/index.ts"
+
+[functions.actualizar-horario-apertura]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/actualizar-horario-apertura/index.ts"

@@ -1169,6 +1169,41 @@ function initMapsAdmin() {
     </div>
 
     <div class="card" style="margin-top:16px">
+      <div class="card-title">🕐 Horario de apertura</div>
+
+      <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;line-height:1.5;margin-bottom:14px">
+        Define la hora a partir de la cual se activarán los pedidos programados de este tenant.
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,2fr);gap:10px;margin-bottom:14px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" for="cfg-horario-apertura">Hora de apertura</label>
+          <input
+            type="time"
+            id="cfg-horario-apertura"
+            class="form-input"
+            aria-describedby="cfg-horario-apertura-estado"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Zona horaria del tenant</label>
+          <div id="cfg-horario-zona-horaria" class="form-input" style="display:flex;align-items:center;background:#f4f6fb;color:#5a6a8a;cursor:default" aria-readonly="true">
+            —
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-guardar-horario-apertura" onclick="guardarHorarioApertura()" disabled style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
+        💾 Guardar horario de apertura
+      </button>
+
+      <div id="cfg-horario-apertura-estado" role="status" aria-live="polite" style="min-height:17px;margin-top:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0">
+        Abre la pestaña para cargar la configuración.
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
       <div class="card-title">⚙️ Asignación automática</div>
 
       <div class="toggle-wrap" style="margin-bottom:16px">
@@ -1982,6 +2017,227 @@ function _esFindeDeSemanaGDL(isoDate) {
   return dia === 0 || dia === 6
 }
 
+function _setEstadoHorarioApertura(mensaje, tipo = 'info') {
+  const estado = document.getElementById('cfg-horario-apertura-estado')
+  if (!estado) return
+
+  const colores = {
+    info: '#8fa3c0',
+    exito: '#16a34a',
+    aviso: '#d97706',
+    error: '#dc2626'
+  }
+
+  estado.textContent = mensaje
+  estado.style.color = colores[tipo] || colores.info
+}
+
+async function _leerRespuestaHorarioApertura(respuesta) {
+  try {
+    return await respuesta.json()
+  } catch (_) {
+    return null
+  }
+}
+
+async function cargarHorarioApertura() {
+  const input = document.getElementById('cfg-horario-apertura')
+  const zonaHoraria = document.getElementById('cfg-horario-zona-horaria')
+  const boton = document.getElementById('btn-guardar-horario-apertura')
+
+  if (!input || !zonaHoraria || !boton) return
+
+  input.disabled = true
+  boton.disabled = true
+  zonaHoraria.textContent = 'Cargando...'
+  _setEstadoHorarioApertura('Cargando horario de apertura...')
+
+  try {
+    const {
+      data: { session },
+      error: errorSesion
+    } = await db.auth.getSession()
+
+    if (errorSesion || !session?.access_token) {
+      console.error(
+        '[horario apertura] No hay una sesión administrativa válida:',
+        errorSesion || ''
+      )
+      _setEstadoHorarioApertura(
+        'No fue posible validar la sesión administrativa.',
+        'error'
+      )
+      return
+    }
+
+    const respuesta = await fetch(
+      SUPABASE_URL +
+        '/functions/v1/actualizar-horario-apertura?tenant_id=' +
+        encodeURIComponent(String(TENANT_ID)),
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer ' + session.access_token
+        }
+      }
+    )
+
+    const resultado = await _leerRespuestaHorarioApertura(respuesta)
+
+    if (!respuesta.ok || resultado?.success !== true) {
+      const mensaje =
+        resultado?.error ||
+        'No fue posible cargar el horario de apertura'
+
+      console.error(
+        '[horario apertura] Error al cargar:',
+        mensaje,
+        respuesta.status
+      )
+      zonaHoraria.textContent = 'No disponible'
+      _setEstadoHorarioApertura(mensaje, 'error')
+      return
+    }
+
+    zonaHoraria.textContent =
+      resultado.zona_horaria || 'No configurada'
+
+    input.value =
+      typeof resultado.horario_apertura === 'string'
+        ? resultado.horario_apertura.slice(0, 5)
+        : ''
+
+    if (resultado.configuracion_existe === false) {
+      _setEstadoHorarioApertura(
+        'Aún no se ha configurado el horario para este tenant.',
+        'aviso'
+      )
+    } else {
+      _setEstadoHorarioApertura(
+        'Horario cargado correctamente.',
+        'exito'
+      )
+    }
+  } catch (error) {
+    console.error(
+      '[horario apertura] Error inesperado al cargar:',
+      error
+    )
+    zonaHoraria.textContent = 'No disponible'
+    _setEstadoHorarioApertura(
+      'No fue posible cargar el horario de apertura.',
+      'error'
+    )
+  } finally {
+    input.disabled = false
+    boton.disabled = false
+  }
+}
+
+async function guardarHorarioApertura() {
+  const input = document.getElementById('cfg-horario-apertura')
+  const boton = document.getElementById('btn-guardar-horario-apertura')
+
+  if (!input || !boton) return
+
+  const horarioApertura = input.value
+
+  if (!horarioApertura) {
+    _setEstadoHorarioApertura(
+      'Selecciona una hora de apertura.',
+      'aviso'
+    )
+    showToast('⚠️ Selecciona una hora de apertura')
+    return
+  }
+
+  boton.disabled = true
+  boton.textContent = 'Guardando...'
+  _setEstadoHorarioApertura('Guardando horario de apertura...')
+
+  try {
+    const {
+      data: { session },
+      error: errorSesion
+    } = await db.auth.getSession()
+
+    if (errorSesion || !session?.access_token) {
+      console.error(
+        '[horario apertura] No hay una sesión administrativa válida:',
+        errorSesion || ''
+      )
+      _setEstadoHorarioApertura(
+        'Tu sesión no es válida. Inicia sesión nuevamente.',
+        'error'
+      )
+      showToast('❌ Tu sesión no es válida, inicia sesión nuevamente')
+      return
+    }
+
+    const respuesta = await fetch(
+      SUPABASE_URL + '/functions/v1/actualizar-horario-apertura',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
+        body: JSON.stringify({
+          tenant_id: String(TENANT_ID),
+          horario_apertura: horarioApertura
+        })
+      }
+    )
+
+    const resultado = await _leerRespuestaHorarioApertura(respuesta)
+
+    if (!respuesta.ok || resultado?.success !== true) {
+      const mensaje =
+        resultado?.error ||
+        'No fue posible guardar el horario de apertura'
+
+      console.error(
+        '[horario apertura] Error al guardar:',
+        mensaje,
+        respuesta.status
+      )
+      _setEstadoHorarioApertura(mensaje, 'error')
+      showToast('❌ ' + mensaje)
+      return
+    }
+
+    if (typeof resultado.horario_apertura === 'string') {
+      input.value = resultado.horario_apertura.slice(0, 5)
+    }
+
+    _setEstadoHorarioApertura(
+      'Horario de apertura guardado correctamente.',
+      'exito'
+    )
+
+    if (resultado.configuracion_creada === true) {
+      showToast(
+        '✅ Se configuró por primera vez el horario de este tenant'
+      )
+    } else {
+      showToast('✅ Horario de apertura guardado')
+    }
+  } catch (error) {
+    console.error(
+      '[horario apertura] Error inesperado al guardar:',
+      error
+    )
+    _setEstadoHorarioApertura(
+      'No fue posible guardar el horario de apertura.',
+      'error'
+    )
+    showToast('❌ No fue posible guardar el horario de apertura')
+  } finally {
+    boton.disabled = false
+    boton.textContent = '💾 Guardar horario de apertura'
+  }
+}
+
 async function cargarConfigAsignacion() {
   const keys = ['asignacion_activa', 'tiempo_aceptar', 'pausa_rondas', 'max_rondas']
   const { data } = await db.from('config_app').select('key,value').in('key', keys)
@@ -2674,7 +2930,11 @@ function showTab(tab, btn) {
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
-  if (tab === 'repartidores') { cargarRepartidores(); cargarConfigAsignacion() }
+  if (tab === 'repartidores') {
+    cargarRepartidores()
+    cargarHorarioApertura()
+    cargarConfigAsignacion()
+  }
   if (tab === 'referidos') cargarReferidos()
   if (tab === 'clientes') cargarClientes()
   if (tab === 'trafico') cargarTrafico()
