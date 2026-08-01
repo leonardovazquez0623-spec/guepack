@@ -122,7 +122,8 @@ async function enviarMensajeFirebase(
   tokenFcm: string,
   titulo: string,
   cuerpo: string,
-  accessToken: string
+  accessToken: string,
+  ttlWebpushSegundos?: number
 ) {
   const respuesta = await fetch(
     `https://fcm.googleapis.com/v1/projects/${proyectoFirebase}/messages:send`,
@@ -156,6 +157,9 @@ async function enviarMensajeFirebase(
             }
           },
           webpush: {
+            ...(ttlWebpushSegundos
+              ? { headers: { TTL: String(ttlWebpushSegundos) } }
+              : {}),
             notification: {
               title: titulo,
               body: cuerpo,
@@ -171,7 +175,14 @@ async function enviarMensajeFirebase(
     }
   )
 
-  return await respuesta.json()
+  const resultado = await respuesta.json()
+  console.info('[notificar-suscriptores-rastreo] respuesta Firebase', {
+    aceptada: respuesta.ok,
+    message_id: resultado?.name || null,
+    tipo: 'rastreo',
+    ttl_webpush_segundos: ttlWebpushSegundos ?? null
+  })
+  return resultado
 }
 
 function obtenerCodigoErrorFirebase(resultado: any): string | null {
@@ -330,6 +341,8 @@ Deno.serve(async req => {
       correoFirebase
     )
     const titulo = `GK-${pedidoId} actualizado`
+    const ttlWebpushSegundos =
+      estado === 'Repartidor en domicilio' ? 300 : undefined
     const codigosInvalidos = new Set([
       'INVALID_REGISTRATION',
       'UNREGISTERED',
@@ -344,7 +357,8 @@ Deno.serve(async req => {
             tokenFcm,
             titulo,
             textoEstado,
-            accessToken
+            accessToken,
+            ttlWebpushSegundos
           )
           const codigoError = obtenerCodigoErrorFirebase(resultado)
 

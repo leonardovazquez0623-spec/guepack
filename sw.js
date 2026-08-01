@@ -12,32 +12,32 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging()
 
+function obtenerMessageId(payload) {
+  return payload?.messageId ||
+    payload?.message_id ||
+    payload?.fcmMessageId ||
+    payload?.data?.message_id ||
+    null
+}
+
 messaging.onBackgroundMessage(payload => {
-  const title = payload.notification?.title || payload.data?.titulo || 'GUEPACK Express'
-  const body  = payload.notification?.body  || payload.data?.cuerpo || 'Nueva notificación'
-  self.registration.showNotification(title, {
-    body,
-    icon:    '/logo_icono.png',
-    badge:   '/logo_icono.png',
-    vibrate: [200, 100, 200]
+  console.info('[FCM SW] onBackgroundMessage recibido', {
+    message_id: obtenerMessageId(payload),
+    showNotification_llamado: false,
+    estrategia: 'presentación automática de Firebase'
   })
 })
 
-// Push nativo — independiente de sesión, solo usa el payload
+// Observabilidad del push nativo. Firebase presenta automáticamente los payloads
+// con `notification`; este listener no debe volver a llamar showNotification().
 self.addEventListener('push', function(event) {
-  if (!event.data) return
-  let data = {}
-  try { data = event.data.json() } catch(e) {}
-  const title = data.notification?.title || data.data?.titulo || 'GUEPACK Express'
-  const body  = data.notification?.body  || data.data?.cuerpo || 'Nueva notificación'
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon:    '/logo_icono.png',
-      badge:   '/logo_icono.png',
-      vibrate: [200, 100, 200]
-    })
-  )
+  let data = null
+  try { data = event.data?.json() || null } catch (_) {}
+  console.info('[FCM SW] evento push recibido', {
+    message_id: obtenerMessageId(data),
+    showNotification_llamado: false,
+    estrategia: 'presentación automática de Firebase'
+  })
 })
 
 self.addEventListener('notificationclick', function(event) {

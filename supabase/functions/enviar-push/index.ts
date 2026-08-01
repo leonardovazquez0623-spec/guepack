@@ -118,7 +118,8 @@ async function enviarMensajeFirebase(
   titulo: string,
   cuerpo: string,
   tipo: string,
-  accessToken: string
+  accessToken: string,
+  ttlWebpushSegundos?: number
 ) {
   const respuesta = await fetch(
     `https://fcm.googleapis.com/v1/projects/${proyectoFirebase}/messages:send`,
@@ -145,6 +146,9 @@ async function enviarMensajeFirebase(
             }
           },
           webpush: {
+            ...(ttlWebpushSegundos
+              ? { headers: { TTL: String(ttlWebpushSegundos) } }
+              : {}),
             notification: {
               title: titulo,
               body: cuerpo,
@@ -157,7 +161,14 @@ async function enviarMensajeFirebase(
       })
     }
   )
-  return await respuesta.json()
+  const resultado = await respuesta.json()
+  console.info('[enviar-push] respuesta Firebase', {
+    aceptada: respuesta.ok,
+    message_id: resultado?.name || null,
+    tipo,
+    ttl_webpush_segundos: ttlWebpushSegundos ?? null
+  })
+  return resultado
 }
 
 async function obtenerUsuarioPorRepartidor(
@@ -255,7 +266,8 @@ async function enviarAUsuarios(
   titulo: string,
   cuerpo: string,
   tipo: string,
-  accessToken: string
+  accessToken: string,
+  ttlWebpushSegundos?: number
 ) {
   const ids = [...new Set(usuarios.filter(Boolean))]
   if (!ids.length) return { sent: 0, results: [] }
@@ -284,7 +296,8 @@ async function enviarAUsuarios(
           titulo,
           cuerpo,
           tipo,
-          accessToken
+          accessToken,
+          ttlWebpushSegundos
         )
         const codigoError: string | null =
           resultado?.error?.details?.find(
@@ -419,6 +432,7 @@ Deno.serve(async (req) => {
     let titulo = ''
     let cuerpo = ''
     let tipoFirebase = 'general'
+    let ttlWebpushSegundos: number | undefined
     let notificacionRastreo: { pedido_id: number; estado: string } | null = null
 
     if (tipoNotificacion === 'comprobante_deposito') {
@@ -602,6 +616,7 @@ Deno.serve(async (req) => {
         titulo = '📍 GUEPACK Express'
         cuerpo = `Tu mensajero llegó a la parada #${parada.orden}`
         tipoFirebase = 'pedido'
+        ttlWebpushSegundos = 300
       }
 
       if (tipoNotificacion === 'estado_pedido') {
@@ -639,6 +654,9 @@ Deno.serve(async (req) => {
         titulo = mensaje.titulo
         cuerpo = mensaje.cuerpo
         tipoFirebase = 'pedido'
+        if (pedido.estado === 'Repartidor en domicilio') {
+          ttlWebpushSegundos = 300
+        }
         notificacionRastreo = {
           pedido_id: pedido.id,
           estado: pedido.estado
@@ -964,7 +982,8 @@ Deno.serve(async (req) => {
       titulo,
       cuerpo,
       tipoFirebase,
-      accessToken
+      accessToken,
+      ttlWebpushSegundos
     )
 
     if (notificacionRastreo) {
