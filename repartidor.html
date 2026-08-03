@@ -608,30 +608,6 @@
   </div>
 </div>
 
-<!-- TEMP DEBUG - QUITAR -->
-<div id="gps-debug-chip" hidden style="position:fixed;left:10px;bottom:10px;z-index:99999;background:rgba(0,0,0,.78);color:#fff;border-radius:8px;padding:8px 10px;font:11px/1.45 monospace;white-space:pre;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.3)"></div>
-<script>
-(function () {
-  if (new URLSearchParams(window.location.search).get('debug') !== '1') return
-  const chip = document.getElementById('gps-debug-chip')
-  chip.hidden = false
-
-  function actualizarGpsDebug() {
-    const diagnostico = window.__gpsDebug || {}
-    const segundos = diagnostico.ultimoFixAt
-      ? Math.max(0, Math.floor((Date.now() - diagnostico.ultimoFixAt) / 1000)) + 's'
-      : '—'
-    chip.textContent = 'fix: hace ' + segundos +
-      '\nenvíos: ' + (diagnostico.envios || 0) +
-      '\nreanudó: ' + (diagnostico.reanudo || '—')
-  }
-
-  actualizarGpsDebug()
-  setInterval(actualizarGpsDebug, 1000)
-})()
-</script>
-<!-- TEMP DEBUG - QUITAR -->
-
 <script src="guepack-icons.js"></script>
 <script>
 function _iconoRepaHtml(archivo, tamano = 16) {
