@@ -6930,14 +6930,67 @@ function _bvFirebaseAuth() {
   return firebase.auth()
 }
 
-async function _bvFirebaseAuthTemporal() {
-  const auth = _bvFirebaseAuth()
-  auth.settings.appVerificationDisabledForTesting = false
-  await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
+function _bvErrorConEtapa(error, etapa) {
+  if (error && (typeof error === 'object' || typeof error === 'function')) {
+    try {
+      error._etapa = etapa
+      return error
+    } catch (_) {}
+  }
+  const errorEtapa = new Error(error?.message || String(error || 'Error desconocido'))
+  errorEtapa.code = error?.code || null
+  errorEtapa._etapa = etapa
+  return errorEtapa
+}
+
+async function _bvFirebaseAuthTemporal(prefijoEtapa = '') {
+  let auth
+  try {
+    auth = _bvFirebaseAuth()
+    auth.settings.appVerificationDisabledForTesting = false
+  } catch (error) {
+    throw _bvErrorConEtapa(error, prefijoEtapa + 'firebase_init')
+  }
+  try {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.NONE)
+  } catch (error) {
+    throw _bvErrorConEtapa(error, prefijoEtapa + 'set_persistence')
+  }
   return auth
 }
 
-function _bvErrorSms(error) {
+async function _bvLogVerificacion({ etapa, codigo, mensaje, telefono }) {
+  try {
+    const digitos = String(telefono || '').replace(/\D/g, '')
+    const telefonoMasked = digitos ? `${digitos.slice(0, 6)}****${digitos.slice(-2)}` : null
+    const { data: { session } } = await db.auth.getSession()
+    await db.from('verificaciones_log').insert({
+      etapa: etapa || 'desconocida',
+      codigo: codigo || null,
+      mensaje: mensaje ? String(mensaje).slice(0, 300) : null,
+      telefono_masked: telefonoMasked,
+      hostname: window.location.hostname,
+      standalone: window.matchMedia('(display-mode: standalone)').matches,
+      user_agent: String(navigator.userAgent || '').slice(0, 200),
+      usuario_id: session?.user?.id || null,
+      tenant_id: _tenantIdEventos || window.tenantConfig?.id || null
+    })
+  } catch (_) {}
+}
+
+function _bvErrorSms(error, etapa) {
+  const etapaFinal = etapa || error?._etapa || 'desconocida'
+  console.error('[WhatsApp verificación]', {
+    etapa: etapaFinal,
+    codigo: error?.code || null,
+    mensaje: error?.message || null
+  })
+  _bvLogVerificacion({
+    etapa: etapaFinal,
+    codigo: error?.code || null,
+    mensaje: error?.message || null,
+    telefono: _bvTelefono || document.getElementById('bv-whatsapp')?.value || ''
+  }).catch(() => {})
   const el = document.getElementById('bv-sms-error')
   el.innerHTML = '<img src="/guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="20" style="vertical-align:middle;margin-right:6px">No pudimos verificar tu WhatsApp por SMS. Intenta de nuevo en un momento.'
   el.style.display = 'block'
@@ -6949,29 +7002,76 @@ async function _bvEnviarCodigo() {
   const wsp = (document.getElementById('bv-whatsapp')?.value || '').replace(/\D/g, '')
   if ((!_bvSoloVerificacion && !nombre) || wsp.length !== 10) return
 
-  let consultaDuplicado = db.from('usuarios')
-    .select('user_id')
-    .eq('whatsapp', wsp)
-  if (_bvUserId) consultaDuplicado = consultaDuplicado.neq('user_id', _bvUserId)
-  const { data: whatsappExistente, error: errorConsulta } = await consultaDuplicado.maybeSingle()
-  if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
+  const btn = document.getElementById('bv-btn-enviar')
+  let whatsappExistente = null
+  let errorConsulta = null
+  try {
+    let consultaDuplicado = db.from('usuarios')
+      .select('user_id')
+      .eq('whatsapp', wsp)
+    if (_bvUserId) consultaDuplicado = consultaDuplicado.neq('user_id', _bvUserId)
+    const resultadoConsulta = await consultaDuplicado.maybeSingle()
+    whatsappExistente = resultadoConsulta.data
+    errorConsulta = resultadoConsulta.error
+  } catch (error) {
+    const errorEtapa = _bvErrorConEtapa(error, 'consulta_duplicado_error')
+    console.error('[WhatsApp verificación]', {
+      etapa: errorEtapa._etapa,
+      codigo: errorEtapa.code || null,
+      mensaje: errorEtapa.message || null
+    })
+    _bvLogVerificacion({
+      etapa: errorEtapa._etapa,
+      codigo: errorEtapa.code || null,
+      mensaje: errorEtapa.message || null,
+      telefono: wsp
+    }).catch(() => {})
+    throw errorEtapa
+  }
+  if (errorConsulta) {
+    console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
+    _bvLogVerificacion({
+      etapa: 'consulta_duplicado_error',
+      codigo: errorConsulta.code || null,
+      mensaje: errorConsulta.message || null,
+      telefono: wsp
+    }).catch(() => {})
+  }
   if (whatsappExistente) {
+    _bvLogVerificacion({
+      etapa: 'consulta_duplicado_hit',
+      codigo: null,
+      mensaje: 'Número registrado en otra cuenta',
+      telefono: wsp
+    }).catch(() => {})
     mostrarToast('⚠️ Este número de WhatsApp ya está registrado en otra cuenta', 'error')
     return
   }
 
   // Solo después de descartar duplicados se crea reCAPTCHA y se intenta Firebase.
-  const btn = document.getElementById('bv-btn-enviar')
   btn.disabled = true
   btn.textContent = 'Enviando...'
   _bvTelefono = '+52' + wsp
   try {
     const auth = await _bvFirebaseAuthTemporal()
-    if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
-    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible'
-    })
-    _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
+    try {
+      if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'clear_verifier')
+    }
+    try {
+      _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        size: 'invisible'
+      })
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'construir_verifier')
+    }
+    try {
+      _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'envio_sms')
+    }
+    _bvLogVerificacion({ etapa: 'envio_ok', codigo: null, mensaje: null, telefono: _bvTelefono }).catch(() => {})
     window.confirmationResult = _bvConfirmationResult
     const input = document.getElementById('bv-whatsapp')
     input.readOnly = true
@@ -6986,7 +7086,7 @@ async function _bvEnviarCodigo() {
   } catch (error) {
     btn.disabled = false
     btn.textContent = 'Enviar código'
-    _bvErrorSms(error)
+    _bvErrorSms(error, error?._etapa)
   }
 }
 
@@ -7008,12 +7108,17 @@ async function _bvVerificar() {
   btn.textContent = 'Verificando...'
 
   try {
-    const result = await window.confirmationResult.confirm(codigo)
-    await _bvFirebaseAuth().signOut()
+    try {
+      const result = await window.confirmationResult.confirm(codigo)
+      await _bvFirebaseAuth().signOut()
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'confirmar_codigo')
+    }
+    _bvLogVerificacion({ etapa: 'verificado_ok', codigo: null, mensaje: null, telefono: _bvTelefono }).catch(() => {})
   } catch (error) {
     btn.disabled = false
     btn.textContent = 'Verificar código'
-    _bvErrorSms(error)
+    _bvErrorSms(error, error?._etapa)
     return
   }
 
@@ -7087,15 +7192,28 @@ async function _bvReenviar() {
   if (btn.disabled) return
   btn.disabled = true
   try {
-    const auth = await _bvFirebaseAuthTemporal()
-    if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
-    _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible'
-    })
-    _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
+    const auth = await _bvFirebaseAuthTemporal('reenvio_')
+    try {
+      if (_bvRecaptchaVerifier) { _bvRecaptchaVerifier.clear(); _bvRecaptchaVerifier = null }
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'reenvio_clear_verifier')
+    }
+    try {
+      _bvRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        size: 'invisible'
+      })
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'reenvio_construir_verifier')
+    }
+    try {
+      _bvConfirmationResult = await auth.signInWithPhoneNumber(_bvTelefono, _bvRecaptchaVerifier)
+    } catch (error) {
+      throw _bvErrorConEtapa(error, 'reenvio_envio_sms')
+    }
+    _bvLogVerificacion({ etapa: 'envio_ok', codigo: null, mensaje: null, telefono: _bvTelefono }).catch(() => {})
     window.confirmationResult = _bvConfirmationResult
     _bvIniciarCooldown()
-  } catch (error) { btn.disabled = false; _bvErrorSms(error) }
+  } catch (error) { btn.disabled = false; _bvErrorSms(error, error?._etapa) }
 }
 
 async function _procesarReferidoBienvenida(codigo) {

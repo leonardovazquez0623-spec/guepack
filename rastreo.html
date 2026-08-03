@@ -428,8 +428,6 @@
 <script src="config.js"></script>
 <script src="tracking-cliente.js"></script>
 <script>
-const RASTREO_PUBLICO_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/rastreo-publico'
-
 const _token = new URLSearchParams(window.location.search).get('token') || ''
 let _pedidoId = null
 let _estadoActual = null
@@ -523,6 +521,9 @@ function actualizarUI(data) {
   if (data.repartidor) {
     repaEl.textContent = '🏍️ Repartidor: ' + data.repartidor
     repaEl.style.display = 'block'
+  } else {
+    repaEl.textContent = ''
+    repaEl.style.display = 'none'
   }
 
   // Timeline + horas
@@ -537,30 +538,38 @@ function actualizarUI(data) {
   })
 }
 
-async function _cargarDatosRepartidor(nombreRepartidor) {
-  const [{ data: repa }, { data: cals }] = await Promise.all([
-    db.from('repartidores').select('nombre, foto_perfil, placas, whatsapp').eq('nombre', nombreRepartidor).maybeSingle(),
-    db.from('calificaciones').select('estrellas').eq('repartidor', nombreRepartidor)
-  ])
-
+function _renderDatosRepartidor(repa, calificacion, nombreRepartidor) {
   const card = document.getElementById('r-repartidor-card')
   const info = document.getElementById('r-repa-info')
-  if (!card || !info || card.dataset.loaded) return
-  card.dataset.loaded = '1'
+  if (!card || !info) return
 
-  const nombre = repa?.nombre || nombreRepartidor
+  if (!repa && !nombreRepartidor) {
+    card.style.display = 'none'
+    info.innerHTML = ''
+    return
+  }
+
+  const nombre = repa?.nombre || nombreRepartidor || 'Repartidor'
   const fotoHtml = repa?.foto_perfil
     ? `<img src="${repa.foto_perfil}" class="repa-avatar" alt="${nombre}">`
-    : `<div class="repa-avatar-ph">${nombre[0].toUpperCase()}</div>`
+    : `<div class="repa-avatar-ph">${nombre.charAt(0).toUpperCase()}</div>`
 
-  const count = cals?.length || 0
-  const avg   = count ? Math.round(cals.reduce((s, c) => s + (c.estrellas || 0), 0) / count * 10) / 10 : null
+  const calificacionEsEscalar = typeof calificacion === 'number' || typeof calificacion === 'string'
+  const promedioRaw = calificacionEsEscalar
+    ? calificacion
+    : calificacion?.promedio ?? calificacion?.estrellas ?? null
+  const totalRaw = calificacionEsEscalar
+    ? 0
+    : calificacion?.total ?? calificacion?.cantidad ?? 0
+  const promedio = promedioRaw == null ? null : Number(promedioRaw)
+  const total = Number(totalRaw) || 0
+  const avg = Number.isFinite(promedio) ? promedio : null
   const starsHtml = avg !== null
-    ? `<span style="color:#f59e0b">${'⭐'.repeat(Math.min(5, Math.round(avg)))}</span> <span style="font-size:11px;color:var(--gray-mid);font-weight:600">${avg.toFixed(1)} (${count})</span>`
+    ? `<span style="color:#f59e0b">${'⭐'.repeat(Math.min(5, Math.round(avg)))}</span> <span style="font-size:11px;color:var(--gray-mid);font-weight:600">${avg.toFixed(1)}${total > 0 ? ` (${total})` : ''}</span>`
     : '<span style="font-size:11px;color:var(--gray-mid);font-weight:600">Sin calificaciones aún</span>'
 
-  const waBtn = repa?.whatsapp
-    ? `<a href="https://wa.me/52${repa.whatsapp}" target="_blank" rel="noopener" class="btn-wa-repa">
+  const waBtn = repa?.telefono
+    ? `<a href="https://wa.me/52${repa.telefono}" target="_blank" rel="noopener" class="btn-wa-repa">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.113.552 4.094 1.52 5.81L0 24l6.336-1.5A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.008-1.373l-.359-.213-3.762.892.906-3.655-.234-.374A9.821 9.821 0 0 1 2.182 12C2.182 6.574 6.574 2.182 12 2.182S21.818 6.574 21.818 12 17.426 21.818 12 21.818z"/></svg>
         WhatsApp
       </a>`
@@ -581,14 +590,40 @@ async function _cargarDatosRepartidor(nombreRepartidor) {
 }
 
 async function _consultarRastreoPublico() {
-  const respuesta = await fetch(RASTREO_PUBLICO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: _token }),
-  })
-  const datos = await respuesta.json()
-  if (!respuesta.ok) throw new Error(datos.error || 'No se pudo consultar el pedido')
-  return datos
+  const { data, error } = await db.rpc('rastreo_publico', { p_token: _token })
+  if (error) throw error
+  return Array.isArray(data) ? data[0] : data
+}
+
+function _aplicarResultadoRastreo(resultado) {
+  if (!resultado?.encontrado || !resultado?.pedido) return false
+
+  const pedido = resultado.pedido
+  const nombreRepartidor = pedido.repartidor || resultado.repartidor?.nombre || null
+  const esPrimerCarga = !_pedidoId
+  const coincidenciaFolio = /^GK-(\d+)$/.exec(String(pedido.folio || ''))
+
+  _pedidoId = pedido.id || (coincidenciaFolio ? Number(coincidenciaFolio[1]) : null)
+  _estadoActual = pedido.estado
+  _repartidorActual = nombreRepartidor
+
+  if (esPrimerCarga) {
+    try {
+      const saved = localStorage.getItem('guepack_t_' + (_pedidoId || _token))
+      if (saved) _tiemposEstado = JSON.parse(saved)
+    } catch(e) {}
+  }
+
+  const pedidoUi = { ...pedido, repartidor: nombreRepartidor }
+  document.getElementById('r-folio').textContent = pedido.folio || (_pedidoId ? 'GK-' + _pedidoId : '')
+  document.getElementById('r-detalle').textContent =
+    [pedido.tamanio, pedido.zona].filter(Boolean).join(' · ')
+
+  actualizarUI(pedidoUi)
+  _renderDatosRepartidor(resultado.repartidor, resultado.calificacion, nombreRepartidor)
+  _renderProgresoParadas(resultado.total_paradas, resultado.paradas_completadas)
+  document.getElementById('pedido-state').style.display = 'block'
+  return true
 }
 
 async function init() {
@@ -602,76 +637,41 @@ async function init() {
   }
 
   document.getElementById('loading-state').style.display = 'none'
-  if (!data) { mostrarError(); return }
-
-  _pedidoId = data.id
-  _estadoActual = data.estado
-  _repartidorActual = data.repartidor
-
-  // Restaurar timestamps guardados en esta sesión/dispositivo
-  try {
-    const saved = localStorage.getItem('guepack_t_' + data.id)
-    if (saved) _tiemposEstado = JSON.parse(saved)
-  } catch(e) {}
-
-  document.getElementById('r-folio').textContent = data.folio
-  document.getElementById('r-detalle').textContent =
-    [data.tamanio, data.zona].filter(Boolean).join(' · ')
-
-  actualizarUI(data)
-  document.getElementById('pedido-state').style.display = 'block'
-
-  // Cargar datos del repartidor si ya está asignado
-  if (data.repartidor) _cargarDatosRepartidor(data.repartidor)
-
-  // Cargar paradas
-  const { data: paradas } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
-  _renderParadasRastreo(paradas)
+  if (!_aplicarResultadoRastreo(data)) { mostrarError(); return }
 
   // Realtime paradas
-  db.channel('rastreo-paradas-' + data.id)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + data.id }, async () => {
-      const { data: p2 } = await db.from('paradas').select('*').eq('pedido_id', data.id).order('orden')
-      _renderParadasRastreo(p2)
+  db.channel('rastreo-paradas-' + _pedidoId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'paradas', filter: 'pedido_id=eq.' + _pedidoId }, async () => {
+      try {
+        const nuevo = await _consultarRastreoPublico()
+        _aplicarResultadoRastreo(nuevo)
+      } catch (error) {
+        console.warn('[rastreo] No se pudo actualizar el progreso:', error.message)
+      }
     })
     .subscribe()
 
-  // Actualización segura mediante la función pública, sin leer directamente la tabla pedidos.
+  // Actualización segura mediante el RPC público, sin leer tablas directamente.
   setInterval(async () => {
     try {
       const nuevo = await _consultarRastreoPublico()
-      const cambioEstado = nuevo.estado !== _estadoActual
-      const cambioRepartidor = nuevo.repartidor !== _repartidorActual
-      if (!cambioEstado && !cambioRepartidor) return
-
-      _estadoActual = nuevo.estado
-      _repartidorActual = nuevo.repartidor
-      actualizarUI(nuevo)
-
-      if (cambioRepartidor && nuevo.repartidor) _cargarDatosRepartidor(nuevo.repartidor)
+      _aplicarResultadoRastreo(nuevo)
     } catch (error) {
       console.warn('[rastreo] No se pudo actualizar el estado:', error.message)
     }
   }, 15000)
 }
 
-function _renderParadasRastreo(paradas) {
+function _renderProgresoParadas(totalParadas, paradasCompletadas) {
   const card = document.getElementById('r-paradas-card')
   const list = document.getElementById('r-paradas-list')
-  if (!paradas?.length) { card.style.display = 'none'; return }
+  const total = Math.max(0, Number(totalParadas) || 0)
+  const completadas = Math.min(total, Math.max(0, Number(paradasCompletadas) || 0))
+  if (!total) { card.style.display = 'none'; return }
+
+  const paradaActual = Math.min(total, completadas + 1)
   card.style.display = 'block'
-  const completadas = paradas.filter(p => p.estado === 'completada').length
-  list.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--gray-mid);margin-bottom:10px">${completadas}/${paradas.length} completadas</div>` +
-    paradas.map(p => {
-      const icon = p.estado === 'completada' ? '✅' : p.estado === 'en_curso' ? '🔄' : '⏳'
-      const color = p.estado === 'completada' ? 'var(--success)' : p.estado === 'en_curso' ? 'var(--orange)' : 'var(--gray-mid)'
-      const evidencia = p.foto_url
-        ? `<br><a href="${p.foto_url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);font-weight:700;text-decoration:none">📸 Ver evidencia</a>`
-        : ''
-      return `<div style="padding:8px 0;border-bottom:1px solid var(--gray);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:${color}">
-        ${icon} Parada ${p.orden}: <span style="font-weight:600;color:var(--text)">${p.direccion}</span>${evidencia}
-      </div>`
-    }).join('')
+  list.innerHTML = `<div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--blue);letter-spacing:.5px">Parada ${paradaActual} de ${total}</div>`
 }
 
 async function activarNotificaciones() {
