@@ -6711,7 +6711,7 @@ async function cargarPedidos() {
         </div>
         <div class="order-actions">
           ${pedido.estado === 'Pendiente' ? '<button class="btn btn-secondary btn-sm" onclick="assignDelivery(this,' + pedido.id + ')">Asignar repartidor</button>' : ''}
-          ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(this,' + pedido.id + ',\'Entregado\',\'' + pedido.whatsapp + '\',\'' + pedido.nombre + '\')">✅ Entregado</button>' : ''}
+          ${['Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(pedido.estado) ? '<button class="btn btn-sm" style="background:rgba(34,197,94,0.1);color:var(--success);border:none;font-family:Montserrat;font-weight:900;font-size:11px;border-radius:8px;padding:8px 14px;cursor:pointer" onclick="updateStatus(' + pedido.id + ',\'Entregado\')">✅ Entregado</button>' : ''}
         </div>
       </div>
     `
@@ -6737,29 +6737,9 @@ async function assignDelivery(btn, id) {
   if (err) { alert('Error al asignar'); return; }
   cargarPedidos()
 }
-async function updateStatus(btn, id, status, telefono, nombre) {
+async function updateStatus(id, status) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
-
-  const mensajes = {
-    'Repartidor en domicilio recoleccion': 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete. - GUEPACK Express',
-    'Recolectado': 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino. - GUEPACK Express',
-    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete va en camino al destino. - GUEPACK Express',
-    'Repartidor en domicilio': 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos. - GUEPACK Express',
-    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
-  }
-
-  const mensaje = mensajes[status]
-  if (mensaje && telefono) {
-    await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      },
-      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
-    })
-  }
 
   cargarPedidos()
 }
@@ -6805,11 +6785,11 @@ async function cargarPedidosRepartidor() {
           <div class="route-client">Cliente: ${pedido.nombre} · ${pedido.whatsapp}</div>
           <div class="status-steps">
             ${(() => { const _e = pedido.estado; const _si = {'En camino a recoleccion':0,'Repartidor en domicilio recoleccion':1,'Recolectado':2,'En camino a entrega':3,'Repartidor en domicilio':4,'Entregado':5}; const _idx = _si[_e]??-1; const _sb = n => _idx > n ? 'done' : _idx === n ? 'active' : 'inactive'; const _sb1 = _idx <= 0 ? 'active' : 'done'; return `
-            <div class="step-btn ${_sb1}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
-            <div class="step-btn ${_sb(1)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')">Recolectado</div>
-            <div class="step-btn ${_sb(2)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">En camino</div>
-            <div class="step-btn ${_sb(3)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
-            <div class="step-btn ${_sb(4)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado', '${pedido.whatsapp}', '${pedido.nombre}')">Entregado</div>
+            <div class="step-btn ${_sb1}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio recoleccion')">Llegue</div>
+            <div class="step-btn ${_sb(1)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Recolectado')">Recolectado</div>
+            <div class="step-btn ${_sb(2)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'En camino a entrega')">En camino</div>
+            <div class="step-btn ${_sb(3)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Repartidor en domicilio')">Llegue</div>
+            <div class="step-btn ${_sb(4)}" onclick="cambiarEstadoRepartidor(${pedido.id}, 'Entregado')">Entregado</div>
             `; })()}
           </div>
         </div>
@@ -6817,34 +6797,9 @@ async function cargarPedidosRepartidor() {
     `
   })
 }
-async function cambiarEstadoRepartidor(id, status, telefono, nombre) {
+async function cambiarEstadoRepartidor(id, status) {
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
-
-  const mensajes = {
-    'Repartidor en domicilio recoleccion': 'Hola ' + nombre + '! Tu guepartidor llegó a recolectar tu paquete. - GUEPACK Express',
-    'Recolectado': 'Hola ' + nombre + '! Tu paquete fue recolectado, vamos en camino. - GUEPACK Express',
-    'En camino a entrega': 'Hola ' + nombre + '! Tu paquete va en camino al destino. - GUEPACK Express',
-    'Repartidor en domicilio': 'Hola ' + nombre + '! Tu guepartidor llegó al destino, tienes 7 minutos. - GUEPACK Express',
-    'Entregado': 'Hola ' + nombre + '! Tu paquete fue entregado exitosamente. Gracias por confiar en GUEPACK Express!'
-  }
-
-  const mensaje = mensajes[status]
-  console.log('Telefono:', telefono)
-  console.log('Mensaje:', mensaje)
-
-  if (mensaje && telefono) {
-    const resp = await fetch('https://zkrnjdsnuyjaxxnluzmn.supabase.co/functions/v1/notificar-cliente', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      },
-      body: JSON.stringify({ telefono: telefono, mensaje: mensaje })
-    })
-    const respData = await resp.json()
-    console.log('Respuesta Twilio:', respData)
-  }
 
   cargarPedidosRepartidor()
 }

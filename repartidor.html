@@ -1933,24 +1933,41 @@ function _mostrarToastCobrar(pedidoId, monto) {
   el.innerHTML = `
     <div style="font-size:11px;font-weight:900;color:#64748b;letter-spacing:1px;margin-bottom:6px">RECUERDA COBRAR AL CLIENTE</div>
     <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:#16a34a;line-height:1;margin-bottom:18px">💵 $${monto}</div>
-    <button onclick="_confirmarCobrado(${pedidoId}, ${monto})" style="width:100%;padding:16px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,0.35)">✅ Cobrado</button>
+    <button onclick="_confirmarCobrado(${pedidoId})" style="width:100%;padding:16px;background:linear-gradient(135deg,#22c55e,#16a34a);color:white;border:none;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px rgba(34,197,94,0.35)">✅ Cobrado</button>
   `
   document.body.appendChild(el)
 }
 
-async function _confirmarCobrado(pedidoId, monto) {
+async function _confirmarCobrado(pedidoId) {
   document.getElementById('toast-cobrar-efectivo')?.remove()
-  const nuevoAcumulado = (Number(_repaData?.efectivo_acumulado) || 0) + Number(monto)
-  const upd = { efectivo_acumulado: nuevoAcumulado }
-  if (nuevoAcumulado >= 300) upd.bloqueado_efectivo = true
-  await db.from('repartidores').update(upd).eq('nombre', _repaData.nombre)
-  _repaData.efectivo_acumulado = nuevoAcumulado
-  if (nuevoAcumulado >= 300) _repaData.bloqueado_efectivo = true
-  _toastRepa('✅ Cobro registrado')
-  if (nuevoAcumulado >= 300) setTimeout(() => _mostrarAvisoBloqueadoEfectivo(nuevoAcumulado), 600)
+  const { data, error } = await db.rpc('registrar_cobro_efectivo', { p_pedido_id: pedidoId })
+  if (error) {
+    console.error('[cobro-efectivo] Error al registrar el cobro:', error)
+    _toastRepa('❌ No se pudo registrar el cobro', '#ef4444')
+    return
+  }
+
+  const resultado = Array.isArray(data) ? data[0] : (data || {})
+  const saldo = Number(resultado.saldo) || 0
+  const tope = Number(resultado.tope) || 0
+  const bloqueado = resultado.bloqueado === true
+  const montoRegistrado = Number(resultado.monto) || 0
+
+  if (_repaData) {
+    _repaData.efectivo_acumulado = saldo
+    _repaData.bloqueado_efectivo = bloqueado
+  }
+
+  if (resultado.ya_registrado === true) {
+    _toastRepa('Este cobro ya estaba registrado', '#f59e0b')
+  } else {
+    _toastRepa(montoRegistrado > 0 ? `✅ Cobro de $${montoRegistrado} registrado` : '✅ Cobro registrado')
+  }
+
+  if (bloqueado) setTimeout(() => _mostrarAvisoBloqueadoEfectivo(saldo, tope), 600)
 }
 
-function _mostrarAvisoBloqueadoEfectivo(acumulado) {
+function _mostrarAvisoBloqueadoEfectivo(saldo, tope) {
   document.getElementById('modal-bloqueado-efectivo')?.remove()
   const modal = document.createElement('div')
   modal.id = 'modal-bloqueado-efectivo'
@@ -1959,7 +1976,7 @@ function _mostrarAvisoBloqueadoEfectivo(acumulado) {
     <div style="background:white;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center">
       <div style="font-size:48px;margin-bottom:12px">⚠️</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#f59e0b;letter-spacing:1px;margin-bottom:10px">Depósito requerido</div>
-      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--color-primary-dark);margin-bottom:8px">Has acumulado <span style="color:#ef4444;font-family:'Bebas Neue',sans-serif;font-size:22px">$${acumulado}</span> en efectivo</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:14px;font-weight:700;color:var(--color-primary-dark);margin-bottom:8px">Has acumulado <span style="color:#ef4444;font-family:'Bebas Neue',sans-serif;font-size:22px">$${saldo}</span>${tope > 0 ? ` de un tope de $${tope}` : ''} en efectivo</div>
       <div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:24px">Debes depositar antes de aceptar nuevos pedidos con efectivo. Avisa a tu coordinador.</div>
       <button onclick="document.getElementById('modal-bloqueado-efectivo').remove()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer">Entendido</button>
     </div>
@@ -1968,22 +1985,12 @@ function _mostrarAvisoBloqueadoEfectivo(acumulado) {
 }
 
 async function cambiarEstado(id, status, telefono, nombre) {
-  const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
+  const { error } = status === 'Entregado'
+    ? await db.rpc('marcar_entregado', { p_pedido_id: id })
+    : await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
 
   if (status === 'Entregado') detenerTracking()
-
-  if (status === 'Entregado' && _repaData?.nombre) {
-    const nuevoTotal = (Number(_repaData.total_envios) || 0) + 1
-    const updRepa = { total_envios: nuevoTotal }
-    if (nuevoTotal >= 25 && (_repaData.nivel || 'nuevo') !== 'premium') updRepa.nivel = 'premium'
-    db.from('repartidores').update(updRepa).eq('nombre', _repaData.nombre).then(({ error: e }) => {
-      if (!e) {
-        _repaData.total_envios = nuevoTotal
-        if (updRepa.nivel) { _repaData.nivel = 'premium'; _actualizarBadgeNivel() }
-      }
-    })
-  }
 
   if ([
     'Repartidor en domicilio recoleccion',

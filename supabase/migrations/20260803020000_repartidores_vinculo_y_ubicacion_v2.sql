@@ -213,6 +213,7 @@ CREATE POLICY "admin lee ubicacion de su tenant"
 -- ---------------------------------------------------------------------
 DROP POLICY IF EXISTS "admin gestiona repartidores" ON public.repartidores;
 
+DROP POLICY IF EXISTS "admin gestiona repartidores de su tenant" ON public.repartidores;
 CREATE POLICY "admin gestiona repartidores de su tenant"
   ON public.repartidores FOR ALL TO authenticated
   USING (public.is_admin_tenant(tenant_id))
@@ -222,6 +223,7 @@ CREATE POLICY "admin gestiona repartidores de su tenant"
 -- email como respaldo SOLO si el backfill no encontró user_id, para no
 -- dejar a nadie fuera de su propia app.
 DROP POLICY IF EXISTS "repartidor actualiza su disponibilidad" ON public.repartidores;
+DROP POLICY IF EXISTS "repartidor actualiza su propia fila" ON public.repartidores;
 CREATE POLICY "repartidor actualiza su propia fila"
   ON public.repartidores FOR UPDATE TO authenticated
   USING (
