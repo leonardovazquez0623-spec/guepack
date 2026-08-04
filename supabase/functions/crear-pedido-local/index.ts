@@ -64,7 +64,7 @@ type EmpresaCorporativa = {
   permite_mercado_libre: boolean | null;
 };
 type PedidoCoberturaDiaria = {
-  created_at: string;
+  fecha: string;
 };
 type Cupon = {
   id: number | string;
@@ -289,6 +289,19 @@ function hoyMexico(fecha = new Date()) {
   }).format(fecha);
 }
 
+function hoyEnZonaHoraria(zonaHoraria: string, fecha = new Date()) {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: zonaHoraria,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(fecha);
+  const valores = Object.fromEntries(
+    partes.map((parte) => [parte.type, parte.value]),
+  );
+  return `${valores.year}-${valores.month}-${valores.day}`;
+}
+
 function fechaValida(valor: unknown) {
   const fecha = requerido(valor, "fecha", 10);
   const interpretada = new Date(`${fecha}T12:00:00Z`);
@@ -298,9 +311,6 @@ function fechaValida(valor: unknown) {
     interpretada.toISOString().slice(0, 10) !== fecha
   ) {
     throw new Error("La fecha no es válida");
-  }
-  if (fecha < hoyMexico()) {
-    throw new Error("La fecha del pedido no puede estar en el pasado");
   }
   return fecha;
 }
@@ -538,6 +548,18 @@ function estadoInicial(metodo: string) {
   if (metodo === "tarjeta") return "Pendiente pago MP";
   if (metodo === "Crédito") return "Pendiente";
   return "Pendiente";
+}
+
+function estadoInicialProgramable(
+  metodo: string,
+  fechaPedido: string,
+  fechaActualTenant: string,
+) {
+  const estadoNormal = estadoInicial(metodo);
+  const admiteProgramacion = metodo === "efectivo" || metodo === "Crédito";
+  return admiteProgramacion && fechaPedido > fechaActualTenant
+    ? "Programado"
+    : estadoNormal;
 }
 
 function errorRpc(mensaje: string) {
@@ -925,6 +947,64 @@ Deno.serve(async (req) => {
       : "";
     const esCorporativo = empresaCodigo.length > 0;
     const tenant = perfil.tenant_id;
+
+    const { data: tenantConfigurado, error: falloTenant } = await admin
+      .from("tenants")
+      .select("id, zona_horaria")
+      .eq("id", tenant)
+      .maybeSingle();
+    if (falloTenant) {
+      console.error(
+        "[crear-pedido-local] No se pudo consultar la zona horaria del tenant:",
+        falloTenant.message,
+      );
+      return responder(req, {
+        error: "No pudimos verificar la zona horaria de la cuenta",
+      }, 503);
+    }
+    if (!tenantConfigurado) {
+      return responder(req, { error: "El tenant del pedido no existe" }, 404);
+    }
+    const zonaHoraria = typeof tenantConfigurado.zona_horaria === "string"
+      ? tenantConfigurado.zona_horaria.trim()
+      : "";
+    if (!zonaHoraria) {
+      return responder(req, {
+        error:
+          "La zona horaria de esta cuenta todavía no está configurada. Contacta al administrador.",
+      }, 422);
+    }
+
+    let fechaActualTenant: string;
+    try {
+      fechaActualTenant = hoyEnZonaHoraria(zonaHoraria);
+    } catch (errorZonaHoraria) {
+      console.error(
+        "[crear-pedido-local] La zona horaria del tenant no es válida:",
+        {
+          tenant_id: tenant,
+          zona_horaria: zonaHoraria,
+          error: errorZonaHoraria instanceof Error
+            ? errorZonaHoraria.message
+            : String(errorZonaHoraria),
+        },
+      );
+      return responder(req, {
+        error:
+          "La zona horaria de esta cuenta no está configurada correctamente. Contacta al administrador.",
+      }, 422);
+    }
+    if (fecha < fechaActualTenant) {
+      return responder(req, {
+        error: "La fecha del pedido no puede estar en el pasado",
+      }, 422);
+    }
+    const estadoPedido = estadoInicialProgramable(
+      metodo,
+      fecha,
+      fechaActualTenant,
+    );
+
     if (!esCorporativo && metodo === "Crédito") {
       return responder(req, {
         error:
@@ -1060,7 +1140,6 @@ Deno.serve(async (req) => {
         subtotalPaqueteria + ivaPaqueteria + cargoCancelacion,
       );
       const tokenRastreo = crypto.randomUUID();
-      const estado = estadoInicial(metodo);
       const { data: resultadoRpc, error: falloRpc } = await admin.rpc(
         "crear_pedido_paqueteria_atomico",
         {
@@ -1078,7 +1157,7 @@ Deno.serve(async (req) => {
           p_instrucciones: instrucciones,
           p_metodo_pago: metodo,
           p_comprobante_pago: comprobante,
-          p_estado: estado,
+          p_estado: estadoPedido,
           p_token_rastreo: tokenRastreo,
           p_lat_recoleccion: latRecoleccion,
           p_lng_recoleccion: lngRecoleccion,
@@ -1230,33 +1309,25 @@ Deno.serve(async (req) => {
                 "Los pedidos de tarifa diaria deben utilizar el método de pago Crédito.",
             }, 422);
           }
-          const desdePrevisualizacion = new Date(
-            Date.now() - 48 * 60 * 60 * 1000,
-          ).toISOString();
           const { data: pedidosDiarios, error: falloPedidosDiarios } =
             await admin
               .from("pedidos")
-              .select("created_at")
+              .select("fecha")
               .eq("tenant_id", tenant)
               .eq("empresa_codigo", empresaCodigo)
               .eq("metodo_pago", "Crédito")
               .neq("estado", "Cancelado")
               .eq("credito_cobrado", false)
-              .gte("created_at", desdePrevisualizacion);
+              .eq("fecha", fecha);
           if (falloPedidosDiarios) {
             return responder(req, {
               error:
                 "No pudimos verificar la tarifa diaria. Intenta nuevamente.",
             }, 503);
           }
-          const fechaMexico = hoyMexico();
           const tarifaCubierta = (
             (pedidosDiarios || []) as PedidoCoberturaDiaria[]
-          ).some((pedido) => {
-            const fechaPedido = new Date(pedido.created_at);
-            return !Number.isNaN(fechaPedido.getTime()) &&
-              hoyMexico(fechaPedido) === fechaMexico;
-          });
+          ).length > 0;
           try {
             precioMultiparada = calcularPrecioTarifaDiaria(
               empresa,
@@ -1423,7 +1494,7 @@ Deno.serve(async (req) => {
           p_fecha: fecha,
           p_tamanio: tamanio,
           p_precio_cotizado: precioMultiparada,
-          p_estado: estadoInicial(metodo),
+          p_estado: estadoPedido,
           p_instrucciones: instrucciones,
           p_metodo_pago: metodo,
           p_comprobante_pago: comprobante,
@@ -1518,26 +1589,18 @@ Deno.serve(async (req) => {
         }
 
         /*
-         * Previsualización únicamente: consulta candidatos recientes y compara
-         * su fecha civil en America/Mexico_City. La RPC conserva la última
-         * palabra y realiza la reserva atómica.
-         *
-         * El margen de 48 horas cubre por completo la jornada local actual
-         * sin depender de la zona horaria configurada en la base.
+         * Previsualización únicamente por fecha efectiva del servicio.
+         * La RPC conserva la última palabra y realiza la reserva atómica.
          */
-        const desdePrevisualizacion = new Date(
-          Date.now() - 48 * 60 * 60 * 1000,
-        ).toISOString();
-
         const { data: pedidosDiarios, error: falloPedidosDiarios } = await admin
           .from("pedidos")
-          .select("created_at")
+          .select("fecha")
           .eq("tenant_id", tenant)
           .eq("empresa_codigo", empresaCodigo)
           .eq("metodo_pago", "Crédito")
           .neq("estado", "Cancelado")
           .eq("credito_cobrado", false)
-          .gte("created_at", desdePrevisualizacion);
+          .eq("fecha", fecha);
 
         if (falloPedidosDiarios) {
           console.error(
@@ -1549,14 +1612,9 @@ Deno.serve(async (req) => {
           }, 503);
         }
 
-        const fechaMexico = hoyMexico();
         const tarifaCubierta = (
           (pedidosDiarios || []) as PedidoCoberturaDiaria[]
-        ).some((pedido) => {
-          const fechaPedido = new Date(pedido.created_at);
-          return !Number.isNaN(fechaPedido.getTime()) &&
-            hoyMexico(fechaPedido) === fechaMexico;
-        });
+        ).length > 0;
 
         let precioTarifaDiaria: number;
         try {
@@ -1594,7 +1652,7 @@ Deno.serve(async (req) => {
             p_tamanio: tamanio,
             p_zona: "Corporativo · Tarifa diaria",
             p_precio_cotizado: precioTarifaDiaria,
-            p_estado: estadoInicial(metodo),
+            p_estado: estadoPedido,
             p_instrucciones: instrucciones,
             p_metodo_pago: metodo,
             p_comprobante_pago: comprobante,
@@ -1703,7 +1761,7 @@ Deno.serve(async (req) => {
           p_tamanio: tamanio,
           p_zona: `${zona.nombre} · ${km} km`,
           p_precio_cotizado: precioCorporativo,
-          p_estado: estadoInicial(metodo),
+          p_estado: estadoPedido,
           p_instrucciones: instrucciones,
           p_metodo_pago: metodo,
           p_comprobante_pago: comprobante,
@@ -1866,7 +1924,7 @@ Deno.serve(async (req) => {
         p_zona: `${zona.nombre} · ${km} km`,
         p_precio_final: precioFinal,
         p_total_antes_cupon: totalAntesCupon,
-        p_estado: estadoInicial(metodo),
+        p_estado: estadoPedido,
         p_instrucciones: instrucciones,
         p_metodo_pago: metodo,
         p_comprobante_pago: comprobante,

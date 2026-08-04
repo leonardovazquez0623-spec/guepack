@@ -44,7 +44,8 @@ const tiposInternos = new Set([
   'interno_pedido_disponible',
   'interno_pedido_sin_asignar',
   'interno_pago_confirmado',
-  'interno_guia_generada'
+  'interno_guia_generada',
+  'horario_apertura_faltante_admin'
 ])
 
 function respuestaJson(req: Request, contenido: unknown, estado = 200) {
@@ -928,6 +929,100 @@ Deno.serve(async (req) => {
       )
       titulo = `⚠️ Pedido GK-${pedido.id} sin asignar`
       cuerpo = 'Sin repartidores disponibles — revisión manual requerida'
+      tipoFirebase = 'admin'
+    }
+
+    if (tipoNotificacion === 'horario_apertura_faltante_admin') {
+      if (!idValido(solicitud.pedido_id)) {
+        return respuestaJson(req, { error: 'pedido_id inválido' }, 400)
+      }
+
+      const motivosPermitidos = new Set([
+        'CONFIGURACION_FALTANTE',
+        'HORARIO_APERTURA_FALTANTE',
+        'ZONA_HORARIA_FALTANTE'
+      ])
+      const motivo = typeof solicitud.motivo === 'string'
+        ? solicitud.motivo.trim()
+        : ''
+      if (!motivosPermitidos.has(motivo)) {
+        return respuestaJson(
+          req,
+          { error: 'motivo de configuración inválido' },
+          400
+        )
+      }
+
+      const { data: pedido, error: errorPedido } = await supabaseAdmin
+        .from('pedidos')
+        .select('id, tenant_id, estado')
+        .eq('id', solicitud.pedido_id)
+        .maybeSingle()
+      if (errorPedido) {
+        console.error(
+          '[enviar-push] No se pudo consultar el pedido programado:',
+          errorPedido
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudo consultar el pedido' },
+          500
+        )
+      }
+      if (!pedido) {
+        return respuestaJson(req, { error: 'Pedido no encontrado' }, 404)
+      }
+      if (pedido.estado !== 'Programado') {
+        return respuestaJson(
+          req,
+          { error: 'El pedido ya no está en estado Programado' },
+          409
+        )
+      }
+
+      const {
+        data: membresiasAdministrativas,
+        error: errorAdministradores
+      } = await supabaseAdmin
+        .from('usuario_tenant_roles')
+        .select('user_id')
+        .eq('tenant_id', pedido.tenant_id)
+        .eq('rol', 'admin')
+      if (errorAdministradores) {
+        console.error(
+          '[enviar-push] No se pudieron consultar los administradores del tenant:',
+          errorAdministradores
+        )
+        return respuestaJson(
+          req,
+          { error: 'No se pudieron obtener los administradores del tenant' },
+          500
+        )
+      }
+
+      destinatarios = [
+        ...new Set(
+          (membresiasAdministrativas || [])
+            .map((membresia: any) => membresia.user_id)
+            .filter(Boolean)
+        )
+      ]
+      titulo = `⚠️ Pedido GK-${pedido.id} detenido`
+
+      if (motivo === 'CONFIGURACION_FALTANTE') {
+        cuerpo =
+          `El pedido GK-${pedido.id} no puede activarse: ` +
+          'falta crear la configuración del horario de apertura de tu negocio.'
+      } else if (motivo === 'HORARIO_APERTURA_FALTANTE') {
+        cuerpo =
+          `El pedido GK-${pedido.id} no puede activarse: ` +
+          'falta configurar el horario de apertura de tu negocio.'
+      } else {
+        cuerpo =
+          `El pedido GK-${pedido.id} no puede activarse: ` +
+          'la zona horaria del negocio no está configurada. ' +
+          'Contacta al administrador de la plataforma.'
+      }
       tipoFirebase = 'admin'
     }
 

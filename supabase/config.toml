@@ -461,3 +461,8 @@ entrypoint = "./functions/enviar-campana-reactivacion/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/actualizar-horario-apertura/index.ts"
+
+[functions.activar-pedidos-programados]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/activar-pedidos-programados/index.ts"

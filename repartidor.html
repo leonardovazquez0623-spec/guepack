@@ -331,7 +331,27 @@
   #btn-ruta-sugerida img { filter:brightness(0) invert(1); }
   #btn-ruta-sugerida.inactivo { background:#c65b63; }
   #btn-ruta-sugerida:active { transform:scale(.94); }
-  #btn-centrar-mapa.visible { bottom:264px; }
+
+  #btn-modo-navegacion {
+    position:fixed; bottom:264px; right:12px;
+    z-index:513;
+    width:48px; height:48px; padding:0;
+    border:2px solid white; border-radius:50%;
+    background:white; color:var(--color-primary);
+    box-shadow:0 4px 12px rgba(0,0,0,0.22);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .2s, color .2s, transform .2s;
+  }
+  #btn-modo-navegacion.activo {
+    background:var(--color-primary);
+    color:white;
+  }
+  #btn-modo-navegacion.inactivo {
+    background:white;
+    color:var(--color-primary);
+  }
+  #btn-modo-navegacion:active { transform:scale(.94); }
+  #btn-centrar-mapa.visible { bottom:320px; }
 
   /* Pins del mapa */
   .mapa-pin-dot {
@@ -479,6 +499,28 @@
   <div id="mapa-repartidor"></div>
   <button id="btn-ruta-sugerida" type="button" onclick="_alternarRutaSugerida()" aria-label="Ocultar ruta sugerida" aria-pressed="true" title="Mostrar u ocultar ruta sugerida">
     <img src="/guepack-icons/guepack-icons/svg/54-mapa.svg" alt="" width="24" height="24">
+  </button>
+  <button
+    id="btn-modo-navegacion"
+    class="inactivo"
+    type="button"
+    onclick="_alternarModoNavegacion()"
+    aria-label="Activar modo navegación"
+    aria-pressed="false"
+    title="Activar modo navegación">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      width="23"
+      height="23"
+      aria-hidden="true">
+      <path d="M12 2 19 21l-7-4-7 4 7-19Z"/>
+    </svg>
   </button>
   <button id="btn-centrar-mapa" onclick="_centrarEnRepartidor(true)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z"/><circle cx="12" cy="10" r="2.4" fill="var(--color-secondary)" stroke="var(--color-secondary)"/></svg> Centrar</button>
   <div id="mapa-sheet">
@@ -2694,6 +2736,21 @@ let _rutaSugeridaEnVueloPos = null
 let _rutaSugeridaEnVueloDestino = null
 const _RUTA_SUGERIDA_VISIBLE_KEY = 'guepack_ruta_sugerida_visible'
 let _rutaSugeridaVisible = localStorage.getItem(_RUTA_SUGERIDA_VISIBLE_KEY) !== 'false'
+
+const _MODO_NAVEGACION_KEY = 'guepack_modo_navegacion'
+const _NAVEGACION_PITCH = 60
+const _NAVEGACION_CAMARA_MS = 600
+const _NAVEGACION_PAUSA_MS = 15000
+const _NAVEGACION_MIN_SPEED_MPS = 1.5
+const _NAVEGACION_MIN_MOVIMIENTO_M = 10
+const _NAVEGACION_MAX_UMBRAL_M = 30
+
+// Una instalación nueva inicia con el modo desactivado.
+// Si el usuario ya eligió activarlo, se restaura su preferencia.
+let _modoNavegacionActivo = localStorage.getItem(_MODO_NAVEGACION_KEY) === 'true'
+let _ultimaPosicionRumbo = null   // { lat, lng, accuracy } — exclusiva del watchPosition del mapa
+let _ultimoHeadingValido = null   // último bearing confiable, normalizado entre 0 y 360
+
 const _estadosPedidoAdvertidos = new Set()
 const _RUTA_SUGERIDA_SOURCE = 'ruta-parada-sugerida'
 const _RUTA_SUGERIDA_LAYER = 'ruta-parada-sugerida-linea'
@@ -2916,11 +2973,79 @@ function _toggleSheet() {
   )
 }
 
+// ── Rumbo y modo navegación ──────────────────────────────────────────────────
+function _umbralMovimientoRumbo(actual, anterior) {
+  const peorAccuracy = Math.max(
+    Number(actual?.accuracy) || 0,
+    Number(anterior?.accuracy) || 0
+  )
+
+  return Math.max(
+    _NAVEGACION_MIN_MOVIMIENTO_M,
+    Math.min(_NAVEGACION_MAX_UMBRAL_M, peorAccuracy * 0.5)
+  )
+}
+
+function _calcularBearing(lat1, lng1, lat2, lng2) {
+  const rad = Math.PI / 180
+  const phi1 = Number(lat1) * rad
+  const phi2 = Number(lat2) * rad
+  const deltaLng = (Number(lng2) - Number(lng1)) * rad
+
+  const y = Math.sin(deltaLng) * Math.cos(phi2)
+  const x = Math.cos(phi1) * Math.sin(phi2)
+    - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLng)
+
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+}
+
+function _derivarHeading(coords, posicionAnterior) {
+  const headingNativo = Number(coords.heading)
+  const velocidad = Number(coords.speed)
+  const headingNativoConfiable =
+    coords.heading !== null &&
+    Number.isFinite(headingNativo) &&
+    coords.speed !== null &&
+    Number.isFinite(velocidad) &&
+    velocidad >= _NAVEGACION_MIN_SPEED_MPS
+
+  if (headingNativoConfiable) {
+    return (headingNativo + 360) % 360
+  }
+
+  if (!posicionAnterior) return null
+
+  const actual = {
+    lat: Number(coords.latitude),
+    lng: Number(coords.longitude),
+    accuracy: Number(coords.accuracy)
+  }
+  const distanciaMetros = _haversine(
+    posicionAnterior.lat,
+    posicionAnterior.lng,
+    actual.lat,
+    actual.lng
+  ) * 1000
+  const umbralMetros = _umbralMovimientoRumbo(actual, posicionAnterior)
+
+  if (!Number.isFinite(distanciaMetros) || distanciaMetros < umbralMetros) {
+    return null
+  }
+
+  return _calcularBearing(
+    posicionAnterior.lat,
+    posicionAnterior.lng,
+    actual.lat,
+    actual.lng
+  )
+}
+
 // ── Inicializar Mapbox (una sola vez) ────────────────────────────────────────
 async function _initMapaRepartidor() {
   if (_mapaIniciado) return
   _mapaIniciado = true
   _actualizarBotonRutaSugerida()
+  _actualizarBotonModoNavegacion()
 
   const { data: cfgToken, error: cfgErr } = await db.from('config_app').select('value').eq('key', 'mapbox_token').single()
   if (cfgErr || !cfgToken?.value) {
@@ -2965,14 +3090,65 @@ async function _initMapaRepartidor() {
         _mostrarAvisoGps()
         return
       }
-      const { latitude: lat, longitude: lng } = pos.coords
+
+      const coords = pos.coords
+      const { latitude: lat, longitude: lng } = coords
+      const posicionAnterior = _ultimaPosicionRumbo
+      const headingCalculado = _derivarHeading(coords, posicionAnterior)
+
+      // Guardar la muestra aceptada después de derivar el rumbo, para que la
+      // siguiente actualización pueda compararse contra esta posición.
+      _ultimaPosicionRumbo = {
+        lat,
+        lng,
+        accuracy: coords.accuracy
+      }
+
+      // Un resultado null significa que esta muestra no aporta un rumbo
+      // confiable. En ese caso se conserva el último bearing válido.
+      if (Number.isFinite(headingCalculado)) {
+        _ultimoHeadingValido = headingCalculado
+      }
+
       _currentGPS = { lat, lng }
       _markerDriver.setLngLat([lng, lat]).addTo(_mapboxMap)
       _renderProximaParada()
+
       if (_firstFix) {
         _firstFix = false
         _mapboxMap.resize()
-        _mapboxMap.flyTo({ center: [lng, lat], zoom: 15, speed: 1.4 })
+
+        if (_modoNavegacionActivo) {
+          const opcionesPrimeraCamara = {
+            center: [lng, lat],
+            zoom: 15,
+            pitch: _NAVEGACION_PITCH,
+            duration: _NAVEGACION_CAMARA_MS
+          }
+          if (Number.isFinite(_ultimoHeadingValido)) {
+            opcionesPrimeraCamara.bearing = _ultimoHeadingValido
+          }
+          _mapboxMap.easeTo(opcionesPrimeraCamara)
+        } else {
+          _mapboxMap.flyTo({ center: [lng, lat], zoom: 15, speed: 1.4 })
+        }
+        return
+      }
+
+      const hayInteraccionReciente =
+        Date.now() - _ultimaInteraccion < _NAVEGACION_PAUSA_MS
+
+      if (_modoNavegacionActivo && !hayInteraccionReciente) {
+        const opcionesCamara = {
+          center: [lng, lat],
+          pitch: _NAVEGACION_PITCH,
+          duration: _NAVEGACION_CAMARA_MS
+        }
+        if (Number.isFinite(_ultimoHeadingValido)) {
+          opcionesCamara.bearing = _ultimoHeadingValido
+        }
+        _mapboxMap.easeTo(opcionesCamara)
+        document.getElementById('btn-centrar-mapa')?.classList.remove('visible')
       }
     }, err => {
       console.error('[GPS] error:', err)
@@ -2984,11 +3160,15 @@ async function _initMapaRepartidor() {
   }
 
   // Auto-centrado — marca interacción y muestra botón "Centrar" al mover manualmente
-  const _marcarInteraccion = () => {
+  const _marcarInteraccion = evento => {
+    // easeTo/flyTo también generan eventos de cámara. Solo una interacción
+    // real del usuario debe pausar el seguimiento automático.
+    if (!evento?.originalEvent) return
     _ultimaInteraccion = Date.now()
     document.getElementById('btn-centrar-mapa')?.classList.add('visible')
   }
   _mapboxMap.on('dragstart', _marcarInteraccion)
+  _mapboxMap.on('rotatestart', _marcarInteraccion)
   _mapboxMap.on('zoomstart', _marcarInteraccion)
 
   // Cada 15 s: recentra si el usuario lleva ≥15 s sin interactuar
@@ -3000,19 +3180,82 @@ async function _initMapaRepartidor() {
 // manual=true → siempre centra (botón "Centrar" pulsado)
 // manual=false → solo centra si han pasado ≥15 s desde la última interacción
 function _centrarEnRepartidor(manual) {
-  const PAUSA_MS = 15000
-  if (!manual && Date.now() - _ultimaInteraccion < PAUSA_MS) return
+  if (!manual && Date.now() - _ultimaInteraccion < _NAVEGACION_PAUSA_MS) return
 
   const pos = _markerDriver?.getLngLat()
   if (!pos) return
 
   _mapboxMap.resize()
-  _mapboxMap.easeTo({ center: [pos.lng, pos.lat], duration: 800 })
+  const opcionesCamara = {
+    center: [pos.lng, pos.lat],
+    duration: 800
+  }
+
+  if (_modoNavegacionActivo) {
+    opcionesCamara.pitch = _NAVEGACION_PITCH
+    if (Number.isFinite(_ultimoHeadingValido)) {
+      opcionesCamara.bearing = _ultimoHeadingValido
+    }
+  }
+
+  _mapboxMap.easeTo(opcionesCamara)
 
   // Oculta el botón al centrar (auto o manual)
   document.getElementById('btn-centrar-mapa')?.classList.remove('visible')
   // Resetea el timestamp para que el próximo ciclo no cuente la interacción pendiente
   if (manual) _ultimaInteraccion = 0
+}
+
+function _actualizarBotonModoNavegacion() {
+  const boton = document.getElementById('btn-modo-navegacion')
+  if (!boton) return
+
+  boton.classList.toggle('activo', _modoNavegacionActivo)
+  boton.classList.toggle('inactivo', !_modoNavegacionActivo)
+  boton.setAttribute('aria-pressed', String(_modoNavegacionActivo))
+  boton.setAttribute(
+    'aria-label',
+    _modoNavegacionActivo
+      ? 'Desactivar modo navegación'
+      : 'Activar modo navegación'
+  )
+  boton.title = _modoNavegacionActivo
+    ? 'Desactivar modo navegación'
+    : 'Activar modo navegación'
+}
+
+function _alternarModoNavegacion() {
+  _modoNavegacionActivo = !_modoNavegacionActivo
+  localStorage.setItem(_MODO_NAVEGACION_KEY, String(_modoNavegacionActivo))
+  _actualizarBotonModoNavegacion()
+
+  // El toggle es una acción explícita: elimina cualquier pausa por un gesto
+  // anterior y oculta el control utilizado para reanudar el seguimiento.
+  _ultimaInteraccion = 0
+  document.getElementById('btn-centrar-mapa')?.classList.remove('visible')
+
+  if (!_mapboxMap) return
+
+  if (_modoNavegacionActivo) {
+    const opcionesCamara = {
+      pitch: _NAVEGACION_PITCH,
+      duration: 800
+    }
+    const pos = _markerDriver?.getLngLat()
+    if (pos) opcionesCamara.center = [pos.lng, pos.lat]
+    if (Number.isFinite(_ultimoHeadingValido)) {
+      opcionesCamara.bearing = _ultimoHeadingValido
+    }
+    _mapboxMap.easeTo(opcionesCamara)
+    return
+  }
+
+  // Al desactivar, restablecer suavemente norte arriba y vista de pájaro.
+  _mapboxMap.easeTo({
+    bearing: 0,
+    pitch: 0,
+    duration: 800
+  })
 }
 
 // ── Paleta de colores por grupo ──────────────────────────────────────────────
