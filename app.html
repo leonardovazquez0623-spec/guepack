@@ -4861,7 +4861,7 @@ function seleccionarFecha(opcion) {
   } else if (opcion === 'mañana') {
     const hora = ahora.getHours()
     // Si es después de las 3 PM, "día siguiente" salta un día más
-    const diasSumar = hora >= 15 ? 2 : 1
+    const diasSumar = 1
     const fechaBase = new Date(hoy); fechaBase.setDate(hoy.getDate() + diasSumar)
 
     // Verificar si el recorrido TOCA un fin de semana: puede ser fechaBase misma,
