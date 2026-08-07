@@ -1,6 +1,6 @@
 # 🔒 GUEPACK Express — Security Policy
 
-## Estado actual de seguridad · Julio 2026
+## Estado actual de seguridad · Agosto 2026
 
 ---
 
@@ -77,6 +77,13 @@
 
 ## 🚨 Incidentes registrados
 
+### Agosto 2026 — Aislamiento multi-tenant en políticas RLS (auditoría interna)
+- **Qué se encontró:** La auditoría interna detectó políticas RLS que verificaban rol de admin sin comparar tenant en 10+ tablas (`tenants`, `usuarios`, `pedidos`, `cupones`, `usuario_tenant_roles`, `admin_log`, `eventos_trafico`, `rondas_pendientes`, `menu_categorias`, `menu_productos`, `sucursales`, `anuncios`). Como las políticas permisivas de una misma operación se combinan con OR, bastaba una política sin tenant para que cualquier admin de cualquier tenant pudiera leer o modificar datos de otros tenants — el caso más grave: gestión completa de la tabla `tenants`.
+- **Hallazgos adicionales:** `config_app` era legible por cualquier usuario autenticado (no solo admins), exponiendo tokens cacheados de APIs externas; INSERT sin restricción en `anuncios`; INSERT/UPDATE sin restricción en `rondas_pendientes` (solo los usa el backend con service_role, que no requiere políticas).
+- **Qué se corrigió:** Nuevo helper `es_superadmin()` (SECURITY DEFINER) y políticas reescritas para exigir pertenencia al tenant propio, o restringidas a superadmin donde la tabla es una feature de plataforma sin concepto de tenant (`tenants`, `config_app`, `admin_log`, `clientes_widget`). La lectura de `config_app` quedó limitada a una whitelist de llaves operativas. Aplicado en producción el 2026-08-07 y formalizado en `supabase/migrations/20260807020000_aislamiento_tenant_policies_admin.sql`.
+- **Rotación:** Token de Skydropx rotado el 2026-08-07 por exposición potencial vía la lectura abierta de `config_app`.
+- **Pendiente documentado:** `is_admin()` y `mi_tenant_id()` siguen derivando de la tabla legada `usuarios` (no de `usuario_tenant_roles`) — problema de fuente de verdad distinto y menos urgente, con su propia migración pendiente. `cotizaciones_log` mantiene el patrón de lectura admin sin tenant y sigue pendiente.
+
 ### Julio 2026 — Acceso no autorizado
 - **Qué pasó:** Usuario malicioso (`pizduc.98@gmail.com`) encontró políticas RLS permisivas, se registró y escaló privilegios a admin. Creó cupón fraudulento y lo distribuyó.
 - **Impacto:** Cupón enviado a clientes, acceso temporal a datos de usuarios.
@@ -113,4 +120,4 @@ No publiques vulnerabilidades públicamente antes de que sean corregidas.
 ---
 
 *Documento mantenido por Leonardo Vázquez Fajardo · GUEPACK Express*  
-*Última actualización: Julio 2026*
+*Última actualización: Agosto 2026*
