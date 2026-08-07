@@ -1195,27 +1195,119 @@ async function cargarPedidos(email) {
   if (error) { console.error(error); return; }
 
   const contenedor = document.getElementById('lista-repartidor')
-  contenedor.innerHTML = ''
 
-// Detectar pedidos nuevos y sonar
-const pedidosGuardados = parseInt(localStorage.getItem('guepack_pedidos_count') || '0')
-console.log('Pedidos guardados:', pedidosGuardados, 'Pedidos actuales:', data.length)
-if (data.length > pedidosGuardados && pedidosGuardados > 0) {
-  rugidoGuepack()
-console.log('🐆 RUGIDO!')
-}
-localStorage.setItem('guepack_pedidos_count', data.length)
+  // Detectar pedidos nuevos y sonar
+  const pedidosGuardados = parseInt(localStorage.getItem('guepack_pedidos_count') || '0')
+  if (data.length > pedidosGuardados && pedidosGuardados > 0) rugidoGuepack()
+  localStorage.setItem('guepack_pedidos_count', data.length)
 
   if (data.length === 0) {
+    // Limpiar canales y snapshots: sin esto, mapa y chats siguen viendo pedidos fantasma
+    Object.keys(_paradasChannels).forEach(pid => {
+      db.removeChannel(_paradasChannels[pid])
+      delete _paradasChannels[pid]
+    })
+    _pedidosRep = {}
+    _todasParadas = {}
     contenedor.innerHTML = '<div class="empty-state"><span class="empty-icon">🏍️</span><div class="empty-text">No tienes pedidos asignados</div></div>'
     return
   }
 
+  // Paradas de todos los pedidos, ANTES de tocar el DOM: la reconciliación
+  // necesita pedido + paradas juntos para decidir qué tarjetas cambiar
+  const ids = data.map(p => p.id)
+  const { data: todasParadasNuevas, error: paradasError } = await db.from('paradas').select('*').in('pedido_id', ids).order('orden')
+  if (paradasError) console.error('[cargarPedidos] error paradas:', paradasError)
+  const porPedido = {}
+  todasParadasNuevas?.forEach(p => { (porPedido[p.pedido_id] = porPedido[p.pedido_id] || []).push(p) })
 
-  _pedidosRep = {}
+  contenedor.querySelector('.empty-state')?.remove()
+
+  // ── Reconciliación keyed contra el snapshot anterior ──
+  const idsNuevosSet = new Set(ids)
+
+  // 1) Pedidos que salieron de la lista: remover card y canal realtime
+  Object.keys(_pedidosRep).forEach(idStr => {
+    const id = Number(idStr)
+    if (idsNuevosSet.has(id)) return
+    document.getElementById('pedido-card-' + id)?.remove()
+    if (_paradasChannels[id]) { db.removeChannel(_paradasChannels[id]); delete _paradasChannels[id] }
+  })
+
+  // 2) Pedidos existentes: actualizar solo lo que cambió
+  const nuevos = []
   data.forEach(pedido => {
-    _pedidosRep[pedido.id] = pedido
-    contenedor.innerHTML += `
+    const prev = _pedidosRep[pedido.id]
+    let card = document.getElementById('pedido-card-' + pedido.id)
+    if (!prev || !card) { nuevos.push(pedido); return }
+
+    const cambioPedido  = _pedidoCambio(prev, pedido)
+    const cambioParadas = _paradasCambiaron(_todasParadas[pedido.id], porPedido[pedido.id])
+
+    if (cambioPedido) {
+      // estado/foto_recoleccion afectan el shell (check recolección, botón
+      // cancelar), no solo los sub-contenedores: rebuild en su misma posición
+      card.outerHTML = _htmlTarjetaPedido(pedido)
+      card = document.getElementById('pedido-card-' + pedido.id)
+      window._initGuepIcons && _initGuepIcons(card)
+    }
+
+    if (cambioPedido || cambioParadas) {
+      _renderSubContenidoPedido(pedido, porPedido[pedido.id])
+    }
+  })
+
+  // 3) Pedidos nuevos: prepend en reversa (data viene created_at desc,
+  //    así el más reciente queda arriba). Realtime solo para estos.
+  for (let i = nuevos.length - 1; i >= 0; i--) {
+    const pedido = nuevos[i]
+    document.getElementById('pedido-card-' + pedido.id)?.remove()
+    contenedor.insertAdjacentHTML('afterbegin', _htmlTarjetaPedido(pedido))
+    const card = document.getElementById('pedido-card-' + pedido.id)
+    window._initGuepIcons && _initGuepIcons(card)
+    _renderSubContenidoPedido(pedido, porPedido[pedido.id])
+    _subscribirParadasRealtime(pedido)
+  }
+
+  // 4) Snapshots para la próxima comparación
+  const nuevoSnapshot = {}
+  data.forEach(p => { nuevoSnapshot[p.id] = p })
+  _pedidosRep = nuevoSnapshot
+  // Guardar para cálculo de proximidad en vista lista (sin re-query)
+  _todasParadas = porPedido
+
+  _cargarBadgesNoLeidos(ids)
+  // Mostrar tarjeta de próxima parada si tenemos GPS
+  _renderProximaParada()
+}
+
+// ── Keyed reconciliation: helpers ───────────────────────────────────────────
+
+// estado y foto_recoleccion son los únicos campos mutables que afectan el HTML
+// de la tarjeta (incluido su shell: check de recolección y botón cancelar)
+function _pedidoCambio(prev, nuevo) {
+  return prev.estado !== nuevo.estado ||
+         (prev.foto_recoleccion || null) !== (nuevo.foto_recoleccion || null)
+}
+
+// ambos arrays vienen ordenados por `orden`, la comparación por índice es válida
+function _paradasCambiaron(prev, nuevas) {
+  const a = prev || [], b = nuevas || []
+  if (a.length !== b.length) return true
+  return b.some((p, i) =>
+    p.id !== a[i].id ||
+    p.estado !== a[i].estado ||
+    (p.foto_url || null) !== (a[i].foto_url || null)
+  )
+}
+
+function _renderSubContenidoPedido(pedido, paradas) {
+  if (paradas?.length) _renderParadasRepartidor(pedido.id, paradas, pedido)
+  else _renderBotonesNormales(pedido)
+}
+
+function _htmlTarjetaPedido(pedido) {
+  return `
       <div class="route-card" id="pedido-card-${pedido.id}">
         <div class="route-top">
           <div>
@@ -1255,39 +1347,6 @@ localStorage.setItem('guepack_pedidos_count', data.length)
         </div>
       </div>
     `
-  })
-  window._initGuepIcons && _initGuepIcons(contenedor)
-
-  _cargarBadgesNoLeidos(data.map(p => p.id))
-
-  // Cargar paradas para todos los pedidos de una vez
-  const ids = data.map(p => p.id)
-  if (ids.length) {
-    const { data: todasParadas, error: paradasError } = await db.from('paradas').select('*').in('pedido_id', ids).order('orden')
-    console.log('[cargarPedidos] ids consultados:', ids, '| todasParadas recibidas:', todasParadas, '| error:', paradasError)
-    const porPedido = {}
-    if (todasParadas?.length) {
-      todasParadas.forEach(p => { if (!porPedido[p.pedido_id]) porPedido[p.pedido_id] = []; porPedido[p.pedido_id].push(p) })
-      console.log('[cargarPedidos] porPedido keys:', Object.keys(porPedido), '| tipos de key:', Object.keys(porPedido).map(k => typeof k))
-      Object.entries(porPedido).forEach(([pedidoId, paradas]) => {
-        console.log(`[cargarPedidos] pedido ${pedidoId} tiene ${paradas.length} parada(s) → llamando a _renderParadasRepartidor`)
-        _renderParadasRepartidor(Number(pedidoId), paradas, _pedidosRep[Number(pedidoId)])
-      })
-    }
-    // Guardar para cálculo de proximidad en vista lista (sin re-query)
-    _todasParadas = porPedido
-    // Pedidos sin paradas: inyectar los 4 botones normales
-    data.forEach(pedido => {
-      const tieneParadas = porPedido[pedido.id] !== undefined
-      console.log(`[cargarPedidos] pedido ${pedido.id} (tipo: ${typeof pedido.id}) → tieneParadas: ${tieneParadas} → llamando a ${tieneParadas ? '(ya procesado arriba)' : '_renderBotonesNormales'}`)
-      if (!tieneParadas) _renderBotonesNormales(pedido)
-    })
-  }
-  // Mostrar tarjeta de próxima parada si tenemos GPS
-  _renderProximaParada()
-
-  // Suscribir realtime paradas INSERT para cada pedido activo
-  data.forEach(pedido => _subscribirParadasRealtime(pedido))
 }
 
 // ── Panel lateral de ganancias ───────────────────────────────────────────────
