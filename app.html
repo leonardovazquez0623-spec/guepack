@@ -5325,6 +5325,10 @@ async function _cargarParadasPedido(pedidoId) {
 
   el.style.display = 'block'
 
+  // Al recargar: si el repartidor ya llegó a alguna parada (o ya la completó),
+  // la ocultación es permanente para este pedido
+  if (data?.some(p => p.estado === 'en_domicilio' || p.estado === 'completada')) _ocultarBtnCancelar(pedidoId)
+
   const recoleccionHtml = recoleccion
     ? `<div style="padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.07)"><div style="font-size:11px;font-weight:700;color:var(--color-primary-dark);display:flex;align-items:center;gap:3px"><span style="display:inline-flex;width:16px;height:16px">${GUEPACK_ICONS.ubicacion}</span> Recolección</div><div style="font-size:10px;font-weight:600;color:#6b7280;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${recoleccion}</div></div>`
     : ''
@@ -5538,6 +5542,24 @@ var ESTADO_CONFIG = {
 }
 var ESTADOS_FINALES = ['Entregado', 'Cancelado', 'Intento de entrega fallido', 'Pago rechazado']
 
+// Estados que solo se alcanzan después de que el repartidor llegó a recolectar.
+// En multiparada, 'En camino a entrega' marca el arranque de ruta: también oculta.
+var ESTADOS_LLEGADA_OCURRIDA = [
+  'Repartidor en domicilio recoleccion',
+  'Recolectado',
+  'En camino a entrega',
+  'Repartidor en domicilio',
+  'Entregado',
+  'Intento de entrega fallido'
+]
+
+// Oculta el botón cancelar y detiene su countdown; no existe camino de re-mostrado
+function _ocultarBtnCancelar(id) {
+  const cont = document.getElementById('pac-' + id + '-cancelar-container')
+  if (cont) cont.style.display = 'none'
+  if (_pedidos[id]?.intervalCancelar) { clearInterval(_pedidos[id].intervalCancelar); _pedidos[id].intervalCancelar = null }
+}
+
 function _guardarIds() {
   localStorage.setItem('guepack_pedidos_activos', JSON.stringify(Object.keys(_pedidos).map(Number)))
 }
@@ -5628,6 +5650,7 @@ function mostrarPedidoActivo(id, estado, repartidor, sinTimerCancelar = false, n
           _pedidos[id]['_ptstart_' + payload.new.id] = Date.now()
         }
       }
+      if (payload.new?.estado === 'en_domicilio' || payload.new?.estado === 'completada') _ocultarBtnCancelar(id)
       _cargarParadasPedido(id)
     })
     .subscribe()
@@ -5742,6 +5765,9 @@ function _actualizarCard(id, estado, repartidor) {
     : c.texto
   document.getElementById('pac-' + id + '-estado').innerHTML = textoEstado
 
+  // El repartidor llegó (o ya pasó por ahí): cancelar deja de existir para este pedido
+  if (ESTADOS_LLEGADA_OCURRIDA.includes(estado)) _ocultarBtnCancelar(id)
+
   const repaEl = document.getElementById('pac-' + id + '-repartidor')
   const chatWrap = document.getElementById('pac-' + id + '-chat-wrap')
   if (repartidor) {
@@ -5833,7 +5859,23 @@ function cerrarCardPedido(id) {
 }
 
 async function cancelarPedido(id) {
-  const { data } = await db.from('pedidos').select('created_at').eq('id', id).single()
+  const { data } = await db.from('pedidos').select('created_at, estado').eq('id', id).single()
+
+  // Guardarraíl servidor: si el repartidor llegó alguna vez (estado actual post-llegada
+  // o alguna parada en_domicilio/completada), la cancelación queda bloqueada aunque
+  // el botón siga visible en un DOM desactualizado (pestaña vieja, consola)
+  let repartidorLlego = ESTADOS_LLEGADA_OCURRIDA.includes(data?.estado)
+  if (!repartidorLlego) {
+    const { data: paradasLlego } = await db.from('paradas').select('id')
+      .eq('pedido_id', id).in('estado', ['en_domicilio', 'completada']).limit(1)
+    repartidorLlego = !!paradasLlego?.length
+  }
+  if (repartidorLlego) {
+    _ocultarBtnCancelar(id)
+    mostrarToast('Tu repartidor ya llegó — el pedido ya no se puede cancelar', '#ef4444')
+    return
+  }
+
   const minutos = (new Date() - new Date(data.created_at)) / 60000
 
   const ejecutarCancelacion = async () => {

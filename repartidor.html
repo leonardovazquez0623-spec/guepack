@@ -1845,7 +1845,7 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
       } else if (p.estado === 'en_domicilio') {
         btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 7:00</span>
-          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 Completar</button>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 Evidencia</button>
         </div>`
       }
 
@@ -1915,11 +1915,11 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       } else if (p.estado === 'pendiente') {
         btnHtml = `<button onclick="paradaEnCamino(${pedidoId}, ${p.id})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--orange);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.repartidor}</span> En camino</button>`
       } else if (p.estado === 'en_camino') {
-        btnHtml = `<button onclick="paradaEnDomicilioMulti(${pedidoId}, ${p.id}, ${p.orden})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-secondary);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> YA LLEGUÉ</button>`
+        btnHtml = `<button onclick="paradaEnDomicilioMulti(${pedidoId}, ${p.id}, ${p.orden})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--success);color:white;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px"><span class="icon-on-color" style="display:inline-flex;width:18px;height:18px">${GUEPACK_ICONS.ubicacion}</span> YA LLEGUÉ</button>`
       } else if (p.estado === 'en_domicilio') {
         btnHtml = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <span id="timer-parada-${p.id}" style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:900;color:#ef4444">⏱ 5:00</span>
-          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 ENTREGAR</button>
+          <button onclick="abrirModalParada(${pedidoId}, ${p.id}, ${p.orden}, ${total})" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 8px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;white-space:nowrap">📸 EVIDENCIA</button>
         </div>`
       }
 
