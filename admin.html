@@ -737,6 +737,8 @@ function initMapsAdmin() {
         class="btn btn-secondary" style="font-size:11px;padding:8px 16px">⚙️ Configuración</button>
       <button id="gstab-ventas" onclick="showGuiasSubtab('ventas')"
         class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">📈 Ventas y ganancias</button>
+      <button id="gstab-cotizaciones" onclick="showGuiasSubtab('cotizaciones')"
+        class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">📋 Cotizaciones</button>
     </div>
 
     <!-- Sub-tab: Configuración -->
@@ -819,6 +821,52 @@ function initMapsAdmin() {
       </div>
 
     </div><!-- /gs-ventas -->
+
+    <!-- Sub-tab: Cotizaciones -->
+    <div id="gs-cotizaciones" style="display:none">
+
+      <!-- Pills de período (mismo patrón que Ventas/Tráfico) -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button onclick="setFiltroCotizaciones('hoy')"    id="fcot-hoy"    class="btn btn-secondary" style="font-size:11px;padding:8px 16px">Hoy</button>
+        <button onclick="setFiltroCotizaciones('semana')" id="fcot-semana" class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Esta semana</button>
+        <button onclick="setFiltroCotizaciones('mes')"     id="fcot-mes"    class="btn" style="font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0">Este mes</button>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+        <div class="stat-box">
+          <div class="stat-number" id="cot-n-total">–</div>
+          <div class="stat-label">📋 Cotizaciones</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number orange" id="cot-pct-conversion">–</div>
+          <div class="stat-label">🔁 % conversión</div>
+        </div>
+      </div>
+
+      <!-- Tabla detalle: últimas 100 ordenadas por fecha desc -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 16px 8px"><div class="card-title">📋 Detalle de cotizaciones</div></div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:Montserrat,sans-serif">
+            <thead>
+              <tr style="background:#f4f6fb">
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">FECHA</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">CLIENTE</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">PAQUETERÍA</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:900;color:#8fa3c0;font-size:10px;letter-spacing:1px">CP ORIGEN→DESTINO</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:900;color:#8fa3c0;font-size:10px">COSTO CLIENTE</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:900;color:#22c55e;font-size:10px">GANANCIA POTENCIAL</th>
+                <th style="padding:10px 12px;text-align:center;font-weight:900;color:#8fa3c0;font-size:10px">ESTADO</th>
+              </tr>
+            </thead>
+            <tbody id="cot-tabla-body"></tbody>
+          </table>
+        </div>
+        <div style="padding:12px 16px;text-align:center" id="cot-ver-mas-cont"></div>
+      </div>
+
+    </div><!-- /gs-cotizaciones -->
 
   </div><!-- /tab-guias -->
 
@@ -6800,11 +6848,15 @@ function showGuiasSubtab(tab) {
   const OFF = ['btn', 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0']
   const cfg = document.getElementById('gstab-config')
   const ven = document.getElementById('gstab-ventas')
+  const cot = document.getElementById('gstab-cotizaciones')
   ;[cfg.className, cfg.style.cssText] = tab === 'config' ? ON : OFF
   ;[ven.className, ven.style.cssText] = tab === 'ventas' ? ON : OFF
-  document.getElementById('gs-config').style.display = tab === 'config' ? '' : 'none'
-  document.getElementById('gs-ventas').style.display = tab === 'ventas' ? '' : 'none'
-  if (tab === 'ventas') cargarVentasGuias()
+  ;[cot.className, cot.style.cssText] = tab === 'cotizaciones' ? ON : OFF
+  document.getElementById('gs-config').style.display        = tab === 'config'        ? '' : 'none'
+  document.getElementById('gs-ventas').style.display         = tab === 'ventas'         ? '' : 'none'
+  document.getElementById('gs-cotizaciones').style.display   = tab === 'cotizaciones'   ? '' : 'none'
+  if (tab === 'ventas')       cargarVentasGuias()
+  if (tab === 'cotizaciones') cargarCotizaciones()
 }
 
 function setFiltroGuias(filtro) {
@@ -6892,6 +6944,100 @@ async function cargarVentasGuias() {
       </td>
     </tr>`
   }).join('') || '<tr><td colspan="6" style="padding:24px;text-align:center;color:#8fa3c0;font-size:12px">Sin registros en este periodo</td></tr>'
+}
+
+// ── COTIZACIONES (comparador nacional, pague o no) ──────────────────────────
+let _cotFiltro       = 'hoy'
+let _cotTodos        = []
+let _cotVerLimite    = 100
+let _cotClientesCache = {}
+
+function setFiltroCotizaciones(filtro) {
+  _cotFiltro = filtro
+  ;['hoy','semana','mes'].forEach(f => {
+    const b = document.getElementById('fcot-' + f); if (!b) return
+    b.className = f === filtro ? 'btn btn-secondary' : 'btn'
+    b.style.cssText = f === filtro
+      ? 'font-size:11px;padding:8px 16px'
+      : 'font-size:11px;padding:8px 16px;background:#f4f6fb;color:var(--color-primary-dark);border:2px solid #e0e6f0'
+  })
+  cargarCotizaciones()
+}
+
+function _rangoCotizaciones() {
+  const ahora = new Date(), fin = ahora.toISOString()
+  let ini
+  if (_cotFiltro === 'hoy') {
+    const d = new Date(ahora); d.setHours(0,0,0,0); ini = d.toISOString()
+  } else if (_cotFiltro === 'semana') {
+    const d = new Date(ahora); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); ini = d.toISOString()
+  } else {
+    ini = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString()
+  }
+  return { ini, fin }
+}
+
+async function cargarCotizaciones() {
+  const { ini, fin } = _rangoCotizaciones()
+  _cotVerLimite = 100
+
+  const { data: todos, error } = await db
+    .from('cotizaciones_log')
+    .select('id, created_at, user_id, paqueteria, cp_origen, cp_destino, costo_cliente, ganancia, convertido')
+    .gte('created_at', ini)
+    .lte('created_at', fin)
+    .order('created_at', { ascending: false })
+  if (error || !todos) { console.error('cargarCotizaciones:', error); return }
+  _cotTodos = todos
+
+  const total       = todos.length
+  const convertidas = todos.filter(r => r.convertido).length
+  const pct         = total > 0 ? (convertidas / total) * 100 : 0
+  document.getElementById('cot-n-total').textContent        = total
+  document.getElementById('cot-pct-conversion').textContent = pct.toFixed(1) + '%'
+
+  const userIds = [...new Set(todos.map(r => r.user_id))]
+  let clientesPorId = {}
+  if (userIds.length) {
+    const { data: clientes } = await db.from('usuarios')
+      .select('user_id, nombre, apellido, email')
+      .in('user_id', userIds)
+    clientesPorId = Object.fromEntries((clientes || []).map(c => [c.user_id, c]))
+  }
+  _cotClientesCache = clientesPorId
+
+  _renderTablaCotizaciones(clientesPorId)
+}
+
+function _renderTablaCotizaciones(clientesPorId) {
+  const filas = _cotTodos.slice(0, _cotVerLimite)
+  document.getElementById('cot-tabla-body').innerHTML = filas.map(r => {
+    const fecha   = new Date(r.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+    const cliente = clientesPorId[r.user_id]
+    const nombre  = cliente ? [cliente.nombre, cliente.apellido].filter(Boolean).join(' ') || cliente.email : r.user_id
+    const badge   = r.convertido
+      ? '<span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:900">✅ Convertida</span>'
+      : '<span style="background:#f4f6fb;color:#8fa3c0;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:900">⏳ Solo cotizó</span>'
+    return `<tr style="border-top:1px solid #f0f4fa">
+      <td style="padding:10px 12px;font-size:11px;color:#8fa3c0;white-space:nowrap">${fecha}</td>
+      <td style="padding:10px 12px;font-weight:700;font-size:12px">${nombre}</td>
+      <td style="padding:10px 12px;font-size:12px">${r.paqueteria ?? '–'}</td>
+      <td style="padding:10px 12px;font-size:11px;color:#8fa3c0;white-space:nowrap">${r.cp_origen ?? '–'} → ${r.cp_destino ?? '–'}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700">$${(r.costo_cliente ?? 0).toFixed(0)}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;color:#22c55e">$${(r.ganancia ?? 0).toFixed(0)}</td>
+      <td style="padding:10px 12px;text-align:center">${badge}</td>
+    </tr>`
+  }).join('') || '<tr><td colspan="7" style="padding:24px;text-align:center;color:#8fa3c0;font-size:12px">Sin cotizaciones en este periodo</td></tr>'
+
+  const cont = document.getElementById('cot-ver-mas-cont')
+  cont.innerHTML = _cotTodos.length > _cotVerLimite
+    ? `<button onclick="_cotVerMas()" class="btn btn-secondary" style="font-size:11px;padding:8px 20px">Ver más (${_cotTodos.length - _cotVerLimite} restantes)</button>`
+    : ''
+}
+
+function _cotVerMas() {
+  _cotVerLimite += 100
+  _renderTablaCotizaciones(_cotClientesCache)
 }
 
 async function guardarConfigGuias() {

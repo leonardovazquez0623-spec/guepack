@@ -211,7 +211,26 @@ serve(async (req) => {
       return json({ error: "Error al guardar el envío: " + insertErr.message }, 500);
     }
 
-    // 8. Responde con el ID generado
+    // 8. Marca la cotización original como convertida (best-effort, no bloquea la respuesta)
+    const { data: logRow } = await supabaseAdmin
+      .from("cotizaciones_log")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("quotation_id", quotation_id)
+      .eq("rate_id", rate_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (logRow) {
+      const { error: updateLogErr } = await supabaseAdmin
+        .from("cotizaciones_log")
+        .update({ convertido: true, envio_id: envio.id })
+        .eq("id", logRow.id);
+      if (updateLogErr) console.error("cotizaciones_log update falló:", updateLogErr.message);
+    }
+
+    // 9. Responde con el ID generado
     return json({ ok: true, envio_id: envio.id });
 
   } catch (e: any) {

@@ -205,11 +205,36 @@ function _nacConfirmarOpcion(idx) {
   })
 }
 
+// Fire-and-forget: registra la cotización elegida aunque el cliente nunca pague.
+async function _nacRegistrarCotizacion() {
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) return
+    const { error } = await db.from('cotizaciones_log').insert({
+      user_id:       session.user.id,
+      quotation_id:  cotizacionActual.quotation_id,
+      rate_id:       opcionSeleccionada.rate_id,
+      paqueteria:    opcionSeleccionada.paqueteria,
+      servicio:      opcionSeleccionada.servicio,
+      cp_origen:     _nacCpOrigen,
+      cp_destino:    _nacCpDestino,
+      costo_cliente: opcionSeleccionada.costo,
+      costo_real:    opcionSeleccionada.costoReal,
+      ganancia:      opcionSeleccionada.costo - opcionSeleccionada.costoReal,
+    })
+    if (error) console.error('cotizaciones_log insert falló:', error)
+  } catch (err) {
+    console.error('cotizaciones_log insert falló:', err)
+  }
+}
+
 function _nacAplicarSeleccion(idx) {
   opcionSeleccionada = cotizacionActual.opciones[idx]
   _nacCpOrigen       = document.getElementById('nac-cp-origen').value.trim()
   _nacCpDestino      = document.getElementById('nac-cp-destino').value.trim()
   _nacCotizacionTs   = Date.now()
+
+  _nacRegistrarCotizacion()
 
   document.getElementById('nac-confirmacion-panel')?.remove()
 
