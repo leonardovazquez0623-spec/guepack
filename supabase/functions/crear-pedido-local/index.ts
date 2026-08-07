@@ -302,6 +302,19 @@ function hoyEnZonaHoraria(zonaHoraria: string, fecha = new Date()) {
   return `${valores.year}-${valores.month}-${valores.day}`;
 }
 
+function horaEnZonaHoraria(zonaHoraria: string, fecha = new Date()) {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: zonaHoraria,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(fecha);
+  const valores = Object.fromEntries(
+    partes.map((parte) => [parte.type, parte.value]),
+  );
+  return `${valores.hour}:${valores.minute}`;
+}
+
 function fechaValida(valor: unknown) {
   const fecha = requerido(valor, "fecha", 10);
   const interpretada = new Date(`${fecha}T12:00:00Z`);
@@ -999,6 +1012,36 @@ Deno.serve(async (req) => {
         error: "La fecha del pedido no puede estar en el pasado",
       }, 422);
     }
+
+    if (fecha === fechaActualTenant) {
+      const { data: configuracionTenant, error: falloConfiguracion } =
+        await admin
+          .from("configuracion")
+          .select("horario_cierre")
+          .eq("tenant_id", tenant)
+          .maybeSingle();
+      if (falloConfiguracion) {
+        console.error(
+          "[crear-pedido-local] No se pudo consultar el horario de cierre del tenant:",
+          falloConfiguracion.message,
+        );
+        return responder(req, {
+          error: "No pudimos verificar el horario de cierre de la cuenta",
+        }, 503);
+      }
+      const horarioCierre =
+        typeof configuracionTenant?.horario_cierre === "string"
+          ? configuracionTenant.horario_cierre.slice(0, 5)
+          : "15:00";
+      const horaActualTenant = horaEnZonaHoraria(zonaHoraria);
+      if (horaActualTenant >= horarioCierre) {
+        return responder(req, {
+          error:
+            `Ya pasó la hora de cierre de hoy (${horarioCierre}). Selecciona una fecha futura.`,
+        }, 422);
+      }
+    }
+
     const estadoPedido = estadoInicialProgramable(
       metodo,
       fecha,

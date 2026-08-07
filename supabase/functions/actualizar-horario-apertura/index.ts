@@ -5,6 +5,7 @@ const ORIGEN_PRODUCCION = 'https://guepack.com'
 type ResultadoActualizacion = {
   tenant_id: string | number
   horario_apertura: string
+  horario_cierre: string | null
   configuracion_creada: boolean
 }
 
@@ -131,6 +132,7 @@ function esResultadoActualizacion(
   return (
     tenantIdValido &&
     typeof valor.horario_apertura === 'string' &&
+    (typeof valor.horario_cierre === 'string' || valor.horario_cierre === null) &&
     typeof valor.configuracion_creada === 'boolean'
   )
 }
@@ -154,6 +156,13 @@ function errorRpc(mensaje: string) {
     return [
       400,
       'El horario de apertura no es válido',
+    ] as const
+  }
+
+  if (mensaje.includes('HORARIO_CIERRE_INVALIDO')) {
+    return [
+      400,
+      'El horario de cierre no es válido',
     ] as const
   }
 
@@ -236,6 +245,7 @@ Deno.serve(async (req) => {
 
     let tenantId: string
     let horarioApertura: string | undefined
+    let horarioCierre: string | undefined
 
     if (req.method === 'GET') {
       const url = new URL(req.url)
@@ -314,6 +324,26 @@ Deno.serve(async (req) => {
         )
       }
 
+      if (
+        tienePropiedad(cuerpo, 'horario_cierre') &&
+        cuerpo.horario_cierre !== null &&
+        cuerpo.horario_cierre !== undefined &&
+        cuerpo.horario_cierre !== ''
+      ) {
+        if (!horarioAperturaValido(cuerpo.horario_cierre)) {
+          return responder(
+            req,
+            {
+              error:
+                'horario_cierre debe tener el formato HH:mm entre 00:00 y 23:59',
+            },
+            400,
+          )
+        }
+
+        horarioCierre = cuerpo.horario_cierre
+      }
+
       tenantId = tenantIdNormalizado
       horarioApertura = cuerpo.horario_apertura
     }
@@ -370,7 +400,7 @@ Deno.serve(async (req) => {
 
         supabaseAdmin
           .from('configuracion')
-          .select('horario_apertura')
+          .select('horario_apertura, horario_cierre')
           .eq('tenant_id', tenantId)
           .maybeSingle(),
       ])
@@ -416,6 +446,8 @@ Deno.serve(async (req) => {
           resultadoTenant.data.zona_horaria ?? null,
         horario_apertura:
           resultadoConfiguracion.data?.horario_apertura ?? null,
+        horario_cierre:
+          resultadoConfiguracion.data?.horario_cierre ?? null,
         configuracion_existe:
           resultadoConfiguracion.data !== null,
       })
@@ -430,6 +462,7 @@ Deno.serve(async (req) => {
         p_actor_user_id: user.id,
         p_tenant_id: tenantId,
         p_horario_apertura: horarioApertura,
+        p_horario_cierre: horarioCierre ?? null,
       },
     )
 
@@ -474,6 +507,7 @@ Deno.serve(async (req) => {
       success: true,
       tenant_id: String(resultado.tenant_id),
       horario_apertura: resultado.horario_apertura,
+      horario_cierre: resultado.horario_cierre,
       configuracion_creada:
         resultado.configuracion_creada,
     })

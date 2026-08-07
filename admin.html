@@ -1217,18 +1217,28 @@ function initMapsAdmin() {
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title">🕐 Horario de apertura</div>
+      <div class="card-title">🕐 Horario de apertura y cierre</div>
 
       <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;line-height:1.5;margin-bottom:14px">
-        Define la hora a partir de la cual se activarán los pedidos programados de este tenant.
+        Hora de apertura: activa los pedidos programados de este tenant. Hora de cierre: después de esta hora, los pedidos para "Hoy" se agendan automáticamente para el día siguiente.
       </div>
 
-      <div style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,2fr);gap:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:minmax(130px,1fr) minmax(130px,1fr) minmax(180px,2fr);gap:10px;margin-bottom:14px">
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label" for="cfg-horario-apertura">Hora de apertura</label>
           <input
             type="time"
             id="cfg-horario-apertura"
+            class="form-input"
+            aria-describedby="cfg-horario-apertura-estado"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" for="cfg-horario-cierre">Hora de cierre</label>
+          <input
+            type="time"
+            id="cfg-horario-cierre"
             class="form-input"
             aria-describedby="cfg-horario-apertura-estado"
           >
@@ -1243,7 +1253,7 @@ function initMapsAdmin() {
       </div>
 
       <button id="btn-guardar-horario-apertura" onclick="guardarHorarioApertura()" disabled style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">
-        💾 Guardar horario de apertura
+        💾 Guardar horarios
       </button>
 
       <div id="cfg-horario-apertura-estado" role="status" aria-live="polite" style="min-height:17px;margin-top:10px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8fa3c0">
@@ -2090,15 +2100,17 @@ async function _leerRespuestaHorarioApertura(respuesta) {
 
 async function cargarHorarioApertura() {
   const input = document.getElementById('cfg-horario-apertura')
+  const inputCierre = document.getElementById('cfg-horario-cierre')
   const zonaHoraria = document.getElementById('cfg-horario-zona-horaria')
   const boton = document.getElementById('btn-guardar-horario-apertura')
 
-  if (!input || !zonaHoraria || !boton) return
+  if (!input || !inputCierre || !zonaHoraria || !boton) return
 
   input.disabled = true
+  inputCierre.disabled = true
   boton.disabled = true
   zonaHoraria.textContent = 'Cargando...'
-  _setEstadoHorarioApertura('Cargando horario de apertura...')
+  _setEstadoHorarioApertura('Cargando horarios...')
 
   try {
     const {
@@ -2135,7 +2147,7 @@ async function cargarHorarioApertura() {
     if (!respuesta.ok || resultado?.success !== true) {
       const mensaje =
         resultado?.error ||
-        'No fue posible cargar el horario de apertura'
+        'No fue posible cargar los horarios'
 
       console.error(
         '[horario apertura] Error al cargar:',
@@ -2155,6 +2167,11 @@ async function cargarHorarioApertura() {
         ? resultado.horario_apertura.slice(0, 5)
         : ''
 
+    inputCierre.value =
+      typeof resultado.horario_cierre === 'string'
+        ? resultado.horario_cierre.slice(0, 5)
+        : ''
+
     if (resultado.configuracion_existe === false) {
       _setEstadoHorarioApertura(
         'Aún no se ha configurado el horario para este tenant.',
@@ -2162,7 +2179,7 @@ async function cargarHorarioApertura() {
       )
     } else {
       _setEstadoHorarioApertura(
-        'Horario cargado correctamente.',
+        'Horarios cargados correctamente.',
         'exito'
       )
     }
@@ -2173,22 +2190,25 @@ async function cargarHorarioApertura() {
     )
     zonaHoraria.textContent = 'No disponible'
     _setEstadoHorarioApertura(
-      'No fue posible cargar el horario de apertura.',
+      'No fue posible cargar los horarios.',
       'error'
     )
   } finally {
     input.disabled = false
+    inputCierre.disabled = false
     boton.disabled = false
   }
 }
 
 async function guardarHorarioApertura() {
   const input = document.getElementById('cfg-horario-apertura')
+  const inputCierre = document.getElementById('cfg-horario-cierre')
   const boton = document.getElementById('btn-guardar-horario-apertura')
 
-  if (!input || !boton) return
+  if (!input || !inputCierre || !boton) return
 
   const horarioApertura = input.value
+  const horarioCierre = inputCierre.value
 
   if (!horarioApertura) {
     _setEstadoHorarioApertura(
@@ -2201,7 +2221,7 @@ async function guardarHorarioApertura() {
 
   boton.disabled = true
   boton.textContent = 'Guardando...'
-  _setEstadoHorarioApertura('Guardando horario de apertura...')
+  _setEstadoHorarioApertura('Guardando horarios...')
 
   try {
     const {
@@ -2232,7 +2252,8 @@ async function guardarHorarioApertura() {
         },
         body: JSON.stringify({
           tenant_id: String(TENANT_ID),
-          horario_apertura: horarioApertura
+          horario_apertura: horarioApertura,
+          ...(horarioCierre ? { horario_cierre: horarioCierre } : {})
         })
       }
     )
@@ -2242,7 +2263,7 @@ async function guardarHorarioApertura() {
     if (!respuesta.ok || resultado?.success !== true) {
       const mensaje =
         resultado?.error ||
-        'No fue posible guardar el horario de apertura'
+        'No fue posible guardar los horarios'
 
       console.error(
         '[horario apertura] Error al guardar:',
@@ -2258,8 +2279,12 @@ async function guardarHorarioApertura() {
       input.value = resultado.horario_apertura.slice(0, 5)
     }
 
+    if (typeof resultado.horario_cierre === 'string') {
+      inputCierre.value = resultado.horario_cierre.slice(0, 5)
+    }
+
     _setEstadoHorarioApertura(
-      'Horario de apertura guardado correctamente.',
+      'Horarios guardados correctamente.',
       'exito'
     )
 
@@ -2268,7 +2293,7 @@ async function guardarHorarioApertura() {
         '✅ Se configuró por primera vez el horario de este tenant'
       )
     } else {
-      showToast('✅ Horario de apertura guardado')
+      showToast('✅ Horarios guardados')
     }
   } catch (error) {
     console.error(
@@ -2276,13 +2301,13 @@ async function guardarHorarioApertura() {
       error
     )
     _setEstadoHorarioApertura(
-      'No fue posible guardar el horario de apertura.',
+      'No fue posible guardar los horarios.',
       'error'
     )
-    showToast('❌ No fue posible guardar el horario de apertura')
+    showToast('❌ No fue posible guardar los horarios')
   } finally {
     boton.disabled = false
-    boton.textContent = '💾 Guardar horario de apertura'
+    boton.textContent = '💾 Guardar horarios'
   }
 }
 
