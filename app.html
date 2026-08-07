@@ -1848,6 +1848,10 @@ var _wizardMap = null, _wizardPinRec = null, _wizardPinEnt = null, _wizardDirRen
 var _wizardPinsIntermedios = []
 // Zona / pricing
 var _zonaData = null, _empresaData = null, _empresaUsuario = null
+// Horarios de tenant (FASE C) — arranca en el fallback seguro por si algo
+// dispara seleccionarFecha()/verificarDisponibilidad() antes de que
+// _cargarConfigTenant() resuelva
+var _configTenant = { horario_apertura: null, horario_cierre: '15:00' }
 var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
 var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
 var _latRecoleccion = null, _lngRecoleccion = null
@@ -2101,6 +2105,7 @@ async function _iniciarAppCliente(user, perfilInicial = null) {
   _solicitarPermisoNotificaciones()
   cargarVipUsuario(user.id)
   cargarNombreRemitente(user, perfilNombre)
+  await _cargarConfigTenant()
   await _cargarEmpresaUsuario(user)
   _actualizarVisibilidadAgregarParada()
   await _cargarCargoCancelacion(user)
@@ -2225,6 +2230,33 @@ async function _cargarEmpresaUsuario(user) {
   if (empresa.permite_paqueterias || empresa.permite_mercado_libre) _mostrarTogglesPaqueteria(empresa)
   _actualizarVisibilidadAgregarParada()
   _suscribirEmpresaRealtime(empresa)
+}
+
+async function _cargarConfigTenant() {
+  const tenantId = _tenantIdEventos || window.tenantConfig?.id
+  if (!tenantId) {
+    console.warn('[configTenant] tenantId no disponible — usando fallback horario_cierre=15:00 sin consultar configuracion (revisar si es un problema real de datos/tenant, no solo "tenant sin configurar")')
+    return
+  }
+  const { data, error } = await db.from('configuracion')
+    .select('horario_apertura, horario_cierre')
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  if (error) {
+    console.error('[configTenant] No se pudo cargar la configuración del tenant:', error)
+    return
+  }
+  _configTenant = {
+    horario_apertura: typeof data?.horario_apertura === 'string' ? data.horario_apertura.slice(0, 5) : null,
+    horario_cierre: typeof data?.horario_cierre === 'string' ? data.horario_cierre.slice(0, 5) : '15:00',
+  }
+}
+
+function _yaPasoHorarioCierre(fecha = new Date()) {
+  const [horaCierre, minCierre] = _configTenant.horario_cierre.split(':').map(Number)
+  const minutosCierre = horaCierre * 60 + minCierre
+  const minutosActuales = fecha.getHours() * 60 + fecha.getMinutes()
+  return minutosActuales >= minutosCierre
 }
 
 function _actualizarIndicadorEmpresa() {
@@ -2669,8 +2701,8 @@ cargarPedidoActivoGuardado()
 // ── Verificar modo lluvia ──
 let lluviaActiva = false
 let rayoTimeout = null
-async function verificarLluvia() {
-  const { data } = await db.from('configuracion').select('*').eq('id', 1).single()
+async function verificarLluvia(tenantId) {
+  const { data } = await db.from('configuracion').select('*').eq('tenant_id', tenantId).maybeSingle()
   if (data && data.lluvia) {
     activarLluvia(data.mensaje_lluvia)
   }
@@ -2767,20 +2799,35 @@ function activarLluvia(mensaje) {
   animar()
 }
 
-verificarLluvia()
-// ── Escuchar cambios de lluvia en tiempo real ──
-db.channel('configuracion')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'configuracion' }, payload => {
-  if (payload.new.lluvia) {
-      activarLluvia(payload.new.mensaje_lluvia)
-    } else {
-      lluviaActiva = false
-      if (rayoTimeout) clearTimeout(rayoTimeout)
-      document.getElementById('lluvia-overlay').style.display = 'none'
-      document.getElementById('lluvia-aviso').style.display = 'none'
-    }
-  })
-  .subscribe()
+;(async () => {
+  await window.tenantConfigReady
+  const tenantId = window.tenantConfig?.id
+  if (!tenantId) {
+    console.warn('[lluvia] No se pudo determinar el tenant — modo lluvia deshabilitado')
+    return
+  }
+
+  verificarLluvia(tenantId)
+
+  // ── Escuchar cambios de lluvia en tiempo real ──
+  db.channel('configuracion')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'configuracion',
+      filter: 'tenant_id=eq.' + tenantId,
+    }, payload => {
+      if (payload.new.lluvia) {
+        activarLluvia(payload.new.mensaje_lluvia)
+      } else {
+        lluviaActiva = false
+        if (rayoTimeout) clearTimeout(rayoTimeout)
+        document.getElementById('lluvia-overlay').style.display = 'none'
+        document.getElementById('lluvia-aviso').style.display = 'none'
+      }
+    })
+    .subscribe()
+})()
 // ── Registrar Service Worker y detectar actualizaciones ──
 function showUpdateBanner(swWaiting) {
   const banner = document.getElementById('update-banner')
@@ -4578,15 +4625,14 @@ async function cerrarSesion() {
     .lte('created_at', fin)
 
   const total = data ? data.length : 0
-  const hora = new Date().getHours()
   const hoy = new Date().toISOString().split('T')[0]
   const esHoy = fecha === hoy
 
   let mensaje = ''
   let color = ''
 
-  if (forzarNaranja || (esHoy && hora >= 15)) {
-    mensaje = '🟠 Ya pasaron las 3 PM — tu recolección quedará para mañana'
+  if (forzarNaranja || (esHoy && _yaPasoHorarioCierre())) {
+    mensaje = '🟠 Ya pasó la hora de cierre (' + _configTenant.horario_cierre + ') — tu recolección quedará para mañana'
     color = 'var(--orange)'
   } else if (total >= 10) {
     mensaje = '🟠 Tenemos ' + total + ' pedidos ese día — posible entrega al día siguiente'
@@ -4840,10 +4886,10 @@ function seleccionarFecha(opcion) {
   let fechaSeleccionada = null
 
   if (opcion === 'hoy') {
-    const hora = ahora.getHours()
-    if (hora >= 15) {
+    const yaPasoElCierre = _yaPasoHorarioCierre(ahora)
+    if (yaPasoElCierre) {
       fechaSeleccionada = formatearLocal(manana)
-      mostrarToast('⏰ Ya pasaron las 3 PM — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
+      mostrarToast('⏰ Ya pasó la hora de cierre (' + _configTenant.horario_cierre + ') — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
     } else {
       fechaSeleccionada = formatearLocal(hoy)
     }
@@ -4851,16 +4897,14 @@ function seleccionarFecha(opcion) {
       fechaSeleccionada = proximoLunes(fechaSeleccionada)
       mostrarToast('📅 Fin de semana — tu pedido se agendó para el ' + labelFecha(fechaSeleccionada), 'var(--orange)')
     }
-    console.log('[fecha] Hoy — hora local:', hora, '| día semana:', ahora.getDay(), '| fecha guardada:', fechaSeleccionada)
+    console.log('[fecha] Hoy — hora local:', ahora.getHours(), '| día semana:', ahora.getDay(), '| fecha guardada:', fechaSeleccionada)
     document.getElementById('fecha-seleccionada').value = fechaSeleccionada
     document.getElementById('input-fecha-custom').style.display = 'none'
     const btn = document.getElementById('btn-hoy-fecha')
     btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.borderColor = 'var(--blue)'
-    if (hora < 15) verificarDisponibilidad(fechaSeleccionada, false)
+    if (!yaPasoElCierre) verificarDisponibilidad(fechaSeleccionada, false)
 
   } else if (opcion === 'mañana') {
-    const hora = ahora.getHours()
-    // Si es después de las 3 PM, "día siguiente" salta un día más
     const diasSumar = 1
     const fechaBase = new Date(hoy); fechaBase.setDate(hoy.getDate() + diasSumar)
 
