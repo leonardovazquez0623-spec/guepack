@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -18,6 +18,8 @@
     justify-content: center;
     overflow: hidden;
   }
+
+  /* ---- Splash actual (paquetería): sin cambios ---- */
   .splash-container {
     display: flex;
     flex-direction: column;
@@ -58,16 +60,88 @@
     0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
     40% { transform: scale(1); opacity: 1; }
   }
+
+  /* ---- Splash de bienvenida (tenants tipo restaurante) ---- */
+  #onboarding-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 32px 24px max(32px, env(safe-area-inset-bottom));
+    background: linear-gradient(160deg, var(--color-primary-dark, #172554), var(--color-primary, #1a4fa0));
+    text-align: center;
+    color: #fff;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    animation: onboardingFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes onboardingFadeIn {
+    0% { opacity: 0; transform: scale(0.92); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .onboarding-logo {
+    width: 132px;
+    height: 132px;
+    margin-bottom: 6px;
+    padding: 16px;
+    border-radius: 32px;
+    object-fit: contain;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .22);
+  }
+  .onboarding-tagline {
+    max-width: 320px;
+    margin: 0 0 30px;
+    font-size: 17px;
+    line-height: 1.5;
+    opacity: .92;
+  }
+  .onboarding-comenzar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: min(320px, 84vw);
+    min-height: 54px;
+    border: 0;
+    border-radius: 16px;
+    color: var(--color-primary-dark, #172554);
+    background: #fff;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .2);
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .onboarding-comenzar:active { transform: translateY(1px); }
+  .onboarding-login {
+    margin-top: 18px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    opacity: .88;
+  }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<div class="splash-container">
+<div id="legacy-splash" class="splash-container">
   <img src="/Splash_icon.png" class="logo" alt="GUEPACK">
   <div class="loader">
     <div class="dot"></div>
     <div class="dot"></div>
     <div class="dot"></div>
   </div>
+</div>
+
+<div id="onboarding-splash" hidden>
+  <img id="onboarding-logo" class="onboarding-logo" data-tenant-logo src="/logo_principal.png" alt="Logo">
+  <p id="onboarding-tagline" class="onboarding-tagline">Tu comida favorita, donde tú estés.</p>
+  <a id="onboarding-comenzar" class="onboarding-comenzar" href="menu.html">Comenzar</a>
+  <a id="onboarding-login" class="onboarding-login" href="login.html">Iniciar sesión</a>
 </div>
 
 <script src="/supabase-local.js"></script>
@@ -79,7 +153,39 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 })
 
+let esRestaurante = false
+
+const elementosOnboarding = {
+  legacy: document.getElementById('legacy-splash'),
+  onboarding: document.getElementById('onboarding-splash'),
+  logo: document.getElementById('onboarding-logo'),
+  tagline: document.getElementById('onboarding-tagline'),
+  comenzar: document.getElementById('onboarding-comenzar'),
+  login: document.getElementById('onboarding-login')
+}
+
+function mostrarOnboardingRestaurante(tenant) {
+  esRestaurante = true
+  elementosOnboarding.legacy.hidden = true
+  elementosOnboarding.onboarding.hidden = false
+
+  const logo = tenant?.logo_url
+  if (logo) elementosOnboarding.logo.src = logo
+  elementosOnboarding.tagline.textContent =
+    tenant?.nombre_app || tenant?.nombre || 'Tu comida favorita, donde tú estés.'
+
+  const destinoMenu = `menu.html${location.search}`
+  elementosOnboarding.comenzar.href = destinoMenu
+  elementosOnboarding.login.href = `login.html?redirect=${encodeURIComponent(destinoMenu)}`
+}
+
+const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
+promesaTenant.then(tenant => {
+  if (tenant?.tipo === 'restaurante') mostrarOnboardingRestaurante(tenant)
+})
+
 setTimeout(() => {
+  if (esRestaurante) return
   if (window.location.pathname === '/splash.html' || window.location.href.includes('splash')) {
     console.log('[splash] tiempo agotado; se forzará la redirección al inicio de sesión')
     window.location.href = 'login.html'
@@ -87,7 +193,6 @@ setTimeout(() => {
 }, 5000)
 
 async function init() {
-  const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
   const promesaEsperaSplash = new Promise(resolve => setTimeout(resolve, 2000))
   let session = null
 
@@ -121,8 +226,11 @@ async function init() {
 
   await promesaEsperaSplash
 
+  if (esRestaurante) return
+
   if (session) {
     const tenant = await promesaTenant
+    if (tenant?.tipo === 'restaurante') return
     const tenantId = tenant?.id || window.tenantConfig?.id || 1
     let { data: rolData, error } = await db.from('usuario_tenant_roles')
       .select('rol')
@@ -158,6 +266,7 @@ async function init() {
 
   try {
     const tenant = await promesaTenant
+    if (tenant?.tipo === 'restaurante') return
     const slug = String(tenant?.slug || '').toLowerCase()
     const plan = String(tenant?.plan || '').toLowerCase()
 

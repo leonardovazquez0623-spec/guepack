@@ -131,7 +131,7 @@
   <div class="card">
     <span class="badge">Documento Legal</span>
     <h2>Política de Privacidad</h2>
-    <p class="fecha">Última actualización: 27 de junio de 2026</p>
+    <p class="fecha">Última actualización: 7 de agosto de 2026</p>
 
     <p>En <strong>GUEPACK Express</strong>, operado por <strong>Leonardo Vázquez Fajardo</strong> (RFC: VAFL98****CC3), con domicilio en Guadalajara, Jalisco, México, nos comprometemos a proteger la privacidad y los datos personales de nuestros usuarios. Esta Política de Privacidad describe cómo recopilamos, usamos y protegemos tu información cuando utilizas nuestra plataforma en <a href="https://guepack.com">guepack.com</a>.</p>
 
@@ -144,6 +144,11 @@
       <li><strong>Datos de uso:</strong> historial de pedidos, calificaciones, preferencias de la app.</li>
       <li><strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo, token de notificaciones push.</li>
       <li><strong>Evidencias de entrega:</strong> fotografías y firmas digitales capturadas durante el servicio.</li>
+      <li><strong>Ubicación en tiempo real:</strong> durante el servicio, la app del repartidor captura su posición GPS y rumbo (heading) para mostrar el avance de tu pedido en el mapa de rastreo.</li>
+      <li><strong>Ubicación de recolección y entrega:</strong> coordenadas (latitud/longitud) derivadas de las direcciones que proporcionas.</li>
+      <li><strong>Verificación telefónica:</strong> código enviado por SMS a tu número para confirmar tu identidad al registrarte (Firebase Phone Auth).</li>
+      <li><strong>Comprobantes de pago:</strong> capturas o archivos de comprobantes de transferencia bancaria que subas a la plataforma.</li>
+      <li><strong>Datos de facturación (cuentas corporativas):</strong> información de crédito semanal, historial de consumo y datos fiscales de la empresa afiliada.</li>
     </ul>
 
     <h3>2. Cómo usamos tu información</h3>
@@ -161,17 +166,22 @@
     <p>No vendemos ni compartimos tus datos personales con terceros, excepto:</p>
     <ul>
       <li><strong>Repartidores:</strong> reciben tu nombre, WhatsApp y dirección para completar la entrega.</li>
-      <li><strong>Proveedores tecnológicos:</strong> Supabase (base de datos), Firebase (notificaciones), Google Maps (mapas). Estos proveedores actúan como encargados de tratamiento bajo acuerdos de confidencialidad.</li>
+      <li><strong>Procesadores de pago:</strong> Conekta procesa los pagos con tarjeta de forma segura; GUEPACK Express no almacena los datos completos de tu tarjeta.</li>
+      <li><strong>Paqueterías nacionales:</strong> para envíos fuera de nuestra zona de cobertura local, compartimos el nombre, dirección y teléfono del destinatario con Skydropx y la paquetería que genera la guía (FedEx, DHL o Estafeta), únicamente lo necesario para completar el envío.</li>
+      <li><strong>Proveedores tecnológicos:</strong> Supabase (base de datos), Firebase (autenticación y notificaciones push), Google Maps (geocodificación de direcciones), Mapbox (mapa de rastreo en tiempo real) y Resend (envío de correos transaccionales y promocionales). Estos proveedores actúan como encargados de tratamiento bajo acuerdos de confidencialidad.</li>
       <li><strong>Autoridades:</strong> cuando sea requerido por ley o resolución judicial.</li>
     </ul>
 
-    <h3>4. Almacenamiento y seguridad</h3>
+    <h3>4. Nota sobre nuestro modelo de plataforma</h3>
+    <p>Algunos servicios de paquetería pueden ser operados por otros negocios utilizando la tecnología de GUEPACK Express bajo su propia marca. En esos casos, el tratamiento de tus datos sigue los mismos principios descritos en este aviso.</p>
+
+    <h3>5. Almacenamiento y seguridad</h3>
     <p>Tus datos se almacenan en servidores seguros con cifrado en tránsito (HTTPS) y en reposo. Implementamos medidas de seguridad técnicas incluyendo Row Level Security (RLS) en nuestra base de datos para garantizar que cada usuario solo acceda a su propia información.</p>
 
-    <h3>5. Retención de datos</h3>
-    <p>Conservamos tus datos mientras mantengas una cuenta activa con nosotros. Si solicitas la eliminación de tu cuenta, eliminaremos tus datos personales en un plazo de 30 días hábiles, excepto aquellos que debamos conservar por obligaciones fiscales o legales.</p>
+    <h3>6. Retención de datos</h3>
+    <p>Conservamos tus datos personales durante el tiempo necesario para cumplir con los fines descritos en este aviso y con nuestras obligaciones legales y fiscales. Si solicitas la eliminación de tu cuenta, procesaremos tu solicitud en un plazo razonable, salvo los datos que debamos conservar por obligación legal.</p>
 
-    <h3>6. Tus derechos (ARCO)</h3>
+    <h3>7. Tus derechos (ARCO)</h3>
     <p>De conformidad con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), tienes derecho a:</p>
     <ul>
       <li><strong>Acceso:</strong> conocer qué datos tenemos sobre ti.</li>
@@ -179,18 +189,19 @@
       <li><strong>Cancelación:</strong> solicitar la eliminación de tus datos.</li>
       <li><strong>Oposición:</strong> oponerte al tratamiento de tus datos.</li>
     </ul>
-    <p>Para ejercer estos derechos, contáctanos a través de los medios indicados al final de este documento.</p>
+    <p>Para ejercer estos derechos, envía tu solicitud a través de los medios de contacto indicados al final de este documento. Daremos respuesta dentro de los 20 días hábiles siguientes a la recepción de tu solicitud, conforme a la LFPDPPP. En caso de resultar procedente, haremos efectiva la solicitud dentro de los 15 días hábiles posteriores.</p>
 
-    <h3>7. Cookies y tecnologías similares</h3>
+    <h3>8. Cookies y tecnologías similares</h3>
     <p>Nuestra aplicación web utiliza almacenamiento local (localStorage) para mantener tu sesión activa y guardar preferencias. No utilizamos cookies de seguimiento publicitario de terceros.</p>
 
-    <h3>8. Notificaciones push</h3>
+    <h3>9. Notificaciones push y correo electrónico</h3>
     <p>Con tu consentimiento, enviamos notificaciones push a tu dispositivo para informarte sobre el estado de tus pedidos. Puedes desactivar estas notificaciones en cualquier momento desde la configuración de tu navegador o dispositivo.</p>
+    <p>También podemos enviarte correos electrónicos con fines de mercadotecnia, incluyendo campañas de reactivación con cupones de descuento. Puedes darte de baja de estas comunicaciones en cualquier momento a través del enlace incluido en cada correo o contactándonos directamente.</p>
 
-    <h3>9. Menores de edad</h3>
+    <h3>10. Menores de edad</h3>
     <p>Nuestros servicios están dirigidos a personas mayores de 18 años. No recopilamos intencionalmente datos de menores de edad.</p>
 
-    <h3>10. Cambios a esta política</h3>
+    <h3>11. Cambios a esta política</h3>
     <p>Nos reservamos el derecho de actualizar esta Política de Privacidad. Te notificaremos sobre cambios significativos a través de la aplicación o por correo electrónico. El uso continuado de nuestros servicios después de los cambios implica tu aceptación.</p>
 
     <div class="contacto-box">

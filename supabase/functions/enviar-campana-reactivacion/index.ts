@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { firmarBajaToken } from "../_shared/token-baja.ts";
 
 type Segmento = "nunca_pidieron" | "inactivos";
 
@@ -133,11 +134,23 @@ function generarCodigoCupon(
     : `GP15-${prefijoSegmento}-${parteAleatoria}`;
 }
 
+async function enlaceBaja(
+  supabaseUrl: string,
+  secret: string,
+  userId: string,
+): Promise<string> {
+  const token = await firmarBajaToken(userId, secret);
+  return `${supabaseUrl}/functions/v1/baja-campana?u=${
+    encodeURIComponent(userId)
+  }&t=${token}`;
+}
+
 function construirCorreo(
   segmento: Segmento,
   nombre: string | null,
   codigo: string,
   esPrueba: boolean,
+  bajaUrl: string,
 ) {
   const nombreLimpio = typeof nombre === "string" && nombre.trim()
     ? nombre.trim()
@@ -205,7 +218,8 @@ function construirCorreo(
                     </tr>
                     <tr>
                       <td style="padding:18px 28px;background:#f8fafc;text-align:center;font-size:12px;color:#6b7280;">
-                        GUEPACK Express · Este correo fue enviado porque tienes una cuenta de cliente.
+                        GUEPACK Express · Este correo fue enviado porque tienes una cuenta de cliente.<br>
+                        <a href="${bajaUrl}" style="color:#6b7280;">Darme de baja de correos promocionales</a>
                       </td>
                     </tr>
                   </table>
@@ -227,7 +241,9 @@ El cupón es de un solo uso y estará disponible durante 7 días.
 
 ¡Esperamos acompañarte en tu primer envío!
 
-GUEPACK Express`,
+GUEPACK Express
+
+Si no deseas recibir más correos promocionales, visita: ${bajaUrl}`,
     };
   }
 
@@ -276,7 +292,8 @@ GUEPACK Express`,
                   </tr>
                   <tr>
                     <td style="padding:18px 28px;background:#f8fafc;text-align:center;font-size:12px;color:#6b7280;">
-                      GUEPACK Express · Este correo fue enviado porque tienes una cuenta de cliente.
+                      GUEPACK Express · Este correo fue enviado porque tienes una cuenta de cliente.<br>
+                      <a href="${bajaUrl}" style="color:#6b7280;">Darme de baja de correos promocionales</a>
                     </td>
                   </tr>
                 </table>
@@ -298,7 +315,9 @@ El cupón es de un solo uso y estará vigente durante 7 días.
 
 Será un gusto volver a llevar tus envíos.
 
-GUEPACK Express`,
+GUEPACK Express
+
+Si no deseas recibir más correos promocionales, visita: ${bajaUrl}`,
   };
 }
 
@@ -564,11 +583,17 @@ Deno.serve(async (req) => {
         fechaExpiracion,
         esPrueba: true,
       });
+      const bajaUrlPrueba = await enlaceBaja(
+        supabaseUrl,
+        claveServicio,
+        llamador.id,
+      );
       const correo = construirCorreo(
         segmento,
         "Cliente de prueba",
         codigo,
         true,
+        bajaUrlPrueba,
       );
       await enviarConResend({
         apiKey: resendApiKey,
@@ -690,11 +715,17 @@ Deno.serve(async (req) => {
       }
 
       reservaCreada = true;
+      const bajaUrl = await enlaceBaja(
+        supabaseUrl,
+        claveServicio,
+        cliente.user_id,
+      );
       const correo = construirCorreo(
         segmento,
         cliente.nombre,
         codigo,
         false,
+        bajaUrl,
       );
       await enviarConResend({
         apiKey: resendApiKey,
