@@ -152,6 +152,7 @@
       console.warn('No se pudo guardar la configuración del tenant en la sesión:', error)
     }
     window.dispatchEvent(new CustomEvent('tenant-config-aplicada', { detail: tenant }))
+    window.dispatchEvent(new Event('tenantLoaded'))
   }
 
   function aplicarImagenesEnDocumento() {

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<script>document.documentElement.style.visibility = 'hidden'</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GUEPACK</title>
 <link rel="apple-touch-icon" href="/Icono_gp.png">
@@ -154,6 +155,13 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let esRestaurante = false
+let paginaRevelada = false
+
+function revelarPagina() {
+  if (paginaRevelada) return
+  paginaRevelada = true
+  document.documentElement.style.visibility = 'visible'
+}
 
 const elementosOnboarding = {
   legacy: document.getElementById('legacy-splash'),
@@ -179,10 +187,21 @@ function mostrarOnboardingRestaurante(tenant) {
   elementosOnboarding.login.href = `login.html?redirect=${encodeURIComponent(destinoMenu)}`
 }
 
+function decidirTipoYRevelar(tenant) {
+  if (tenant?.tipo === 'restaurante' && !esRestaurante) mostrarOnboardingRestaurante(tenant)
+  revelarPagina()
+}
+
+// tenant-config.js puede aplicar el tema de forma síncrona cuando hay caché en
+// sessionStorage (antes de que este script llegue a registrar el listener), así
+// que cubrimos ambos casos para no revelar la página con el splash equivocado.
+if (window.tenantConfig) decidirTipoYRevelar(window.tenantConfig)
+else window.addEventListener('tenantLoaded', () => decidirTipoYRevelar(window.tenantConfig), { once: true })
+// Red de seguridad: si el tenant nunca termina de cargar, no dejamos la página oculta.
+setTimeout(revelarPagina, 4000)
+
 const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
-promesaTenant.then(tenant => {
-  if (tenant?.tipo === 'restaurante') mostrarOnboardingRestaurante(tenant)
-})
+promesaTenant.then(decidirTipoYRevelar)
 
 setTimeout(() => {
   if (esRestaurante) return
