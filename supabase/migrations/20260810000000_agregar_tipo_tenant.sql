@@ -8,10 +8,10 @@ ALTER TABLE public.tenants
 
 ALTER TABLE public.tenants
   ADD CONSTRAINT tenants_tipo_valido
-  CHECK (tipo IN ('paqueteria', 'restaurante'));
+  CHECK (tipo IN ('paqueteria', 'restaurante', 'farmacia', 'supermercado'));
 
 COMMENT ON COLUMN public.tenants.tipo IS
-  'Tipo de negocio del tenant: paqueteria (splash/flujo actual) o restaurante (splash de bienvenida con menú). Default paqueteria para preservar el comportamiento de tenants existentes.';
+  'Tipo de negocio del tenant: paqueteria (splash/flujo actual), restaurante (splash de bienvenida con menú), farmacia o supermercado. Default paqueteria para preservar el comportamiento de tenants existentes.';
 
 CREATE OR REPLACE VIEW public.tenants_publico
 WITH (
