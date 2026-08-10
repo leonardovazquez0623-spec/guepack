@@ -160,6 +160,9 @@ let paginaRevelada = false
 function revelarPagina() {
   if (paginaRevelada) return
   paginaRevelada = true
+  if (window.tenantConfig?.color_primario) {
+    document.body.style.backgroundColor = window.tenantConfig.color_primario
+  }
   document.documentElement.style.visibility = 'visible'
 }
 
