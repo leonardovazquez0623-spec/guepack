@@ -260,11 +260,8 @@ async function init() {
 
   await promesaEsperaSplash
 
-  if (esRestaurante) return
-
   if (session) {
     const tenant = await promesaTenant
-    if (tenant?.tipo === 'restaurante') return
     const tenantId = tenant?.id || window.tenantConfig?.id || 1
     let { data: rolData, error } = await db.from('usuario_tenant_roles')
       .select('rol')
@@ -289,7 +286,13 @@ async function init() {
     }
 
     if (rolData.rol === 'admin') {
-      window.location.href = 'admin.html'
+      if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
+        window.location.replace('cocina.html')
+      } else {
+        window.location.replace('admin.html')
+      }
+    } else if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
+      return
     } else if (rolData.rol === 'repartidor') {
       window.location.href = 'repartidor.html'
     } else {
