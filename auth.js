@@ -281,9 +281,16 @@ async function loginEmail() {
 }
 
 async function loginGoogle() {
+  if (!tenantActualLogin && window.tenantConfigReady) {
+    tenantActualLogin = await window.tenantConfigReady
+  }
+  const slug = tenantActualLogin?.slug || window.tenantConfig?.slug || 'guepack'
   const { error } = await db.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: urlDelTenant('/redirect.html'), queryParams: { prompt: 'select_account' } }
+    options: {
+      redirectTo: `https://www.guepack.com/redirect.html?tenant=${encodeURIComponent(slug)}`,
+      queryParams: { prompt: 'select_account' }
+    }
   })
   if (error) showError('Error con Google: ' + error.message)
 }
