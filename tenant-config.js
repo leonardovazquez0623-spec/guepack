@@ -137,6 +137,14 @@
 
     if (tenant.nombre) document.title = tenant.nombre
 
+    const favicon = urlSegura(tenant.favicon_url)
+    if (favicon) {
+      const enlaceFavicon = document.querySelector("link[rel='icon']") || document.createElement('link')
+      enlaceFavicon.rel = 'icon'
+      enlaceFavicon.href = favicon
+      document.head.appendChild(enlaceFavicon)
+    }
+
     const logo = urlSegura(tenant.logo_url)
     if (logo) {
       document.querySelectorAll('[data-tenant-logo], img[src*="logo_principal"]').forEach(imagen => {
@@ -167,7 +175,7 @@
   async function consultarTenant(identificador) {
     const columna = identificador.tipo === 'dominio' ? 'dominio' : 'slug'
     const consulta = new URLSearchParams({
-      select: 'id,nombre,slug,dominio,plan,tipo,logo_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
+      select: 'id,nombre,slug,dominio,plan,tipo,logo_url,favicon_url,color_primario,color_secundario,nombre_app,ciudad,whatsapp_soporte,horario_atencion,img_bienvenida,img_encamino,img_recolectado,img_transito,img_entregado,img_soporte,activo',
       [columna]: `eq.${identificador.valor}`,
       activo: 'eq.true',
       limit: '1'

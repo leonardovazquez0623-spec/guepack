@@ -323,6 +323,8 @@ const estadosConfiguracionTenant = new Map()
 let tenantEditandoId = null
 let archivoLogoSeleccionado = null
 let urlTemporalLogo = null
+let archivoFaviconSeleccionado = null
+let urlTemporalFavicon = null
 const camposImagenesMascota = [
   { campo: 'img_bienvenida', etiqueta: 'Bienvenida / Home hero' },
   { campo: 'img_encamino', etiqueta: 'En camino a recolección' },
@@ -637,6 +639,16 @@ function abrirModalTenant(id = null) {
               <img id="tenant-logo-preview" src="${escaparAtributo(tenant?.logo_url || '')}" alt="Vista previa del logo" style="max-width:220px;max-height:80px;object-fit:contain">
             </div>
           </div>
+          <div class="campo-completo">
+            <label>Favicon (ícono del navegador)</label>
+            <small style="display:block;margin-bottom:9px;color:var(--gris-medio);font-size:10px;font-weight:700">Recomendado: 32x32px o 64x64px, formato .ico o .png</small>
+            <input type="file" id="tenant-favicon-archivo" accept=".ico,.png,image/x-icon,image/vnd.microsoft.icon,image/png" hidden>
+            <button type="button" class="boton boton-secundario" onclick="document.getElementById('tenant-favicon-archivo').click()">📷 Subir favicon</button>
+            <span id="tenant-favicon-nombre" style="margin-left:8px;color:var(--gris-medio);font-size:10px;font-weight:700">${tenant?.favicon_url ? 'Favicon actual' : 'Ningún archivo seleccionado'}</span>
+            <div id="tenant-favicon-preview-contenedor" style="display:${tenant?.favicon_url ? 'flex' : 'none'};align-items:center;justify-content:center;margin-top:9px;padding:12px;background:#f4f6fb;border-radius:10px;min-height:70px">
+              <img id="tenant-favicon-preview" src="${escaparAtributo(tenant?.favicon_url || '')}" alt="Vista previa del favicon" style="width:64px;height:64px;object-fit:contain">
+            </div>
+          </div>
           <div><label for="tenant-color-primario">Color primario</label><input type="color" id="tenant-color-primario" value="${colorValido(tenant?.color_primario, '#1E56C7')}"></div>
           <div><label for="tenant-color-secundario">Color secundario</label><input type="color" id="tenant-color-secundario" value="${colorValido(tenant?.color_secundario, '#F05A1A')}"></div>
           <div><label for="tenant-nombre-app">Nombre de la app</label><input id="tenant-nombre-app" maxlength="120" placeholder="MiPaquetería" value="${escaparAtributo(tenant?.nombre_app || '')}"></div>
@@ -708,6 +720,11 @@ function abrirModalTenant(id = null) {
   campoLogo.addEventListener('change', actualizarVistaPreviaLogo)
   document.getElementById('tenant-logo-preview').addEventListener('error', () => {
     document.getElementById('tenant-logo-preview-contenedor').style.display = 'none'
+  })
+  const campoFavicon = document.getElementById('tenant-favicon-archivo')
+  campoFavicon.addEventListener('change', actualizarVistaPreviaFavicon)
+  document.getElementById('tenant-favicon-preview').addEventListener('error', () => {
+    document.getElementById('tenant-favicon-preview-contenedor').style.display = 'none'
   })
   document.getElementById('form-tenant').addEventListener('submit', guardarTenant)
   if (tenant) {
@@ -808,9 +825,12 @@ async function quitarAdministradorTenant(boton) {
 function cerrarModalTenant() {
   document.getElementById('modal-tenant')?.remove()
   if (urlTemporalLogo) URL.revokeObjectURL(urlTemporalLogo)
+  if (urlTemporalFavicon) URL.revokeObjectURL(urlTemporalFavicon)
   Object.values(urlsTemporalesMascota).forEach(url => URL.revokeObjectURL(url))
   urlTemporalLogo = null
   archivoLogoSeleccionado = null
+  urlTemporalFavicon = null
+  archivoFaviconSeleccionado = null
   urlsImagenesTenant = {}
   urlsTemporalesMascota = {}
   subidasMascotaEnCurso = 0
@@ -847,6 +867,38 @@ function actualizarVistaPreviaLogo(evento) {
   nombre.textContent = archivo.name
 }
 
+function actualizarVistaPreviaFavicon(evento) {
+  const archivo = evento.target.files?.[0] || null
+  const contenedor = document.getElementById('tenant-favicon-preview-contenedor')
+  const imagen = document.getElementById('tenant-favicon-preview')
+  const nombre = document.getElementById('tenant-favicon-nombre')
+  if (!archivo) {
+    archivoFaviconSeleccionado = null
+    contenedor.style.display = 'none'
+    imagen.removeAttribute('src')
+    nombre.textContent = 'Ningún archivo seleccionado'
+    return
+  }
+  const extensionValida = /\.(ico|png)$/i.test(archivo.name)
+  const tipoValido = ['image/png', 'image/x-icon', 'image/vnd.microsoft.icon', ''].includes(archivo.type)
+  if (!extensionValida || !tipoValido) {
+    evento.target.value = ''
+    mostrarToast('❌ Selecciona un favicon en formato .ico o .png')
+    return
+  }
+  if (archivo.size > 1024 * 1024) {
+    evento.target.value = ''
+    mostrarToast('❌ El favicon no debe superar 1 MB')
+    return
+  }
+  if (urlTemporalFavicon) URL.revokeObjectURL(urlTemporalFavicon)
+  archivoFaviconSeleccionado = archivo
+  urlTemporalFavicon = URL.createObjectURL(archivo)
+  imagen.src = urlTemporalFavicon
+  contenedor.style.display = 'flex'
+  nombre.textContent = archivo.name
+}
+
 async function subirLogoTenant(slug, boton) {
   if (!archivoLogoSeleccionado) return null
   boton.innerHTML = '<span class="spinner-logo"></span> Subiendo logo...'
@@ -854,6 +906,20 @@ async function subirLogoTenant(slug, boton) {
   const { error } = await db.storage.from('anuncios').upload(ruta, archivoLogoSeleccionado, {
     upsert: true,
     contentType: archivoLogoSeleccionado.type,
+    cacheControl: '3600'
+  })
+  if (error) throw error
+  const { data } = db.storage.from('anuncios').getPublicUrl(ruta)
+  return `${data.publicUrl}?actualizacion=${Date.now()}`
+}
+
+async function subirFaviconTenant(slug, boton) {
+  if (!archivoFaviconSeleccionado) return null
+  boton.innerHTML = '<span class="spinner-logo"></span> Subiendo favicon...'
+  const ruta = `favicons/${slug}.png`
+  const { error } = await db.storage.from('anuncios').upload(ruta, archivoFaviconSeleccionado, {
+    upsert: true,
+    contentType: archivoFaviconSeleccionado.type || 'image/x-icon',
     cacheControl: '3600'
   })
   if (error) throw error
@@ -936,6 +1002,7 @@ async function guardarTenant(evento) {
     : tenants.find(item => String(item.id) === String(tenantEditandoId))
   boton.disabled = true
   let logoUrl = tenantActual?.logo_url || null
+  let faviconUrl = tenantActual?.favicon_url || null
   if (archivoLogoSeleccionado) {
     try {
       logoUrl = await subirLogoTenant(slug, boton)
@@ -947,11 +1014,23 @@ async function guardarTenant(evento) {
       return
     }
   }
+  if (archivoFaviconSeleccionado) {
+    try {
+      faviconUrl = await subirFaviconTenant(slug, boton)
+    } catch (error) {
+      console.error('Error al subir el favicon del tenant:', error)
+      mostrarToast('❌ No se pudo subir el favicon')
+      boton.disabled = false
+      boton.textContent = tenantEditandoId == null ? 'Crear tenant' : 'Guardar cambios'
+      return
+    }
+  }
   const datos = {
     nombre: document.getElementById('tenant-nombre').value.trim(),
     slug,
     dominio: document.getElementById('tenant-dominio').value.trim() || null,
     logo_url: logoUrl,
+    favicon_url: faviconUrl,
     color_primario: document.getElementById('tenant-color-primario').value,
     color_secundario: document.getElementById('tenant-color-secundario').value,
     nombre_app: document.getElementById('tenant-nombre-app').value.trim() || null,
