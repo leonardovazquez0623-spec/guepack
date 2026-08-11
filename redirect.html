@@ -64,8 +64,6 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 })
 
 let redireccionEnCurso = false
-const parametrosUrl = new URLSearchParams(window.location.search)
-const tenantSlug = (parametrosUrl.get('tenant') || 'guepack').trim().toLowerCase()
 
 async function esperarTenantActual() {
   if (window.tenantConfigReady) {
@@ -91,19 +89,8 @@ async function redirigirPorRol(session) {
   if (!session?.user || redireccionEnCurso) return
   redireccionEnCurso = true
 
-  const { data: tenantConsultado, error: errorTenant } = await db.from('tenants_publico')
-    .select('id,tipo,slug,dominio')
-    .eq('slug', tenantSlug)
-    .eq('activo', true)
-    .single()
-
-  if (errorTenant) {
-    console.warn('[redirect] No fue posible consultar el tenant solicitado:', errorTenant.message)
-  }
-
-  const tenantDetectado = await esperarTenantActual()
-  const tenant = tenantConsultado || tenantDetectado || window.tenantConfig
-  const tenantId = tenant?.id || 1
+  const tenant = await esperarTenantActual()
+  const tenantId = tenant?.id || window.tenantConfig?.id || 1
   const { data: rolData, error } = await db.from('usuario_tenant_roles')
     .select('rol')
     .eq('user_id', session.user.id)
@@ -115,33 +102,15 @@ async function redirigirPorRol(session) {
   }
   console.log('[redirect] tenant:', tenantId, 'rol:', rolData?.rol)
 
-  const dominioPredeterminado = tenant?.slug === 'guepack'
-    ? 'www.guepack.com'
-    : `${tenant?.slug || 'guepack'}.guepack.com`
-  const dominioTenant = String(tenant?.dominio || dominioPredeterminado).trim()
-  let origenTenant
-  try {
-    const urlTenant = new URL(dominioTenant.includes('://') ? dominioTenant : `https://${dominioTenant}`)
-    if (!['http:', 'https:'].includes(urlTenant.protocol) || !urlTenant.hostname) throw new Error('dominio no válido')
-    urlTenant.protocol = 'https:'
-    urlTenant.pathname = '/'
-    urlTenant.search = ''
-    urlTenant.hash = ''
-    origenTenant = urlTenant.origin
-  } catch (errorDominio) {
-    console.warn('[redirect] Dominio del tenant no válido; se usará el dominio predeterminado:', errorDominio.message)
-    origenTenant = `https://${dominioPredeterminado}`
-  }
-
-  if (tenant?.tipo === 'restaurante') {
-    if (rolData?.rol === 'admin') window.location.replace(`${origenTenant}/cocina.html`)
-    else window.location.replace(`${origenTenant}/menu.html`)
+  if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
+    if (rolData?.rol === 'admin') window.location.replace('/cocina.html')
+    else window.location.replace('/menu.html')
   } else if (rolData?.rol === 'admin') {
-    window.location.replace(`${origenTenant}/admin.html`)
+    window.location.replace('/admin.html')
   } else if (rolData?.rol === 'repartidor') {
-    window.location.replace(`${origenTenant}/repartidor.html`)
+    window.location.replace('/repartidor.html')
   } else {
-    window.location.replace(`${origenTenant}/app.html`)
+    window.location.replace('/app.html')
   }
 }
 
