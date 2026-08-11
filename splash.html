@@ -175,6 +175,11 @@ const elementosOnboarding = {
   login: document.getElementById('onboarding-login')
 }
 
+elementosOnboarding.comenzar.addEventListener('click', evento => {
+  evento.preventDefault()
+  comenzar()
+})
+
 function mostrarOnboardingRestaurante(tenant) {
   esRestaurante = true
   elementosOnboarding.legacy.hidden = true
@@ -226,6 +231,68 @@ setTimeout(() => {
   }
 }, 5000)
 
+async function decidirRolYRedirigir(session, { mantenerOnboardingRestaurante = false } = {}) {
+  const tenant = await promesaTenant
+  const tenantId = tenant?.id || window.tenantConfig?.id || 1
+  const esTenantRestaurante = tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante'
+  let { data: rolData, error } = await db.from('usuario_tenant_roles')
+    .select('rol')
+    .eq('user_id', session.user.id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+
+  if (error) {
+    console.warn('[auth] No fue posible consultar el rol del tenant:', error.message)
+  }
+
+  const { data: usuarioData, error: errorSuperadmin } = await db.from('usuarios')
+    .select('es_superadmin')
+    .eq('user_id', session.user.id)
+    .maybeSingle()
+  if (errorSuperadmin) {
+    console.warn('[auth] No fue posible comprobar si el usuario es superadmin:', errorSuperadmin.message)
+  }
+
+  const esAdmin = rolData?.rol === 'admin'
+  const esSuperadmin = usuarioData?.es_superadmin === true
+
+  if (!rolData && !esSuperadmin) {
+    const { error: errorCrearRol } = await db.from('usuario_tenant_roles').insert({
+      user_id: session.user.id,
+      tenant_id: tenantId,
+      rol: 'cliente'
+    })
+    if (errorCrearRol && errorCrearRol.code !== '23505') {
+      console.error('[auth] No fue posible crear el rol cliente del tenant:', errorCrearRol)
+    }
+    rolData = { rol: 'cliente' }
+  }
+
+  if (esAdmin || esSuperadmin) {
+    window.location.replace(esTenantRestaurante ? 'cocina.html' : 'admin.html')
+  } else if (esTenantRestaurante) {
+    if (mantenerOnboardingRestaurante) return
+    window.location.href = `menu.html${location.search}`
+  } else if (rolData?.rol === 'repartidor') {
+    window.location.href = 'repartidor.html'
+  } else {
+    window.location.href = 'app.html'
+  }
+}
+
+async function comenzar() {
+  const { data: { session }, error } = await db.auth.getSession()
+  if (error) {
+    console.warn('[auth] No fue posible comprobar la sesión al comenzar:', error.message)
+  }
+
+  if (session) {
+    await decidirRolYRedirigir(session)
+  } else {
+    window.location.href = `menu.html${location.search}`
+  }
+}
+
 async function init() {
   const promesaEsperaSplash = new Promise(resolve => setTimeout(resolve, 2000))
   let session = null
@@ -261,54 +328,7 @@ async function init() {
   await promesaEsperaSplash
 
   if (session) {
-    const tenant = await promesaTenant
-    const tenantId = tenant?.id || window.tenantConfig?.id || 1
-    let { data: rolData, error } = await db.from('usuario_tenant_roles')
-      .select('rol')
-      .eq('user_id', session.user.id)
-      .eq('tenant_id', tenantId)
-      .maybeSingle()
-
-    if (error) {
-      console.warn('[auth] No fue posible consultar el rol del tenant:', error.message)
-    }
-
-    const { data: usuarioData, error: errorSuperadmin } = await db.from('usuarios')
-      .select('es_superadmin')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-    if (errorSuperadmin) {
-      console.warn('[auth] No fue posible comprobar si el usuario es superadmin:', errorSuperadmin.message)
-    }
-
-    const esAdmin = rolData?.rol === 'admin'
-    const esSuperadmin = usuarioData?.es_superadmin === true
-
-    if (!rolData && !esSuperadmin) {
-      const { error: errorCrearRol } = await db.from('usuario_tenant_roles').insert({
-        user_id: session.user.id,
-        tenant_id: tenantId,
-        rol: 'cliente'
-      })
-      if (errorCrearRol && errorCrearRol.code !== '23505') {
-        console.error('[auth] No fue posible crear el rol cliente del tenant:', errorCrearRol)
-      }
-      rolData = { rol: 'cliente' }
-    }
-
-    if (esAdmin || esSuperadmin) {
-      if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
-        window.location.replace('cocina.html')
-      } else {
-        window.location.replace('admin.html')
-      }
-    } else if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
-      return
-    } else if (rolData?.rol === 'repartidor') {
-      window.location.href = 'repartidor.html'
-    } else {
-      window.location.href = 'app.html'
-    }
+    await decidirRolYRedirigir(session, { mantenerOnboardingRestaurante: true })
     return
   }
 
