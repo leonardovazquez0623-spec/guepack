@@ -52,7 +52,7 @@ self.addEventListener('notificationclick', function(event) {
     })
   )
 })
-const CACHE_NAME = 'guepack-v11'
+const CACHE_NAME = 'guepack-v12'
 
 self.addEventListener('install', event => {
   self.skipWaiting()

@@ -37,12 +37,8 @@ SELECT
 FROM public.tenants
 WHERE activo IS TRUE;
 
-REVOKE ALL
-ON public.tenants_publico
-FROM PUBLIC;
-
-GRANT SELECT
-ON public.tenants_publico
-TO anon, authenticated;
+UPDATE public.tenants
+SET dominio = lower(btrim(dominio))
+WHERE dominio IS DISTINCT FROM lower(btrim(dominio));
 
 COMMIT;
