@@ -1795,6 +1795,8 @@
               : 'Pendiente',
             user_id: session.user.id,
             tenant_id: tenantId(),
+            sucursal_id: idRegistro(estado.sucursal),
+            estado_cocina: 'nuevo',
             instrucciones: instrucciones || null,
             metodo_pago: metodo,
             token_rastreo: token,
