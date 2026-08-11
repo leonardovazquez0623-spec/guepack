@@ -203,7 +203,19 @@ else window.addEventListener('tenantLoaded', () => decidirTipoYRevelar(window.te
 // Red de seguridad: si el tenant nunca termina de cargar, no dejamos la página oculta.
 setTimeout(revelarPagina, 4000)
 
-const promesaTenant = window.tenantConfigReady || Promise.resolve(null)
+function esperarTenantActual() {
+  if (window.tenantConfigReady) {
+    return window.tenantConfigReady.then(tenant => tenant || window.tenantConfig)
+  }
+  if (window.tenantConfig) return Promise.resolve(window.tenantConfig)
+
+  return new Promise(resolve => {
+    window.addEventListener('tenantLoaded', () => resolve(window.tenantConfig), { once: true })
+  })
+}
+
+// La detección del tenant debe terminar antes de consultar el rol del usuario.
+const promesaTenant = esperarTenantActual()
 promesaTenant.then(decidirTipoYRevelar)
 
 setTimeout(() => {
