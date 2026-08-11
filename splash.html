@@ -273,7 +273,18 @@ async function init() {
       console.warn('[auth] No fue posible consultar el rol del tenant:', error.message)
     }
 
-    if (!rolData) {
+    const { data: usuarioData, error: errorSuperadmin } = await db.from('usuarios')
+      .select('es_superadmin')
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+    if (errorSuperadmin) {
+      console.warn('[auth] No fue posible comprobar si el usuario es superadmin:', errorSuperadmin.message)
+    }
+
+    const esAdmin = rolData?.rol === 'admin'
+    const esSuperadmin = usuarioData?.es_superadmin === true
+
+    if (!rolData && !esSuperadmin) {
       const { error: errorCrearRol } = await db.from('usuario_tenant_roles').insert({
         user_id: session.user.id,
         tenant_id: tenantId,
@@ -285,7 +296,7 @@ async function init() {
       rolData = { rol: 'cliente' }
     }
 
-    if (rolData.rol === 'admin') {
+    if (esAdmin || esSuperadmin) {
       if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
         window.location.replace('cocina.html')
       } else {
@@ -293,7 +304,7 @@ async function init() {
       }
     } else if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
       return
-    } else if (rolData.rol === 'repartidor') {
+    } else if (rolData?.rol === 'repartidor') {
       window.location.href = 'repartidor.html'
     } else {
       window.location.href = 'app.html'
