@@ -31,10 +31,13 @@ async function enviarCodigoSMS(whatsapp) {
   const boton = document.getElementById('btn-enviar-codigo')
 
   // PASO 1: validar duplicado antes de crear reCAPTCHA o llamar a Firebase.
+  if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
+  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
   const { data: { session } } = await db.auth.getSession()
   let consultaDuplicado = db.from('usuarios')
     .select('user_id')
     .eq('whatsapp', whatsapp)
+    .eq('tenant_id', tenantId)
   if (session?.user?.id) consultaDuplicado = consultaDuplicado.neq('user_id', session.user.id)
   const { data: whatsappExistente, error: errorConsulta } = await consultaDuplicado.maybeSingle()
   if (errorConsulta) console.warn('[WhatsApp] No se pudo consultar duplicado:', errorConsulta.message)
@@ -329,6 +332,7 @@ async function recuperarPassword() {
 
 async function registrar() {
   if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
+  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
   if (!_regWhatsappVerificado) return showError('Debes verificar tu WhatsApp antes de continuar')
   const nombre = document.getElementById('reg-nombre').value.trim()
   const email = document.getElementById('reg-email').value.trim()
@@ -341,7 +345,11 @@ async function registrar() {
   if (nombre.length > 100 || !/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]+$/.test(nombre)) return showError('El nombre solo puede contener letras y espacios, máximo 100 caracteres')
   if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[!@#$%^&*(),.?":{}|<>]/.test(password)) return showError('La contraseña no cumple los requisitos de seguridad')
   if (!/^\d{10}$/.test(whatsapp)) return showError('El WhatsApp debe tener exactamente 10 dígitos')
-  const { data: duplicado } = await db.from('usuarios').select('id').eq('whatsapp', whatsapp).maybeSingle()
+  const { data: duplicado } = await db.from('usuarios')
+    .select('id')
+    .eq('whatsapp', whatsapp)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
   if (duplicado) return showError('Este número de WhatsApp ya está registrado')
   if (empresaCodigo) {
     const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activa', true).maybeSingle()
@@ -364,7 +372,6 @@ async function registrar() {
   })
   if (error) return showError('Error al crear cuenta: ' + error.message)
   if (data?.user) {
-    const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
     if (tenantActualLogin?.id) {
       const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
       if (errorTenant) console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
