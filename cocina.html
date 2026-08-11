@@ -127,8 +127,11 @@
   .prod-price-edit.editing { display: flex; }
   .prod-price-edit input { width: 84px; padding: 5px 7px; border: 2px solid var(--gray); border-radius: 7px; font-size: 12px; font-weight: 700; }
   .prod-price-edit button { border: none; border-radius: 7px; padding: 5px 9px; font-size: 10px; font-weight: 900; }
-  .prod-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .prod-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex: 0 0 auto; flex-wrap: wrap; }
   .icon-btn { border: none; background: var(--gray-light); border-radius: 9px; width: 30px; height: 30px; font-size: 13px; }
+  .prod-action-btn { border: none; border-radius: 8px; padding: 7px 9px; font-size: 10px; font-weight: 900; }
+  .prod-action-btn.edit { background: var(--gray-light); color: var(--blue); }
+  .prod-action-btn.delete { background: #fee2e2; color: var(--danger); }
   .empty-state { text-align: center; padding: 34px 20px; color: var(--gray-mid); }
   .empty-state .empty-icon { font-size: 36px; display: block; margin-bottom: 8px; }
 
@@ -152,6 +155,10 @@
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--color-primary-dark); color: #fff; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 700; z-index: 99999; transition: transform .3s; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.3); pointer-events: none; }
   #toast.show { transform: translateX(-50%) translateY(0); }
   #toast.error { background: var(--danger); }
+  .toast-confirmacion { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100000; width: min(420px, calc(100vw - 32px)); padding: 16px; border-radius: 14px; background: white; box-shadow: 0 14px 45px rgba(0,0,0,.3); border: 1px solid var(--gray); }
+  .toast-confirmacion-mensaje { color: var(--text); font-size: 13px; font-weight: 800; line-height: 1.5; }
+  .toast-confirmacion-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 13px; }
+  .toast-confirmacion-acciones .btn { width: auto; }
 
   #cargando { position: fixed; inset: 0; background: var(--gray-light); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
   #cargando img { width: 64px; height: 64px; animation: girar 1.1s linear infinite; }
@@ -590,14 +597,10 @@ function renderizarFilaProducto(producto) {
       <div class="prod-info">
         <div class="prod-name">${escaparHtml(producto.nombre)}</div>
         <div class="prod-price" id="prod-price-${producto.id}">${moneda(producto.precio)}</div>
-        <div class="prod-price-edit" id="prod-price-edit-${producto.id}">
-          <input type="number" min="0" step="0.01" id="prod-price-input-${producto.id}" value="${Number(producto.precio) || 0}">
-          <button class="btn-secondary" onclick="guardarPrecioProducto(${producto.id})">Guardar</button>
-          <button class="btn-secondary" onclick="cancelarEdicionPrecio(${producto.id})">✕</button>
-        </div>
       </div>
       <div class="prod-actions">
-        <button class="icon-btn" onclick="editarPrecioProducto(${producto.id})">✏️</button>
+        <button class="prod-action-btn edit" onclick="abrirModalProducto(${producto.id})">✏️ Editar</button>
+        <button class="prod-action-btn delete" onclick="confirmarEliminarProducto(${producto.id})">🗑️ Eliminar</button>
         <label class="toggle">
           <input type="checkbox" ${producto.disponible !== false ? 'checked' : ''} onchange="toggleDisponible(${producto.id}, this.checked)">
           <span class="toggle-slider"></span>
@@ -622,31 +625,21 @@ async function toggleDisponible(id, disponible) {
   mostrarToast(disponible ? 'Producto disponible' : 'Producto marcado como no disponible')
 }
 
-function editarPrecioProducto(id) {
-  document.getElementById('prod-price-edit-' + id).classList.add('editing')
-}
-function cancelarEdicionPrecio(id) {
-  document.getElementById('prod-price-edit-' + id).classList.remove('editing')
-}
-async function guardarPrecioProducto(id) {
-  const input = document.getElementById('prod-price-input-' + id)
-  const precio = Number(input.value)
-  if (!Number.isFinite(precio) || precio < 0) { mostrarToast('Precio inválido', true); return }
-  const { error } = await db.from('menu_productos').update({ precio }).eq('id', id).eq('tenant_id', TENANT_ID)
-  if (error) { mostrarToast('No se pudo actualizar el precio', true); return }
-  const producto = productos.find(p => p.id === id)
-  if (producto) producto.precio = precio
-  document.getElementById('prod-price-' + id).textContent = moneda(precio)
-  cancelarEdicionPrecio(id)
-  mostrarToast('Precio actualizado')
-}
-
 let archivoProductoSeleccionado = null
+let productoEditandoId = null
+let urlTemporalProducto = null
 
-function abrirModalProducto() {
+function abrirModalProducto(productoId = null) {
+  cerrarModalProducto()
   archivoProductoSeleccionado = null
+  productoEditandoId = productoId
+  const producto = productoId == null ? null : productos.find(item => String(item.id) === String(productoId))
+  if (productoId != null && !producto) {
+    mostrarToast('No se encontró el producto', true)
+    return
+  }
   const opcionesCategoria = categorias.map(categoria =>
-    `<option value="${categoria.id}">${escaparHtml(categoria.nombre)}</option>`
+    `<option value="${categoria.id}" ${String(producto?.categoria_id ?? '') === String(categoria.id) ? 'selected' : ''}>${escaparHtml(categoria.nombre)}</option>`
   ).join('')
 
   const fondo = document.createElement('div')
@@ -654,46 +647,65 @@ function abrirModalProducto() {
   fondo.className = 'modal-fondo'
   fondo.innerHTML = `
     <div class="modal">
-      <div class="modal-titulo">Agregar producto</div>
+      <div class="modal-titulo">${producto ? 'Editar producto' : 'Agregar producto'}</div>
       <form id="form-producto">
-        <div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="prod-nombre" required maxlength="120"></div>
-        <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="prod-descripcion" maxlength="300"></div>
-        <div class="form-group"><label class="form-label">Precio *</label><input class="form-input" type="number" id="prod-precio" min="0" step="0.01" required></div>
+        <div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="prod-nombre" required maxlength="120" value="${escaparAtributo(producto?.nombre || '')}"></div>
+        <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="prod-descripcion" maxlength="300" value="${escaparAtributo(producto?.descripcion || '')}"></div>
+        <div class="form-group"><label class="form-label">Precio *</label><input class="form-input" type="number" id="prod-precio" min="0" step="0.01" required value="${producto ? Number(producto.precio) || 0 : ''}"></div>
         <div class="form-group">
           <label class="form-label">Categoría</label>
-          <select class="form-input" id="prod-categoria">${opcionesCategoria || '<option value="">Sin categorías</option>'}</select>
+          <select class="form-input" id="prod-categoria"><option value="" ${producto?.categoria_id == null ? 'selected' : ''}>Sin categoría</option>${opcionesCategoria}</select>
         </div>
         <div class="form-group">
           <label class="form-label">Foto</label>
           <input type="file" id="prod-foto" accept="image/*" hidden>
           <button type="button" class="btn btn-secondary" style="width:100%" onclick="document.getElementById('prod-foto').click()">📷 Subir foto</button>
-          <div id="prod-foto-nombre" style="font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:6px">Ningún archivo seleccionado</div>
+          <div id="prod-foto-nombre" style="font-size:11px;color:var(--gray-mid);font-weight:700;margin-top:6px">${producto?.imagen_url ? 'Foto actual' : 'Ningún archivo seleccionado'}</div>
+          <div id="prod-foto-preview-contenedor" style="display:${producto?.imagen_url ? 'flex' : 'none'};justify-content:center;margin-top:9px;padding:10px;background:var(--gray-light);border-radius:10px">
+            <img id="prod-foto-preview" src="${escaparAtributo(producto?.imagen_url || '')}" alt="Vista previa del producto" style="width:110px;height:110px;border-radius:10px;object-fit:cover">
+          </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-producto').remove()">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btn-guardar-producto">Guardar</button>
+          <button type="button" class="btn btn-secondary" onclick="cerrarModalProducto()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-guardar-producto">${producto ? 'Guardar cambios' : 'Guardar'}</button>
         </div>
       </form>
     </div>`
-  fondo.addEventListener('click', evento => { if (evento.target === fondo) fondo.remove() })
+  fondo.addEventListener('click', evento => { if (evento.target === fondo) cerrarModalProducto() })
   document.body.appendChild(fondo)
 
   document.getElementById('prod-foto').addEventListener('change', evento => {
     archivoProductoSeleccionado = evento.target.files?.[0] || null
     document.getElementById('prod-foto-nombre').textContent = archivoProductoSeleccionado?.name || 'Ningún archivo seleccionado'
+    if (urlTemporalProducto) URL.revokeObjectURL(urlTemporalProducto)
+    if (archivoProductoSeleccionado) {
+      urlTemporalProducto = URL.createObjectURL(archivoProductoSeleccionado)
+      document.getElementById('prod-foto-preview').src = urlTemporalProducto
+      document.getElementById('prod-foto-preview-contenedor').style.display = 'flex'
+    }
   })
-  document.getElementById('form-producto').addEventListener('submit', guardarProductoNuevo)
+  document.getElementById('form-producto').addEventListener('submit', guardarProducto)
   document.getElementById('prod-nombre').focus()
 }
 
-async function guardarProductoNuevo(evento) {
+function cerrarModalProducto() {
+  document.getElementById('modal-producto')?.remove()
+  if (urlTemporalProducto) URL.revokeObjectURL(urlTemporalProducto)
+  urlTemporalProducto = null
+  archivoProductoSeleccionado = null
+  productoEditandoId = null
+}
+
+async function guardarProducto(evento) {
   evento.preventDefault()
   const boton = document.getElementById('btn-guardar-producto')
+  const idEditando = productoEditandoId
+  const productoActual = idEditando == null ? null : productos.find(item => String(item.id) === String(idEditando))
   boton.disabled = true
   boton.textContent = 'Guardando...'
 
   try {
-    let imagenUrl = null
+    let imagenUrl = productoActual?.imagen_url || null
     if (archivoProductoSeleccionado) {
       const extension = (archivoProductoSeleccionado.name.split('.').pop() || 'jpg').toLowerCase()
       const ruta = `menu-productos/${TENANT_ID}/${crypto.randomUUID()}.${extension}`
@@ -704,29 +716,73 @@ async function guardarProductoNuevo(evento) {
     }
 
     const categoriaId = document.getElementById('prod-categoria').value
-    const payload = {
-      tenant_id: TENANT_ID,
-      sucursal_id: SUCURSAL_ID,
+    const datosProducto = {
       categoria_id: categoriaId ? Number(categoriaId) : null,
       nombre: document.getElementById('prod-nombre').value.trim(),
       descripcion: document.getElementById('prod-descripcion').value.trim() || null,
       precio: Number(document.getElementById('prod-precio').value) || 0,
-      imagen_url: imagenUrl,
-      disponible: true,
-      orden: productos.length
+      imagen_url: imagenUrl
     }
-    const { error } = await db.from('menu_productos').insert(payload)
+    const { error } = idEditando == null
+      ? await db.from('menu_productos').insert({
+          ...datosProducto,
+          tenant_id: TENANT_ID,
+          sucursal_id: SUCURSAL_ID,
+          disponible: true,
+          orden: productos.length
+        })
+      : await db.from('menu_productos').update(datosProducto)
+          .eq('id', idEditando)
+          .eq('tenant_id', TENANT_ID)
+          .eq('sucursal_id', SUCURSAL_ID)
     if (error) throw error
 
-    document.getElementById('modal-producto')?.remove()
-    mostrarToast('Producto agregado')
+    cerrarModalProducto()
+    mostrarToast(idEditando == null ? 'Producto agregado' : 'Producto actualizado')
     await cargarMenuCocina()
   } catch (error) {
     console.error('[cocina] Error al guardar producto:', error)
     mostrarToast('No se pudo guardar el producto', true)
     boton.disabled = false
-    boton.textContent = 'Guardar'
+    boton.textContent = idEditando == null ? 'Guardar' : 'Guardar cambios'
   }
+}
+
+function confirmarEliminarProducto(productoId) {
+  const producto = productos.find(item => String(item.id) === String(productoId))
+  if (!producto) return
+  document.getElementById('confirmacion-eliminar-producto')?.remove()
+  const confirmacion = document.createElement('div')
+  confirmacion.id = 'confirmacion-eliminar-producto'
+  confirmacion.className = 'toast-confirmacion'
+  confirmacion.setAttribute('role', 'alertdialog')
+  confirmacion.setAttribute('aria-modal', 'true')
+  confirmacion.innerHTML = `
+    <div class="toast-confirmacion-mensaje">¿Eliminar ${escaparHtml(producto.nombre)}? Esta acción no se puede deshacer</div>
+    <div class="toast-confirmacion-acciones">
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('confirmacion-eliminar-producto')?.remove()">Cancelar</button>
+      <button type="button" class="btn" style="background:var(--danger);color:white" onclick="eliminarProducto(${producto.id}, this)">🗑️ Eliminar</button>
+    </div>`
+  document.body.appendChild(confirmacion)
+}
+
+async function eliminarProducto(productoId, boton) {
+  boton.disabled = true
+  boton.textContent = 'Eliminando...'
+  const { error } = await db.from('menu_productos')
+    .delete()
+    .eq('id', productoId)
+    .eq('tenant_id', TENANT_ID)
+    .eq('sucursal_id', SUCURSAL_ID)
+  if (error) {
+    boton.disabled = false
+    boton.textContent = '🗑️ Eliminar'
+    mostrarToast('No se pudo eliminar el producto', true)
+    return
+  }
+  document.getElementById('confirmacion-eliminar-producto')?.remove()
+  mostrarToast('Producto eliminado')
+  await cargarMenuCocina()
 }
 
 db.auth.onAuthStateChange(evento => {
