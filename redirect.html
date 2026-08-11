@@ -55,6 +55,7 @@
 </div>
 
 <script src="/supabase-local.js"></script>
+<script src="/tenant-config.js"></script>
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_nde3IHFs-CJqqY0w5gV77g_FbtKtH7z'
@@ -64,23 +65,53 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 let redireccionEnCurso = false
 
+async function esperarTenantActual() {
+  if (window.tenantConfigReady) {
+    await Promise.race([
+      window.tenantConfigReady,
+      new Promise(resolve => setTimeout(resolve, 3000))
+    ])
+    return window.tenantConfig
+  }
+  if (window.tenantConfig) return window.tenantConfig
+
+  await new Promise(resolve => {
+    const temporizador = setTimeout(resolve, 3000)
+    window.addEventListener('tenantLoaded', () => {
+      clearTimeout(temporizador)
+      resolve()
+    }, { once: true })
+  })
+  return window.tenantConfig
+}
+
 async function redirigirPorRol(session) {
   if (!session?.user || redireccionEnCurso) return
   redireccionEnCurso = true
 
-  const { data: usuario, error } = await db.from('usuarios')
+  const tenant = await esperarTenantActual()
+  const tenantId = tenant?.id || window.tenantConfig?.id || 1
+  const { data: rolData, error } = await db.from('usuario_tenant_roles')
     .select('rol')
     .eq('user_id', session.user.id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (error) {
-    console.warn('[redirect] No fue posible consultar el rol; se abrirá la aplicación:', error.message)
+    console.warn('[redirect] No fue posible consultar el rol del tenant; se abrirá la vista de cliente:', error.message)
   }
-  console.log('[redirect] rol:', usuario?.rol)
+  console.log('[redirect] tenant:', tenantId, 'rol:', rolData?.rol)
 
-  if (usuario?.rol === 'admin') window.location.replace('/admin.html')
-  else if (usuario?.rol === 'repartidor') window.location.replace('/repartidor.html')
-  else window.location.replace('/app.html')
+  if (tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante') {
+    if (rolData?.rol === 'admin') window.location.replace('/cocina.html')
+    else window.location.replace('/menu.html')
+  } else if (rolData?.rol === 'admin') {
+    window.location.replace('/admin.html')
+  } else if (rolData?.rol === 'repartidor') {
+    window.location.replace('/repartidor.html')
+  } else {
+    window.location.replace('/app.html')
+  }
 }
 
 db.auth.onAuthStateChange(async (evento, session) => {
