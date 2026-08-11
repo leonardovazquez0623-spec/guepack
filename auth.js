@@ -32,7 +32,10 @@ async function enviarCodigoSMS(whatsapp) {
 
   // PASO 1: validar duplicado antes de crear reCAPTCHA o llamar a Firebase.
   if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
-  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
+  const tenantId = obtenerTenantIdActual(
+    'No pudimos identificar la empresa. Revisa la dirección e inténtalo nuevamente.'
+  )
+  if (!tenantId) return null
   const { data: { session } } = await db.auth.getSession()
   let consultaDuplicado = db.from('usuarios')
     .select('user_id')
@@ -173,6 +176,13 @@ function showError(msg) {
   document.getElementById('success-msg').style.display = 'none'
 }
 
+function obtenerTenantIdActual(mensajeError) {
+  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id
+  if (tenantId) return tenantId
+  showError(mensajeError)
+  return null
+}
+
 function showSuccess(msg) {
   const success = document.getElementById('success-msg')
   success.textContent = msg
@@ -257,17 +267,45 @@ async function redirigirSegunRol() {
   if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
   const { data: { session } } = await db.auth.getSession()
   if (!session) return void (window.location.href = 'login.html')
-  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
+  const tenantId = obtenerTenantIdActual(
+    'No pudimos identificar la empresa desde la que estás entrando. Revisa la dirección e inténtalo nuevamente.'
+  )
+  if (!tenantId) return
+
   let { data: rolData, error } = await db.from('usuario_tenant_roles')
     .select('rol')
     .eq('user_id', session.user.id)
     .eq('tenant_id', tenantId)
     .maybeSingle()
-  if (error) console.error('No se pudo consultar el rol del usuario en el tenant:', error)
+  if (error) {
+    console.error('No se pudo consultar el rol del usuario en el tenant:', error)
+    return showError('No pudimos verificar tu acceso. Inténtalo nuevamente.')
+  }
+
   if (!rolData) {
     const { error: errorRol } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
-    if (errorRol) console.error('No se pudo crear el rol cliente del tenant:', errorRol)
-    rolData = { rol: 'cliente' }
+    if (errorRol) {
+      console.error('No se pudo resolver el tenant del usuario:', {
+        message: errorRol.message,
+        code: errorRol.code,
+        details: errorRol.details,
+        hint: errorRol.hint
+      })
+      return showError('No pudimos completar el acceso a esta empresa. Verifica la dirección e inténtalo nuevamente.')
+    }
+
+    const resultadoRol = await db.from('usuario_tenant_roles')
+      .select('rol')
+      .eq('user_id', session.user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (resultadoRol.error || !resultadoRol.data) {
+      console.error('El rol no apareció después de resolver el tenant:', resultadoRol.error)
+      return showError('Tu acceso no quedó configurado. Inténtalo nuevamente.')
+    }
+
+    rolData = resultadoRol.data
   }
   window.location.href = rolData.rol === 'admin' ? 'admin.html' : rolData.rol === 'repartidor' ? 'repartidor.html' : 'app.html'
 }
@@ -332,7 +370,10 @@ async function recuperarPassword() {
 
 async function registrar() {
   if (!tenantActualLogin && window.tenantConfigReady) tenantActualLogin = await window.tenantConfigReady
-  const tenantId = tenantActualLogin?.id || window.tenantConfig?.id || 1
+  const tenantId = obtenerTenantIdActual(
+    'No pudimos identificar la empresa. Revisa la dirección antes de crear tu cuenta.'
+  )
+  if (!tenantId) return
   if (!_regWhatsappVerificado) return showError('Debes verificar tu WhatsApp antes de continuar')
   const nombre = document.getElementById('reg-nombre').value.trim()
   const email = document.getElementById('reg-email').value.trim()
@@ -367,10 +408,27 @@ async function registrar() {
     email, password,
     options: {
       emailRedirectTo: urlDelTenant('/redirect.html'),
-      data: { nombre, whatsapp, whatsapp_verificado: true, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantActualLogin?.id || null, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
+      data: { nombre, whatsapp, whatsapp_verificado: true, empresa_codigo: empresaCodigo || null, referido_por: referidoPor, tenant_id: tenantId, tenant_nombre: tenantActualLogin?.nombre_app || tenantActualLogin?.nombre || 'GUEPACK Express' }
     }
   })
-  if (error) return showError('Error al crear cuenta: ' + error.message)
+  if (error) {
+    console.error('[registro] Supabase Auth rechazó el alta:', {
+      message: error.message,
+      code: error.code,
+      status: error.status
+    })
+
+    const esFalloDeTrigger =
+      Number(error.status) >= 500 ||
+      error.code === 'unexpected_failure' ||
+      /database error saving new user/i.test(error.message || '')
+
+    return showError(
+      esFalloDeTrigger
+        ? 'No pudimos completar el registro de forma segura. Verifica que estés entrando desde la dirección correcta e inténtalo nuevamente.'
+        : 'No pudimos crear la cuenta: ' + error.message
+    )
+  }
   if (data?.user) {
     if (tenantActualLogin?.id) {
       const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)

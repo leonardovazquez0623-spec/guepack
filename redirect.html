@@ -65,40 +65,127 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 let redireccionEnCurso = false
 
+function mostrarErrorRedireccion(mensaje, error = null) {
+  if (error) {
+    console.error('[redirect] No se pudo completar el acceso:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
+  }
+
+  redireccionEnCurso = false
+  const estado = document.querySelector('.estado')
+  if (!estado) return
+  estado.replaceChildren()
+
+  const texto = document.createElement('div')
+  texto.textContent = mensaje
+  texto.style.maxWidth = '420px'
+  texto.style.padding = '0 20px'
+  texto.style.textAlign = 'center'
+  texto.style.lineHeight = '1.6'
+  estado.appendChild(texto)
+
+  const enlace = document.createElement('a')
+  enlace.href = '/login.html'
+  enlace.textContent = 'Volver al inicio de sesión'
+  enlace.style.color = 'white'
+  enlace.style.fontWeight = '900'
+  estado.appendChild(enlace)
+}
+
 async function esperarTenantActual() {
   if (window.tenantConfigReady) {
-    await Promise.race([
+    return Promise.race([
       window.tenantConfigReady,
-      new Promise(resolve => setTimeout(resolve, 3000))
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('TENANT_CONFIG_TIMEOUT')),
+        12000
+      ))
     ])
-    return window.tenantConfig
   }
   if (window.tenantConfig) return window.tenantConfig
 
-  await new Promise(resolve => {
-    const temporizador = setTimeout(resolve, 3000)
-    window.addEventListener('tenantLoaded', () => {
+  return new Promise((resolve, reject) => {
+    const temporizador = setTimeout(
+      () => reject(new Error('TENANT_CONFIG_TIMEOUT')),
+      12000
+    )
+    window.addEventListener('tenant-config-aplicada', evento => {
       clearTimeout(temporizador)
-      resolve()
+      resolve(evento.detail)
     }, { once: true })
   })
-  return window.tenantConfig
 }
 
 async function redirigirPorRol(session) {
   if (!session?.user || redireccionEnCurso) return
   redireccionEnCurso = true
 
-  const tenant = await esperarTenantActual()
-  const tenantId = tenant?.id || window.tenantConfig?.id || 1
-  const { data: rolData, error } = await db.from('usuario_tenant_roles')
+  let tenant
+  try {
+    tenant = await esperarTenantActual()
+  } catch (error) {
+    mostrarErrorRedireccion(
+      'No pudimos identificar la empresa desde la que estás entrando. Revisa la dirección e inténtalo nuevamente.',
+      error
+    )
+    return
+  }
+
+  const tenantId = tenant?.id || window.tenantConfig?.id
+  if (!tenantId) {
+    mostrarErrorRedireccion(
+      'No pudimos identificar la empresa desde la que estás entrando. Revisa la dirección e inténtalo nuevamente.'
+    )
+    return
+  }
+
+  let { data: rolData, error } = await db.from('usuario_tenant_roles')
     .select('rol')
     .eq('user_id', session.user.id)
     .eq('tenant_id', tenantId)
-    .single()
+    .maybeSingle()
 
   if (error) {
-    console.warn('[redirect] No fue posible consultar el rol del tenant; se abrirá la vista de cliente:', error.message)
+    mostrarErrorRedireccion(
+      'No pudimos verificar tu acceso. Inténtalo nuevamente.',
+      error
+    )
+    return
+  }
+
+  if (!rolData) {
+    const { error: errorResolver } = await db.rpc(
+      'auto_asignar_rol_cliente',
+      { p_tenant_id: tenantId }
+    )
+
+    if (errorResolver) {
+      mostrarErrorRedireccion(
+        'No pudimos completar el acceso a esta empresa. Verifica la dirección e inténtalo nuevamente.',
+        errorResolver
+      )
+      return
+    }
+
+    const resultadoRol = await db.from('usuario_tenant_roles')
+      .select('rol')
+      .eq('user_id', session.user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (resultadoRol.error || !resultadoRol.data) {
+      mostrarErrorRedireccion(
+        'Tu acceso no quedó configurado. Inténtalo nuevamente.',
+        resultadoRol.error
+      )
+      return
+    }
+
+    rolData = resultadoRol.data
   }
   console.log('[redirect] tenant:', tenantId, 'rol:', rolData?.rol)
 

@@ -200,6 +200,43 @@ function decidirTipoYRevelar(tenant) {
   revelarPagina()
 }
 
+let errorAccesoBloqueante = false
+
+function mostrarErrorAcceso(mensaje, error = null) {
+  errorAccesoBloqueante = true
+  if (error) {
+    console.error('[splash] No se pudo completar el acceso:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
+  }
+
+  const existente = document.getElementById('splash-error-acceso')
+  if (existente) return
+
+  const contenedor = document.createElement('div')
+  contenedor.id = 'splash-error-acceso'
+  contenedor.setAttribute('role', 'alert')
+  contenedor.style.cssText = 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:24px;background:#0e3070;color:#fff;font-family:Montserrat,Arial,sans-serif;text-align:center'
+
+  const contenido = document.createElement('div')
+  contenido.style.cssText = 'max-width:440px;line-height:1.6'
+
+  const texto = document.createElement('p')
+  texto.textContent = mensaje
+
+  const enlace = document.createElement('a')
+  enlace.href = '/login.html'
+  enlace.textContent = 'Volver al inicio de sesión'
+  enlace.style.cssText = 'display:inline-block;margin-top:12px;color:#fff;font-weight:900'
+
+  contenido.append(texto, enlace)
+  contenedor.appendChild(contenido)
+  document.body.appendChild(contenedor)
+}
+
 // tenant-config.js puede aplicar el tema de forma síncrona cuando hay caché en
 // sessionStorage (antes de que este script llegue a registrar el listener), así
 // que cubrimos ambos casos para no revelar la página con el splash equivocado.
@@ -221,10 +258,15 @@ function esperarTenantActual() {
 
 // La detección del tenant debe terminar antes de consultar el rol del usuario.
 const promesaTenant = esperarTenantActual()
-promesaTenant.then(decidirTipoYRevelar)
+promesaTenant
+  .then(decidirTipoYRevelar)
+  .catch(error => mostrarErrorAcceso(
+    'No pudimos identificar la empresa desde la que estás entrando. Revisa la dirección e inténtalo nuevamente.',
+    error
+  ))
 
 setTimeout(() => {
-  if (esRestaurante) return
+  if (esRestaurante || errorAccesoBloqueante) return
   if (window.location.pathname === '/splash.html' || window.location.href.includes('splash')) {
     console.log('[splash] tiempo agotado; se forzará la redirección al inicio de sesión')
     window.location.href = 'login.html'
@@ -232,8 +274,23 @@ setTimeout(() => {
 }, 5000)
 
 async function decidirRolYRedirigir(session, { mantenerOnboardingRestaurante = false } = {}) {
-  const tenant = await promesaTenant
-  const tenantId = tenant?.id || window.tenantConfig?.id || 1
+  let tenant
+  try {
+    tenant = await promesaTenant
+  } catch (_) {
+    // tenant-config.js ya registra el fallo y monta el overlay global. No
+    // añadimos otro mensaje aquí para evitar dos errores superpuestos.
+    return
+  }
+
+  const tenantId = tenant?.id || window.tenantConfig?.id
+  if (!tenantId) {
+    mostrarErrorAcceso(
+      'No pudimos identificar la empresa desde la que estás entrando. Revisa la dirección e inténtalo nuevamente.'
+    )
+    return
+  }
+
   const esTenantRestaurante = tenant?.tipo === 'restaurante' || window.tenantConfig?.tipo === 'restaurante'
   let { data: rolData, error } = await db.from('usuario_tenant_roles')
     .select('rol')
@@ -242,7 +299,8 @@ async function decidirRolYRedirigir(session, { mantenerOnboardingRestaurante = f
     .maybeSingle()
 
   if (error) {
-    console.warn('[auth] No fue posible consultar el rol del tenant:', error.message)
+    mostrarErrorAcceso('No pudimos verificar tu acceso. Inténtalo nuevamente.', error)
+    return
   }
 
   const { data: usuarioData, error: errorSuperadmin } = await db.from('usuarios')
@@ -250,23 +308,46 @@ async function decidirRolYRedirigir(session, { mantenerOnboardingRestaurante = f
     .eq('user_id', session.user.id)
     .maybeSingle()
   if (errorSuperadmin) {
-    console.warn('[auth] No fue posible comprobar si el usuario es superadmin:', errorSuperadmin.message)
+    mostrarErrorAcceso(
+      'No pudimos verificar los permisos de tu cuenta. Inténtalo nuevamente.',
+      errorSuperadmin
+    )
+    return
   }
 
-  const esAdmin = rolData?.rol === 'admin'
   const esSuperadmin = usuarioData?.es_superadmin === true
 
   if (!rolData && !esSuperadmin) {
-    const { error: errorCrearRol } = await db.from('usuario_tenant_roles').insert({
-      user_id: session.user.id,
-      tenant_id: tenantId,
-      rol: 'cliente'
-    })
-    if (errorCrearRol && errorCrearRol.code !== '23505') {
-      console.error('[auth] No fue posible crear el rol cliente del tenant:', errorCrearRol)
+    const { error: errorResolver } = await db.rpc(
+      'auto_asignar_rol_cliente',
+      { p_tenant_id: tenantId }
+    )
+    if (errorResolver) {
+      mostrarErrorAcceso(
+        'No pudimos completar el acceso a esta empresa. Verifica la dirección e inténtalo nuevamente.',
+        errorResolver
+      )
+      return
     }
-    rolData = { rol: 'cliente' }
+
+    const resultadoRol = await db.from('usuario_tenant_roles')
+      .select('rol')
+      .eq('user_id', session.user.id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (resultadoRol.error || !resultadoRol.data) {
+      mostrarErrorAcceso(
+        'Tu acceso no quedó configurado. Inténtalo nuevamente.',
+        resultadoRol.error
+      )
+      return
+    }
+
+    rolData = resultadoRol.data
   }
+
+  const esAdmin = rolData?.rol === 'admin'
 
   if (esAdmin || esSuperadmin) {
     window.location.replace(esTenantRestaurante ? 'cocina.html' : 'admin.html')
