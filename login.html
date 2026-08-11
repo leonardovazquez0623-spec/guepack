@@ -221,8 +221,8 @@ if (!firebase.apps.length) {
     <div style="text-align:center;margin-bottom:10px">
       <a onclick="showForgot()" class="tenant-accent" style="font-size:12px;font-weight:700;cursor:pointer;text-decoration:none">¿Olvidaste tu contraseña?</a>
     </div>
-    <div class="divider">O</div>
-    <button class="btn btn-google" onclick="loginGoogle()">
+    <div class="divider" data-google-auth style="display:none">O</div>
+    <button id="btn-google" class="btn btn-google" data-google-auth onclick="loginGoogle()" style="display:none">
       <img src="https://www.google.com/favicon.ico" width="18"> Entrar con Google
     </button>
     <div class="toggle-text">
@@ -300,8 +300,8 @@ if (!firebase.apps.length) {
     </label>
     <button id="btn-crear-cuenta" class="btn btn-primary" onclick="registrar()" disabled style="opacity:0.5;cursor:not-allowed">Continuar</button>
     <div id="recaptcha-container" style="display:none"></div>
-    <div class="divider">O</div>
-    <button class="btn btn-google" onclick="loginGoogle()">
+    <div class="divider" data-google-auth style="display:none">O</div>
+    <button id="btn-google-register" class="btn btn-google" data-google-auth onclick="loginGoogle()" style="display:none">
       <img src="https://www.google.com/favicon.ico" width="18"> Registrarse con Google
     </button>
     <div class="toggle-text">
@@ -312,6 +312,18 @@ if (!firebase.apps.length) {
 
 <script>
   // Only page-specific initialization here
+  function actualizarDisponibilidadGoogle(tenant) {
+    const mostrarGoogle = tenant?.slug === 'guepack'
+    document.querySelectorAll('[data-google-auth]').forEach(elemento => {
+      elemento.style.display = mostrarGoogle ? '' : 'none'
+    })
+  }
+
+  actualizarDisponibilidadGoogle(window.tenantConfig)
+  window.addEventListener('tenant-config-aplicada', evento => {
+    actualizarDisponibilidadGoogle(evento.detail)
+  })
+  window.tenantConfigReady?.then(actualizarDisponibilidadGoogle)
   initializeLoginPage()
 </script>
 </body>

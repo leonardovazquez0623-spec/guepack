@@ -281,6 +281,14 @@ async function loginEmail() {
 }
 
 async function loginGoogle() {
+  if (!tenantActualLogin && window.tenantConfigReady) {
+    tenantActualLogin = await window.tenantConfigReady
+  }
+  const slug = tenantActualLogin?.slug || window.tenantConfig?.slug
+  if (slug !== 'guepack') {
+    showError('El inicio de sesión con Google solo está disponible para GUEPACK.')
+    return
+  }
   const { error } = await db.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: urlDelTenant('/redirect.html'), queryParams: { prompt: 'select_account' } }
