@@ -1873,6 +1873,7 @@ var _comerciosAfiliados = []
 var _comercioSeleccionado = null
 var _tipoRecoleccionComercio = null   // 'recoger' | 'devolucion' | null
 var _referenciaRecoleccionComercio = ''
+var _campoComercioBloqueado = null    // 'dir-recoleccion' | 'dir-entrega' | null — cuál lado llenó el comercio
 var _geocodificandoRecoleccion = false
 var _geocodificandoEntrega = false, _geocodificacionEntregaSecuencia = 0
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
@@ -3125,6 +3126,7 @@ function _limpiarSeleccionComercio() {
   _comercioSeleccionado = null
   _tipoRecoleccionComercio = null
   _referenciaRecoleccionComercio = ''
+  _campoComercioBloqueado = null
   document.querySelectorAll('.comercio-tile').forEach(t => t.style.opacity = '1')
   const cont = document.getElementById('comercio-bifurcacion')
   if (cont) cont.innerHTML = ''
@@ -3135,15 +3137,15 @@ function _renderBifurcacionComercio() {
   const c = _comercioSeleccionado
   const cont = document.getElementById('comercio-bifurcacion')
   if (!cont) return
-  const opciones = [`<button type="button" onclick="_elegirTipoRecoleccion('recoger')" class="btn-outline" style="flex:1;padding:10px">Recoger mi pedido</button>`]
+  const opciones = [`<div class="mp-option" data-tipo-recoleccion="recoger" onclick="_elegirTipoRecoleccion('recoger')" style="flex:1">Recoger mi pedido</div>`]
   if (c.acepta_devoluciones) {
-    opciones.push(`<button type="button" onclick="_elegirTipoRecoleccion('devolucion')" class="btn-outline" style="flex:1;padding:10px">Devolución o garantía</button>`)
+    opciones.push(`<div class="mp-option" data-tipo-recoleccion="devolucion" onclick="_elegirTipoRecoleccion('devolucion')" style="flex:1">Devolución o garantía</div>`)
   }
   cont.innerHTML = `<div class="card" style="margin-top:8px;padding:12px">
     <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;margin-bottom:2px">${_escaparHtmlApp(c.nombre)}</div>
     <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-bottom:10px">${_escaparHtmlApp(c.direccion)}</div>
     <div id="comercio-factura-campo" style="display:none;margin-bottom:10px">
-      <label class="form-label">Número de factura</label>
+      <label class="form-label">Número de factura o número de pedido</label>
       <input type="text" id="comercio-referencia-input" class="form-input" maxlength="60" placeholder="Ej. F-00123" oninput="_referenciaRecoleccionComercio=this.value.trim()">
     </div>
     <div style="display:flex;gap:8px">${opciones.join('')}</div>
@@ -3152,6 +3154,9 @@ function _renderBifurcacionComercio() {
 
 function _elegirTipoRecoleccion(tipo) {
   _tipoRecoleccionComercio = tipo
+  document.querySelectorAll('#comercio-bifurcacion .mp-option').forEach(boton => {
+    boton.classList.toggle('selected', boton.dataset.tipoRecoleccion === tipo)
+  })
   const campoFactura = document.getElementById('comercio-factura-campo')
   if (campoFactura) {
     campoFactura.style.display = (tipo === 'recoger' && _comercioSeleccionado.requiere_factura) ? 'block' : 'none'
@@ -3165,13 +3170,29 @@ function _elegirTipoRecoleccion(tipo) {
 function _aplicarSeleccionComercioADireccion() {
   const c = _comercioSeleccionado
   const esRecoger = _tipoRecoleccionComercio === 'recoger'
-  const inputOrigen = document.getElementById(esRecoger ? 'dir-recoleccion' : 'dir-entrega')
-  if (inputOrigen) {
-    inputOrigen.value = c.direccion
-    inputOrigen.readOnly = true
+  const campoNuevo = esRecoger ? 'dir-recoleccion' : 'dir-entrega'
+
+  // Si una selección previa (recoger <-> devolución, o un comercio distinto)
+  // había llenado el otro lado, lo restauramos primero — sin tocar una
+  // dirección que el cliente haya tecleado él mismo en ese lado, porque solo
+  // limpiamos el campo que _campoComercioBloqueado marca como llenado por
+  // el comercio, nunca el que nunca tocamos.
+  if (_campoComercioBloqueado && _campoComercioBloqueado !== campoNuevo) {
+    const campoAnterior = document.getElementById(_campoComercioBloqueado)
+    if (campoAnterior) { campoAnterior.value = ''; campoAnterior.readOnly = false }
+    if (_campoComercioBloqueado === 'dir-recoleccion') { _latRecoleccion = null; _lngRecoleccion = null }
+    else { _latEntrega = null; _lngEntrega = null }
+  }
+
+  const inputNuevo = document.getElementById(campoNuevo)
+  if (inputNuevo) {
+    inputNuevo.value = c.direccion
+    inputNuevo.readOnly = true
   }
   if (esRecoger) { _latRecoleccion = c.lat; _lngRecoleccion = c.lng }
   else { _latEntrega = c.lat; _lngEntrega = c.lng }
+
+  _campoComercioBloqueado = campoNuevo
 }
 
 function _restaurarCamposDireccionComercio() {

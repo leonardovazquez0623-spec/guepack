@@ -292,6 +292,35 @@
   .guep-icon-inline { display:inline-flex; align-items:center; vertical-align:middle; }
   .guep-icon-inline svg { width:18px; height:18px; display:block; }
   .icon-on-color { filter: brightness(0) invert(1); }
+
+  /* ── GUEPACK Custom Autocomplete (copiado de app.html) ── */
+  .guep-ac-dropdown {
+    position: absolute;
+    z-index: 999999;
+    background: #fff;
+    border: 1.5px solid var(--color-primary);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(26,79,160,0.18);
+    overflow: hidden;
+    display: none;
+    max-height: 230px;
+    overflow-y: auto;
+  }
+  .guep-ac-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f4f9;
+    font-family: 'Montserrat', sans-serif;
+    border-left: 3px solid transparent;
+    transition: background .1s, border-left-color .1s;
+  }
+  .guep-ac-item:last-child { border-bottom: none; }
+  .guep-ac-item:hover, .guep-ac-item.activo {
+    background: #f0f4ff;
+    border-left-color: var(--color-primary);
+  }
+  .guep-ac-item-main { font-weight: 700; font-size: 13px; color: var(--color-primary-dark); }
+  .guep-ac-item-sub  { font-size: 11px; color: #8fa3c0; margin-top: 2px; }
 </style>
 <script>
 // Callback real — Google Maps lo llama cuando termina de cargar
@@ -1997,6 +2026,178 @@ function _resetFormEmpresa() {
 // Reutiliza Google Maps, ya cargado por el editor de zonas de este panel.
 let _comercioMap = null
 let _comercioMarker = null
+// Mismo bounding box estático de Guadalajara que usa app.html (_gdlBounds)
+// para el locationBias del autocomplete de direcciones.
+const _gdlBoundsComercio = { west: -103.55, south: 20.50, east: -103.15, north: 20.85 }
+
+// ── GUEPACK Custom Autocomplete ──────────────────────────────────────────────
+// Copiado tal cual de app.html (_crearGuepAutocomplete): usa AutocompleteSuggestion
+// (API nueva de Places) + AutocompleteSessionToken + dropdown propio con posición
+// fija — sin depender de .pac-container de Google. No es la misma instancia de
+// función que la de app.html (cada HTML es un bundle independiente), pero es la
+// misma implementación, para no introducir un segundo mecanismo de autocomplete.
+function _escapeHtmlAC(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+function _crearGuepAutocomplete(input, { onSelect, onInput } = {}) {
+  if (!window.google?.maps?.places?.AutocompleteSuggestion) return
+  if (input.dataset.acAttached) return
+  input.dataset.acAttached = '1'
+
+  let _token  = new google.maps.places.AutocompleteSessionToken()
+  let _timer  = null
+  let _drop   = null
+  let _sugs   = []
+  let _activo = -1
+  let _busquedaActual = 0
+
+  function _crearDrop() {
+    if (_drop) return
+    _drop = document.createElement('div')
+    _drop.className = 'guep-ac-dropdown'
+    document.body.appendChild(_drop)
+  }
+
+  function _posicionar() {
+    if (!_drop) return
+    const r = input.getBoundingClientRect()
+    _drop.style.top   = (r.bottom + window.scrollY + 2) + 'px'
+    _drop.style.left  = (r.left  + window.scrollX)     + 'px'
+    _drop.style.width = r.width + 'px'
+  }
+
+  function _resaltar() {
+    _drop.querySelectorAll('.guep-ac-item').forEach((el, i) => {
+      el.classList.toggle('activo', i === _activo)
+    })
+  }
+
+  function _renderizar(sugs) {
+    _sugs   = sugs
+    _activo = -1
+    _crearDrop()
+    if (!sugs.length) { _cerrar(); return }
+    _drop.innerHTML = sugs.map((s, i) => {
+      const pp   = s.placePrediction
+      const main = pp.mainText?.text || pp.text.text.split(',')[0]
+      const sub  = pp.secondaryText?.text || (pp.text.text.indexOf(',') > -1
+        ? pp.text.text.slice(pp.text.text.indexOf(',') + 1).trim() : '')
+      return `<div class="guep-ac-item" data-idx="${i}">
+        <div class="guep-ac-item-main">${_escapeHtmlAC(main)}</div>
+        ${sub ? `<div class="guep-ac-item-sub">${_escapeHtmlAC(sub)}</div>` : ''}
+      </div>`
+    }).join('')
+    _drop.querySelectorAll('.guep-ac-item').forEach(el => {
+      el.addEventListener('mouseenter', () => { _activo = +el.dataset.idx; _resaltar() })
+      el.addEventListener('mousedown', e => { e.preventDefault(); _seleccionar(+el.dataset.idx) })
+    })
+    _posicionar()
+    _drop.style.display = 'block'
+  }
+
+  function _cerrar() {
+    if (_drop) _drop.style.display = 'none'
+    _activo = -1
+  }
+
+  async function _seleccionar(idx) {
+    const sug = _sugs[idx]
+    if (!sug) return
+    const place = sug.placePrediction.toPlace()
+    try {
+      await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'] })
+    } catch(e) { console.error('[comercios] autocomplete fetchFields:', e) }
+    const addr = place.formattedAddress || sug.placePrediction.text.text
+    input.value = addr
+    _cerrar()
+    _token = new google.maps.places.AutocompleteSessionToken()
+    const legacy = {
+      formatted_address: addr,
+      geometry: {
+        location: {
+          lat: () => place.location?.lat() ?? 0,
+          lng: () => place.location?.lng() ?? 0
+        }
+      },
+      address_components: (place.addressComponents || []).map(c => ({
+        long_name:  c.longText,
+        short_name: c.shortText,
+        types:      c.types
+      }))
+    }
+    if (onSelect) onSelect(legacy)
+  }
+
+  async function _buscar(val, numeroBusqueda) {
+    if (!val || val.length < 3) { _cerrar(); return }
+    try {
+      const req = {
+        input:               val,
+        sessionToken:        _token,
+        language:            'es',
+        includedRegionCodes: ['mx'],
+        locationBias:        _gdlBoundsComercio,
+      }
+      const { suggestions } = await google.maps.places.AutocompleteSuggestion
+        .fetchAutocompleteSuggestions(req)
+      if (
+        numeroBusqueda !== _busquedaActual ||
+        input.value.trim() !== val
+      ) return
+      _renderizar(suggestions || [])
+    } catch(e) {
+      console.error('[comercios] autocomplete fetchAutocompleteSuggestions:', e)
+      if (numeroBusqueda === _busquedaActual) _cerrar()
+    }
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(_timer)
+    _busquedaActual += 1
+    if (onInput) onInput(input.value)
+    const numeroBusqueda = _busquedaActual
+    _timer = setTimeout(
+      () => _buscar(input.value.trim(), numeroBusqueda),
+      300
+    )
+  })
+
+  input.addEventListener('keydown', e => {
+    if (!_drop || _drop.style.display === 'none') return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); _activo = Math.min(_activo + 1, _sugs.length - 1); _resaltar()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); _activo = Math.max(_activo - 1, 0); _resaltar()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (_activo >= 0) _seleccionar(_activo)
+      else if (_sugs.length) _seleccionar(0)
+    } else if (e.key === 'Escape') {
+      _cerrar()
+    }
+  })
+
+  document.addEventListener('focusin', evento => {
+    const objetivo = evento.target
+    if (!(objetivo instanceof HTMLElement)) return
+    if (objetivo === input || _drop?.contains(objetivo)) return
+    if (objetivo.matches('input, select, textarea, [contenteditable="true"]')) {
+      _cerrar()
+    }
+  })
+  document.addEventListener('keydown', evento => {
+    if (
+      evento.key === 'Escape' &&
+      _drop &&
+      _drop.style.display !== 'none'
+    ) {
+      _cerrar()
+    }
+  })
+  window.addEventListener('scroll', _posicionar, { passive: true })
+  window.addEventListener('resize', _posicionar, { passive: true })
+}
 
 function _detalleErrorComercio(contexto, error) {
   console.error('[comercios] ' + contexto, { message: error?.message, code: error?.code, details: error?.details })
@@ -2050,6 +2251,13 @@ async function _inicializarMapaComercio(comercio) {
   _comercioMap = new google.maps.Map(document.getElementById('comercio-mapa'), { center: posicion, zoom: tienePin ? 16 : 12, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false })
   _comercioMap.addListener('click', evento => _actualizarPinComercio(evento.latLng.lat(), evento.latLng.lng(), false))
   if (tienePin) _actualizarPinComercio(comercio.lat, comercio.lng, true)
+
+  const inputDireccion = document.getElementById('comercio-direccion')
+  if (inputDireccion) {
+    _crearGuepAutocomplete(inputDireccion, {
+      onSelect: place => _actualizarPinComercio(place.geometry.location.lat(), place.geometry.location.lng(), true)
+    })
+  }
 }
 
 async function abrirModalComercio(id = null) {
@@ -2071,6 +2279,10 @@ async function abrirModalComercio(id = null) {
 function cerrarModalComercio() {
   document.getElementById('modal-comercio-afiliado')?.remove()
   _comercioMap = null; _comercioMarker = null
+  // El modal se recrea en cada apertura (input nuevo cada vez), así que el
+  // dropdown del autocomplete anterior queda huérfano en el body si no se
+  // limpia aquí explícitamente.
+  document.querySelectorAll('.guep-ac-dropdown').forEach(el => el.remove())
 }
 
 async function cargarComerciosAfiliados() {
