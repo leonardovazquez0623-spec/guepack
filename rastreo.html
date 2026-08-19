@@ -496,7 +496,12 @@ function actualizarUI(data) {
 
   // Texto descriptivo
   const textoEl = document.getElementById('r-estado-texto')
-  textoEl.textContent = ESTADO_TEXTO[estado] || estado
+  const tipoRecoleccion = data.tipo_recoleccion
+  const textosComercio = {
+    recoger: { Recolectado: 'Recogido en mostrador — muestra la factura al recibir' },
+    devolucion: { Recolectado: 'Tu paquete va en camino al comercio — muestra la orden de devolución' }
+  }
+  textoEl.textContent = (tipoRecoleccion && textosComercio[tipoRecoleccion]?.[estado]) || ESTADO_TEXTO[estado] || estado
   textoEl.className = 'estado-texto' + (estado === 'Entregado' ? ' entregado' : estado === 'Cancelado' ? ' cancelado' : '')
 
   // Imagen del gatito

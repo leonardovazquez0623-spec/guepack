@@ -778,6 +778,30 @@ function errorRpc(mensaje: string) {
       "Este pedido corresponde al flujo corporativo y debe volver a cotizarse.",
     ] as const;
   }
+  if (mensaje.includes("TIPO_RECOLECCION_INVALIDO")) {
+    return [422, "El tipo de recolección no es válido."] as const;
+  }
+  if (mensaje.includes("COMERCIO_NO_ENCONTRADO")) {
+    return [404, "El comercio seleccionado no está disponible."] as const;
+  }
+  if (mensaje.includes("COMERCIO_TENANT_NO_COINCIDE")) {
+    return [404, "El comercio seleccionado no está disponible."] as const;
+  }
+  if (mensaje.includes("COMERCIO_INACTIVO")) {
+    return [
+      422,
+      "Este comercio ya no está disponible. Elige otro o continúa con una dirección libre.",
+    ] as const;
+  }
+  if (mensaje.includes("COMERCIO_NO_ACEPTA_DEVOLUCIONES")) {
+    return [422, "Este comercio no acepta devoluciones."] as const;
+  }
+  if (mensaje.includes("REFERENCIA_FACTURA_REQUERIDA")) {
+    return [
+      422,
+      "Este comercio requiere el número de factura para recoger.",
+    ] as const;
+  }
   return [500, "No pudimos crear el pedido. Intenta nuevamente."] as const;
 }
 
@@ -843,7 +867,7 @@ Deno.serve(async (req) => {
     if (!/^\d{10}$/.test(whatsapp)) {
       throw new Error("El WhatsApp debe tener exactamente 10 dígitos");
     }
-    const direccionRecoleccion = requerido(
+    let direccionRecoleccion = requerido(
       cuerpo.direccion_recoleccion,
       "direccion_recoleccion",
       300,
@@ -861,7 +885,7 @@ Deno.serve(async (req) => {
       ? null
       : validarParadas(cuerpo.paradas);
     const esMultiparada = paradas !== null;
-    const direccionEntrega = esModoPaqueteria
+    let direccionEntrega = esModoPaqueteria
       ? null
       : esMultiparada
       ? paradas[0].direccion
@@ -896,14 +920,14 @@ Deno.serve(async (req) => {
     }
     const comprobante = comprobanteValido(cuerpo.comprobante_pago, metodo);
     const claveIdempotencia = uuid(cuerpo.idempotency_key, "idempotency_key");
-    const latRecoleccion = latitud(cuerpo.lat_recoleccion, "lat_recoleccion");
-    const lngRecoleccion = longitud(cuerpo.lng_recoleccion, "lng_recoleccion");
-    const latEntrega = esModoPaqueteria
+    let latRecoleccion = latitud(cuerpo.lat_recoleccion, "lat_recoleccion");
+    let lngRecoleccion = longitud(cuerpo.lng_recoleccion, "lng_recoleccion");
+    let latEntrega = esModoPaqueteria
       ? null
       : esMultiparada
       ? paradas[0].lat
       : latitud(cuerpo.lat_entrega, "lat_entrega");
-    const lngEntrega = esModoPaqueteria
+    let lngEntrega = esModoPaqueteria
       ? null
       : esMultiparada
       ? paradas[0].lng
@@ -913,6 +937,161 @@ Deno.serve(async (req) => {
       : kilometros(numero(cuerpo.km_recorridos, "km_recorridos"));
     const codigoCupon =
       opcional(cuerpo.cupon_codigo, "cupon_codigo", 50)?.toUpperCase() ?? null;
+
+    const admin = createClient(url, servicio, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: perfil, error: falloPerfil } = await admin.from("usuarios")
+      .select(
+        "user_id, tenant_id, empresa_codigo, nivel_vip, cargo_cancelacion",
+      )
+      .eq("user_id", user.id).maybeSingle();
+    if (falloPerfil) throw new Error("No pudimos verificar tu perfil");
+    if (!perfil || perfil.tenant_id === null) {
+      return responder(req, {
+        error: "No pudimos determinar la cuenta del pedido",
+      }, 403);
+    }
+    // usuarios.empresa_codigo es la única fuente de verdad. La metadata
+    // de Auth no participa en la selección del camino.
+    const empresaCodigo = typeof perfil.empresa_codigo === "string"
+      ? perfil.empresa_codigo.trim()
+      : "";
+    const esCorporativo = empresaCodigo.length > 0;
+    const tenant = perfil.tenant_id;
+
+    // ── Comercios afiliados (Fase 2) ──────────────────────────────────────
+    // Único camino soportado por ahora: precio general (no paquetería, no
+    // multiparada, no corporativo). El lado del comercio se resuelve aquí
+    // desde comercios_afiliados — nunca desde el payload del cliente — y la
+    // RPC lo vuelve a resolver como última línea de defensa.
+    let comercio:
+      | {
+        id: string;
+        direccion: string;
+        lat: number;
+        lng: number;
+        acepta_devoluciones: boolean;
+        requiere_factura: boolean;
+      }
+      | null = null;
+    let tipoRecoleccion: "recoger" | "devolucion" | null = null;
+    let referenciaRecoleccion: string | null = null;
+
+    const comercioAfiliadoIdRecibido = opcional(
+      cuerpo.comercio_afiliado_id,
+      "comercio_afiliado_id",
+      100,
+    );
+
+    if (comercioAfiliadoIdRecibido) {
+      if (esModoPaqueteria || esMultiparada) {
+        return responder(req, {
+          error:
+            "Los pedidos de comercios afiliados no admiten paquetería ni múltiples paradas todavía.",
+        }, 422);
+      }
+      if (esCorporativo) {
+        return responder(req, {
+          error:
+            "Los comercios afiliados no están disponibles para cuentas corporativas todavía.",
+        }, 422);
+      }
+
+      const comercioAfiliadoId = uuid(
+        comercioAfiliadoIdRecibido,
+        "comercio_afiliado_id",
+      );
+      const tipoRecoleccionRecibido = requerido(
+        cuerpo.tipo_recoleccion,
+        "tipo_recoleccion",
+        20,
+      ).toLowerCase();
+      if (
+        tipoRecoleccionRecibido !== "recoger" &&
+        tipoRecoleccionRecibido !== "devolucion"
+      ) {
+        throw new Error("El tipo de recolección no es válido");
+      }
+      tipoRecoleccion = tipoRecoleccionRecibido as "recoger" | "devolucion";
+      referenciaRecoleccion = opcional(
+        cuerpo.referencia_recoleccion,
+        "referencia_recoleccion",
+        100,
+      );
+
+      const { data: comercioData, error: falloComercio } = await admin
+        .from("comercios_afiliados")
+        .select(
+          "id, tenant_id, direccion, lat, lng, activo, acepta_devoluciones, requiere_factura",
+        )
+        .eq("id", comercioAfiliadoId)
+        .maybeSingle();
+      if (falloComercio) {
+        console.error(
+          "[crear-pedido-local] No se pudo verificar el comercio afiliado:",
+          falloComercio.message,
+        );
+        throw new Error("No pudimos verificar el comercio seleccionado");
+      }
+      if (!comercioData || comercioData.tenant_id !== tenant) {
+        return responder(req, {
+          error: "El comercio seleccionado no está disponible.",
+        }, 404);
+      }
+      if (comercioData.activo !== true) {
+        return responder(req, {
+          error:
+            "Este comercio ya no está disponible. Elige otro o continúa con una dirección libre.",
+        }, 422);
+      }
+      if (
+        tipoRecoleccion === "devolucion" &&
+        comercioData.acepta_devoluciones !== true
+      ) {
+        return responder(req, {
+          error: "Este comercio no acepta devoluciones.",
+        }, 422);
+      }
+      if (
+        tipoRecoleccion === "recoger" &&
+        comercioData.requiere_factura === true &&
+        !referenciaRecoleccion
+      ) {
+        return responder(req, {
+          error: "Este comercio requiere el número de factura para recoger.",
+        }, 422);
+      }
+
+      comercio = {
+        id: comercioData.id,
+        direccion: comercioData.direccion,
+        lat: comercioData.lat,
+        lng: comercioData.lng,
+        acepta_devoluciones: comercioData.acepta_devoluciones,
+        requiere_factura: comercioData.requiere_factura,
+      };
+
+      // El lado del comercio nunca sale del navegador: se sobreescribe aquí
+      // sin importar qué haya llegado en direccion_recoleccion/lat/lng (o su
+      // equivalente de entrega) en el payload.
+      if (tipoRecoleccion === "recoger") {
+        direccionRecoleccion = comercio.direccion;
+        latRecoleccion = comercio.lat;
+        lngRecoleccion = comercio.lng;
+      } else {
+        direccionEntrega = comercio.direccion;
+        latEntrega = comercio.lat;
+        lngEntrega = comercio.lng;
+      }
+
+      if (tipoRecoleccion === "devolucion" && metodo === "efectivo") {
+        return responder(req, {
+          error:
+            "Las devoluciones se pagan por adelantado. Elige tarjeta o transferencia.",
+        }, 422);
+      }
+    }
 
     const puntoRecoleccion = {
       lat: latRecoleccion,
@@ -938,28 +1117,6 @@ Deno.serve(async (req) => {
         : haversine(puntoRecoleccion, puntoEntrega);
       validarDistancia(km, distanciaHaversine);
     }
-
-    const admin = createClient(url, servicio, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: perfil, error: falloPerfil } = await admin.from("usuarios")
-      .select(
-        "user_id, tenant_id, empresa_codigo, nivel_vip, cargo_cancelacion",
-      )
-      .eq("user_id", user.id).maybeSingle();
-    if (falloPerfil) throw new Error("No pudimos verificar tu perfil");
-    if (!perfil || perfil.tenant_id === null) {
-      return responder(req, {
-        error: "No pudimos determinar la cuenta del pedido",
-      }, 403);
-    }
-    // usuarios.empresa_codigo es la única fuente de verdad. La metadata
-    // de Auth no participa en la selección del camino.
-    const empresaCodigo = typeof perfil.empresa_codigo === "string"
-      ? perfil.empresa_codigo.trim()
-      : "";
-    const esCorporativo = empresaCodigo.length > 0;
-    const tenant = perfil.tenant_id;
 
     const { data: tenantConfigurado, error: falloTenant } = await admin
       .from("tenants")
@@ -1842,7 +1999,7 @@ Deno.serve(async (req) => {
     const [consultaPrecios, consultaRangos] = await Promise.all([
       admin.from("precios_generales")
         .select(
-          "tarifa_base, km_minimo, precio_km_extra, iva, cargo_paquete_grande",
+          "tarifa_base, km_minimo, precio_km_extra, iva, cargo_paquete_grande, cargo_servicio_mostrador",
         )
         .eq("tenant_id", tenant).maybeSingle(),
       admin.from("rangos_precio_general").select("km_desde, km_hasta, precio")
@@ -1889,13 +2046,24 @@ Deno.serve(async (req) => {
       precioBase += kilometros(km - desde) * precioKmExtra;
     }
 
+    let cargoServicioMostrador = 0;
+    if (comercio) {
+      const cargoConfigurado = Number(precios.cargo_servicio_mostrador);
+      if (!Number.isFinite(cargoConfigurado) || cargoConfigurado < 0) {
+        throw new Error(
+          "El cargo de servicio de mostrador no está configurado correctamente",
+        );
+      }
+      cargoServicioMostrador = cargoConfigurado;
+    }
+
     let subtotal = precioBase +
       (tamanio === "grande" ? cargoGrandeConfigurado : 0);
     subtotal = dinero(
       subtotal - dinero(subtotal * porcentajeVip(perfil.nivel_vip)),
     );
     const totalAntesCupon = dinero(
-      subtotal + dinero(subtotal * iva) + cargoCancelacion,
+      subtotal + dinero(subtotal * iva) + cargoCancelacion + cargoServicioMostrador,
     );
 
     let descuentoCupon = 0;
@@ -1979,6 +2147,9 @@ Deno.serve(async (req) => {
         p_lng_entrega: lngEntrega,
         p_cargo_cancelacion: cargoCancelacion,
         p_cupon_codigo: cupon?.codigo ?? null,
+        p_comercio_afiliado_id: comercio?.id ?? null,
+        p_tipo_recoleccion: tipoRecoleccion,
+        p_referencia_recoleccion: referenciaRecoleccion,
       },
     );
     if (falloRpc) {

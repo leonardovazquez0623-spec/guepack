@@ -1105,6 +1105,14 @@
               <input type="tel" id="whatsapp" class="form-input" placeholder="Para coordinar la entrega contigo" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
+            <!-- Comercios frecuentes (Fase 2) -->
+            <div id="comercios-frecuentes-section" class="form-group" style="display:none">
+              <label class="form-label">¿Necesitas recoger un pedido?</label>
+              <div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:var(--gray-mid);margin-bottom:8px">Comercios frecuentes · no afiliados</div>
+              <div id="comercios-frecuentes-tiles" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch"></div>
+              <div id="comercio-bifurcacion"></div>
+            </div>
+
             <div class="form-group">
               <label class="form-label">¿Dónde recogemos?</label>
               <div style="display:flex;gap:8px;margin-bottom:6px">
@@ -1242,6 +1250,12 @@
               <button onclick="_mostrarDesglose()" title="Ver desglose" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--blue);padding:0;line-height:1;opacity:0.75;flex-shrink:0" id="quote-info-btn">ⓘ</button>
             </div>
             <div class="quote-detail" id="quote-detail" style="display:none">—</div>
+          </div>
+
+          <!-- Resumen comercio afiliado (Fase 2) -->
+          <div class="card" id="comercio-resumen-card" style="display:none">
+            <div class="card-title">Recolección en comercio</div>
+            <div id="comercio-resumen-texto" style="font-family:Montserrat,sans-serif;font-size:12px;color:var(--text);line-height:1.6"></div>
           </div>
 
           <!-- CUPÓN -->
@@ -1855,6 +1869,10 @@ var _configTenant = { horario_apertura: null, horario_cierre: '15:00' }
 var _corporativoPrecio = null, _corporativoKm = null, _corporativoRangos = null
 var _entregaPlace = null, _latEntrega = null, _lngEntrega = null
 var _latRecoleccion = null, _lngRecoleccion = null
+var _comerciosAfiliados = []
+var _comercioSeleccionado = null
+var _tipoRecoleccionComercio = null   // 'recoger' | 'devolucion' | null
+var _referenciaRecoleccionComercio = ''
 var _geocodificandoRecoleccion = false
 var _geocodificandoEntrega = false, _geocodificacionEntregaSecuencia = 0
 var _multiParadaPrecio = null, _multiParadaKm = null, _multiParadaZonaData = null
@@ -3033,14 +3051,166 @@ function _wizardContinuar(paso) {
     if (whatsapp.length < 10) { mostrarToast('⚠️ Ingresa un WhatsApp válido de 10 dígitos', 'var(--orange)'); return }
     if (!dirRec)            { mostrarToast('⚠️ Ingresa la dirección de recolección', 'var(--orange)'); return }
     if (!_modoPaqueteria && !dirEnt) { mostrarToast('⚠️ Ingresa la dirección de entrega', 'var(--orange)'); return }
+    if (_comercioSeleccionado) {
+      if (!_tipoRecoleccionComercio) { mostrarToast('⚠️ Elige si vas a recoger o hacer una devolución', 'var(--orange)'); return }
+      if (_tipoRecoleccionComercio === 'recoger' && _comercioSeleccionado.requiere_factura && !_referenciaRecoleccionComercio) {
+        mostrarToast('⚠️ Ingresa el número de factura', 'var(--orange)'); return
+      }
+    }
     _irPaso(2)
     return
   }
   if (paso === 2) {
     if (!selSize) { mostrarToast('⚠️ Selecciona el tamaño del paquete', 'var(--orange)'); return }
     if (!document.getElementById('fecha-seleccionada').value) { mostrarToast('⚠️ Selecciona una fecha de recolección', 'var(--orange)'); return }
+    _actualizarResumenComercio()
     _irPaso(3)
   }
+}
+
+// ── Comercios frecuentes (Fase 2) ────────────────────────────────────────────
+function _escaparHtmlApp(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+async function _cargarComerciosFrecuentes() {
+  const seccion = document.getElementById('comercios-frecuentes-section')
+  const contenedor = document.getElementById('comercios-frecuentes-tiles')
+  if (!seccion || !contenedor) return
+  const { data, error } = await db.from('comercios_afiliados')
+    .select('id, nombre, direccion, lat, lng, color_hex, logo_url, acepta_devoluciones, requiere_factura')
+    .eq('activo', true)
+    .order('orden').order('nombre')
+  if (error) {
+    console.error('[comercios] cargar tiles', error)
+    seccion.style.display = 'none'
+    return
+  }
+  _comerciosAfiliados = data || []
+  if (!_comerciosAfiliados.length) {
+    seccion.style.display = 'none'
+    return
+  }
+  seccion.style.display = 'block'
+  const tiles = _comerciosAfiliados.map(c => {
+    const inicial = _escaparHtmlApp((c.nombre || '?').trim().charAt(0).toUpperCase())
+    const nombre = _escaparHtmlApp(c.nombre)
+    const inicialSwatch = `<div style="width:100%;height:100%;border-radius:14px;background:linear-gradient(135deg,${_escaparHtmlApp(c.color_hex)},#111827);color:white;display:${c.logo_url ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:20px;font-weight:900">${inicial}</div>`
+    const swatch = c.logo_url
+      ? `${inicialSwatch}<img src="${_escaparHtmlApp(c.logo_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px;position:absolute;inset:0" onerror="this.remove();this.previousElementSibling.style.display='flex'">`
+      : inicialSwatch
+    return `<button type="button" class="comercio-tile" data-comercio-id="${c.id}" onclick="_seleccionarComercioFrecuente('${c.id}')" style="flex:0 0 72px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:0">
+      <div style="width:56px;height:56px;position:relative">${swatch}</div>
+      <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;text-align:center;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px">${nombre}</span>
+    </button>`
+  }).join('')
+  const tileOtro = `<button type="button" onclick="_limpiarSeleccionComercio()" style="flex:0 0 72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:none;border:2px dashed var(--gray-mid);border-radius:14px;height:56px;cursor:pointer">
+    <span style="font-size:18px">📍</span>
+    <span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:var(--gray-mid)">Otro</span>
+  </button>`
+  contenedor.innerHTML = tiles + tileOtro
+}
+
+function _seleccionarComercioFrecuente(id) {
+  const comercio = _comerciosAfiliados.find(c => c.id === id)
+  if (!comercio) return
+  _comercioSeleccionado = comercio
+  _tipoRecoleccionComercio = null
+  _referenciaRecoleccionComercio = ''
+  document.querySelectorAll('.comercio-tile').forEach(t => t.style.opacity = t.dataset.comercioId === id ? '1' : '.45')
+  _renderBifurcacionComercio()
+}
+
+function _limpiarSeleccionComercio() {
+  _comercioSeleccionado = null
+  _tipoRecoleccionComercio = null
+  _referenciaRecoleccionComercio = ''
+  document.querySelectorAll('.comercio-tile').forEach(t => t.style.opacity = '1')
+  const cont = document.getElementById('comercio-bifurcacion')
+  if (cont) cont.innerHTML = ''
+  _restaurarCamposDireccionComercio()
+}
+
+function _renderBifurcacionComercio() {
+  const c = _comercioSeleccionado
+  const cont = document.getElementById('comercio-bifurcacion')
+  if (!cont) return
+  const opciones = [`<button type="button" onclick="_elegirTipoRecoleccion('recoger')" class="btn-outline" style="flex:1;padding:10px">Recoger mi pedido</button>`]
+  if (c.acepta_devoluciones) {
+    opciones.push(`<button type="button" onclick="_elegirTipoRecoleccion('devolucion')" class="btn-outline" style="flex:1;padding:10px">Devolución o garantía</button>`)
+  }
+  cont.innerHTML = `<div class="card" style="margin-top:8px;padding:12px">
+    <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;margin-bottom:2px">${_escaparHtmlApp(c.nombre)}</div>
+    <div style="font-family:Montserrat,sans-serif;font-size:11px;color:var(--gray-mid);margin-bottom:10px">${_escaparHtmlApp(c.direccion)}</div>
+    <div id="comercio-factura-campo" style="display:none;margin-bottom:10px">
+      <label class="form-label">Número de factura</label>
+      <input type="text" id="comercio-referencia-input" class="form-input" maxlength="60" placeholder="Ej. F-00123" oninput="_referenciaRecoleccionComercio=this.value.trim()">
+    </div>
+    <div style="display:flex;gap:8px">${opciones.join('')}</div>
+  </div>`
+}
+
+function _elegirTipoRecoleccion(tipo) {
+  _tipoRecoleccionComercio = tipo
+  const campoFactura = document.getElementById('comercio-factura-campo')
+  if (campoFactura) {
+    campoFactura.style.display = (tipo === 'recoger' && _comercioSeleccionado.requiere_factura) ? 'block' : 'none'
+  }
+  _aplicarSeleccionComercioADireccion()
+  _sincronizarMetodoPagoConDevolucion()
+}
+
+// Bloquea el campo del lado del comercio (recolección para 'recoger',
+// entrega para 'devolucion'); el otro lado sigue siendo normal/editable.
+function _aplicarSeleccionComercioADireccion() {
+  const c = _comercioSeleccionado
+  const esRecoger = _tipoRecoleccionComercio === 'recoger'
+  const inputOrigen = document.getElementById(esRecoger ? 'dir-recoleccion' : 'dir-entrega')
+  if (inputOrigen) {
+    inputOrigen.value = c.direccion
+    inputOrigen.readOnly = true
+  }
+  if (esRecoger) { _latRecoleccion = c.lat; _lngRecoleccion = c.lng }
+  else { _latEntrega = c.lat; _lngEntrega = c.lng }
+}
+
+function _restaurarCamposDireccionComercio() {
+  ['dir-recoleccion', 'dir-entrega'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.readOnly = false
+  })
+  _sincronizarMetodoPagoConDevolucion()
+}
+
+// Devolución exige prepago: oculta "Efectivo" y limpia la selección si
+// estaba elegido.
+function _sincronizarMetodoPagoConDevolucion() {
+  const opcionEfectivo = document.getElementById('mp-efectivo')
+  if (!opcionEfectivo) return
+  const bloquear = _tipoRecoleccionComercio === 'devolucion'
+  opcionEfectivo.style.display = bloquear ? 'none' : ''
+  if (bloquear && selMetodoPago === 'efectivo') {
+    selMetodoPago = null
+    opcionEfectivo.classList.remove('selected')
+  }
+}
+
+function _actualizarResumenComercio() {
+  const card = document.getElementById('comercio-resumen-card')
+  const texto = document.getElementById('comercio-resumen-texto')
+  if (!card || !texto) return
+  if (!_comercioSeleccionado || !_tipoRecoleccionComercio) {
+    card.style.display = 'none'
+    return
+  }
+  const c = _comercioSeleccionado
+  const tipoLabel = _tipoRecoleccionComercio === 'recoger' ? 'Recoger mi pedido' : 'Devolución o garantía'
+  let html = `<div><b>${_escaparHtmlApp(c.nombre)}</b> — ${_escaparHtmlApp(c.direccion)}</div><div style="margin-top:4px">Servicio: ${tipoLabel}</div>`
+  if (_tipoRecoleccionComercio === 'recoger' && c.requiere_factura) {
+    html += `<div style="margin-top:4px">Factura: ${_escaparHtmlApp(_referenciaRecoleccionComercio || '—')}</div>`
+  }
+  texto.innerHTML = html
+  card.style.display = 'block'
 }
 
 // ── Modal de nota por dirección ──────────────────────────────────────────────
@@ -3881,7 +4051,10 @@ if (esCaminoPaqueteria) {
     lng_recoleccion: _lngRecoleccion ?? null,
     lat_entrega: _latEntrega ?? null,
     lng_entrega: _lngEntrega ?? null,
-    idempotency_key: idempotencyKey
+    idempotency_key: idempotencyKey,
+    comercio_afiliado_id: _comercioSeleccionado?.id ?? null,
+    tipo_recoleccion: _comercioSeleccionado ? _tipoRecoleccionComercio : null,
+    referencia_recoleccion: _comercioSeleccionado ? (_referenciaRecoleccionComercio || null) : null
   }
 
   let respuestaFuncion
@@ -6328,6 +6501,7 @@ function resetForm() {
   _geocodificacionEntregaSecuencia += 1
   _latRecoleccion = null
   _lngRecoleccion = null
+  _limpiarSeleccionComercio()
   _precioGeneralTotal = null
   _preciosGeneralesData = null
   _preciosGeneralesPromise = null
@@ -6404,6 +6578,8 @@ function _abrirModo(modo) {
   } else {
     _preLlenarDireccionModo(modo)
   }
+  _limpiarSeleccionComercio()
+  _cargarComerciosFrecuentes()
 }
 
 function _preLlenarDireccionModo(modo) {
@@ -7434,17 +7610,12 @@ async function _aplicarCargoCancelacion(pedidoId) {
   const { data: { session } } = await db.auth.getSession()
   if (!session?.user) return
   if (_empresaData) {
-    // Corporativo: registrar cargo como pedido de crédito
-    await db.from('pedidos').insert({
-      nombre: 'Cargo cancelación',
-      precio: 25,
-      metodo_pago: 'Crédito',
-      empresa_codigo: _empresaData.codigo,
-      estado: 'Cancelado',
-      user_id: session.user.id,
-      fecha: new Date().toISOString().split('T')[0],
-      token_rastreo: crypto.randomUUID()
-    })
+    // Corporativo: registrar cargo como pedido de crédito — resuelto
+    // server-side (incluyendo tenant_id) vía RPC, ya no insert directo.
+    const { error: errorCargoCancelacion } = await db.rpc('registrar_cargo_cancelacion_corporativo')
+    if (errorCargoCancelacion) {
+      console.error('[cancelación] No se pudo registrar el cargo:', errorCargoCancelacion)
+    }
   } else {
     // Normal: acumular en usuarios.cargo_cancelacion
     const nuevo = _cargoCancelacionPendiente + 25
@@ -8708,9 +8879,10 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
     }
   }
 
-  const ivaAmt           = Math.round(subtotal * iva * 100) / 100
-  const cargoCancelacion = _cargoCancelacionPendiente || 0
-  let   total            = Math.round((subtotal + ivaAmt + cargoCancelacion) * 100) / 100
+  const ivaAmt              = Math.round(subtotal * iva * 100) / 100
+  const cargoCancelacion    = _cargoCancelacionPendiente || 0
+  const cargoServicioMostrador = _comercioSeleccionado ? (Number(precios.cargo_servicio_mostrador) || 0) : 0
+  let   total               = Math.round((subtotal + ivaAmt + cargoCancelacion + cargoServicioMostrador) * 100) / 100
 
   // Aplicar cupón si está activo
   if (_cuponActivo) {
@@ -8738,6 +8910,7 @@ function _mostrarCotizacionGeneral(km, precios, rangos) {
     if (linVip) lineas.push(linVip)
     lineas.push('🧾 Subtotal: $' + subtotal.toFixed(2))
     lineas.push('💳 IVA (' + Math.round(iva * 100) + '%): $' + ivaAmt.toFixed(2))
+    if (cargoServicioMostrador > 0) lineas.push('🏬 Servicio de mostrador: +$' + cargoServicioMostrador.toFixed(2))
     if (cargoCancelacion > 0) lineas.push('⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion)
     if (_cuponDescuento > 0) lineas.push('🎟️ Cupón aplicado: -$' + _cuponDescuento.toFixed(2))
     lineas.push('✅ Total: $' + total.toFixed(2))
