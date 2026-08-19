@@ -328,6 +328,7 @@ function initMapsAdmin() {
     <button class="sidebar-item" id="snav-vip" onclick="showTab('vip')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/45-vip.svg" alt="">VIP</button>
     <button class="sidebar-item" id="snav-zonas" onclick="showTab('zonas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Zonas</button>
     <button class="sidebar-item" id="snav-empresas" onclick="showTab('empresas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Empresas</button>
+    <button class="sidebar-item" id="snav-comercios" onclick="showTab('comercios')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Comercios</button>
     <button class="sidebar-item" id="snav-repartidores" onclick="showTab('repartidores')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/03-envios.svg" alt="">Repartidores</button>
     <button class="sidebar-item" id="snav-referidos" onclick="showTab('referidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/06-usuarios.svg" alt="">Referidos</button>
     <button class="sidebar-item" id="snav-clientes" onclick="showTab('clientes')" style="position:relative;display:flex;align-items:center;gap:6px"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/05-perfil.svg" alt="">Clientes<span id="sidebar-clientes-sin-verificar-badge" style="display:none;background:#ef4444;color:white;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;margin-left:auto">0</span></button>
@@ -393,6 +394,7 @@ function initMapsAdmin() {
     <button class="tab" onclick="showTab('vip')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/45-vip.svg" alt="">VIP</button>
     <button class="tab" onclick="showTab('zonas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Zonas</button>
     <button class="tab" onclick="showTab('empresas')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Empresas</button>
+    <button class="tab" onclick="showTab('comercios')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/21-empresa.svg" alt="">Comercios</button>
     <button class="tab" onclick="showTab('repartidores')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/03-envios.svg" alt="">Repartidores</button>
     <button class="tab" onclick="showTab('referidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/06-usuarios.svg" alt="">Referidos</button>
     <button class="tab" onclick="showTab('clientes')" style="position:relative"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/05-perfil.svg" alt="">Clientes<span id="tab-clientes-sin-verificar-badge" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:white;border-radius:50%;min-width:16px;height:16px;padding:0 4px;font-size:8px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span></button>
@@ -1173,6 +1175,35 @@ function initMapsAdmin() {
     </div>
   </div>
 
+  <!-- TAB COMERCIOS FRECUENTES -->
+  <div id="tab-comercios" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px">
+      <div>
+        <div class="card-title" style="margin-bottom:3px">Comercios frecuentes</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:var(--gray-mid)">Puntos de recolección afiliados de este tenant.</div>
+      </div>
+      <button onclick="abrirModalComercio()" style="padding:9px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.5px;white-space:nowrap">+ Nuevo comercio</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:680px">
+          <thead>
+            <tr style="background:#f8fafc;text-align:left;font-family:Montserrat,sans-serif;font-size:10px;color:var(--gray-mid);letter-spacing:.35px">
+              <th style="padding:11px 14px">COMERCIO</th>
+              <th style="padding:11px 14px">GIRO</th>
+              <th style="padding:11px 14px">SERVICIOS</th>
+              <th style="padding:11px 14px">ESTADO</th>
+              <th style="padding:11px 14px;text-align:right">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody id="lista-comercios-afiliados">
+            <tr><td colspan="5" style="padding:24px;text-align:center"><div class="loader--4" style="margin:0 auto"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-repartidores" class="tab-content">
     <div class="card">
       <div class="card-title">🏍️ Repartidor</div>
@@ -1454,6 +1485,7 @@ const TABLAS_POR_TENANT = new Set([
   'usuarios',
   'repartidores',
   'empresas_afiliadas',
+  'comercios_afiliados',
   'zonas_cobertura',
   'cupones',
   'anuncios',
@@ -1960,6 +1992,150 @@ function _resetFormEmpresa() {
 }
 
 // ── Rangos de precio empresa ─────────────────────────────────────────────────
+
+// ── Comercios frecuentes ────────────────────────────────────────────────────
+// Reutiliza Google Maps, ya cargado por el editor de zonas de este panel.
+let _comercioMap = null
+let _comercioMarker = null
+
+function _detalleErrorComercio(contexto, error) {
+  console.error('[comercios] ' + contexto, { message: error?.message, code: error?.code, details: error?.details })
+  return error?.code === '23505' ? 'Ya tienes un comercio con ese nombre' : (error?.message || 'No fue posible completar la operación')
+}
+
+function _diasComercioMarcados(dias) {
+  const seleccionados = Array.isArray(dias) && dias.length ? dias : [1, 2, 3, 4, 5, 6]
+  return [1, 2, 3, 4, 5, 6, 7].map(dia => `<label style="display:flex;align-items:center;gap:4px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700"><input type="checkbox" name="comercio-dia" value="${dia}" ${seleccionados.includes(dia) ? 'checked' : ''}> ${['L', 'M', 'X', 'J', 'V', 'S', 'D'][dia - 1]}</label>`).join('')
+}
+
+function _modalComercioHtml(comercio) {
+  const c = comercio || {}
+  return `<div id="modal-comercio-afiliado" style="position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:11000;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="dialog" aria-modal="true" aria-labelledby="comercio-modal-titulo" style="width:100%;max-width:680px;max-height:calc(100vh - 32px);overflow:auto;background:white;border-radius:18px;padding:20px;box-shadow:0 20px 65px rgba(0,0,0,.32)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px"><div id="comercio-modal-titulo" class="card-title" style="margin:0">${c.id ? 'Editar comercio' : 'Nuevo comercio frecuente'}</div><button type="button" onclick="cerrarModalComercio()" aria-label="Cerrar" style="border:none;background:transparent;color:var(--gray-mid);font-size:23px;line-height:1;cursor:pointer">×</button></div>
+      <input id="comercio-id" type="hidden" value="${escaparAtributoAdmin(c.id || '')}">
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px"><div class="form-group"><label class="form-label" for="comercio-nombre">Nombre *</label><input id="comercio-nombre" class="form-input" maxlength="60" value="${escaparAtributoAdmin(c.nombre || '')}" autocomplete="organization"></div><div class="form-group"><label class="form-label" for="comercio-giro">Giro</label><input id="comercio-giro" class="form-input" maxlength="40" value="${escaparAtributoAdmin(c.giro || '')}"></div></div>
+      <div class="form-group"><label class="form-label" for="comercio-direccion">Dirección *</label><input id="comercio-direccion" class="form-input" value="${escaparAtributoAdmin(c.direccion || '')}" autocomplete="street-address"></div>
+      <div class="form-group"><label class="form-label">Pin en el mapa *</label><div id="comercio-mapa" style="height:250px;border-radius:12px;background:#e8edf5;border:1px solid #d9e2ef"></div><div id="comercio-pin-estado" style="margin-top:7px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--gray-mid)">Haz clic en el mapa para colocar el pin.</div></div>
+      <div class="form-group"><label class="form-label" for="comercio-referencias">Referencias</label><textarea id="comercio-referencias" class="form-input" rows="2" style="resize:vertical">${escaparHtmlAdmin(c.referencias || '')}</textarea></div>
+      <div style="display:grid;grid-template-columns:110px 1fr;gap:10px"><div class="form-group"><label class="form-label" for="comercio-color">Color</label><input id="comercio-color" type="color" value="${escaparAtributoAdmin(c.color_hex || '#1E56C7')}" style="width:100%;height:43px;border:1px solid #d9e2ef;border-radius:9px;background:white;padding:3px;cursor:pointer"></div><div class="form-group"><label class="form-label" for="comercio-logo-url">Logo (URL)</label><input id="comercio-logo-url" type="url" class="form-input" value="${escaparAtributoAdmin(c.logo_url || '')}" placeholder="https://..."><div style="margin-top:5px;font-family:Montserrat,sans-serif;font-size:10px;font-weight:600;color:var(--gray-mid)">Sube el logo solo si el comercio te dio autorización. Si lo dejas vacío se usa la inicial sobre el color.</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input id="comercio-acepta-devoluciones" type="checkbox" ${c.acepta_devoluciones !== false ? 'checked' : ''}><span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Acepta devoluciones</span></label><label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input id="comercio-requiere-factura" type="checkbox" ${c.requiere_factura !== false ? 'checked' : ''}><span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Requiere factura</span></label></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 110px;gap:10px"><div class="form-group"><label class="form-label" for="comercio-hora-apertura">Apertura</label><input id="comercio-hora-apertura" type="time" class="form-input" value="${escaparAtributoAdmin(c.hora_apertura || '')}"></div><div class="form-group"><label class="form-label" for="comercio-hora-cierre">Cierre</label><input id="comercio-hora-cierre" type="time" class="form-input" value="${escaparAtributoAdmin(c.hora_cierre || '')}"></div><div class="form-group"><label class="form-label" for="comercio-orden">Orden</label><input id="comercio-orden" type="number" class="form-input" min="0" step="1" value="${Number.isFinite(c.orden) ? c.orden : 0}"></div></div>
+      <div class="form-group"><label class="form-label">Días de operación</label><div style="display:flex;gap:11px;flex-wrap:wrap">${_diasComercioMarcados(c.dias_operacion)}</div></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px"><button type="button" onclick="cerrarModalComercio()" style="padding:11px 16px;background:var(--gray);color:var(--text);border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:800;font-size:12px;cursor:pointer">Cancelar</button><button id="comercio-submit" type="button" onclick="guardarComercioAfiliado()" style="padding:11px 17px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Guardar comercio</button></div>
+    </div></div>`
+}
+
+function _actualizarPinComercio(lat, lng, centrar) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+  const posicion = { lat, lng }
+  if (_comercioMarker) _comercioMarker.setPosition(posicion)
+  else {
+    _comercioMarker = new google.maps.Marker({ position: posicion, map: _comercioMap, draggable: true })
+    _comercioMarker.addListener('dragend', evento => _actualizarPinComercio(evento.latLng.lat(), evento.latLng.lng(), false))
+  }
+  if (centrar) _comercioMap.setCenter(posicion)
+  const estado = document.getElementById('comercio-pin-estado')
+  if (estado) estado.textContent = `Pin: ${lat.toFixed(6)}, ${lng.toFixed(6)}`
+}
+
+async function _inicializarMapaComercio(comercio) {
+  const inicio = Date.now()
+  while (!window.google?.maps?.Map) {
+    if (Date.now() - inicio > 10000) throw new Error('Google Maps no terminó de cargar')
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  const tienePin = Number.isFinite(comercio?.lat) && Number.isFinite(comercio?.lng)
+  const posicion = tienePin ? { lat: comercio.lat, lng: comercio.lng } : { lat: 20.6597, lng: -103.3496 }
+  _comercioMap = new google.maps.Map(document.getElementById('comercio-mapa'), { center: posicion, zoom: tienePin ? 16 : 12, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false })
+  _comercioMap.addListener('click', evento => _actualizarPinComercio(evento.latLng.lat(), evento.latLng.lng(), false))
+  if (tienePin) _actualizarPinComercio(comercio.lat, comercio.lng, true)
+}
+
+async function abrirModalComercio(id = null) {
+  let comercio = null
+  if (id) {
+    const { data, error } = await db.from('comercios_afiliados').select('*').eq('id', id).single()
+    if (error) { showToast('❌ ' + _detalleErrorComercio('cargar comercio', error)); return }
+    comercio = data
+  }
+  document.getElementById('modal-comercio-afiliado')?.remove()
+  document.body.insertAdjacentHTML('beforeend', _modalComercioHtml(comercio))
+  const modal = document.getElementById('modal-comercio-afiliado')
+  modal.addEventListener('click', evento => { if (evento.target === modal) cerrarModalComercio() })
+  _comercioMap = null; _comercioMarker = null
+  try { await _inicializarMapaComercio(comercio) }
+  catch (error) { console.error('[comercios] No fue posible inicializar el mapa:', error.message); document.getElementById('comercio-pin-estado').textContent = 'No se pudo cargar el mapa. Cierra e intenta de nuevo.' }
+}
+
+function cerrarModalComercio() {
+  document.getElementById('modal-comercio-afiliado')?.remove()
+  _comercioMap = null; _comercioMarker = null
+}
+
+async function cargarComerciosAfiliados() {
+  const tabla = document.getElementById('lista-comercios-afiliados')
+  if (!tabla) return
+  const { data, error } = await db.from('comercios_afiliados').select('*').order('orden').order('nombre')
+  if (error) { tabla.innerHTML = '<tr><td colspan="5" style="padding:22px;text-align:center;color:#dc2626;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">No fue posible cargar los comercios.</td></tr>'; console.error('[comercios] cargar listado', { message: error.message, code: error.code, details: error.details }); return }
+  if (!data?.length) { tabla.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--gray-mid);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700">Aún no hay comercios frecuentes.</td></tr>'; return }
+  tabla.innerHTML = data.map(comercio => {
+    const nombre = escaparHtmlAdmin(comercio.nombre)
+    const inicial = escaparHtmlAdmin((comercio.nombre || '?').trim().charAt(0).toUpperCase())
+    const inicialSwatch = `<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,${escaparAtributoAdmin(comercio.color_hex)},#111827);color:white;display:${comercio.logo_url ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:14px;font-weight:900">${inicial}</div>`
+    const swatch = comercio.logo_url
+      ? `${inicialSwatch}<img src="${escaparAtributoAdmin(comercio.logo_url)}" alt="" style="width:34px;height:34px;border-radius:9px;object-fit:cover;background:${escaparAtributoAdmin(comercio.color_hex)};position:absolute;inset:0" onerror="this.remove();this.previousElementSibling.style.display='flex'">`
+      : inicialSwatch
+    return `<tr style="border-top:1px solid #edf1f7;font-family:Montserrat,sans-serif"><td style="padding:11px 14px"><div style="display:flex;align-items:center;gap:9px"><div style="width:34px;height:34px;flex:0 0 34px;position:relative">${swatch}</div><div><div style="font-weight:900;font-size:12px;color:var(--text)">${nombre}</div><div style="font-size:10px;color:var(--gray-mid);font-weight:600;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escaparHtmlAdmin(comercio.direccion)}</div></div></div></td><td style="padding:11px 14px;font-size:11px;font-weight:700;color:var(--gray-mid)">${escaparHtmlAdmin(comercio.giro || '—')}</td><td style="padding:11px 14px"><div style="display:flex;gap:5px;flex-wrap:wrap"><span style="font-size:9px;font-weight:800;padding:3px 6px;border-radius:6px;background:${comercio.acepta_devoluciones ? '#dcfce7' : '#f1f5f9'};color:${comercio.acepta_devoluciones ? '#15803d' : '#64748b'}">${comercio.acepta_devoluciones ? 'Devoluciones' : 'Sin devoluciones'}</span><span style="font-size:9px;font-weight:800;padding:3px 6px;border-radius:6px;background:${comercio.requiere_factura ? '#e0f2fe' : '#f1f5f9'};color:${comercio.requiere_factura ? '#0369a1' : '#64748b'}">${comercio.requiere_factura ? 'Factura' : 'Sin factura'}</span></div></td><td style="padding:11px 14px"><button onclick="toggleActivoComercio('${comercio.id}',${!comercio.activo})" style="border:none;border-radius:8px;padding:5px 9px;cursor:pointer;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;background:${comercio.activo ? '#dcfce7' : '#fee2e2'};color:${comercio.activo ? '#15803d' : '#dc2626'}">${comercio.activo ? '● Activo' : '● Inactivo'}</button></td><td style="padding:11px 14px;text-align:right;white-space:nowrap"><button onclick="abrirModalComercio('${comercio.id}')" style="padding:6px 9px;background:var(--blue);color:white;border:none;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:800;font-size:10px;cursor:pointer">Editar</button> <button onclick="eliminarComercioAfiliado('${comercio.id}')" style="padding:6px 9px;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-family:Montserrat,sans-serif;font-weight:800;font-size:10px;cursor:pointer">Eliminar</button></td></tr>`
+  }).join('')
+}
+
+async function guardarComercioAfiliado() {
+  const boton = document.getElementById('comercio-submit')
+  const id = document.getElementById('comercio-id').value || null
+  const nombre = document.getElementById('comercio-nombre').value.trim()
+  const giro = document.getElementById('comercio-giro').value.trim()
+  const direccion = document.getElementById('comercio-direccion').value.trim()
+  const horaApertura = document.getElementById('comercio-hora-apertura').value || null
+  const horaCierre = document.getElementById('comercio-hora-cierre').value || null
+  if (!nombre || nombre.length > 60 || giro.length > 40 || !direccion) { showToast('⚠️ Completa nombre, dirección y respeta los límites de texto'); return }
+  if (!_comercioMarker) { showToast('⚠️ Coloca el pin obligatorio en el mapa'); return }
+  if (horaApertura && horaCierre && horaApertura >= horaCierre) { showToast('⚠️ La apertura debe ser antes del cierre'); return }
+  const orden = Number(document.getElementById('comercio-orden').value)
+  if (!Number.isInteger(orden) || orden < 0 || orden > 32767) { showToast('⚠️ El orden debe ser un entero entre 0 y 32767'); return }
+  const diasOperacion = [...document.querySelectorAll('input[name="comercio-dia"]:checked')].map(input => Number(input.value))
+  if (!diasOperacion.length) { showToast('⚠️ Selecciona al menos un día de operación'); return }
+  const posicion = _comercioMarker.getPosition()
+  const payload = { nombre, giro: giro || null, direccion, referencias: document.getElementById('comercio-referencias').value.trim() || null, lat: posicion.lat(), lng: posicion.lng(), color_hex: document.getElementById('comercio-color').value, logo_url: document.getElementById('comercio-logo-url').value.trim() || null, acepta_devoluciones: document.getElementById('comercio-acepta-devoluciones').checked, requiere_factura: document.getElementById('comercio-requiere-factura').checked, hora_apertura: horaApertura, hora_cierre: horaCierre, dias_operacion: diasOperacion, orden }
+  boton.disabled = true; boton.style.opacity = '.6'
+  try {
+    const resultado = id ? await db.from('comercios_afiliados').update(payload).eq('id', id) : await db.from('comercios_afiliados').insert(payload)
+    if (resultado.error) { showToast('❌ ' + _detalleErrorComercio(id ? 'actualizar comercio' : 'crear comercio', resultado.error)); return }
+    showToast(id ? '✅ Comercio actualizado' : '✅ Comercio creado')
+    cerrarModalComercio(); cargarComerciosAfiliados()
+  } catch (error) {
+    console.error('[comercios] Error inesperado al guardar:', { message: error?.message, code: error?.code, details: error?.details })
+    showToast('❌ No fue posible guardar el comercio')
+  } finally {
+    if (document.body.contains(boton)) { boton.disabled = false; boton.style.opacity = '1' }
+  }
+}
+
+async function toggleActivoComercio(id, activo) {
+  const { error } = await db.from('comercios_afiliados').update({ activo }).eq('id', id)
+  if (error) { showToast('❌ ' + _detalleErrorComercio('cambiar estado', error)); return }
+  showToast(activo ? '✅ Comercio activado' : '✅ Comercio desactivado'); cargarComerciosAfiliados()
+}
+
+async function eliminarComercioAfiliado(id) {
+  const { count, error: errorPedidos } = await db.from('pedidos').select('id', { head: true, count: 'exact' }).eq('comercio_afiliado_id', id)
+  if (errorPedidos) { showToast('❌ ' + _detalleErrorComercio('verificar pedidos asociados', errorPedidos)); return }
+  if ((count || 0) > 0) { showToast('⚠️ Este comercio tiene pedidos asociados. Desactívalo en lugar de eliminarlo.'); return }
+  if (!window.confirm('¿Eliminar este comercio? Esta acción no se puede deshacer.')) return
+  const { error } = await db.from('comercios_afiliados').delete().eq('id', id)
+  if (error) { showToast('❌ ' + _detalleErrorComercio('eliminar comercio', error)); return }
+  showToast('🗑️ Comercio eliminado'); cargarComerciosAfiliados()
+}
 
 let _empRangos = []  // [{id?, km_desde, km_hasta, precio}]
 let _pgRangos  = []  // rangos_precio_general
@@ -3023,6 +3199,7 @@ function showTab(tab, btn) {
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
   if (tab === 'empresas') { cargarEmpresas(); cargarCorteCreditoEmpresas() }
+  if (tab === 'comercios') cargarComerciosAfiliados()
   if (tab === 'repartidores') {
     cargarRepartidores()
     cargarHorarioApertura()
