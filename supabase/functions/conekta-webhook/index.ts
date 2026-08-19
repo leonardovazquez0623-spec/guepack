@@ -5,6 +5,7 @@
 
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { procesarPagoEnvioNacional } from "../_shared/procesar-pago-envio.ts";
 
 async function verificarFirmaConekta(req: Request, bodyBytes: Uint8Array): Promise<boolean> {
   const publicKeyPem = Deno.env.get("CONEKTA_WEBHOOK_PUBLIC_KEY");
@@ -176,58 +177,9 @@ serve(async (req) => {
         // ── Flujo envio nacional ────────────────────────────────────────────
         const envioId = metadata.envio_id;
 
-        const { error: updateErr } = await supabaseAdmin
-          .from("envios_nacionales")
-          .update({
-            pago_verificado:    true,
-            pago_verificado_at: new Date().toISOString(),
-          })
-          .eq("id", envioId);
-
-        if (updateErr) {
-          throw new Error(`Error actualizando el pago verificado: ${updateErr.message}`);
-        }
-
-        try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/enviar-push`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-            body: JSON.stringify({
-              tipo_notificacion: "interno_pago_confirmado",
-              envio_id: Number(envioId),
-            }),
-          });
-        } catch (e: any) {
-          console.error("Error enviando push de pago confirmado:", e.message);
-        }
-
-        const guiaRes = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/skydropx-generar-guia`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":      "application/json",
-              "x-internal-secret": Deno.env.get("INTERNAL_FUNCTIONS_SECRET") ?? "",
-            },
-            body: JSON.stringify({ envio_id: envioId }),
-          }
-        );
-
-        if (!guiaRes.ok) {
-          const errText = await guiaRes.text();
-          console.error("Error generando guia para envio_id", envioId, ":", errText);
-          await supabaseAdmin
-            .from("envios_nacionales")
-            .update({
-              estado:                "pago_recibido_guia_pendiente",
-              error_generacion_guia: errText,
-            })
-            .eq("id", envioId);
-
-          throw new Error(`Skydropx no pudo generar la guía: ${errText}`);
-        } else {
-          const guiaJson = await guiaRes.json();
-          console.log("Guia generada automaticamente:", JSON.stringify(guiaJson));
+        const resultado = await procesarPagoEnvioNacional(supabaseAdmin, envioId);
+        if (!resultado.ok) {
+          throw new Error(resultado.error);
         }
 
       } else {

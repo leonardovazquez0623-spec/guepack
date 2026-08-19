@@ -471,3 +471,8 @@ entrypoint = "./functions/activar-pedidos-programados/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/baja-campana/index.ts"
+
+[functions.reconciliar-pagos-conekta]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/reconciliar-pagos-conekta/index.ts"

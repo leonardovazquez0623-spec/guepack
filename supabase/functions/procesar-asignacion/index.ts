@@ -151,6 +151,10 @@ Deno.serve(async (req) => {
         .update({ procesado: true })
         .eq('pedido_id', pedido_id)
         .eq('procesado', false)
+      await supabase.from('pedidos')
+        .update({ asignacion_agotada: false, asignacion_agotada_en: null })
+        .eq('id', pedido_id)
+        .eq('asignacion_agotada', true)
       return new Response(JSON.stringify({ skipped: true, reason: 'ya aceptado' }), {
         headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
       })
@@ -177,49 +181,56 @@ Deno.serve(async (req) => {
     console.log(`[procesar-asignacion] repartidores disponibles: ${repas?.length ?? 0}`)
     console.log('[procesar] repartidores disponibles:', repas?.length, repas)
 
-    if (!repas?.length) {
-      console.log('[procesar-asignacion] sin repartidores — notificando admin')
-      await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
-      return new Response(JSON.stringify({ ronda, sinRepartidores: true }), {
-        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' }
-      })
-    }
+    const hayRepartidores = Boolean(repas?.length)
+    const esUltimaRonda = ronda >= maxRondas
 
     // ── 4. Enviar push a repartidores ────────────────────────────────────────────
-    try {
-      const respuestaPush = await fetch(
-        `${supabaseUrl}/functions/v1/enviar-push`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + claveServicio
-          },
-          body: JSON.stringify({
-            tipo_notificacion: 'interno_pedido_disponible',
-            pedido_id
-          })
+    if (hayRepartidores) {
+      try {
+        const respuestaPush = await fetch(
+          `${supabaseUrl}/functions/v1/enviar-push`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + claveServicio
+            },
+            body: JSON.stringify({
+              tipo_notificacion: 'interno_pedido_disponible',
+              pedido_id
+            })
+          }
+        )
+        if (!respuestaPush.ok) {
+          console.error(
+            '[procesar-asignacion] No fue posible notificar a los repartidores:',
+            respuestaPush.status,
+            await respuestaPush.text()
+          )
         }
-      )
-      if (!respuestaPush.ok) {
+      } catch (errorPush: any) {
         console.error(
-          '[procesar-asignacion] No fue posible notificar a los repartidores:',
-          respuestaPush.status,
-          await respuestaPush.text()
+          '[procesar-asignacion] Error enviando la notificación:',
+          errorPush.message
         )
       }
-    } catch (errorPush: any) {
-      console.error(
-        '[procesar-asignacion] Error enviando la notificación:',
-        errorPush.message
-      )
+    } else {
+      console.log('[procesar-asignacion] sin repartidores disponibles en esta ronda')
+      if (!esUltimaRonda) {
+        await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
+      }
     }
 
-    // ── 5. Actualizar ronda_asignacion en el pedido ──────────────────────────────
+    // ── 5. Marcar esta ronda como procesada y actualizar ronda_asignacion ───────
+    await supabase.from('rondas_pendientes')
+      .update({ procesado: true })
+      .eq('pedido_id', pedido_id)
+      .eq('ronda', ronda)
+      .eq('procesado', false)
     await supabase.from('pedidos').update({ ronda_asignacion: ronda }).eq('id', pedido_id)
 
     // ── 6. Programar siguiente ronda o notificar agotamiento ─────────────────────
-    if (ronda < maxRondas) {
+    if (!esUltimaRonda) {
       const delaySegundos = tiempoAceptar + pausaRondas
       const ejecutarEn = new Date(Date.now() + delaySegundos * 1000).toISOString()
       await supabase.from('rondas_pendientes').insert({
@@ -231,11 +242,19 @@ Deno.serve(async (req) => {
       console.log(`[procesar-asignacion] ronda ${ronda + 1} programada para ${ejecutarEn}`)
     } else {
       console.log('[procesar-asignacion] todas las rondas agotadas — notificando admin')
+      await supabase.from('pedidos')
+        .update({ asignacion_agotada: true, asignacion_agotada_en: new Date().toISOString() })
+        .eq('id', pedido_id)
       await _notificarAdmins(supabase, supabaseUrl, claveServicio!, pedido_id)
     }
 
     return new Response(
-      JSON.stringify({ ok: true, ronda, siguienteRonda: ronda < maxRondas ? ronda + 1 : null }),
+      JSON.stringify({
+        ok: true,
+        ronda,
+        sinRepartidores: !hayRepartidores,
+        siguienteRonda: esUltimaRonda ? null : ronda + 1
+      }),
       { headers: { ...corsHeaders(req), 'Content-Type': 'application/json' } }
     )
   } catch (err: any) {
