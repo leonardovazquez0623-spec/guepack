@@ -177,14 +177,14 @@ serve(async (req) => {
         user_id: user.id,
         // Origen
         origen_nombre:     origen.nombre,    origen_telefono:   origen.telefono,  origen_email:    origen.email    ?? null,
-        origen_calle:      origen.calle,     origen_numero:     origen.numero    ?? null, origen_colonia:  origen.colonia,
+        origen_calle:      (origen.calle ?? "").slice(0, 60) || null, origen_numero:     origen.numero    ?? null, origen_colonia:  origen.colonia,
         origen_ciudad:     origen.ciudad,    origen_estado:     origen.estado,    origen_cp:       cp_origen,
-        origen_referencia: origen.referencia ?? null,
+        origen_referencia: (origen.referencia ?? "").slice(0, 40) || null,
         // Destino
         destino_nombre:     destino.nombre,   destino_telefono:  destino.telefono, destino_email:   destino.email   ?? null,
-        destino_calle:      destino.calle,    destino_numero:    destino.numero   ?? null, destino_colonia: destino.colonia,
+        destino_calle:      (destino.calle ?? "").slice(0, 60) || null, destino_numero:    destino.numero   ?? null, destino_colonia: destino.colonia,
         destino_ciudad:     destino.ciudad,   destino_estado:    destino.estado,   destino_cp:      cp_destino,
-        destino_referencia: destino.referencia ?? null,
+        destino_referencia: (destino.referencia ?? "").slice(0, 40) || null,
         // Paquete
         peso_kg:  paquete.peso_kg,  largo_cm: paquete.largo_cm,
         ancho_cm: paquete.ancho_cm, alto_cm:  paquete.alto_cm,

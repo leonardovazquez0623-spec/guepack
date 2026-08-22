@@ -214,6 +214,8 @@ serve(async (req) => {
         quotation_id: envio.skydropx_quotation_id,
         rate_id: envio.skydropx_rate_id,
         unique_shipment: true,
+        consignment_note: CONSIGNMENT_NOTES[envio.contenido] ?? CONSIGNMENT_NOTES.otro,
+        package_type: PACKAGE_TYPE_DEFAULT,
         address_from: {
           name: envio.origen_nombre,
           street1: envio.origen_calle,
@@ -245,8 +247,6 @@ serve(async (req) => {
           length: envio.largo_cm,
           width: envio.ancho_cm,
           height: envio.alto_cm,
-          consignment_note: CONSIGNMENT_NOTES[envio.contenido] ?? CONSIGNMENT_NOTES.otro,
-          package_type: PACKAGE_TYPE_DEFAULT,
         },
       },
     };

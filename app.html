@@ -1439,7 +1439,8 @@
           <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Calle *</label>
-              <input id="nac-ori-calle" type="text" class="form-input" placeholder="Nombre de la calle">
+              <input id="nac-ori-calle" type="text" class="form-input" maxlength="60" placeholder="Nombre de la calle" oninput="document.getElementById('nac-ori-calle-count').textContent=this.value.length+'/60'">
+              <div id="nac-ori-calle-count" class="nac-cp-lock" style="text-align:right">0/60</div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Número</label>
@@ -1475,7 +1476,8 @@
           </div>
           <div class="form-group" style="margin-top:10px">
             <label class="form-label">Referencia</label>
-            <input id="nac-ori-ref" type="text" class="form-input" placeholder="Ej. Fachada roja, junto a la farmacia">
+            <input id="nac-ori-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Fachada roja, junto a la farmacia" oninput="document.getElementById('nac-ori-ref-count').textContent=this.value.length+'/40'">
+            <div id="nac-ori-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
           </div>
         </div>
 
@@ -1509,7 +1511,8 @@
           <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Calle *</label>
-              <input id="nac-dst-calle" type="text" class="form-input" placeholder="Nombre de la calle">
+              <input id="nac-dst-calle" type="text" class="form-input" maxlength="60" placeholder="Nombre de la calle" oninput="document.getElementById('nac-dst-calle-count').textContent=this.value.length+'/60'">
+              <div id="nac-dst-calle-count" class="nac-cp-lock" style="text-align:right">0/60</div>
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Número</label>
@@ -1545,7 +1548,8 @@
           </div>
           <div class="form-group" style="margin-top:10px">
             <label class="form-label">Referencia</label>
-            <input id="nac-dst-ref" type="text" class="form-input" placeholder="Ej. Edificio azul, depto 3B">
+            <input id="nac-dst-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Edificio azul, depto 3B" oninput="document.getElementById('nac-dst-ref-count').textContent=this.value.length+'/40'">
+            <div id="nac-dst-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
           </div>
         </div>
 
