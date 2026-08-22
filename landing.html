@@ -755,6 +755,12 @@
       box-shadow: 0 8px 28px rgba(0,0,0,0.14);
       transform: scale(1.05);
     }
+    @media (max-width: 768px) {
+      .aliado-card img {
+        max-width: 120px;
+        height: 70px;
+      }
+    }
     @keyframes pulse {
       0%,100% { opacity:1; } 50% { opacity:.5; }
     }
@@ -989,7 +995,7 @@
         const tag = c.link_url ? 'a' : 'div'
         const linkAttrs = c.link_url ? `href="${c.link_url}" target="_blank" rel="noopener"` : ''
         const logoHtml = c.logo_url
-          ? `<img src="${c.logo_url}" alt="${c.nombre}" style="width:100%;max-width:140px;height:80px;object-fit:contain;object-position:center;display:block;margin:0 auto">`
+          ? `<img src="${c.logo_url}" alt="${c.nombre}" style="width:100%;max-width:180px;height:100px;object-fit:contain;object-position:center;display:block;margin:0 auto">`
           : `<span style="font-size:2.5rem;display:block;text-align:center">🏢</span>`
         return `<div>
           <${tag} class="aliado-card" ${linkAttrs} style="${c.link_url ? 'cursor:pointer' : ''}">
