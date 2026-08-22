@@ -989,8 +989,8 @@
         const tag = c.link_url ? 'a' : 'div'
         const linkAttrs = c.link_url ? `href="${c.link_url}" target="_blank" rel="noopener"` : ''
         const logoHtml = c.logo_url
-          ? `<img src="${c.logo_url}" alt="${c.nombre}" style="max-width:160%;max-height:160px;object-fit:contain;display:block;margin:0 auto">`
-          : `<span style="font-size:2.5rem">🏢</span>`
+          ? `<img src="${c.logo_url}" alt="${c.nombre}" style="width:100%;max-width:140px;height:80px;object-fit:contain;object-position:center;display:block;margin:0 auto">`
+          : `<span style="font-size:2.5rem;display:block;text-align:center">🏢</span>`
         return `<div>
           <${tag} class="aliado-card" ${linkAttrs} style="${c.link_url ? 'cursor:pointer' : ''}">
             ${logoHtml}
