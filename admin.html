@@ -434,6 +434,10 @@ function initMapsAdmin() {
 
   <!-- TAB PEDIDOS -->
   <div id="tab-pedidos" class="tab-content active">
+    <div id="card-recetas-en-proceso" class="card" style="display:none;margin-bottom:16px">
+      <div class="card-title">💊 Recetas en proceso</div>
+      <div id="recetas-en-proceso-lista"></div>
+    </div>
     <div class="stats-row">
       <div class="stat-box">
         <div class="stat-number orange" id="stat-pendientes">0</div>
@@ -1120,6 +1124,33 @@ function initMapsAdmin() {
         </div>
         <div id="emp-rangos-tabla"></div>
         <button onclick="guardarRangosEmpresa()" style="width:100%;margin-top:8px;padding:10px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar rangos</button>
+      </div>
+      <!-- Servicio "con recolección de receta" (opcional, solo farmacias) -->
+      <div class="form-group">
+        <label class="form-label">
+          💊 Servicio con recolección de receta
+          <small style="color:#8fa3c0;font-weight:600">(opcional; vacío = servicio deshabilitado)</small>
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-group">
+          <label class="form-label">Tarifa base ($)</label>
+          <input type="number" id="emp-tarifa-receta" class="form-input" placeholder="115" min="0" step="0.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Km incluidos</label>
+          <input type="number" id="emp-km-incluidos-receta" class="form-input" placeholder="7" min="0" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">$/km extra</label>
+          <input type="number" id="emp-tarifa-km-receta" class="form-input" placeholder="8" min="0" step="0.5">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Dirección de la farmacia</label>
+        <input type="text" id="emp-direccion-farmacia" class="form-input" placeholder="Dirección fija de la farmacia" autocomplete="off">
+        <input type="hidden" id="emp-lat-farmacia">
+        <input type="hidden" id="emp-lng-farmacia">
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:10px">
@@ -1833,9 +1864,23 @@ async function guardarEmpresa() {
   if (cargoPaqueteGrande !== null && (!Number.isFinite(cargoPaqueteGrande) || cargoPaqueteGrande < 0)) {
     showToast('⚠️ El cargo de paquete grande debe ser un número mayor o igual a cero'); return
   }
+  const _campoOpcionalNum = id => { const t = document.getElementById(id).value.trim(); return t === '' ? null : Number(t) }
+  const tarifaReceta        = _campoOpcionalNum('emp-tarifa-receta')
+  const kmIncluidosReceta   = _campoOpcionalNum('emp-km-incluidos-receta')
+  const tarifaKmReceta      = _campoOpcionalNum('emp-tarifa-km-receta')
+  for (const [valor, etiqueta] of [[tarifaReceta, 'la tarifa base'], [kmIncluidosReceta, 'los km incluidos'], [tarifaKmReceta, 'el $/km extra']]) {
+    if (valor !== null && (!Number.isFinite(valor) || valor < 0)) {
+      showToast(`⚠️ En el servicio de receta, ${etiqueta} debe ser un número mayor o igual a cero`); return
+    }
+  }
+  const direccionFarmacia = document.getElementById('emp-direccion-farmacia').value.trim() || null
+  const latFarmaciaTexto  = document.getElementById('emp-lat-farmacia').value.trim()
+  const lngFarmaciaTexto  = document.getElementById('emp-lng-farmacia').value.trim()
+  const latFarmacia = latFarmaciaTexto === '' ? null : Number(latFarmaciaTexto)
+  const lngFarmacia = lngFarmaciaTexto === '' ? null : Number(lngFarmaciaTexto)
   const tipoCredito  = document.getElementById('emp-tipo-credito')?.value || 'Semanal'
   const tarifaDiaria = parseFloat(document.getElementById('emp-tarifa-diaria')?.value) || 380
-  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, cargo_paquete_grande: cargoPaqueteGrande, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra, permite_paqueterias: _empPermitePaqueterias, permite_mercado_libre: _empPermiteMercadoLibre }
+  const payload = { nombre, codigo, tarifa_minima: tarifaBase, km_minimo: kmMin, tarifa_base_extra: tarifaExtra, tarifa_km: precioKm, cargo_paquete_grande: cargoPaqueteGrande, iva: 0.16, activa: _empActivo, pedidos_activos: _empPedidosActivos, tipo_credito: tipoCredito, tarifa_diaria: tarifaDiaria, tipo_tarifa: _empTipoTarifa, metodos_pago_extra: _empMetodosPagoExtra, permite_paqueterias: _empPermitePaqueterias, permite_mercado_libre: _empPermiteMercadoLibre, tarifa_receta: tarifaReceta, km_incluidos_receta: kmIncluidosReceta, tarifa_km_receta: tarifaKmReceta, direccion_farmacia: direccionFarmacia, lat_farmacia: latFarmacia, lng_farmacia: lngFarmacia }
   console.log('[guardarEmpresa] id:', id || '(nuevo)', '| payload:', JSON.stringify(payload, null, 2))
   let error, nuevaEmpresaId = null
   if (id) {
@@ -1886,6 +1931,17 @@ async function guardarEmpresa() {
   cargarEmpresas()
 }
 
+function _empInicializarAutocompleteFarmacia() {
+  const input = document.getElementById('emp-direccion-farmacia')
+  if (!input) return
+  _crearGuepAutocomplete(input, {
+    onSelect: place => {
+      document.getElementById('emp-lat-farmacia').value = place.geometry.location.lat()
+      document.getElementById('emp-lng-farmacia').value = place.geometry.location.lng()
+    }
+  })
+}
+
 async function editarEmpresa(id) {
   const { data } = await db.from('empresas_afiliadas').select('*').eq('id', id).single()
   if (!data) return
@@ -1897,6 +1953,13 @@ async function editarEmpresa(id) {
   document.getElementById('emp-tarifa-extra').value = data.tarifa_base_extra || 115
   document.getElementById('emp-precio-km').value    = data.tarifa_km
   document.getElementById('emp-cargo-paquete-grande').value = data.cargo_paquete_grande ?? ''
+  document.getElementById('emp-tarifa-receta').value        = data.tarifa_receta ?? ''
+  document.getElementById('emp-km-incluidos-receta').value  = data.km_incluidos_receta ?? ''
+  document.getElementById('emp-tarifa-km-receta').value     = data.tarifa_km_receta ?? ''
+  document.getElementById('emp-direccion-farmacia').value   = data.direccion_farmacia ?? ''
+  document.getElementById('emp-lat-farmacia').value         = data.lat_farmacia ?? ''
+  document.getElementById('emp-lng-farmacia').value         = data.lng_farmacia ?? ''
+  _empInicializarAutocompleteFarmacia()
   _empActivo = data.activa !== false
   const btn = document.getElementById('emp-activo-btn')
   btn.style.background = _empActivo ? '#dcfce7' : '#fee2e2'
@@ -1983,6 +2046,13 @@ function _abrirFormEmpresa() {
   document.getElementById('emp-tarifa-extra').value = '115'
   document.getElementById('emp-precio-km').value    = '10'
   document.getElementById('emp-cargo-paquete-grande').value = ''
+  document.getElementById('emp-tarifa-receta').value = ''
+  document.getElementById('emp-km-incluidos-receta').value = ''
+  document.getElementById('emp-tarifa-km-receta').value = ''
+  document.getElementById('emp-direccion-farmacia').value = ''
+  document.getElementById('emp-lat-farmacia').value = ''
+  document.getElementById('emp-lng-farmacia').value = ''
+  _empInicializarAutocompleteFarmacia()
   _empActivo = true
   const btn = document.getElementById('emp-activo-btn')
   if (btn) { btn.style.background = '#dcfce7'; btn.style.color = '#16a34a'; btn.textContent = '● Activo' }
@@ -3524,6 +3594,8 @@ async function cargarPedidos() {
     document.getElementById('stat-pendientes').textContent = data.filter(p => p.estado === 'Pendiente').length
     document.getElementById('stat-ruta').textContent = data.filter(p => ['En camino a recoleccion','Repartidor en domicilio recoleccion','Recolectado','En camino a entrega','Repartidor en domicilio'].includes(p.estado)).length
     document.getElementById('stat-entregados').textContent = data.filter(p => p.estado === 'Entregado').length
+
+    _cargarRecetasEnProceso()
 
     let html = ''
 
@@ -6854,6 +6926,50 @@ async function _togglePedidosActivos(empresaId, valor) {
   console.log('[pedidos_activos] resultado:', data, 'error:', error)
   if (error) { showToast('❌ Error: ' + error.message); document.getElementById('toggle-pedidos-activos').checked = !valor; return }
   showToast(valor ? '✅ Pedidos activados' : '🚫 Pedidos desactivados')
+}
+
+// ── RECETAS EN PROCESO (servicio con recolección de receta) ─────────────────
+const _RECETA_SUBESTADO_LABEL = {
+  esperando_recoleccion: '🚗 Esperando recolección',
+  receta_recolectada:    '📄 Receta recolectada',
+  en_farmacia:            '🏥 En la farmacia',
+  surtido:                '✅ Surtido'
+}
+
+async function _cargarRecetasEnProceso() {
+  const card = document.getElementById('card-recetas-en-proceso')
+  const lista = document.getElementById('recetas-en-proceso-lista')
+  if (!card || !lista) return
+  const { data, error } = await db.from('pedidos')
+    .select('id, nombre, direccion_entrega, receta_subestado, receta_llegada_farmacia_at, receta_espera_excedida')
+    .eq('tipo_servicio', 'con_recoleccion')
+    .not('receta_subestado', 'eq', 'surtido')
+    .order('created_at', { ascending: true })
+  if (error) { console.error('[recetas] cargar', error); card.style.display = 'none'; return }
+  if (!data || !data.length) { card.style.display = 'none'; return }
+  card.style.display = 'block'
+  lista.innerHTML = data.map(p => {
+    const label = _RECETA_SUBESTADO_LABEL[p.receta_subestado] || p.receta_subestado || '—'
+    const llegada = p.receta_llegada_farmacia_at ? new Date(p.receta_llegada_farmacia_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : null
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f3f8">
+      <div>
+        <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;color:var(--color-primary-dark)">GK-${p.id} · ${(p.nombre || '').trim()}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:11px;color:#8fa3c0;font-weight:600;margin-top:2px">${label}${llegada ? ' · llegó a la farmacia ' + llegada : ''}</div>
+      </div>
+      <button onclick="_marcarRecetaSurtida(${p.id}, ${p.receta_llegada_farmacia_at ? `'${p.receta_llegada_farmacia_at}'` : 'null'})" style="padding:8px 14px;background:var(--success);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap">✅ Marcar surtido</button>
+    </div>`
+  }).join('')
+}
+
+async function _marcarRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
+  const ahora = new Date()
+  const excedida = !!llegadaFarmaciaAt && (ahora - new Date(llegadaFarmaciaAt)) > 15 * 60 * 1000
+  const { error } = await db.from('pedidos').update({
+    receta_subestado: 'surtido', receta_surtido_at: ahora.toISOString(), receta_espera_excedida: excedida
+  }).eq('id', pedidoId)
+  if (error) { showToast('❌ ' + error.message); return }
+  showToast(excedida ? '✅ Surtido (⚠️ espera excedida)' : '✅ Surtido')
+  _cargarRecetasEnProceso()
 }
 
 // ── GUÍAS NACIONALES ─────────────────────────────────────────────────────────

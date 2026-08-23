@@ -836,6 +836,15 @@ function _suscribirPedidosNuevos() {
         _pedidosRechazados.delete(p.id)
         _mostrarModalNuevoPedido(p)
       }
+
+      // Admin marcó la receta como surtida (u otro cambio de receta_subestado) —
+      // refrescar para habilitar/actualizar el botón "En camino" de esta tarjeta
+      if (p.receta_subestado !== old?.receta_subestado &&
+          p.repartidor === _repaData?.nombre) {
+        db.auth.getSession().then(({ data: { session } }) => {
+          if (session) cargarPedidos(session.user.email)
+        })
+      }
     })
     .subscribe()
   _realtimeSuscrito = true
@@ -1283,11 +1292,12 @@ async function cargarPedidos(email) {
 
 // ── Keyed reconciliation: helpers ───────────────────────────────────────────
 
-// estado y foto_recoleccion son los únicos campos mutables que afectan el HTML
-// de la tarjeta (incluido su shell: check de recolección y botón cancelar)
+// estado, foto_recoleccion y receta_subestado son los campos mutables que afectan
+// el HTML de la tarjeta (incluido su shell: check de recolección y botón cancelar)
 function _pedidoCambio(prev, nuevo) {
   return prev.estado !== nuevo.estado ||
-         (prev.foto_recoleccion || null) !== (nuevo.foto_recoleccion || null)
+         (prev.foto_recoleccion || null) !== (nuevo.foto_recoleccion || null) ||
+         (prev.receta_subestado || null) !== (nuevo.receta_subestado || null)
 }
 
 // ambos arrays vienen ordenados por `orden`, la comparación por índice es válida
@@ -1780,13 +1790,54 @@ function _renderBotonesNormales(pedido) {
   // Botón Recolectado: bloqueado hasta que exista foto de recolección
   const _fotoOk = !!pedido.foto_recoleccion
   const _clasRecol = _sb(1) + (!_fotoOk && _idx === 1 ? ' blocked' : '')
+
+  // Servicio "con recolección de receta": paso extra "Llegué a la farmacia" entre
+  // Recolectado y En camino, y En camino queda bloqueado hasta que admin marque surtido.
+  const _esReceta = pedido.tipo_servicio === 'con_recoleccion'
+  const _recetaSubestado = pedido.receta_subestado
   const _clickRecol = (!_fotoOk && _idx === 1)
     ? `_toastRepa('📸 Sube la foto y firma antes de marcar como recolectado', '#f59e0b')`
-    : `cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')`
+    : _esReceta
+      ? `_marcarRecolectadoReceta(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}')`
+      : `cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')`
+
+  let _pasoFarmaciaHtml = ''
+  let _pasoSurtidoHtml = ''
+  let _clasEnCamino = _sb(2)
+  let _clickEnCamino = `cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')`
+  if (_esReceta) {
+    const _farmaciaOk = _recetaSubestado === 'en_farmacia' || _recetaSubestado === 'surtido'
+    const _surtidoOk = _recetaSubestado === 'surtido'
+    const _clasFarmacia = (_idx > 2 || _farmaciaOk) ? 'done' : _idx === 2 ? 'active' : 'inactive'
+    const _clickFarmacia = _farmaciaOk
+      ? `_toastRepa('📍 Ya marcaste la llegada a la farmacia', '#8fa3c0')`
+      : `_marcarLlegadaFarmacia(${pedido.id})`
+    _pasoFarmaciaHtml = `<div class="step-btn ${_clasFarmacia}" onclick="${_clickFarmacia}">Farmacia</div>`
+
+    // "Recibí el medicamento": requiere foto de evidencia (mismo patrón que
+    // abrirModalParada/confirmarParada en _renderParadasMulti), y desbloquea
+    // "En camino" en este mismo cliente sin esperar el Realtime de admin.html.
+    const _clasSurtido = _surtidoOk ? 'done' : _farmaciaOk ? 'active' : 'inactive'
+    const _llegadaFarmaciaAttr = (pedido.receta_llegada_farmacia_at || '').replace(/'/g, "\\'")
+    const _clickSurtido = _surtidoOk
+      ? `_toastRepa('📦 Ya confirmaste la entrega del medicamento', '#8fa3c0')`
+      : _farmaciaOk
+        ? `abrirModalRecetaSurtida(${pedido.id}, '${_llegadaFarmaciaAttr}')`
+        : `_toastRepa('📍 Primero marca que llegaste a la farmacia', '#f59e0b')`
+    _pasoSurtidoHtml = `<div class="step-btn ${_clasSurtido}" onclick="${_clickSurtido}">📦 Recibí</div>`
+
+    _clasEnCamino = _sb(2) + (!_surtidoOk && _idx === 2 ? ' blocked' : '')
+    _clickEnCamino = (!_surtidoOk && _idx === 2)
+      ? `_toastRepa('⏳ Confirma que recibiste el medicamento antes de continuar', '#f59e0b')`
+      : `cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')`
+  }
+
   stepsEl.innerHTML = `
     <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
     <div class="step-btn ${_clasRecol}" onclick="${_clickRecol}">Recolectado</div>
-    <div class="step-btn ${_sb(2)}" onclick="cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')">En camino</div>
+    ${_pasoFarmaciaHtml}
+    ${_pasoSurtidoHtml}
+    <div class="step-btn ${_clasEnCamino}" onclick="${_clickEnCamino}">En camino</div>
     <div class="step-btn ${_sb(3)}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})">Llegue</div>
     <div class="step-btn ${_sb(4)}" onclick="abrirModalEntrega(${pedido.id})">Entregado</div>
   `
@@ -1803,7 +1854,148 @@ function _renderBotonesNormales(pedido) {
       </div>
       <a href="${_mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">${_iconoRepaHtml('54-mapa', 14)} Ver ruta completa</a>
     `
+    if (_esReceta) _mostrarDireccionFarmacia(pedido, _pEl)
   }
+}
+
+const _farmaciaCache = {}
+async function _mostrarDireccionFarmacia(pedido, contenedor) {
+  if (!pedido.empresa_codigo) return
+  if (!(pedido.empresa_codigo in _farmaciaCache)) {
+    const { data } = await db.from('empresas_afiliadas').select('direccion_farmacia').eq('codigo', pedido.empresa_codigo).maybeSingle()
+    _farmaciaCache[pedido.empresa_codigo] = data?.direccion_farmacia || null
+  }
+  const direccion = _farmaciaCache[pedido.empresa_codigo]
+  if (!direccion || !contenedor.isConnected) return
+  const aviso = document.createElement('div')
+  aviso.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 0;margin-top:2px;border-top:1px solid rgba(26,79,160,0.06)'
+  aviso.innerHTML = `
+    <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#8fa3c0;flex-shrink:0">🏥</span>
+    <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${direccion}</span>
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}" target="_blank" aria-label="Abrir ubicación de la farmacia en el mapa" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">${_iconoRepaHtml('54-mapa', 15)}</a>
+  `
+  contenedor.appendChild(aviso)
+}
+
+async function _marcarRecolectadoReceta(pedidoId, telefono, nombre) {
+  await cambiarEstado(pedidoId, 'Recolectado', telefono, nombre)
+  const { error } = await db.from('pedidos').update({ receta_subestado: 'receta_recolectada' }).eq('id', pedidoId)
+  if (error) console.error('[receta] no se pudo actualizar receta_subestado a receta_recolectada:', error)
+}
+
+async function _marcarLlegadaFarmacia(pedidoId) {
+  const { error } = await db.from('pedidos').update({
+    receta_subestado: 'en_farmacia', receta_llegada_farmacia_at: new Date().toISOString()
+  }).eq('id', pedidoId)
+  if (error) { _toastRepa('❌ ' + error.message, '#ef4444'); return }
+  const { data: { session } } = await db.auth.getSession()
+  if (session) cargarPedidos(session.user.email)
+}
+
+// Mismo patrón de evidencia (foto + firma → bucket 'evidencias') que
+// abrirModalParada/confirmarParada, aplicado a pedidos.* en vez de paradas.*
+// porque el servicio con_recoleccion es single-destino y no tiene fila en paradas.
+function abrirModalRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
+  const modal = document.createElement('div')
+  modal.id = 'modal-receta-surtida'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(10,20,50,0.7);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:16px;margin-bottom:20px;color:var(--color-primary-dark);display:flex;align-items:center;gap:6px">📦 Confirmar receta surtida</div>
+      <div style="margin-bottom:16px">
+        <input type="file" id="receta-foto" accept="image/*" capture="environment" style="display:none">
+        <label for="receta-foto" id="btn-receta-foto" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;background:var(--color-primary-dark);color:white;border-radius:14px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;box-sizing:border-box">📸 Tomar foto</label>
+        <div id="receta-foto-preview" style="margin-top:10px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;color:#666;margin-bottom:8px">Firma de recibido</div>
+        <canvas id="receta-canvas" width="340" height="140" style="border:2px solid #e0e0e0;border-radius:12px;width:100%;touch-action:none;background:#fafafa"></canvas>
+        <button onclick="limpiarFirmaRecetaSurtida()" style="margin-top:6px;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;background:none;border:1px solid #ccc;border-radius:8px;padding:4px 12px;cursor:pointer;color:#666">Limpiar firma</button>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-receta-surtida').remove()" style="flex:1;padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;color:#666">Cancelar</button>
+        <button id="btn-confirmar-receta-surtida" onclick="confirmarRecetaSurtida(${pedidoId}, '${llegadaFarmaciaAt}')" style="flex:2;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">✅ Confirmar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+
+  const canvas = document.getElementById('receta-canvas')
+  const ctx = canvas.getContext('2d')
+  let drawing = false
+  canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY) })
+  canvas.addEventListener('mousemove', e => { if (!drawing) return; ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke() })
+  canvas.addEventListener('mouseup', () => { drawing = false })
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.beginPath(); ctx.moveTo(t.clientX - r.left, t.clientY - r.top) }, { passive: false })
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const r = canvas.getBoundingClientRect(); const t = e.touches[0]; ctx.lineTo(t.clientX - r.left, t.clientY - r.top); ctx.stroke() }, { passive: false })
+  canvas.addEventListener('touchend', () => { drawing = false })
+  ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
+
+  document.getElementById('receta-foto').addEventListener('change', function() {
+    if (!this.files[0]) return
+    const url = URL.createObjectURL(this.files[0])
+    document.getElementById('receta-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:180px;object-fit:cover">`
+    document.getElementById('btn-receta-foto').textContent = '✅ Foto lista'
+    document.getElementById('btn-receta-foto').style.background = '#22c55e'
+  })
+}
+
+function limpiarFirmaRecetaSurtida() {
+  const canvas = document.getElementById('receta-canvas')
+  if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+}
+
+async function confirmarRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
+  const _fotoInputR = document.getElementById('receta-foto')
+  if (!_fotoInputR.files[0]) {
+    _toastRepa('📸 Toma una foto antes de confirmar', '#f59e0b')
+    return
+  }
+  const btn = document.getElementById('btn-confirmar-receta-surtida')
+  btn.textContent = 'Subiendo...'; btn.disabled = true
+
+  const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
+  let fotoUrl = null, firmaUrl = null
+
+  const fotoInput = document.getElementById('receta-foto')
+  if (fotoInput.files[0]) {
+    const ruta = `GK-${pedidoId}/receta-surtido.jpg`
+    const { error } = await db.storage.from('evidencias').upload(ruta, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/receta-surtido.jpg`
+  }
+
+  const canvas = document.getElementById('receta-canvas')
+  await new Promise(resolve => canvas.toBlob(async blob => {
+    if (blob) {
+      const ruta = `GK-${pedidoId}/firma-receta-surtido.png`
+      const { error } = await db.storage.from('evidencias').upload(ruta, blob, { contentType: 'image/png', upsert: true })
+      if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-receta-surtido.png`
+    }
+    resolve()
+  }, 'image/png'))
+
+  const ahora = new Date()
+  const excedida = !!llegadaFarmaciaAt && (ahora - new Date(llegadaFarmaciaAt)) > 15 * 60 * 1000
+
+  const { error: pedidoError } = await db.from('pedidos').update({
+    receta_subestado: 'surtido',
+    receta_surtido_at: ahora.toISOString(),
+    receta_espera_excedida: excedida,
+    foto_receta_surtido: fotoUrl,
+    firma_receta_surtido: firmaUrl
+  }).eq('id', pedidoId)
+  if (pedidoError) {
+    console.error('[confirmarRecetaSurtida] Error al actualizar pedido:', pedidoError)
+    alert('Error al guardar la evidencia. Intenta de nuevo.')
+    btn.textContent = '✅ Confirmar'; btn.disabled = false
+    return
+  }
+
+  document.getElementById('modal-receta-surtida').remove()
+  _toastRepa(excedida ? '📦 Receta confirmada (⚠️ espera excedida)' : '📦 Receta confirmada', excedida ? '#f59e0b' : '#22c55e')
+
+  const { data: { session } } = await db.auth.getSession()
+  if (session) cargarPedidos(session.user.email)
 }
 
 function _renderParadasRepartidor(pedidoId, paradas, pedido) {

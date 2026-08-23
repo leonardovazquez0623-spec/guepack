@@ -276,6 +276,25 @@
   }
   #mp-tarjeta { display:none; }
   #mp-tarjeta.selected { border-color:var(--blue); background:var(--blue); color:white; }
+  .ts-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: white;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .ts-option:hover { border-color: #9ca3af; }
+  .ts-option.selected {
+    border-color: var(--blue);
+    background: var(--blue);
+    color: white;
+  }
   .hint-tarjeta { font-size:11px;font-weight:600;color:var(--gray-mid);text-align:center;margin-top:8px;display:none; }
   .btn-completar-pago { display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border:1.5px solid var(--blue);border-radius:10px;background:rgba(26,79,160,0.06);color:var(--blue);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;box-sizing:border-box; }
   .size-icon { display: flex; justify-content: center; align-items: center; margin-bottom: 8px; }
@@ -1113,7 +1132,7 @@
               <div id="comercio-bifurcacion"></div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="dir-recoleccion-group">
               <label class="form-label">¿Dónde recogemos?</label>
               <div style="display:flex;gap:8px;margin-bottom:6px">
                 <input type="text" id="dir-recoleccion" class="form-input" placeholder="Escribe tu calle, número y colonia" style="flex:1">
@@ -1132,7 +1151,7 @@
             </div>
 
             <div id="dir-entrega-group" class="form-group">
-              <label class="form-label">¿A dónde lo enviamos?</label>
+              <label class="form-label" id="dir-entrega-label">¿A dónde lo enviamos?</label>
               <div style="display:flex;gap:8px;margin-bottom:6px">
                 <input type="text" id="dir-entrega" class="form-input" placeholder="Calle, número y colonia del destinatario" style="flex:1">
                 <button type="button" onclick="mostrarDirecciones('dir-entrega')" style="padding:10px 12px;border:2px solid var(--blue);border-radius:10px;background:white;color:var(--blue);cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px"><span data-icon="favoritos" style="width:30px;height:30px;display:inline-flex"></span></button>
@@ -1270,6 +1289,16 @@
               <button onclick="quitarCupon()" style="background:none;border:none;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;color:#8fa3c0;padding:2px 6px;border-radius:6px;white-space:nowrap">✕ Quitar</button>
             </div>
             <div id="cupon-resultado" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700"></div>
+          </div>
+
+          <!-- Tipo de servicio (solo empresas corporativas con servicio de receta) -->
+          <div class="card" id="card-tipo-servicio" style="display:none">
+            <div class="card-title">¿Qué servicio necesitas?</div>
+            <div id="tipo-servicio-opciones" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="ts-option" id="ts-directo" onclick="selectTipoServicio('directo')">🏠 Entrega directa</div>
+              <div class="ts-option" id="ts-con_recoleccion" onclick="selectTipoServicio('con_recoleccion')">💊 Con recolección de receta</div>
+            </div>
+            <div id="receta-farmacia-aviso" style="display:none;margin-top:10px;padding:10px 12px;background:#e0f2fe;border-radius:10px;font-family:Montserrat,sans-serif;font-size:11px;color:#0369a1;font-weight:600"></div>
           </div>
 
           <div class="card" id="card-metodo-pago">
@@ -2252,7 +2281,16 @@ async function _cargarEmpresaUsuario(user) {
   if (empresa.tipo_tarifa === 'diaria') await _chequearTarifaDiaria()
   if (empresa.permite_paqueterias || empresa.permite_mercado_libre) _mostrarTogglesPaqueteria(empresa)
   _actualizarVisibilidadAgregarParada()
+  _actualizarVisibilidadTipoServicio()
   _suscribirEmpresaRealtime(empresa)
+}
+
+function _actualizarVisibilidadTipoServicio() {
+  const card = document.getElementById('card-tipo-servicio')
+  if (!card) return
+  const disponible = !!_empresaData && _empresaData.tipo_tarifa !== 'diaria' && _empresaData.tarifa_receta != null
+  card.style.display = disponible ? 'block' : 'none'
+  if (!disponible) selectTipoServicio('directo')
 }
 
 async function _cargarConfigTenant() {
@@ -3006,7 +3044,7 @@ async function activarNotificaciones() {
 
 // Solo registra token si ya fue concedido — el modal lo maneja _solicitarPermisoNotificaciones()
 if (typeof Notification !== 'undefined' && Notification.permission === 'granted') activarNotificaciones()
-var selSize = null, selZone = null, selMetodoPago = null
+var selSize = null, selZone = null, selMetodoPago = null, selTipoServicio = 'directo'
 let _enviandoPedido = false
 let _idempotencyKeyPedido = null
 // ── Wizard navegación ────────────────────────────────────────────────────────
@@ -3054,7 +3092,10 @@ function _wizardContinuar(paso) {
     const nombre = document.getElementById('nombre-destinatario').value.trim()
     const remitente = document.getElementById('nombre-remitente').value.trim()
     const whatsapp = document.getElementById('whatsapp').value.trim()
-    const dirRec = document.getElementById('dir-recoleccion').value.trim()
+    const esConRecoleccionPaso1 = _empresaData && selTipoServicio === 'con_recoleccion'
+    const dirRec = esConRecoleccionPaso1
+      ? document.getElementById('dir-entrega').value.trim()
+      : document.getElementById('dir-recoleccion').value.trim()
     const dirEnt = document.getElementById('dir-entrega').value.trim()
     if (!nombre)            { mostrarToast('⚠️ Ingresa el nombre del destinatario', 'var(--orange)'); return }
     if (!remitente)         { mostrarToast('⚠️ Ingresa tu nombre (remitente)', 'var(--orange)'); return }
@@ -3443,6 +3484,34 @@ async function selectMetodoPago(mp) {
   }
 }
 
+function selectTipoServicio(val) {
+  selTipoServicio = val
+  document.querySelectorAll('#tipo-servicio-opciones .ts-option').forEach(o => o.classList.remove('selected'))
+  const el = document.getElementById('ts-' + val)
+  if (el) el.classList.add('selected')
+
+  const grupoRecoleccion = document.getElementById('dir-recoleccion-group')
+  const labelEntrega = document.getElementById('dir-entrega-label')
+  const aviso = document.getElementById('receta-farmacia-aviso')
+  const esConRecoleccion = val === 'con_recoleccion'
+
+  if (grupoRecoleccion) grupoRecoleccion.style.display = esConRecoleccion ? 'none' : ''
+  if (labelEntrega) labelEntrega.textContent = esConRecoleccion ? 'Dirección del paciente' : '¿A dónde lo enviamos?'
+  if (aviso) {
+    if (esConRecoleccion && _empresaData?.direccion_farmacia) {
+      aviso.style.display = 'block'
+      aviso.textContent = '📍 Se recogerá tu receta y se llevará a: ' + _empresaData.direccion_farmacia
+    } else {
+      aviso.style.display = 'none'
+    }
+  }
+
+  _corporativoPrecio = null; _corporativoKm = null
+  const qb = document.getElementById('quote-display')
+  if (qb) qb.style.display = 'none'
+  _calcularPrecioCorporativo()
+}
+
 let _datosBancariosTenant = null
 let _promesaDatosBancariosTenant = null
 
@@ -3673,8 +3742,13 @@ async function _procesarSolicitudPedido() {
   const nombre = sanitize(document.getElementById('nombre-destinatario').value)
   const nombreRemitente = sanitize(document.getElementById('nombre-remitente').value)
   const whatsapp = sanitize(document.getElementById('whatsapp').value)
-  const dir_recoleccion = sanitize(document.getElementById('dir-recoleccion').value)
   const dir_entrega = sanitize(document.getElementById('dir-entrega').value)
+  // Servicio "con recolección de receta": una sola dirección (domicilio del
+  // cliente) sirve como recolección y como entrega — el campo de recolección
+  // permanece oculto en el formulario.
+  const dir_recoleccion = (_empresaData && selTipoServicio === 'con_recoleccion')
+    ? dir_entrega
+    : sanitize(document.getElementById('dir-recoleccion').value)
   const fecha = sanitize(document.getElementById('fecha-seleccionada').value)
   console.log('[submitRequest] fecha guardada en pedido:', fecha)
   const instrucciones = sanitize(document.getElementById('instrucciones-recoleccion').value)
@@ -4164,6 +4238,8 @@ if (esCaminoPaqueteria) {
     return
   }
 
+  const esConRecoleccion = selTipoServicio === 'con_recoleccion'
+
   const payloadPedidoCorporativo = {
     nombre: nombre,
     nombre_remitente: nombreRemitente || null,
@@ -4178,11 +4254,12 @@ if (esCaminoPaqueteria) {
     comprobante_pago: sanitize(comprobanteUrl) || null,
     // Los pedidos corporativos no envían cupon_codigo.
     km_recorridos: _kmRecorridos,
-    lat_recoleccion: _latRecoleccion ?? null,
-    lng_recoleccion: _lngRecoleccion ?? null,
+    lat_recoleccion: esConRecoleccion ? (_latEntrega ?? null) : (_latRecoleccion ?? null),
+    lng_recoleccion: esConRecoleccion ? (_lngEntrega ?? null) : (_lngRecoleccion ?? null),
     lat_entrega: _latEntrega ?? null,
     lng_entrega: _lngEntrega ?? null,
-    idempotency_key: idempotencyKey
+    idempotency_key: idempotencyKey,
+    tipo_servicio: esConRecoleccion ? 'con_recoleccion' : 'directo'
   }
 
   let respuestaFuncion
@@ -6535,6 +6612,16 @@ function resetForm() {
   _geocodificacionEntregaSecuencia += 1
   _latRecoleccion = null
   _lngRecoleccion = null
+  // Resetear tipo de servicio sin disparar recotización (aún no hay direcciones válidas)
+  selTipoServicio = 'directo'
+  document.querySelectorAll('#tipo-servicio-opciones .ts-option').forEach(o => o.classList.remove('selected'))
+  document.getElementById('ts-directo')?.classList.add('selected')
+  const _grupoRecolTs = document.getElementById('dir-recoleccion-group')
+  if (_grupoRecolTs) _grupoRecolTs.style.display = ''
+  const _labelEntregaTs = document.getElementById('dir-entrega-label')
+  if (_labelEntregaTs) _labelEntregaTs.textContent = '¿A dónde lo enviamos?'
+  const _avisoRecetaTs = document.getElementById('receta-farmacia-aviso')
+  if (_avisoRecetaTs) _avisoRecetaTs.style.display = 'none'
   _limpiarSeleccionComercio()
   _precioGeneralTotal = null
   _preciosGeneralesData = null
@@ -8975,14 +9062,27 @@ async function _calcularPrecioCorporativo() {
     }
   }
 
-  const origen = document.getElementById('dir-recoleccion').value.trim()
-  if (!origen) {
-    const aviso = document.getElementById('zona-aviso')
-    if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#fffbeb'; aviso.style.color = '#d97706'; aviso.textContent = '⚠️ Ingresa la dirección de recolección para calcular el precio' }
-    return
+  const esConRecoleccion = _empresaData && selTipoServicio === 'con_recoleccion'
+
+  let origen, destino
+  if (esConRecoleccion) {
+    origen = (_empresaData.direccion_farmacia || '').trim()
+    if (!origen) {
+      mostrarToast('⚠️ La farmacia no tiene una dirección configurada. Contacta a soporte.', '#ef4444')
+      return
+    }
+    destino = document.getElementById('dir-entrega').value.trim()
+    if (!destino) return
+  } else {
+    origen = document.getElementById('dir-recoleccion').value.trim()
+    if (!origen) {
+      const aviso = document.getElementById('zona-aviso')
+      if (aviso) { aviso.style.display = 'block'; aviso.style.background = '#fffbeb'; aviso.style.color = '#d97706'; aviso.textContent = '⚠️ Ingresa la dirección de recolección para calcular el precio' }
+      return
+    }
+    destino = document.getElementById('dir-entrega').value.trim()
+    if (!destino) return
   }
-  const destino = document.getElementById('dir-entrega').value.trim()
-  if (!destino) return
 
   if (!_checkRateLimit('cotizador', 10, 60000)) {
     _mostrarToastSeguridad('Demasiadas solicitudes. Espera un momento.')
@@ -9006,6 +9106,11 @@ async function _calcularPrecioCorporativo() {
     const data = await response.json()
     if (!data.routes?.[0]?.distanceMeters) { mostrarToast('⚠️ No se pudo calcular la ruta', 'var(--orange)'); return }
     const km = Math.round((data.routes[0].distanceMeters / 1000) * 10) / 10
+
+    if (esConRecoleccion) {
+      _mostrarCotizacionReceta(km)
+      return
+    }
 
     if (_empresaData?.tipo_tarifa === 'diaria') {
       const precios = await _asegurarPreciosGeneralesCotizacion()
@@ -9100,6 +9205,46 @@ function _mostrarCotizacionCorporativa(km, rangos = []) {
     aviso.style.background = '#e0f2fe'
     aviso.style.color = '#0369a1'
     aviso.textContent = '🏢 ' + e.nombre + ' · ' + km + ' km'
+  }
+}
+
+function _mostrarCotizacionReceta(km) {
+  const e = _empresaData
+  const iva = e.iva || 0.16
+  const tarifaReceta = Number(e.tarifa_receta) || 0
+  const kmIncluidos = Number(e.km_incluidos_receta) || 0
+  const tarifaKmReceta = Number(e.tarifa_km_receta) || 0
+
+  const kmExtra = Math.max(0, km - kmIncluidos)
+  const precioBase = tarifaReceta + kmExtra * tarifaKmReceta
+  const desglose = kmExtra > 0
+    ? '📍 ' + km + ' km · Base $' + tarifaReceta.toFixed(2) + ' + ' + kmExtra.toFixed(1) + ' km × $' + tarifaKmReceta
+    : '📍 ' + km + ' km (dentro de los ' + kmIncluidos + ' km incluidos) · Base $' + tarifaReceta.toFixed(2)
+
+  const subtotalConIva = Math.round(precioBase * (1 + iva) * 100) / 100
+  const cargoCancelacion = _cargoCancelacionPendiente || 0
+  const total = subtotalConIva + cargoCancelacion
+
+  _corporativoPrecio = total
+  _corporativoKm = km
+
+  const quoteAmount = document.getElementById('quote-amount')
+  const quoteDetail = document.getElementById('quote-detail')
+  const quoteBox    = document.getElementById('quote-display')
+  if (quoteAmount) quoteAmount.innerHTML = '$' + total.toFixed(2)
+  if (quoteDetail) {
+    let detalle = desglose + ' + IVA ' + Math.round(iva * 100) + '% = $' + subtotalConIva.toFixed(2) + ' · ' + e.nombre
+    if (cargoCancelacion > 0) detalle += ' · ⚠️ Cargo cancelación pendiente: +$' + cargoCancelacion
+    quoteDetail.textContent = detalle
+  }
+  if (quoteBox) { quoteBox.style.display = 'flex'; quoteBox.style.animation = 'none'; void quoteBox.offsetWidth; quoteBox.style.animation = 'fadeIn .4s ease' }
+
+  const aviso = document.getElementById('zona-aviso')
+  if (aviso) {
+    aviso.style.display = 'block'
+    aviso.style.background = '#e0f2fe'
+    aviso.style.color = '#0369a1'
+    aviso.textContent = '💊 ' + e.nombre + ' · Recolección de receta · ' + km + ' km'
   }
 }
 

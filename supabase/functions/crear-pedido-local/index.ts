@@ -62,6 +62,11 @@ type EmpresaCorporativa = {
   cargo_paquete_grande: number | string | null;
   permite_paqueterias: boolean | null;
   permite_mercado_libre: boolean | null;
+  tarifa_receta: number | string | null;
+  km_incluidos_receta: number | string | null;
+  tarifa_km_receta: number | string | null;
+  lat_farmacia: number | string | null;
+  lng_farmacia: number | string | null;
 };
 type PedidoCoberturaDiaria = {
   fecha: string;
@@ -539,6 +544,31 @@ function calcularPrecioCorporativo(
   return dinero(subtotal + ivaCalculado + cargoCancelacion);
 }
 
+function calcularPrecioReceta(
+  empresa: EmpresaCorporativa,
+  km: number,
+  cargoCancelacion: number,
+) {
+  const tarifaReceta = numeroConfigurado(empresa.tarifa_receta, "tarifa_receta");
+  const kmIncluidos = numeroConfigurado(
+    empresa.km_incluidos_receta,
+    "km_incluidos_receta",
+  );
+  const tarifaKmReceta = numeroConfigurado(
+    empresa.tarifa_km_receta,
+    "tarifa_km_receta",
+  );
+  const iva = numeroConfigurado(empresa.iva, "iva", { maximo: 1 });
+
+  const precioBase = km <= kmIncluidos
+    ? tarifaReceta
+    : tarifaReceta + tarifaKmReceta * (km - kmIncluidos);
+
+  const subtotal = dinero(precioBase);
+  const ivaCalculado = dinero(subtotal * iva);
+  return dinero(subtotal + ivaCalculado + cargoCancelacion);
+}
+
 function calcularPrecioTarifaDiaria(
   empresa: EmpresaCorporativa,
   tarifaCubierta: boolean,
@@ -614,6 +644,21 @@ function errorRpc(mensaje: string) {
       403,
       "Tu empresa no tiene habilitados los envíos a Mercado Libre.",
     ] as const;
+  }
+  if (mensaje.includes("CONFIGURACION_RECETA_INVALIDA")) {
+    return [
+      422,
+      "El servicio de recolección de receta no está configurado correctamente. Contacta a soporte.",
+    ] as const;
+  }
+  if (mensaje.includes("TARIFA_DIARIA_NO_SOPORTADA")) {
+    return [
+      409,
+      "Este servicio no está disponible para cuentas con tarifa diaria.",
+    ] as const;
+  }
+  if (mensaje.includes("TIPO_SERVICIO_INVALIDO")) {
+    return [422, "El tipo de servicio no es válido."] as const;
   }
   if (mensaje.includes("RANGO_BOLSAS_NO_ENCONTRADO")) {
     return [
@@ -898,6 +943,14 @@ Deno.serve(async (req) => {
     if (!TAMANIOS.has(tamanio)) {
       throw new Error("El tamaño de paquete no es válido");
     }
+    const tipoServicioRecibido =
+      opcional(cuerpo.tipo_servicio, "tipo_servicio", 20) ?? "directo";
+    if (
+      tipoServicioRecibido !== "directo" &&
+      tipoServicioRecibido !== "con_recoleccion"
+    ) {
+      throw new Error("El tipo de servicio no es válido");
+    }
     const bolsas = esModoPaqueteria
       ? cantidadPaqueteria(cuerpo.bolsas, "bolsas")
       : 0;
@@ -959,6 +1012,16 @@ Deno.serve(async (req) => {
       : "";
     const esCorporativo = empresaCodigo.length > 0;
     const tenant = perfil.tenant_id;
+
+    if (
+      tipoServicioRecibido === "con_recoleccion" &&
+      (!esCorporativo || esMultiparada || esModoPaqueteria)
+    ) {
+      return responder(req, {
+        error:
+          "El servicio de recolección de receta solo está disponible para pedidos corporativos directos.",
+      }, 422);
+    }
 
     // ── Comercios afiliados (Fase 2) ──────────────────────────────────────
     // Único camino soportado por ahora: precio general (no paquetería, no
@@ -1103,7 +1166,14 @@ Deno.serve(async (req) => {
         lat: latEntrega as number,
         lng: lngEntrega as number,
       };
-    if (!esModoPaqueteria && puntoEntrega) {
+    // El servicio "con_recoleccion" fija recolección=entrega (domicilio del
+    // cliente) por diseño: la línea recta entre ambos es siempre ~0 y no dice
+    // nada sobre el km real (farmacia↔domicilio). Ese caso se valida aparte,
+    // una vez resuelta la empresa, contra lat_farmacia/lng_farmacia.
+    if (
+      !esModoPaqueteria && puntoEntrega &&
+      tipoServicioRecibido !== "con_recoleccion"
+    ) {
       const distanciaHaversine = esMultiparada
         ? paradas.reduce(
           (acumulado, parada, indice) =>
@@ -1744,7 +1814,7 @@ Deno.serve(async (req) => {
       const { data: empresaData, error: falloEmpresa } = await admin
         .from("empresas_afiliadas")
         .select(
-          "id, codigo, activa, tipo_tarifa, tarifa_diaria, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande",
+          "id, codigo, activa, tipo_tarifa, tarifa_diaria, tarifa_km, tarifa_minima, km_minimo, tarifa_base_extra, iva, cargo_paquete_grande, tarifa_receta, km_incluidos_receta, tarifa_km_receta, lat_farmacia, lng_farmacia",
         )
         .eq("tenant_id", tenant)
         .eq("codigo", empresaCodigo)
@@ -1779,6 +1849,36 @@ Deno.serve(async (req) => {
           error:
             "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
         }, 422);
+      }
+      if (tipoServicioRecibido === "con_recoleccion" && tipoTarifa === "diaria") {
+        return responder(req, {
+          error: "Este servicio no está disponible para cuentas con tarifa diaria.",
+        }, 409);
+      }
+      if (tipoServicioRecibido === "con_recoleccion") {
+        const latFarmacia = Number(empresa.lat_farmacia);
+        const lngFarmacia = Number(empresa.lng_farmacia);
+        if (
+          empresa.lat_farmacia === null || empresa.lng_farmacia === null ||
+          !Number.isFinite(latFarmacia) || !Number.isFinite(lngFarmacia)
+        ) {
+          return responder(req, {
+            error:
+              "El servicio de recolección de receta no está configurado correctamente. Contacta a soporte.",
+          }, 422);
+        }
+        try {
+          validarDistancia(
+            km,
+            haversine({ lat: latFarmacia, lng: lngFarmacia }, puntoEntrega as Punto),
+          );
+        } catch (errorDistancia) {
+          return responder(req, {
+            error: errorDistancia instanceof Error
+              ? errorDistancia.message
+              : "La distancia cambió. Vuelve a cotizar el envío.",
+          }, 422);
+        }
       }
       if (tipoTarifa === "diaria") {
         if (metodo !== "Crédito") {
@@ -1888,61 +1988,78 @@ Deno.serve(async (req) => {
         });
       }
 
-      const promesaRangos = admin.from("rangos_precio_empresa")
-        .select("km_desde, km_hasta, precio")
-        .eq("empresa_id", empresa.id)
-        .order("km_desde");
-      const promesaCargoGeneral =
-        tamanio === "grande" && empresa.cargo_paquete_grande === null
-          ? admin.from("precios_generales")
-            .select("cargo_paquete_grande")
-            .eq("tenant_id", tenant)
-            .maybeSingle()
-          : Promise.resolve({ data: null, error: null });
-
-      const [respuestaRangos, respuestaCargoGeneral] = await Promise.all([
-        promesaRangos,
-        promesaCargoGeneral,
-      ]);
-      if (respuestaRangos.error) {
-        console.error(
-          "[crear-pedido-local] No se pudieron cargar los rangos corporativos:",
-          respuestaRangos.error.message,
-        );
-        throw new Error("No pudimos verificar la tarifa corporativa");
-      }
-      if (respuestaCargoGeneral.error) {
-        console.error(
-          "[crear-pedido-local] No se pudo cargar el cargo general:",
-          respuestaCargoGeneral.error.message,
-        );
-        throw new Error("No pudimos verificar el cargo de paquete grande");
-      }
-
       let precioCorporativo: number;
-      try {
-        const datosCargo = esObjeto(respuestaCargoGeneral.data)
-          ? respuestaCargoGeneral.data
-          : null;
-        precioCorporativo = calcularPrecioCorporativo(
-          empresa,
-          (respuestaRangos.data || []) as Rango[],
-          km,
-          tamanio,
-          datosCargo?.cargo_paquete_grande,
-          cargoCancelacion,
-        );
-      } catch (errorConfiguracion) {
-        console.error(
-          "[crear-pedido-local] Configuración corporativa inválida:",
-          errorConfiguracion instanceof Error
-            ? errorConfiguracion.message
-            : String(errorConfiguracion),
-        );
-        return responder(req, {
-          error:
-            "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
-        }, 422);
+      if (tipoServicioRecibido === "con_recoleccion") {
+        try {
+          precioCorporativo = calcularPrecioReceta(empresa, km, cargoCancelacion);
+        } catch (errorConfiguracion) {
+          console.error(
+            "[crear-pedido-local] Configuración de receta inválida:",
+            errorConfiguracion instanceof Error
+              ? errorConfiguracion.message
+              : String(errorConfiguracion),
+          );
+          return responder(req, {
+            error:
+              "El servicio de recolección de receta no está configurado correctamente. Contacta a soporte.",
+          }, 422);
+        }
+      } else {
+        const promesaRangos = admin.from("rangos_precio_empresa")
+          .select("km_desde, km_hasta, precio")
+          .eq("empresa_id", empresa.id)
+          .order("km_desde");
+        const promesaCargoGeneral =
+          tamanio === "grande" && empresa.cargo_paquete_grande === null
+            ? admin.from("precios_generales")
+              .select("cargo_paquete_grande")
+              .eq("tenant_id", tenant)
+              .maybeSingle()
+            : Promise.resolve({ data: null, error: null });
+
+        const [respuestaRangos, respuestaCargoGeneral] = await Promise.all([
+          promesaRangos,
+          promesaCargoGeneral,
+        ]);
+        if (respuestaRangos.error) {
+          console.error(
+            "[crear-pedido-local] No se pudieron cargar los rangos corporativos:",
+            respuestaRangos.error.message,
+          );
+          throw new Error("No pudimos verificar la tarifa corporativa");
+        }
+        if (respuestaCargoGeneral.error) {
+          console.error(
+            "[crear-pedido-local] No se pudo cargar el cargo general:",
+            respuestaCargoGeneral.error.message,
+          );
+          throw new Error("No pudimos verificar el cargo de paquete grande");
+        }
+
+        try {
+          const datosCargo = esObjeto(respuestaCargoGeneral.data)
+            ? respuestaCargoGeneral.data
+            : null;
+          precioCorporativo = calcularPrecioCorporativo(
+            empresa,
+            (respuestaRangos.data || []) as Rango[],
+            km,
+            tamanio,
+            datosCargo?.cargo_paquete_grande,
+            cargoCancelacion,
+          );
+        } catch (errorConfiguracion) {
+          console.error(
+            "[crear-pedido-local] Configuración corporativa inválida:",
+            errorConfiguracion instanceof Error
+              ? errorConfiguracion.message
+              : String(errorConfiguracion),
+          );
+          return responder(req, {
+            error:
+              "La tarifa corporativa no está configurada correctamente. Contacta a soporte.",
+          }, 422);
+        }
       }
 
       const tokenRastreo = crypto.randomUUID();
@@ -1973,6 +2090,10 @@ Deno.serve(async (req) => {
           p_lng_entrega: lngEntrega,
           p_cargo_cancelacion: cargoCancelacion,
           p_cupon_codigo: null,
+          p_tipo_servicio: tipoServicioRecibido,
+          p_receta_subestado: tipoServicioRecibido === "con_recoleccion"
+            ? "esperando_recoleccion"
+            : null,
         },
       );
       if (falloRpc) {
