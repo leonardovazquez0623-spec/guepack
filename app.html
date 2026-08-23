@@ -2502,6 +2502,11 @@ function _suscribirEmpresaRealtime(empresa) {
         console.log('[empresa-realtime] pedidos_activos:', prev.pedidos_activos, '→', _empresaUsuario.pedidos_activos)
         _actualizarEstadoCuentaEmpresa(_empresaUsuario.pedidos_activos)
       }
+
+      if (prev.permite_comercios_frecuentes !== _empresaUsuario.permite_comercios_frecuentes) {
+        console.log('[empresa-realtime] permite_comercios_frecuentes:', prev.permite_comercios_frecuentes, '→', _empresaUsuario.permite_comercios_frecuentes)
+        _cargarComerciosFrecuentes()
+      }
     })
     .subscribe()
 }
@@ -3082,6 +3087,10 @@ async function _cargarComerciosFrecuentes() {
   const seccion = document.getElementById('comercios-frecuentes-section')
   const contenedor = document.getElementById('comercios-frecuentes-tiles')
   if (!seccion || !contenedor) return
+  if (_empresaUsuario && _empresaUsuario.permite_comercios_frecuentes === false) {
+    seccion.style.display = 'none'
+    return
+  }
   const { data, error } = await db.from('comercios_afiliados')
     .select('id, nombre, direccion, lat, lng, color_hex, logo_url, acepta_devoluciones, requiere_factura')
     .eq('activo', true)
