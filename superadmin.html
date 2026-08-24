@@ -402,7 +402,7 @@ async function cargarComisionesPorTenant() {
   ])
   if (!tenantsData) { contenedor.innerHTML = '<div class="estado-vacio">No se pudo cargar</div>'; return }
 
-  const esTarjeta = mp => { const m = (mp || '').toLowerCase(); return m.includes('tarjeta') || m === 'crédito' || m === 'credito' }
+  const esTarjeta = mp => (mp || '').toLowerCase().includes('tarjeta')
   const filas = tenantsData.map(t => {
     const pct = Number(t.comision_guepack_pct ?? 10)
     const totalPedidos = (pedidosData || []).filter(p => p.tenant_id === t.id && esTarjeta(p.metodo_pago)).reduce((s, p) => s + (parseFloat(p.precio) || 0), 0)

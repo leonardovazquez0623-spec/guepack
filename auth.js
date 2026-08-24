@@ -318,7 +318,12 @@ async function loginEmail() {
   const password = document.getElementById('login-password').value
   if (!email || !password) return showError('Llena todos los campos')
   const { error } = await db.auth.signInWithPassword({ email, password })
-  if (error) return showError('Correo o contraseña incorrectos')
+  if (error) {
+    if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message || '')) {
+      return mostrarErrorEmailNoConfirmado()
+    }
+    return showError('Correo o contraseña incorrectos')
+  }
   const { data: { session } } = await db.auth.getSession()
   if (session) db.from('eventos_trafico').insert({ tipo: 'login', user_id: session.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   await redirigirSegunRol()
@@ -473,18 +478,24 @@ async function resendConfirmationEmail() {
   showSuccess('✅ Correo de confirmación reenviado. Revisa tu bandeja de entrada.')
 }
 
-function initializeLoginPage() {
-  window.addEventListener('tenant-config-aplicada', evento => aplicarBrandingLogin(evento.detail))
-  window.tenantConfigReady?.then(aplicarBrandingLogin)
-  const params = new URLSearchParams(window.location.search)
-  if (params.get('error') !== 'email_no_verificado') return
+function mostrarErrorEmailNoConfirmado() {
   const error = document.getElementById('error-msg')
+  if (!error) return
   error.innerHTML = '📧 Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.'
   error.style.display = 'block'
-  document.getElementById('success-msg').style.display = 'none'
+  const success = document.getElementById('success-msg')
+  if (success) success.style.display = 'none'
   const boton = document.createElement('button')
   boton.textContent = 'Reenviar correo de confirmación'
   boton.style.cssText = 'display:block;margin-top:10px;width:100%;padding:10px 0;border:none;border-radius:10px;background:var(--color-primary);color:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;letter-spacing:.3px'
   boton.onclick = resendConfirmationEmail
   error.appendChild(boton)
+}
+
+function initializeLoginPage() {
+  window.addEventListener('tenant-config-aplicada', evento => aplicarBrandingLogin(evento.detail))
+  window.tenantConfigReady?.then(aplicarBrandingLogin)
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('error') !== 'email_no_verificado') return
+  mostrarErrorEmailNoConfirmado()
 }

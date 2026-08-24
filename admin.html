@@ -713,7 +713,7 @@ function initMapsAdmin() {
 
     <!-- Resumen por método de pago -->
     <div class="card-title" style="padding:0;margin-bottom:12px">💳 Por método de pago</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
       <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid var(--success)">
         <div style="font-size:20px;margin-bottom:4px">💵</div>
         <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Efectivo</div>
@@ -725,6 +725,12 @@ function initMapsAdmin() {
         <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Transferencia</div>
         <div id="fin-transferencia" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--blue);line-height:1">$0</div>
         <div id="fin-transferencia-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+      <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid #8b5cf6">
+        <div style="font-size:20px;margin-bottom:4px">💳</div>
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Tarjeta</div>
+        <div id="fin-tarjeta" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#8b5cf6;line-height:1">$0</div>
+        <div id="fin-tarjeta-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
       </div>
     </div>
 
@@ -5382,7 +5388,7 @@ async function cargarFinanzas() {
   }
 
   if (!data || data.length === 0) {
-    ;['fin-hoy','fin-semana','fin-mes','fin-ticket','fin-efectivo','fin-transferencia'].forEach(id => {
+    ;['fin-hoy','fin-semana','fin-mes','fin-ticket','fin-efectivo','fin-transferencia','fin-tarjeta'].forEach(id => {
       const el = document.getElementById(id)
       if (el) el.textContent = '$0'
     })
@@ -5405,6 +5411,7 @@ async function cargarFinanzas() {
   let sumMes = 0, nMes = 0
   let sumEfectivo = 0, nEfectivo = 0
   let sumTransferencia = 0, nTransferencia = 0
+  let sumTarjeta = 0, nTarjeta = 0
 
   data.forEach(p => {
     const precio = parseFloat(p.precio) || 0
@@ -5418,6 +5425,7 @@ async function cargarFinanzas() {
     const mp = (p.metodo_pago || '').toLowerCase()
     if (mp === 'efectivo')          { sumEfectivo += precio; nEfectivo++ }
     else if (mp.includes('transf')) { sumTransferencia += precio; nTransferencia++ }
+    else if (mp.includes('tarjeta')) { sumTarjeta += precio; nTarjeta++ }
   })
 
   const ticketProm = data.length ? data.reduce((s, p) => s + (parseFloat(p.precio) || 0), 0) / data.length : 0
@@ -5435,6 +5443,8 @@ async function cargarFinanzas() {
   document.getElementById('fin-efectivo-n').textContent = nEfectivo + ' pedido' + (nEfectivo !== 1 ? 's' : '')
   document.getElementById('fin-transferencia').textContent   = $$(sumTransferencia)
   document.getElementById('fin-transferencia-n').textContent = nTransferencia + ' pedido' + (nTransferencia !== 1 ? 's' : '')
+  document.getElementById('fin-tarjeta').textContent   = $$(sumTarjeta)
+  document.getElementById('fin-tarjeta-n').textContent = nTarjeta + ' pedido' + (nTarjeta !== 1 ? 's' : '')
 
   // Tabla últimos 10
   const ultimos = data.slice(0, 10)
@@ -6519,8 +6529,28 @@ async function cargarCuentasSinVerificar() {
         <button data-user-id="${cuenta.user_id}" data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="eliminarCuentaSinVerificar(this.dataset.userId, this.dataset.email)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#fee2e2;color:#dc2626;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
           <img src="guepack-icons/guepack-icons/svg/32-eliminar.svg" alt="" width="14" height="14"> Eliminar
         </button>
+        <button data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="reenviarConfirmacionCuenta(this.dataset.email, this)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+          📧 Reenviar
+        </button>
       </div>`
   }).join('') : '<div style="color:#16a34a;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;padding:10px 0">✅ No hay cuentas pendientes de verificación</div>'
+}
+
+function reenviarConfirmacionCuenta(email, boton) {
+  if (!email) return
+  boton.disabled = true
+  const textoOriginal = boton.innerHTML
+  boton.innerHTML = 'Enviando...'
+  db.auth.resend({ type: 'signup', email }).then(({ error }) => {
+    boton.disabled = false
+    if (error) {
+      boton.innerHTML = textoOriginal
+      showToast('Error al reenviar: ' + error.message)
+      return
+    }
+    boton.innerHTML = '✅ Enviado'
+    setTimeout(() => { boton.innerHTML = textoOriginal }, 4000)
+  })
 }
 
 function actualizarConteoCuentasSinVerificar(total) {
