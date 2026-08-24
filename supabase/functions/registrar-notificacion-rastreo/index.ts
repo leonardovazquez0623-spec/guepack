@@ -1,13 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const origenesPermitidos = new Set([
-  'https://guepack.com',
-  'https://www.guepack.com'
-])
+import { esOrigenPermitido } from '../_shared/cors.ts'
 
 function obtenerEncabezadosCors(req: Request): Record<string, string> {
   const origen = req.headers.get('Origin') ?? ''
-  if (!origenesPermitidos.has(origen)) return {}
+  if (!esOrigenPermitido(origen)) return {}
   return {
     'Access-Control-Allow-Origin': origen,
     'Access-Control-Allow-Headers': 'content-type, x-client-info, apikey',
@@ -28,7 +24,7 @@ function responder(req: Request, contenido: unknown, estado = 200) {
 
 Deno.serve(async req => {
   const origen = req.headers.get('Origin') ?? ''
-  if (origen && !origenesPermitidos.has(origen)) {
+  if (origen && !esOrigenPermitido(origen)) {
     return responder(req, { error: 'Origen no permitido' }, 403)
   }
 

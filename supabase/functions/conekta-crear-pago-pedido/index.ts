@@ -4,14 +4,12 @@
 
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const ALLOWED_ORIGINS = ["https://guepack.com", "https://www.guepack.com"];
+import { origenPermitidoOFallback } from "../_shared/cors.ts";
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": origenPermitidoOFallback(origin),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 }
@@ -29,7 +27,7 @@ serve(async (req) => {
     hdrs = getCorsHeaders(req);
   } catch (_) {
     hdrs = {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+      "Access-Control-Allow-Origin": "https://guepack.com",
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     };
   }

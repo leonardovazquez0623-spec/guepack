@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js@^2/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { origenPermitidoOFallback } from "../_shared/cors.ts";
 
-const ORIGENES = ["https://guepack.com", "https://www.guepack.com"];
 const TAMANIOS = new Set(["sobre", "grande"]);
 const MODOS_PAQUETERIA = new Set(["paqueteria", "mercado_libre"]);
 const METODOS_PAGO = new Map<string, string>([
@@ -85,9 +85,7 @@ type Cupon = {
 function cors(req: Request) {
   const origen = req.headers.get("Origin") ?? "";
   return {
-    "Access-Control-Allow-Origin": ORIGENES.includes(origen)
-      ? origen
-      : ORIGENES[0],
+    "Access-Control-Allow-Origin": origenPermitidoOFallback(origen),
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",

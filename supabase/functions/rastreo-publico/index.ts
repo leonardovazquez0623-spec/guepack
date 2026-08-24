@@ -1,14 +1,10 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const ORIGENES_PERMITIDOS = new Set([
-  "https://guepack.com",
-  "https://www.guepack.com",
-]);
+import { esOrigenPermitido } from "../_shared/cors.ts";
 
 function obtenerEncabezadosCors(req: Request): Record<string, string> {
   const origen = req.headers.get("Origin") ?? "";
-  if (!ORIGENES_PERMITIDOS.has(origen)) return {};
+  if (!esOrigenPermitido(origen)) return {};
   return {
     "Access-Control-Allow-Origin": origen,
     "Access-Control-Allow-Headers": "content-type",
@@ -31,7 +27,7 @@ serve(async (req) => {
     });
   }
 
-  if (origen && !ORIGENES_PERMITIDOS.has(origen)) {
+  if (origen && !esOrigenPermitido(origen)) {
     return responder({ error: "Origen no permitido" }, 403);
   }
 

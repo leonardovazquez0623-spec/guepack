@@ -1,15 +1,11 @@
 import "@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const origenesPermitidos = ['https://guepack.com', 'https://www.guepack.com']
+import { origenPermitidoOFallback } from '../_shared/cors.ts'
 
 const encabezadosCors = (req: Request) => {
   const origen = req.headers.get('Origin') ?? ''
-  const origenPermitido = origenesPermitidos.includes(origen)
-    ? origen
-    : origenesPermitidos[0]
   return {
-    'Access-Control-Allow-Origin': origenPermitido,
+    'Access-Control-Allow-Origin': origenPermitidoOFallback(origen),
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
   }
 }

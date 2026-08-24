@@ -6,14 +6,12 @@
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getSkydropxToken, skydropxHost } from "../_shared/skydropx-auth.ts";
-
-const allowedOrigins = ["https://guepack.com", "https://www.guepack.com"]
+import { origenPermitidoOFallback } from "../_shared/cors.ts";
 
 const corsHeaders = (req: Request) => {
   const origin = req.headers.get("Origin") ?? ""
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": origenPermitidoOFallback(origin),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   }
 }

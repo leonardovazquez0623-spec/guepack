@@ -1,16 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const origenesPermitidos = new Set([
-  'https://guepack.com',
-  'https://www.guepack.com',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-])
+import { esOrigenPermitido } from '../_shared/cors.ts'
 
 function encabezadosCors(req: Request) {
   const origen = req.headers.get('Origin') || ''
+  const permitido = esOrigenPermitido(origen) || origen === 'http://localhost:3000' || origen === 'http://127.0.0.1:3000'
   return {
-    'Access-Control-Allow-Origin': origenesPermitidos.has(origen) ? origen : 'https://guepack.com',
+    'Access-Control-Allow-Origin': permitido ? origen : 'https://guepack.com',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',

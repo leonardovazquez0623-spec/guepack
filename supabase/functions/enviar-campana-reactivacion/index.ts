@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { firmarBajaToken } from "../_shared/token-baja.ts";
+import { origenPermitidoOFallback } from "../_shared/cors.ts";
 
 type Segmento = "nunca_pidieron" | "inactivos";
 
@@ -30,23 +31,15 @@ type DetalleFallido = {
   requiere_revision_manual?: boolean;
 };
 
-const ORIGENES_PERMITIDOS = [
-  "https://guepack.com",
-  "https://www.guepack.com",
-];
-
 const REMITENTE = "GUEPACK Express <hola@guepack.com>";
 const RESEND_URL = "https://api.resend.com/emails";
 const TAMANO_PAGINA = 500;
 
 function encabezadosCors(req: Request) {
   const origen = req.headers.get("Origin") ?? "";
-  const permitido = ORIGENES_PERMITIDOS.includes(origen)
-    ? origen
-    : ORIGENES_PERMITIDOS[0];
 
   return {
-    "Access-Control-Allow-Origin": permitido,
+    "Access-Control-Allow-Origin": origenPermitidoOFallback(origen),
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",

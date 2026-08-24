@@ -291,7 +291,10 @@ async function redirigirSegunRol() {
         details: errorRol.details,
         hint: errorRol.hint
       })
-      return showError('No pudimos completar el acceso a esta empresa. Verifica la dirección e inténtalo nuevamente.')
+      if (errorRol.message?.includes('PERFIL_YA_ASIGNADO_A_OTRO_TENANT')) {
+        return showError('Este correo ya tiene una cuenta en otro negocio de GUEPACK y no puede usarse aquí. Contacta a soporte si necesitas ayuda.')
+      }
+      return showError('No pudimos completar el acceso a esta empresa. Inténtalo nuevamente.')
     }
 
     const resultadoRol = await db.from('usuario_tenant_roles')
@@ -440,6 +443,10 @@ async function registrar() {
     const { error: errorRolTenant } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
     if (errorRolTenant) {
       console.error('No se pudo crear el rol cliente del usuario en el tenant:', errorRolTenant)
+      if (errorRolTenant.message?.includes('PERFIL_YA_ASIGNADO_A_OTRO_TENANT')) {
+        return showError('Este correo ya tiene una cuenta en otro negocio de GUEPACK. Usa un correo distinto para registrarte aquí, o contacta a soporte si necesitas ayuda.')
+      }
+      return showError('No pudimos completar tu registro en esta empresa. Contacta a soporte.')
     }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: data.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }

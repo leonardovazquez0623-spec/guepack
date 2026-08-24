@@ -1,10 +1,6 @@
 import "jsr:@supabase/functions-js@^2/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const ORIGENES_PERMITIDOS = new Set([
-  "https://guepack.com",
-  "https://www.guepack.com",
-]);
+import { esOrigenPermitido } from "../_shared/cors.ts";
 
 const LIMITE_ACTIVACION = 100;
 const LIMITE_ASIGNACIONES = 100;
@@ -38,7 +34,7 @@ type TrabajoAsignacion = {
 
 function encabezadosCors(req: Request): Record<string, string> {
   const origen = req.headers.get("Origin") ?? "";
-  if (!ORIGENES_PERMITIDOS.has(origen)) return {};
+  if (!esOrigenPermitido(origen)) return {};
   return {
     "Access-Control-Allow-Origin": origen,
     "Access-Control-Allow-Headers":
