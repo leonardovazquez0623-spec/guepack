@@ -267,6 +267,7 @@
   <nav class="navegacion-panel" aria-label="Secciones del panel">
     <button id="boton-seccion-tenants" class="activo" onclick="mostrarSeccionPanel('tenants')"><img src="guepack-icons/guepack-icons/svg/50-sucursales.svg" alt="">Tenants</button>
     <button id="boton-seccion-facturacion" onclick="mostrarSeccionPanel('facturacion')"><img src="guepack-icons/guepack-icons/svg/19-cobros.svg" alt="">Facturación</button>
+    <button id="boton-seccion-comisiones" onclick="mostrarSeccionPanel('comisiones')"><img src="guepack-icons/guepack-icons/svg/19-cobros.svg" alt="">Comisiones</button>
   </nav>
 
   <section class="panel seccion-superadmin activa" id="seccion-tenants">
@@ -300,6 +301,16 @@
       </div>
     </div>
     <div id="lista-facturacion-saas"><div class="estado-vacio">Cargando facturación...</div></div>
+  </section>
+
+  <section class="panel seccion-superadmin" id="seccion-comisiones">
+    <div class="panel-cabecera">
+      <div>
+        <h1 class="titulo-seccion">Comisiones por tenant</h1>
+        <div style="font-size:11px;color:var(--gris-medio);font-weight:700;margin-top:2px">Pedidos con tarjeta + guías nacionales, neto a transferir a cada cliente</div>
+      </div>
+    </div>
+    <div id="tabla-comisiones"><div class="estado-vacio">Cargando comisiones...</div></div>
   </section>
 </main>
 
@@ -379,6 +390,43 @@ function mostrarSeccionPanel(seccion) {
   document.getElementById('seccion-' + seccion)?.classList.add('activa')
   document.getElementById('boton-seccion-' + seccion)?.classList.add('activo')
   if (seccion === 'facturacion') cargarFacturacionSaas()
+  if (seccion === 'comisiones') cargarComisionesPorTenant()
+}
+
+async function cargarComisionesPorTenant() {
+  const contenedor = document.getElementById('tabla-comisiones')
+  const [{ data: tenantsData }, { data: pedidosData }, { data: guiasData }] = await Promise.all([
+    db.from('tenants').select('id, nombre, comision_guepack_pct'),
+    db.from('pedidos').select('tenant_id, precio, metodo_pago').eq('estado', 'Entregado'),
+    db.from('envios_nacionales').select('tenant_id, costo_total').eq('pago_verificado', true)
+  ])
+  if (!tenantsData) { contenedor.innerHTML = '<div class="estado-vacio">No se pudo cargar</div>'; return }
+
+  const esTarjeta = mp => { const m = (mp || '').toLowerCase(); return m.includes('tarjeta') || m === 'crédito' || m === 'credito' }
+  const filas = tenantsData.map(t => {
+    const pct = Number(t.comision_guepack_pct ?? 10)
+    const totalPedidos = (pedidosData || []).filter(p => p.tenant_id === t.id && esTarjeta(p.metodo_pago)).reduce((s, p) => s + (parseFloat(p.precio) || 0), 0)
+    const totalGuias = (guiasData || []).filter(g => g.tenant_id === t.id).reduce((s, g) => s + (parseFloat(g.costo_total) || 0), 0)
+    const total = totalPedidos + totalGuias
+    const comision = total * (pct / 100)
+    const neto = total - comision
+    return { nombre: t.nombre, total, comision, neto, pct }
+  }).filter(f => f.total > 0)
+
+  const $$ = n => '$' + Math.round(n).toLocaleString('es-MX')
+  contenedor.innerHTML = filas.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;border-bottom:2px solid #eee">
+        <th style="padding:10px">Tenant</th><th style="padding:10px">Total cobrado</th><th style="padding:10px">Comisión GUEPACK</th><th style="padding:10px">Neto a transferir</th>
+      </tr></thead>
+      <tbody>${filas.map(f => `
+        <tr style="border-bottom:1px solid #f3f4f6">
+          <td style="padding:10px;font-weight:700">${f.nombre}</td>
+          <td style="padding:10px">${$$(f.total)}</td>
+          <td style="padding:10px;color:#059669">${$$(f.comision)} (${f.pct}%)</td>
+          <td style="padding:10px;font-weight:900">${$$(f.neto)}</td>
+        </tr>`).join('')}</tbody>
+    </table>` : '<div class="estado-vacio">Sin ventas con tarjeta o guías registradas aún</div>'
 }
 
 function fechaLocalSaas(valor) {
