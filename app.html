@@ -3356,15 +3356,46 @@ function _iniciarMapaWizard() {
   _wizardDirRenderer.setMap(_wizardMap)
 }
 
-function _wizardPinIcon(color) {
+const _PIN_FARMACIA_SVG = `<?xml version="1.0" standalone="no"?>
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="1536.000000pt" height="1536.000000pt" viewBox="0 0 1536.000000 1536.000000" preserveAspectRatio="xMidYMid meet">
+<g transform="translate(0.000000,1536.000000) scale(0.100000,-0.100000)" fill="#ff7b0f" stroke="none">
+<path d="M4455 14610 c-53 -25 -101 -74 -125 -128 -20 -44 -20 -77 -20 -2493 0 -2284 1 -2451 17 -2486 24 -54 81 -111 132 -134 43 -19 97 -19 3207 -19 2913 0 3167 1 3206 16 56 22 114 78 139 133 19 43 19 90 19 2491 0 2401 0 2448 -19 2491 -23 51 -80 108 -134 132 -35 16 -243 17 -3210 16 -3061 -1 -3173 -1 -3212 -19z m3786 -959 c48 -22 107 -79 130 -126 11 -24 15 -110 19 -420 l5 -390 390 -5 c428 -5 418 -4 488 -69 79 -74 77 -58 77 -647 0 -462 -2 -529 -16 -566 -21 -53 -66 -103 -119 -131 -39 -21 -54 -22 -430 -27 l-390 -5 -5 -390 c-6 -431 -5 -428 -72 -492 -18 -17 -53 -41 -78 -52 -43 -20 -64 -21 -571 -21 -593 0 -576 -2 -650 77 -65 70 -64 60 -69 488 l-5 390 -390 5 c-428 5 -418 4 -488 69 -79 74 -77 57 -77 651 0 594 -2 577 77 651 70 65 60 64 488 69 l390 5 5 390 c6 432 5 428 74 494 74 72 51 69 642 70 505 1 534 0 575 -18z"/>
+<path d="M2055 12210 c-76 -35 -145 -119 -145 -175 0 -11 -6 -49 -14 -85 -8 -36 -22 -99 -30 -140 -8 -41 -20 -102 -26 -135 -7 -33 -16 -82 -20 -110 -4 -27 -13 -75 -19 -105 -14 -64 -43 -213 -86 -440 -9 -47 -22 -114 -30 -150 -9 -36 -15 -74 -15 -85 0 -11 -6 -49 -15 -85 -8 -36 -21 -103 -30 -150 -9 -47 -22 -114 -30 -150 -9 -36 -15 -74 -15 -85 0 -11 -7 -50 -15 -87 -8 -38 -22 -98 -30 -135 -8 -38 -15 -79 -15 -91 0 -13 -7 -51 -15 -85 -8 -34 -21 -100 -30 -147 -9 -47 -22 -114 -30 -150 -9 -36 -15 -74 -15 -85 0 -19 -5 -46 -44 -220 -9 -38 -16 -81 -16 -93 0 -13 -7 -51 -15 -85 -8 -34 -21 -100 -30 -147 -9 -47 -21 -107 -27 -135 -6 -27 -14 -72 -18 -100 -4 -27 -13 -77 -20 -110 -6 -33 -18 -94 -26 -135 -8 -41 -22 -104 -30 -140 -27 -121 -12 -351 32 -491 8 -26 14 -58 14 -71 0 -13 7 -33 15 -44 8 -10 15 -27 15 -36 0 -17 24 -78 41 -108 5 -8 12 -22 15 -30 63 -152 222 -366 365 -491 72 -62 176 -142 199 -152 8 -4 29 -16 45 -27 17 -11 37 -22 45 -26 8 -3 22 -10 30 -15 8 -5 22 -12 30 -15 8 -4 40 -18 70 -32 30 -14 69 -29 85 -33 17 -4 44 -12 60 -17 92 -31 133 -42 155 -42 14 0 57 -7 95 -15 55 -12 154 -15 470 -15 345 1 414 3 505 19 128 23 194 39 238 57 18 8 39 14 47 14 18 0 187 77 250 114 52 30 166 110 220 153 l60 49 3 893 c2 908 2 921 -34 921 -14 0 -126 65 -164 95 -84 68 -165 167 -204 250 -10 22 -25 53 -32 68 -8 16 -14 40 -14 53 0 14 -6 35 -13 47 -9 17 -13 324 -17 1402 l-5 1380 -865 2 c-830 2 -867 2 -905 -17z"/>
+<path d="M11517 12223 c-4 -3 -7 -619 -7 -1367 -1 -1159 -3 -1367 -15 -1401 -8 -22 -15 -50 -15 -62 0 -12 -6 -34 -14 -50 -8 -15 -25 -50 -38 -76 -41 -86 -47 -94 -123 -171 -75 -76 -127 -115 -200 -149 -22 -10 -47 -22 -55 -26 -13 -7 -15 -119 -18 -902 l-2 -894 32 -28 c53 -45 182 -143 198 -150 8 -4 31 -17 50 -28 74 -44 212 -109 255 -120 17 -4 44 -12 60 -17 186 -62 286 -72 730 -72 389 0 469 5 610 41 22 6 56 14 75 19 51 12 176 56 200 71 8 5 22 12 30 15 8 3 22 10 30 15 8 5 22 12 30 15 38 15 50 22 145 86 186 124 322 269 470 503 37 58 115 230 115 253 0 10 5 23 12 30 6 6 15 30 19 54 4 24 12 61 18 83 42 164 52 349 26 475 -9 41 -22 107 -30 145 -7 39 -19 97 -25 130 -7 33 -16 83 -20 110 -4 28 -12 73 -18 100 -6 28 -18 88 -27 135 -9 47 -22 117 -30 155 -8 39 -21 108 -30 155 -9 47 -22 114 -30 150 -9 36 -15 74 -15 85 0 11 -6 49 -15 85 -8 36 -22 103 -30 150 -9 47 -22 117 -30 155 -8 39 -21 108 -30 155 -9 47 -22 114 -30 150 -9 36 -15 74 -15 85 0 11 -6 49 -15 85 -8 36 -21 103 -30 150 -9 47 -22 114 -30 150 -9 36 -15 74 -15 85 0 11 -6 49 -15 85 -8 36 -21 103 -30 150 -9 47 -22 113 -30 147 -8 34 -15 71 -15 83 0 20 -5 46 -41 210 -6 30 -15 78 -19 105 -4 28 -13 77 -20 110 -6 33 -18 94 -26 135 -8 41 -22 104 -30 140 -8 36 -14 72 -14 81 0 32 -37 100 -71 130 -19 17 -54 39 -78 50 -42 18 -75 19 -901 19 -471 0 -860 -3 -863 -7z"/>
+<path d="M4797 8863 c-4 -3 -7 -396 -7 -873 l0 -866 65 -54 c58 -48 171 -128 221 -156 80 -45 211 -105 249 -115 17 -4 44 -12 60 -17 186 -62 287 -72 725 -72 303 0 406 3 485 16 114 18 205 39 253 60 18 8 39 14 47 14 22 0 204 85 260 121 17 10 39 23 50 28 11 5 65 45 120 88 l100 78 0 875 0 875 -1311 3 c-721 1 -1314 -1 -1317 -5z"/>
+<path d="M7917 8863 c-4 -3 -7 -396 -7 -873 l0 -866 65 -54 c58 -48 171 -128 221 -156 80 -45 211 -105 249 -115 17 -4 44 -12 60 -17 186 -62 287 -72 725 -72 303 0 406 3 485 16 114 18 205 39 253 60 18 8 39 14 47 14 22 0 204 85 260 121 17 10 39 23 50 28 11 5 65 45 120 88 l100 78 0 875 0 875 -1311 3 c-721 1 -1314 -1 -1317 -5z"/>
+<path d="M4450 6620 c-41 -32 -79 -59 -83 -59 -5 -1 -23 -12 -40 -25 -115 -86 -426 -215 -592 -245 -27 -5 -63 -14 -78 -20 -16 -6 -45 -11 -65 -11 -20 0 -73 -7 -117 -15 -61 -11 -177 -14 -489 -15 -407 0 -523 7 -666 42 -25 6 -63 14 -85 19 -71 14 -192 52 -235 75 -14 7 -39 14 -55 16 l-30 3 -3 -2740 c-2 -2559 -1 -2743 15 -2780 23 -55 79 -112 132 -136 42 -18 68 -19 665 -17 l621 3 5 2190 c4 1875 7 2194 19 2220 23 47 82 104 130 126 43 19 81 19 1651 19 1570 0 1608 0 1651 -19 48 -22 107 -79 130 -126 12 -26 15 -345 19 -2220 l5 -2190 3135 -3 c2890 -2 3139 -1 3180 14 57 21 116 76 141 133 19 43 19 89 17 2785 l-3 2741 -30 -3 c-16 -2 -40 -10 -52 -18 -12 -8 -29 -14 -37 -14 -9 0 -30 -6 -48 -14 -66 -27 -221 -66 -308 -77 -36 -4 -96 -13 -135 -18 -38 -6 -252 -10 -474 -11 -402 0 -518 7 -661 42 -25 6 -63 14 -85 19 -63 12 -178 48 -240 74 -16 7 -50 21 -75 31 -54 22 -209 102 -229 117 -14 12 -47 32 -71 43 -8 4 -50 34 -92 66 -42 32 -86 58 -98 58 -12 0 -57 -27 -100 -60 -43 -33 -81 -60 -84 -60 -3 0 -24 -12 -48 -27 -74 -48 -81 -52 -185 -103 -56 -27 -106 -50 -112 -50 -5 0 -22 -6 -38 -14 -46 -23 -167 -61 -238 -75 -22 -5 -60 -13 -85 -19 -142 -35 -259 -42 -656 -42 -220 0 -428 5 -464 10 -36 6 -99 15 -140 20 -41 5 -95 14 -120 21 -25 6 -72 18 -105 26 -33 8 -75 21 -93 29 -18 8 -38 14 -46 14 -33 0 -289 124 -374 181 -24 16 -45 29 -48 29 -3 0 -41 27 -84 60 -43 33 -88 60 -100 60 -12 0 -57 -27 -100 -60 -43 -33 -81 -60 -84 -60 -3 0 -24 -12 -48 -27 -74 -48 -81 -52 -185 -103 -56 -27 -106 -50 -112 -50 -5 0 -22 -6 -38 -14 -46 -23 -167 -61 -238 -75 -22 -5 -60 -13 -85 -19 -142 -35 -259 -42 -656 -42 -220 0 -428 5 -464 10 -36 6 -99 15 -140 20 -41 5 -95 14 -120 21 -25 6 -72 18 -105 26 -33 8 -75 21 -93 29 -18 8 -38 14 -46 14 -33 0 -289 124 -374 181 -24 16 -45 29 -48 29 -3 0 -41 27 -84 60 -46 35 -89 60 -102 59 -13 0 -57 -27 -98 -59z m7151 -1369 c51 -23 108 -80 132 -134 16 -35 17 -139 17 -1402 0 -1243 -1 -1368 -16 -1407 -23 -58 -69 -105 -129 -134 l-50 -24 -1726 0 c-1688 0 -1727 0 -1770 19 -51 23 -108 80 -132 134 -16 35 -17 139 -17 1406 0 1332 1 1370 19 1412 24 52 76 105 128 130 36 16 133 17 1769 18 1693 1 1732 1 1775 -18z"/>
+</g>
+</svg>`
+
+const _PIN_GOTA_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="384" height="512">
+<path fill="#1E56C7" stroke="#ffffff" stroke-width="6" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"/>
+</svg>`
+
+function _wizardPinIconFarmacia() {
   return {
-    path: google.maps.SymbolPath.CIRCLE,
-    scale: 9,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 2.5
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(_PIN_FARMACIA_SVG),
+    scaledSize: new google.maps.Size(32, 32),
+    anchor: new google.maps.Point(16, 16)
   }
+}
+
+function _wizardPinIconGota() {
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(_PIN_GOTA_SVG),
+    scaledSize: new google.maps.Size(28, 37),
+    anchor: new google.maps.Point(14, 37)
+  }
+}
+
+function _esPuntoFarmacia(lat, lng) {
+  if (_empresaData?.lat_farmacia == null || _empresaData?.lng_farmacia == null) return false
+  if (lat == null || lng == null) return false
+  return Math.abs(lat - _empresaData.lat_farmacia) < 0.0005 && Math.abs(lng - _empresaData.lng_farmacia) < 0.0005
+}
+
+function _wizardPinIconRecoleccion() {
+  return _esPuntoFarmacia(_latRecoleccion, _lngRecoleccion) ? _wizardPinIconFarmacia() : _wizardPinIconGota()
 }
 
 function _actualizarMapaWizard() {
@@ -3405,9 +3436,10 @@ function _actualizarMapaWizard() {
         const legs = result.routes[0].legs
         const orig = legs[0].start_location
         const dest = legs[legs.length - 1].end_location
-        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
-        if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIcon('var(--color-secondary)') })
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIconRecoleccion() })
+        if (!_wizardPinEnt) _wizardPinEnt = new google.maps.Marker({ map: _wizardMap, title: 'Entrega', icon: _wizardPinIconGota() })
         _wizardPinRec.setPosition(orig)
+        _wizardPinRec.setIcon(_wizardPinIconRecoleccion())
         _wizardPinEnt.setPosition(dest)
         _wizardPinsIntermedios.forEach(m => m.setMap(null))
         _wizardPinsIntermedios = []
@@ -3415,7 +3447,7 @@ function _actualizarMapaWizard() {
           _wizardPinsIntermedios.push(new google.maps.Marker({
             map:      _wizardMap,
             position: leg.end_location,
-            icon:     _wizardPinIcon('var(--color-secondary)')
+            icon:     _wizardPinIconGota()
           }))
         })
       }
@@ -3427,16 +3459,18 @@ function _actualizarMapaWizard() {
       const loc = new google.maps.LatLng(_latRecoleccion, _lngRecoleccion)
       _wizardMap.setCenter(loc)
       _wizardMap.setZoom(15)
-      if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
+      if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIconRecoleccion() })
       _wizardPinRec.setPosition(loc)
+      _wizardPinRec.setIcon(_wizardPinIconRecoleccion())
     } else {
       new google.maps.Geocoder().geocode({ address: dirRec }, (res, status) => {
         if (status !== 'OK' || !res[0]) return
         const loc = res[0].geometry.location
         _wizardMap.setCenter(loc)
         _wizardMap.setZoom(15)
-        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIcon('var(--color-primary-dark)') })
+        if (!_wizardPinRec) _wizardPinRec = new google.maps.Marker({ map: _wizardMap, title: 'Recolección', icon: _wizardPinIconRecoleccion() })
         _wizardPinRec.setPosition(loc)
+        _wizardPinRec.setIcon(_wizardPinIconRecoleccion())
       })
     }
   }
@@ -3499,7 +3533,14 @@ function selectTipoServicio(val) {
   if (labelEntrega) labelEntrega.textContent = esConRecoleccion ? 'Dirección del paciente' : '¿A dónde lo enviamos?'
   if (!esConRecoleccion) {
     const inputRec = document.getElementById('dir-recoleccion')
-    if (inputRec && _empresaData?.direccion_farmacia) inputRec.value = _empresaData.direccion_farmacia
+    if (inputRec && _empresaData?.direccion_farmacia) {
+      inputRec.value = _empresaData.direccion_farmacia
+      if (_empresaData.lat_farmacia != null && _empresaData.lng_farmacia != null) {
+        _latRecoleccion = _empresaData.lat_farmacia
+        _lngRecoleccion = _empresaData.lng_farmacia
+      }
+      _actualizarMapaWizard()
+    }
   }
   if (aviso) {
     if (esConRecoleccion && _empresaData?.direccion_farmacia) {
@@ -6616,16 +6657,6 @@ function resetForm() {
   _geocodificacionEntregaSecuencia += 1
   _latRecoleccion = null
   _lngRecoleccion = null
-  // Resetear tipo de servicio sin disparar recotización (aún no hay direcciones válidas)
-  selTipoServicio = 'directo'
-  document.querySelectorAll('#tipo-servicio-opciones .ts-option').forEach(o => o.classList.remove('selected'))
-  document.getElementById('ts-directo')?.classList.add('selected')
-  const _grupoRecolTs = document.getElementById('dir-recoleccion-group')
-  if (_grupoRecolTs) _grupoRecolTs.style.display = ''
-  const _labelEntregaTs = document.getElementById('dir-entrega-label')
-  if (_labelEntregaTs) _labelEntregaTs.textContent = '¿A dónde lo enviamos?'
-  const _avisoRecetaTs = document.getElementById('receta-farmacia-aviso')
-  if (_avisoRecetaTs) _avisoRecetaTs.style.display = 'none'
   _limpiarSeleccionComercio()
   _precioGeneralTotal = null
   _preciosGeneralesData = null
@@ -6647,6 +6678,7 @@ function resetForm() {
 
   // Campos de texto
   document.querySelectorAll('.form-input').forEach(i => i.value = '')
+  selectTipoServicio('directo')
   document.getElementById('folio-number').textContent = 'GK-...'
   // Re-cargar nombre del remitente desde sesión
   db.auth.getSession().then(({ data: { session } }) => {
@@ -6770,7 +6802,6 @@ function _activarAjusteGps(tipo) {
   if (linkEl) linkEl.style.display = 'none'
 
   // Ícono de pin editable + bounce
-  const colorOriginal = tipo === 'rec' ? 'var(--color-primary-dark)' : 'var(--color-secondary)'
   pin.setIcon(_pinSvgEditable())
   pin.setDraggable(true)
   pin.setAnimation(google.maps.Animation.BOUNCE)
@@ -6787,12 +6818,12 @@ function _activarAjusteGps(tipo) {
   pin.addListener('dragend', () => {
     // Revertir a modo fijo
     pin.setAnimation(null)
-    pin.setIcon(_wizardPinIcon(colorOriginal))
     if (hint) hint.style.display = 'none'
 
     const pos = pin.getPosition()
     const lat = pos.lat()
     const lng = pos.lng()
+    pin.setIcon(tipo === 'rec' ? (_esPuntoFarmacia(lat, lng) ? _wizardPinIconFarmacia() : _wizardPinIconGota()) : _wizardPinIconGota())
     if (tipo === 'ent') {
       _geocodificacionEntregaSecuencia += 1
       _geocodificandoEntrega = false
