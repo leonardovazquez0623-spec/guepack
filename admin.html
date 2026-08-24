@@ -2460,24 +2460,26 @@ function empEliminarRango(idx) {
 async function guardarRangosEmpresa() {
   const empId = document.getElementById('emp-id').value
   if (!empId) { showToast('⚠️ Guarda la empresa primero'); return }
-  if (!_empRangos.length) { showToast('⚠️ Agrega al menos un rango'); return }
 
-  // Validar que cada rango tenga km_desde y precio
+  // Validar que cada rango tenga km_desde y precio (solo si hay rangos)
   for (const r of _empRangos) {
     if (r.km_desde == null || r.precio == null || r.precio <= 0) {
       showToast('⚠️ Verifica que todos los rangos tengan Desde y Precio'); return
     }
   }
 
-  // Borrar rangos anteriores e insertar los nuevos
+  // Borrar rangos anteriores
   const { error: delErr } = await db.from('rangos_precio_empresa').delete().eq('empresa_id', empId)
   if (delErr) { showToast('❌ Error al limpiar rangos: ' + delErr.message); return }
 
-  const rows = _empRangos.map(r => ({ tenant_id: TENANT_ID, empresa_id: empId, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
-  const { error: insErr } = await db.from('rangos_precio_empresa').insert(rows)
-  if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
+  // Insertar los nuevos, solo si hay alguno
+  if (_empRangos.length) {
+    const rows = _empRangos.map(r => ({ tenant_id: TENANT_ID, empresa_id: empId, km_desde: r.km_desde, km_hasta: r.km_hasta ?? null, precio: r.precio }))
+    const { error: insErr } = await db.from('rangos_precio_empresa').insert(rows)
+    if (insErr) { showToast('❌ Error al guardar rangos: ' + insErr.message); return }
+  }
 
-  showToast('✅ Rangos guardados')
+  showToast(_empRangos.length ? '✅ Rangos guardados' : '✅ Rangos eliminados — esta empresa usará la fórmula lineal (tarifa mínima + km extra)')
   empCargarRangos(empId)
 }
 
