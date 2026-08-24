@@ -6494,10 +6494,25 @@ function iniciarActualizacionCuentasSinVerificar() {
   _intervaloCuentasSinVerificar = setInterval(cargarCuentasSinVerificar, 5 * 60 * 1000)
 }
 
+const REENVIO_COOLDOWN_MS = 60 * 1000
+
+function segundosRestantesReenvio(email) {
+  try {
+    const guardado = Number(localStorage.getItem('guepack_reenvio_' + email.toLowerCase()))
+    if (!guardado) return 0
+    const restanteMs = REENVIO_COOLDOWN_MS - (Date.now() - guardado)
+    return restanteMs > 0 ? Math.ceil(restanteMs / 1000) : 0
+  } catch { return 0 }
+}
+
+function marcarReenvioEnviado(email) {
+  try { localStorage.setItem('guepack_reenvio_' + email.toLowerCase(), String(Date.now())) } catch {}
+}
+
 async function cargarCuentasSinVerificar() {
   const lista = document.getElementById('lista-cuentas-sin-verificar')
   const { data, error } = await db.rpc('listar_cuentas_sin_verificar', {
-    p_tenant_id: ES_SUPERADMIN ? null : TENANT_ID
+    p_tenant_id: TENANT_ID
   })
   if (error) {
     console.error('Error al cargar cuentas sin verificar:', error)
@@ -6516,6 +6531,10 @@ async function cargarCuentasSinVerificar() {
     const fecha = cuenta.created_at
       ? new Date(cuenta.created_at).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
       : 'Fecha no disponible'
+    const segundosRestantes = segundosRestantesReenvio(cuenta.email || '')
+    const botonReenvio = segundosRestantes > 0
+      ? `<button disabled data-email="${escaparAtributoAdmin(cuenta.email || '')}" class="btn-reenvio-cooldown" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#f1f5f9;color:#94a3b8;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:not-allowed;white-space:nowrap">⏳ <span class="segundos-restantes">${segundosRestantes}</span>s</button>`
+      : `<button data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="reenviarConfirmacionCuenta(this.dataset.email, this)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">📧 Reenviar</button>`
     return `
       <div id="cuenta-sin-verificar-${cuenta.user_id}" style="display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid #f0f3f8">
         <img src="guepack-icons/guepack-icons/svg/38-seguridad.svg" alt="" width="28" height="28" style="flex-shrink:0">
@@ -6529,9 +6548,7 @@ async function cargarCuentasSinVerificar() {
         <button data-user-id="${cuenta.user_id}" data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="eliminarCuentaSinVerificar(this.dataset.userId, this.dataset.email)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#fee2e2;color:#dc2626;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
           <img src="guepack-icons/guepack-icons/svg/32-eliminar.svg" alt="" width="14" height="14"> Eliminar
         </button>
-        <button data-email="${escaparAtributoAdmin(cuenta.email || '')}" onclick="reenviarConfirmacionCuenta(this.dataset.email, this)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
-          📧 Reenviar
-        </button>
+        ${botonReenvio}
       </div>`
   }).join('') : '<div style="color:#16a34a;font-family:Montserrat,sans-serif;font-size:12px;font-weight:800;padding:10px 0">✅ No hay cuentas pendientes de verificación</div>'
 }
@@ -6542,16 +6559,30 @@ function reenviarConfirmacionCuenta(email, boton) {
   const textoOriginal = boton.innerHTML
   boton.innerHTML = 'Enviando...'
   db.auth.resend({ type: 'signup', email }).then(({ error }) => {
-    boton.disabled = false
     if (error) {
+      boton.disabled = false
       boton.innerHTML = textoOriginal
       showToast('Error al reenviar: ' + error.message)
       return
     }
+    marcarReenvioEnviado(email)
     boton.innerHTML = '✅ Enviado'
-    setTimeout(() => { boton.innerHTML = textoOriginal }, 4000)
+    setTimeout(() => cargarCuentasSinVerificar(), 1500)
   })
 }
+
+setInterval(() => {
+  document.querySelectorAll('.btn-reenvio-cooldown').forEach(boton => {
+    const email = boton.dataset.email
+    const restante = segundosRestantesReenvio(email)
+    if (restante <= 0) {
+      boton.outerHTML = `<button data-email="${escaparAtributoAdmin(email)}" onclick="reenviarConfirmacionCuenta(this.dataset.email, this)" style="display:inline-flex;align-items:center;gap:5px;padding:8px 10px;border:none;border-radius:8px;background:#e0f2fe;color:#0369a1;font-family:Montserrat,sans-serif;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">📧 Reenviar</button>`
+    } else {
+      const span = boton.querySelector('.segundos-restantes')
+      if (span) span.textContent = restante
+    }
+  })
+}, 1000)
 
 function actualizarConteoCuentasSinVerificar(total) {
   const conteo = document.getElementById('cuentas-sin-verificar-conteo')

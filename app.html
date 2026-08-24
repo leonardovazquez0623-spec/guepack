@@ -790,6 +790,7 @@
     box-shadow: 0 0 0 3px rgba(255,255,255,0.6) !important;
     border-radius: 14px !important;
   }
+  .tour-overlay-tinted { background: color-mix(in srgb, var(--color-primary) 15%, transparent) !important; }
   /* ── Custom Autocomplete Dropdown (reemplaza .pac-container de Google) ── */
   .guep-ac-dropdown {
     position: absolute;
@@ -1991,77 +1992,99 @@ var _clienteNombrePerfil = '', _clienteApellidoPerfil = ''
 var _clienteWhatsappEditado = false, _clienteTotalPedidos = 0, _clienteNivelVip = 'normal', _clienteEnviosGratis = 0
 // Varios
 var _calStars = 0, _gdlBounds = null
-var _tourStep = 0, _tourHighlightEl = null, _tourHighlightClass = 'tour-highlight'
-var _TOUR_STEPS = [
-  {
-    targetQuery: null,
-    catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'bottom:45%;left:calc(50% - 140px)',
-    overlayGradient: true,
-    text: '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en 4 pasos rápidos ',
-    modalPos: 'bottom', modalStyle: 'bottom:60px',
-    btns: [
-      { label: 'Saltar tour', action: 'skip', primary: false },
-      { label: '¡Empezar!',   action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '#form-state .card',
-    catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'bottom:236px;left:16px',
-    text: '¡Aquí llenas los datos de tu envío! Nombre, dirección, tamaño y fecha 📦',
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',   action: 'prev', primary: false },
-      { label: 'Siguiente',  action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: 'button[onclick*="agregarParada"]',
-    catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
-    highlightClass: 'tour-highlight-white',
-    text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! ' + _iconoPanelHtml('54-mapa', 18),
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '#pedido-activo-container',
-    catSrc: '/gato_s_der.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:50%;left:8px;transform:translateY(-50%)',
-    text: '¡Aquí verás el estado de tus envíos en tiempo real! Con chat y rastreo incluidos 🚚',
-    modalPos: 'bottom',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: '.bottom-bar',
-    catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
-    catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
-    text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
-    modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:40%;transform:translateX(-50%);width:90%;max-width:400px',
-    btns: [
-      { label: 'Anterior',  action: 'prev', primary: false },
-      { label: 'Siguiente', action: 'next', primary: true  }
-    ]
-  },
-  {
-    targetQuery: null,
-    catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: false, catAnim: 'tourBounce 1s ease infinite',
-    catFixedStyle: 'bottom:54%;left:calc(50% - 140px)',
-    overlayGradient: true,
-    text: '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉',
-    modalPos: 'bottom', modalStyle: 'bottom:60px',
-    btns: [
-      { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
-    ]
-  }
-]
+var _tourStep = 0, _tourHighlightEl = null, _tourHighlightClass = 'tour-highlight', _tourEsGuepack = false
+var _TOUR_STEPS = []
+
+function _construirTourSteps() {
+  var esG = _tourEsGuepack
+  var nombreApp = esG ? 'GUEPACK' : (window.tenantConfig?.nombre_app || window.tenantConfig?.nombre || 'la app')
+  return [
+    {
+      targetQuery: null,
+      catSrc: '/gato_bienvenida.png', catMaxW: 280, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'bottom:45%;left:calc(50% - 140px)',
+      overlayGradient: true,
+      text: esG
+        ? '¡Hola! Soy GuepGato, tu guía de GUEPACK. Te enseñaré cómo usar la app en unos pasos rápidos'
+        : '¡Hola! Te enseñamos cómo hacer tu primer pedido en ' + nombreApp + ' en unos pasos rápidos',
+      modalPos: 'bottom', modalStyle: 'bottom:60px',
+      btns: [
+        { label: 'Saltar tour', action: 'skip', primary: false },
+        { label: '¡Empezar!',   action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: '.wizard-progress',
+      catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
+      highlightClass: 'tour-highlight-white',
+      text: 'Tu pedido se llena en 3 pasos: Ruta, Detalles y Pago. ¡Vamos paso a paso! 🗺️',
+      modalPos: 'bottom',
+      btns: [
+        { label: 'Anterior',   action: 'prev', primary: false },
+        { label: 'Siguiente',  action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: '#form-state .card',
+      catSrc: '/gato_45_arriba_derecha.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'bottom:236px;left:16px',
+      text: '¡Aquí empiezas! Tu nombre, el de quien recibe y su WhatsApp de contacto 📦',
+      modalPos: 'bottom',
+      btns: [
+        { label: 'Anterior',   action: 'prev', primary: false },
+        { label: 'Siguiente',  action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: 'button[onclick*="agregarParada"]',
+      catSrc: '/gato_s_abajo.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'top:88px;left:50%;transform:translateX(-50%)',
+      highlightClass: 'tour-highlight-white',
+      text: '¿Tienes varias entregas? ¡Puedes agregar múltiples paradas en un solo pedido! 🗺️',
+      modalPos: 'bottom',
+      btns: [
+        { label: 'Anterior',  action: 'prev', primary: false },
+        { label: 'Siguiente', action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: '#pedido-activo-container',
+      catSrc: '/gato_s_der.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'top:50%;left:8px;transform:translateY(-50%)',
+      text: '¡Aquí verás el estado de tus envíos en tiempo real! Con chat y rastreo incluidos 🚚',
+      modalPos: 'bottom',
+      btns: [
+        { label: 'Anterior',  action: 'prev', primary: false },
+        { label: 'Siguiente', action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: '.bottom-bar',
+      catSrc: '/gato_arriba.png', catMaxW: 200, catInModal: false, catAnim: 'tourFadeInUp .4s ease',
+      catFixedStyle: 'top:50%;right:8px;transform:translateY(-50%)',
+      text: '¡Aquí navegas entre Nuevo envío, Rastreo e Historial! 📋',
+      modalPos: 'bottom', modalStyle: 'position:fixed;bottom:70px;left:40%;transform:translateX(-50%);width:90%;max-width:400px',
+      btns: [
+        { label: 'Anterior',  action: 'prev', primary: false },
+        { label: 'Siguiente', action: 'next', primary: true  }
+      ]
+    },
+    {
+      targetQuery: null,
+      catSrc: '/gato_feliz.png', catMaxW: 280, catInModal: false, catAnim: 'tourBounce 1s ease infinite',
+      catFixedStyle: 'bottom:54%;left:calc(50% - 140px)',
+      overlayGradient: true,
+      text: esG
+        ? '¡Ya sabes todo! ¡Bienvenido a GUEPACK Express! 🎉'
+        : '¡Ya sabes todo! ¡Listo para tu primer pedido en ' + nombreApp + '! 🎉',
+      modalPos: 'bottom', modalStyle: 'bottom:60px',
+      btns: [
+        { label: '¡A enviar se ha dicho! 🚀', action: 'finish', primary: true }
+      ]
+    }
+  ]
+}
 // ════════════════════════════════════════════════════════════════════
 
 window.addEventListener('beforeinstallprompt', e => {
@@ -9668,6 +9691,8 @@ function _actualizarPrecioMultiParada(totalParadas, kmTotal, zona) {
 
 function iniciarTour() {
   if (localStorage.getItem('guepack_tour_completado')) return
+  _tourEsGuepack = Number(_tenantIdEventos || window.tenantConfig?.id) === 1
+  _TOUR_STEPS = _construirTourSteps()
   // Asegurar que los elementos del tour existen en el DOM (fallback si fueron eliminados)
   if (!document.getElementById('tour-overlay')) {
     var ov = document.createElement('div')
@@ -9704,7 +9729,18 @@ function _renderTourStep() {
   const overlay = document.getElementById('tour-overlay')
   if (!overlay) return
   overlay.style.display = 'block'
-  overlay.style.background = step.overlayGradient ? 'rgba(240,90,26,0.15)' : 'rgba(0,0,0,0.75)'
+  if (step.overlayGradient) {
+    if (_tourEsGuepack) {
+      overlay.classList.remove('tour-overlay-tinted')
+      overlay.style.background = 'rgba(240,90,26,0.15)'
+    } else {
+      overlay.style.background = ''
+      overlay.classList.add('tour-overlay-tinted')
+    }
+  } else {
+    overlay.classList.remove('tour-overlay-tinted')
+    overlay.style.background = 'rgba(0,0,0,0.75)'
+  }
 
   if (_tourHighlightEl) {
     _tourHighlightEl.classList.remove(_tourHighlightClass)
@@ -9733,7 +9769,7 @@ function _renderTourStep() {
   }).join('')
 
   // Sin src en el string HTML — se asigna vía JS para evitar que el linter URL-encode la expresión
-  const catInlineHtml = step.catInModal
+  const catInlineHtml = (_tourEsGuepack && step.catInModal)
     ? '<img id="tour-cat-inline" alt="GuepGato" style="display:block;margin:0 auto 14px;width:100%">'
     : ''
 
@@ -9746,7 +9782,7 @@ function _renderTourStep() {
     '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:14px">' + dotsHtml + '</div>' +
     '<div style="display:flex;gap:8px">' + btnsHtml + '</div>'
 
-  if (step.catInModal) {
+  if (_tourEsGuepack && step.catInModal) {
     const inlineCat = modal.querySelector('#tour-cat-inline')
     if (inlineCat) {
       inlineCat.src = step.catSrc
@@ -9757,7 +9793,7 @@ function _renderTourStep() {
 
   const catFixed = document.getElementById('tour-cat-fixed')
   if (!catFixed) return
-  if (!step.catInModal && step.catFixedStyle) {
+  if (_tourEsGuepack && !step.catInModal && step.catFixedStyle) {
     catFixed.src = step.catSrc
     catFixed.style.cssText = 'position:fixed;z-index:10001;pointer-events:none;max-width:' + step.catMaxW + 'px;' + step.catFixedStyle
     catFixed.style.animation = step.catAnim
