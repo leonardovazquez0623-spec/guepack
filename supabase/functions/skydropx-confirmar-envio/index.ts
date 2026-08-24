@@ -88,6 +88,14 @@ serve(async (req) => {
     const { data: { user }, error: userErr } = await supabaseUser.auth.getUser();
     if (userErr || !user) return json({ error: "No autorizado" }, 401);
 
+    // 1.5 Resuelve el tenant del usuario para atribuir la venta correctamente
+    const { data: perfilUsuario } = await supabaseAdmin
+      .from("usuarios")
+      .select("tenant_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const tenantId = perfilUsuario?.tenant_id ?? null;
+
     // 2. Parsea body
     const { quotation_id, rate_id, direcciones, paquete, extras_seleccionados, comprobante_pago_url } = await req.json();
 
@@ -173,6 +181,7 @@ serve(async (req) => {
       .from("envios_nacionales")
       .insert({
         user_id: user.id,
+        tenant_id: tenantId,
         // Origen
         origen_nombre:     origen.nombre,    origen_telefono:   origen.telefono,  origen_email:    origen.email    ?? null,
         origen_calle:      (origen.calle ?? "").slice(0, 60) || null, origen_numero:     origen.numero    ?? null, origen_colonia:  origen.colonia,

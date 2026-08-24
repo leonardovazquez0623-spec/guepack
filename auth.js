@@ -433,20 +433,24 @@ async function registrar() {
     )
   }
   if (data?.user) {
-    if (tenantActualLogin?.id) {
-      const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
-      if (errorTenant) console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
-    } else {
-      const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
-      if (errorVerificado) console.error('No se pudo guardar la verificación de WhatsApp:', errorVerificado)
-    }
-    const { error: errorRolTenant } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
-    if (errorRolTenant) {
-      console.error('No se pudo crear el rol cliente del usuario en el tenant:', errorRolTenant)
-      if (errorRolTenant.message?.includes('PERFIL_YA_ASIGNADO_A_OTRO_TENANT')) {
-        return showError('Este correo ya tiene una cuenta en otro negocio de GUEPACK. Usa un correo distinto para registrarte aquí, o contacta a soporte si necesitas ayuda.')
+    if (data.session) {
+      if (tenantActualLogin?.id) {
+        const { error: errorTenant } = await db.from('usuarios').update({ tenant_id: tenantActualLogin.id, whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
+        if (errorTenant) console.error('No se pudo asociar el usuario con el tenant:', errorTenant)
+      } else {
+        const { error: errorVerificado } = await db.from('usuarios').update({ whatsapp, whatsapp_verificado: true }).eq('user_id', data.user.id)
+        if (errorVerificado) console.error('No se pudo guardar la verificación de WhatsApp:', errorVerificado)
       }
-      return showError('No pudimos completar tu registro en esta empresa. Contacta a soporte.')
+      const { error: errorRolTenant } = await db.rpc('auto_asignar_rol_cliente', { p_tenant_id: tenantId })
+      if (errorRolTenant) {
+        console.error('No se pudo crear el rol cliente del usuario en el tenant:', errorRolTenant)
+        if (errorRolTenant.message?.includes('PERFIL_YA_ASIGNADO_A_OTRO_TENANT')) {
+          return showError('Este correo ya tiene una cuenta en otro negocio de GUEPACK. Usa un correo distinto para registrarte aquí, o contacta a soporte si necesitas ayuda.')
+        }
+        return showError('No pudimos completar tu registro en esta empresa. Contacta a soporte.')
+      }
+    } else {
+      console.log('[registro] Sin sesión activa tras signUp (confirmación de correo pendiente) — el tenant ya quedó asignado por el trigger de alta con los metadatos enviados; whatsapp se reforzará en el primer login si aplica.')
     }
     db.from('eventos_trafico').insert({ tipo: 'registro', user_id: data.user.id, tenant_id: tenantActualLogin?.id || null }).then(() => {})
   }

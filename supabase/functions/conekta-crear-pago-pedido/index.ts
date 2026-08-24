@@ -31,6 +31,7 @@ serve(async (req) => {
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     };
   }
+  const origenBase = origenPermitidoOFallback(req.headers.get("Origin") ?? "");
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: hdrs });
@@ -132,8 +133,8 @@ serve(async (req) => {
         expires_at:              expiresAt,
         needs_shipping_contact:  false,
         allowed_payment_methods: ["cash", "card"],
-        success_url: `https://guepack.com/app.html?pago=exitoso&pedido_id=${pedido_id}`,
-        failure_url: `https://guepack.com/app.html?pago=fallido&pedido_id=${pedido_id}`,
+        success_url: `${origenBase}/app.html?pago=exitoso&pedido_id=${pedido_id}`,
+        failure_url: `${origenBase}/app.html?pago=fallido&pedido_id=${pedido_id}`,
         order_template: {
           line_items: [{
             name:       `Pedido GUEPACK ${pedido_id}`,

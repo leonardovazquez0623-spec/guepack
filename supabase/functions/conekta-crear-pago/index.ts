@@ -15,6 +15,7 @@ const corsHeaders = (req: Request) => {
 
 serve(async (req) => {
   const hdrs = corsHeaders(req)
+  const origenBase = origenPermitidoOFallback(req.headers.get("Origin") ?? "");
 
   function json(body: unknown, status = 200) {
     return new Response(JSON.stringify(body), {
@@ -81,8 +82,8 @@ serve(async (req) => {
         expires_at: expiresAt,
         needs_shipping_contact: false,
         allowed_payment_methods: ["cash", "card"],
-        success_url: `https://guepack.com/app.html?pago=exitoso&envio_id=${envio_id}`,
-        failure_url: `https://guepack.com/app.html?pago=fallido&envio_id=${envio_id}`,
+        success_url: `${origenBase}/app.html?pago=exitoso&envio_id=${envio_id}`,
+        failure_url: `${origenBase}/app.html?pago=fallido&envio_id=${envio_id}`,
         order_template: {
           line_items: [{
             name: `Guia nacional ${envio.paqueteria || "envio"}`,

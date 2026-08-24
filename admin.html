@@ -344,7 +344,7 @@ function initMapsAdmin() {
 <!-- ══ SIDEBAR (solo desktop) ══ -->
 <div id="sidebar">
   <div style="padding:22px 16px 16px">
-    <img src="/logo_principal.png" alt="GUEPACK" style="max-width:200px;height:auto;display:block">
+    <img src="/logo_principal.png" data-tenant-logo alt="GUEPACK" style="max-width:200px;height:auto;display:block">
   </div>
   <nav style="flex:1;padding:0 10px">
     <button class="sidebar-item active" id="snav-pedidos" onclick="showTab('pedidos')"><img class="modulo-icono" src="guepack-icons/guepack-icons/svg/17-cotizacion.svg" alt="">Pedidos</button>
@@ -391,7 +391,7 @@ function initMapsAdmin() {
 <div class="app-header">
   <div style="display:flex;justify-content:space-between;align-items:flex-start">
     <div>
-      <img src="/logo_principal.png" alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
+      <img src="/logo_principal.png" data-tenant-logo alt="GUEPACK" style="max-width:240px;height:auto;display:block;margin-bottom:4px">
       <div class="header-sub" id="admin-panel-titulo">Panel de Control</div>
     </div>
     <div class="admin-user-menu">
@@ -725,6 +725,21 @@ function initMapsAdmin() {
         <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Transferencia</div>
         <div id="fin-transferencia" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--blue);line-height:1">$0</div>
         <div id="fin-transferencia-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 pedidos</div>
+      </div>
+    </div>
+
+    <!-- Guías nacionales -->
+    <div class="card-title" style="padding:0;margin-bottom:12px">📦 Guías nacionales</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid var(--orange)">
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Total vendido</div>
+        <div id="fin-guias-total" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--orange);line-height:1">$0</div>
+        <div id="fin-guias-n" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">0 guías</div>
+      </div>
+      <div class="card" style="padding:14px;text-align:center;margin-bottom:0;border-top:3px solid var(--success)">
+        <div style="font-size:10px;font-weight:900;color:var(--gray-mid);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Tu neto</div>
+        <div id="fin-guias-neto" style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--success);line-height:1">$0</div>
+        <div id="fin-guias-comision" style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-top:2px">Comisión GUEPACK: $0</div>
       </div>
     </div>
 
@@ -3227,7 +3242,7 @@ function generarFactura(codigo, nombre, total, numPedidos) {
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:28px;max-width:380px;width:100%;font-family:Montserrat,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
       <div style="text-align:center;margin-bottom:20px">
-        <img src="/logo_principal.png" alt="GUEPACK" style="max-width:160px;height:auto">
+        <img src="/logo_principal.png" data-tenant-logo alt="GUEPACK" style="max-width:160px;height:auto">
         <div style="font-size:10px;color:#8fa3c0;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:6px">Estado de cuenta · Crédito corporativo</div>
       </div>
       <div style="border-top:2px dashed #e0e6f0;border-bottom:2px dashed #e0e6f0;padding:16px 0;margin-bottom:16px">
@@ -3478,7 +3493,7 @@ function showTab(tab, btn) {
   if (tab === 'publicidad') { cargarAnuncios(); cargarCupones(); cargarClientesAliados() }
   if (tab === 'widget') cargarClientesWidget()
   if (tab === 'calificaciones') cargarCalificaciones()
-  if (tab === 'finanzas') { cargarFinanzas(); cargarCargosConcelacion() }
+  if (tab === 'finanzas') { cargarFinanzas(); cargarCargosConcelacion(); cargarGuiasNacionales() }
   if (tab === 'guias') cargarGuias()
   if (tab === 'vip') cargarVip()
   if (tab === 'zonas') { cargarZonas(); cargarPreciosGenerales() }
@@ -5438,6 +5453,26 @@ async function cargarFinanzas() {
       <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p.created_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
     </tr>`).join('')
 
+}
+
+async function cargarGuiasNacionales() {
+  const { data: tenantRow } = await db.from('tenants').select('comision_guepack_pct').eq('id', TENANT_ID).maybeSingle()
+  const pct = Number(tenantRow?.comision_guepack_pct ?? 10)
+
+  const { data, error } = await db.from('envios_nacionales')
+    .select('costo_total')
+    .eq('pago_verificado', true)
+  if (error || !data) return
+
+  const total = data.reduce((s, e) => s + (parseFloat(e.costo_total) || 0), 0)
+  const comision = total * (pct / 100)
+  const neto = total - comision
+  const $$ = n => '$' + Math.round(n).toLocaleString('es-MX')
+
+  document.getElementById('fin-guias-total').textContent = $$(total)
+  document.getElementById('fin-guias-n').textContent = data.length + ' guía' + (data.length !== 1 ? 's' : '')
+  document.getElementById('fin-guias-neto').textContent = $$(neto)
+  document.getElementById('fin-guias-comision').textContent = `Comisión GUEPACK (${pct}%): ${$$(comision)}`
 }
 
 // ── Drag-to-scroll en pestañas (desktop) ──
