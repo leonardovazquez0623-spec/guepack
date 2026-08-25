@@ -1698,7 +1698,7 @@
 
           const [preciosRespuesta, rangosRespuesta] = await Promise.all([
             db.from('precios_generales')
-              .select('precio_km_extra, iva')
+              .select('precio_km_extra, iva, radio_maximo_km')
               .eq('tenant_id', tenantId())
               .maybeSingle(),
             db.from('rangos_precio_general')
@@ -1713,6 +1713,9 @@
           const rangos = rangosRespuesta.data || []
           if (!precios || !rangos.length) {
             throw new Error('No hay una tarifa de envío configurada')
+          }
+          if (precios.radio_maximo_km != null && estado.km > Number(precios.radio_maximo_km)) {
+            throw new Error(`Lo sentimos, esta dirección está a ${estado.km.toFixed(1)} km y superamos nuestro radio máximo de entrega de ${Number(precios.radio_maximo_km)} km.`)
           }
 
           let rango = rangos.find(item =>

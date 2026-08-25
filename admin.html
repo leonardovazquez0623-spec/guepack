@@ -1007,6 +1007,10 @@ function initMapsAdmin() {
           <label class="form-label">Cargo paquete grande ($)</label>
           <input type="number" id="pg-cargo-paquete-grande" class="form-input" placeholder="30" min="0" step="0.5">
         </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Radio máximo de entrega (km) <small style="color:#8fa3c0;font-weight:600">(opcional)</small></label>
+          <input type="number" id="pg-radio-maximo" class="form-input" placeholder="Sin límite" min="0" step="0.5">
+        </div>
       </div>
       <button onclick="guardarPreciosGenerales()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar rangos</button>
     </div>
@@ -5757,6 +5761,8 @@ async function cargarPreciosGenerales() {
     if (pk) pk.value = data.precio_km_extra ?? ''
     if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
     if (cg) cg.value = data.cargo_paquete_grande ?? 30
+    const rm = document.getElementById('pg-radio-maximo')
+    if (rm) rm.value = data.radio_maximo_km ?? ''
   }
   _pgRangos = (rangos || []).map(r => ({ id: r.id, km_desde: r.km_desde, km_hasta: r.km_hasta, precio: r.precio }))
   _pgRenderRangos()
@@ -5775,6 +5781,12 @@ async function guardarPreciosGenerales() {
   }
   if (cargo_paquete_grande < 0) {
     showToast('El cargo de paquete grande debe ser mayor o igual a cero')
+    return
+  }
+  const radioMaximoRaw = document.getElementById('pg-radio-maximo').value
+  const radio_maximo_km = radioMaximoRaw === '' ? null : parseFloat(radioMaximoRaw)
+  if (radio_maximo_km != null && (isNaN(radio_maximo_km) || radio_maximo_km <= 0)) {
+    showToast('El radio máximo de entrega debe ser mayor a cero (o déjalo vacío para sin límite)')
     return
   }
   if (!_pgRangos.length) {
@@ -5801,7 +5813,8 @@ async function guardarPreciosGenerales() {
     p_precio_km_extra: precio_km_extra,
     p_iva: iva,
     p_cargo_paquete_grande: cargo_paquete_grande,
-    p_rangos: rangosPayload
+    p_rangos: rangosPayload,
+    p_radio_maximo_km: radio_maximo_km
   })
 
   if (error) { showToast('❌ Error al guardar: ' + error.message); return }

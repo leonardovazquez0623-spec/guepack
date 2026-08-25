@@ -192,6 +192,7 @@
 <div class="tabs">
   <button class="tab active" id="tab-btn-pedidos" onclick="cambiarTab('pedidos')">📥 Pedidos</button>
   <button class="tab" id="tab-btn-menu" onclick="cambiarTab('menu')">🍽️ Menú</button>
+  <button class="tab" id="tab-btn-envio" onclick="cambiarTab('envio')">🚴 Envío</button>
 </div>
 
 <div id="tab-pedidos" class="tab-panel active">
@@ -219,6 +220,54 @@
   <div class="container">
     <button class="btn btn-primary" style="margin-bottom:14px" onclick="abrirModalProducto()">+ Agregar producto</button>
     <div id="menu-lista"><div class="empty-state">Cargando menú…</div></div>
+  </div>
+</div>
+
+<div id="tab-envio" class="tab-panel">
+  <div class="container">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">💰 Precios y radio de entrega</div>
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label class="form-label" style="margin-bottom:0">Rangos de precio por distancia</label>
+          <button onclick="_pgAgregarRango()" style="padding:4px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer">+ Agregar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:4px">
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Desde (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Hasta (km)</span>
+          <span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--gray-mid)">Precio ($)</span>
+          <span></span>
+        </div>
+        <div id="pg-rangos-tabla"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Tarifa base ($)</label>
+          <input type="number" id="pg-tarifa-base" class="form-input" placeholder="115" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">KM incluidos</label>
+          <input type="number" id="pg-km-minimo" class="form-input" placeholder="5" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">$ por KM extra <small style="color:#8fa3c0;font-weight:600">(último rango)</small></label>
+          <input type="number" id="pg-precio-km" class="form-input" placeholder="13" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">IVA (%)</label>
+          <input type="number" id="pg-iva" class="form-input" placeholder="16" min="0" max="100" step="1">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Cargo paquete grande ($)</label>
+          <input type="number" id="pg-cargo-paquete-grande" class="form-input" placeholder="30" min="0" step="0.5">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Radio máximo de entrega (km) <small style="color:#8fa3c0;font-weight:600">(opcional)</small></label>
+          <input type="number" id="pg-radio-maximo" class="form-input" placeholder="Sin límite" min="0" step="0.5">
+        </div>
+      </div>
+      <button onclick="guardarPreciosGenerales()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">💾 Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -274,6 +323,116 @@ function cambiarTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active')
   document.getElementById('tab-btn-' + tab).classList.add('active')
   if (tab === 'menu' && !categorias.length && !productos.length) cargarMenuCocina()
+  if (tab === 'envio' && !_pgRangos.length) cargarPreciosGenerales()
+}
+
+let _pgRangos = []
+
+function _pgRenderRangos() {
+  const tabla = document.getElementById('pg-rangos-tabla')
+  if (!tabla) return
+  if (!_pgRangos.length) {
+    tabla.innerHTML = '<div style="color:#999;font-size:11px;font-family:Montserrat,sans-serif;font-weight:600;padding:6px 0">Sin rangos. Pulsa "+ Agregar" para crear el primero.</div>'
+    return
+  }
+  tabla.innerHTML = _pgRangos.map((r, i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:5px;margin-bottom:5px">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.km_desde ?? ''}" oninput="_pgRangos[${i}].km_desde=parseFloat(this.value)||0">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="∞ (abierto)" value="${r.km_hasta ?? ''}" oninput="_pgRangos[${i}].km_hasta=this.value===''?null:parseFloat(this.value)">
+      <input type="number" class="form-input" style="padding:8px 10px;font-size:12px" placeholder="0" value="${r.precio ?? ''}" oninput="_pgRangos[${i}].precio=parseFloat(this.value)||0">
+      <button onclick="_pgEliminarRango(${i})" style="padding:0;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;cursor:pointer;width:32px;height:36px;display:flex;align-items:center;justify-content:center">🗑️</button>
+    </div>
+  `).join('')
+}
+
+function _pgAgregarRango() {
+  const ultimo = _pgRangos[_pgRangos.length - 1]
+  const desde = ultimo ? (ultimo.km_hasta != null ? ultimo.km_hasta : (ultimo.km_desde + 5)) : 0
+  _pgRangos.push({ km_desde: desde, km_hasta: null, precio: 0 })
+  _pgRenderRangos()
+}
+
+function _pgEliminarRango(idx) {
+  _pgRangos.splice(idx, 1)
+  _pgRenderRangos()
+}
+
+async function cargarPreciosGenerales() {
+  const [{ data }, { data: rangos }] = await Promise.all([
+    db.from('precios_generales').select('*').limit(1).maybeSingle(),
+    db.from('rangos_precio_general').select('*').order('km_desde')
+  ])
+  if (data) {
+    const tb = document.getElementById('pg-tarifa-base')
+    const km = document.getElementById('pg-km-minimo')
+    const pk = document.getElementById('pg-precio-km')
+    const iv = document.getElementById('pg-iva')
+    const cg = document.getElementById('pg-cargo-paquete-grande')
+    const rm = document.getElementById('pg-radio-maximo')
+    if (tb) tb.value = data.tarifa_base ?? ''
+    if (km) km.value = data.km_minimo ?? ''
+    if (pk) pk.value = data.precio_km_extra ?? ''
+    if (iv) iv.value = data.iva != null ? Math.round(data.iva * 100) : 16
+    if (cg) cg.value = data.cargo_paquete_grande ?? 30
+    if (rm) rm.value = data.radio_maximo_km ?? ''
+  }
+  _pgRangos = (rangos || []).map(r => ({ id: r.id, km_desde: r.km_desde, km_hasta: r.km_hasta, precio: r.precio }))
+  _pgRenderRangos()
+}
+
+async function guardarPreciosGenerales() {
+  const tarifa_base = parseFloat(document.getElementById('pg-tarifa-base').value)
+  const km_minimo = parseFloat(document.getElementById('pg-km-minimo').value)
+  const precio_km_extra = parseFloat(document.getElementById('pg-precio-km').value)
+  const ivaPorc = parseFloat(document.getElementById('pg-iva').value)
+  const cargo_paquete_grande = parseFloat(document.getElementById('pg-cargo-paquete-grande').value)
+  const radioMaximoRaw = document.getElementById('pg-radio-maximo').value
+  const radio_maximo_km = radioMaximoRaw === '' ? null : parseFloat(radioMaximoRaw)
+
+  if (isNaN(tarifa_base) || isNaN(km_minimo) || isNaN(precio_km_extra) || isNaN(ivaPorc) || isNaN(cargo_paquete_grande)) {
+    mostrarToast('Completa la tarifa base, KM incluidos, precio por KM extra, IVA y cargo de paquete grande', true)
+    return
+  }
+  if (cargo_paquete_grande < 0) {
+    mostrarToast('El cargo de paquete grande debe ser mayor o igual a cero', true)
+    return
+  }
+  if (radio_maximo_km != null && (isNaN(radio_maximo_km) || radio_maximo_km <= 0)) {
+    mostrarToast('El radio máximo de entrega debe ser mayor a cero (o déjalo vacío para sin límite)', true)
+    return
+  }
+  if (!_pgRangos.length) {
+    mostrarToast('⚠️ Agrega al menos un rango de precio', true)
+    return
+  }
+  for (const r of _pgRangos) {
+    if (r.km_desde == null || r.precio == null || r.precio <= 0) {
+      mostrarToast('⚠️ Verifica que todos los rangos tengan Desde y Precio', true); return
+    }
+  }
+
+  const iva = ivaPorc / 100
+  const rangosPayload = _pgRangos.map(r => ({
+    km_desde: r.km_desde,
+    km_hasta: r.km_hasta ?? null,
+    precio: r.precio
+  }))
+
+  const { error } = await db.rpc('admin_guardar_precios_generales', {
+    p_tenant_id: TENANT_ID,
+    p_tarifa_base: tarifa_base,
+    p_km_minimo: km_minimo,
+    p_precio_km_extra: precio_km_extra,
+    p_iva: iva,
+    p_cargo_paquete_grande: cargo_paquete_grande,
+    p_rangos: rangosPayload,
+    p_radio_maximo_km: radio_maximo_km
+  })
+
+  if (error) { mostrarToast('❌ Error al guardar: ' + error.message, true); return }
+
+  mostrarToast('✅ Precios guardados')
+  cargarPreciosGenerales()
 }
 
 async function cerrarSesion() {
