@@ -401,8 +401,12 @@ async function registrar() {
     .maybeSingle()
   if (duplicado) return showError('Este número de WhatsApp ya está registrado')
   if (empresaCodigo) {
-    const { data: empresa } = await db.from('empresas_afiliadas').select('id').eq('codigo', empresaCodigo).eq('activa', true).maybeSingle()
-    if (!empresa) return showError('Código de empresa no válido')
+    const { data: esValido, error: errorEmpresa } = await db.rpc('validar_codigo_empresa', { p_codigo: empresaCodigo, p_tenant_id: tenantId })
+    if (errorEmpresa) {
+      console.error('[registro] Error validando código de empresa:', errorEmpresa)
+      return showError('No pudimos validar el código de empresa. Inténtalo nuevamente.')
+    }
+    if (!esValido) return showError('Código de empresa no válido')
   }
   let referidoPor = null
   if (referidoCodigo) {
