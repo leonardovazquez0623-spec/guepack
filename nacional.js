@@ -249,7 +249,127 @@ function _nacAplicarSeleccion(idx) {
   _f('nac-ori-colonia', _nacColoniaOrigen);  _f('nac-ori-ciudad', _nacMunicipioOrigen);  _f('nac-ori-estado', _nacEstadoOrigen)
   _f('nac-dst-colonia', _nacColoniaDestino); _f('nac-dst-ciudad', _nacMunicipioDestino); _f('nac-dst-estado', _nacEstadoDestino)
 
+  _nacCargarDireccionesGuardadas()
+
   nacShowStep(2)
+}
+
+// ── Direcciones guardadas ───────────────────────────────────────────────────
+
+let _nacDireccionesGuardadas = { origen: [], destino: [] }
+
+function _nacEscaparHtml(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  })[caracter])
+}
+
+async function _nacCargarDireccionesGuardadas() {
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) return
+    const { data, error } = await db.from('direcciones_guardadas')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('direcciones_guardadas select falló:', error); return }
+    _nacDireccionesGuardadas.origen  = (data || []).filter(d => d.tipo === 'origen')
+    _nacDireccionesGuardadas.destino = (data || []).filter(d => d.tipo === 'destino')
+    _nacRenderSelectGuardadas('origen')
+    _nacRenderSelectGuardadas('destino')
+  } catch (err) {
+    console.error('direcciones_guardadas select falló:', err)
+  }
+}
+
+function _nacRenderSelectGuardadas(tipo) {
+  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+  const lista   = _nacDireccionesGuardadas[tipo]
+  const wrap    = document.getElementById(`nac-${prefijo}-guardadas-wrap`)
+  const select  = document.getElementById(`nac-${prefijo}-guardadas`)
+  if (!wrap || !select) return
+  if (!lista.length) { wrap.style.display = 'none'; return }
+  select.innerHTML = '<option value="">— Selecciona —</option>' +
+    lista.map(d => `<option value="${d.id}">${_nacEscaparHtml(d.alias)}</option>`).join('')
+  wrap.style.display = ''
+}
+
+function _nacToggleGuardarPanel(tipo, checked) {
+  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+  const panel = document.getElementById(`nac-${prefijo}-guardar-panel`)
+  if (panel) panel.style.display = checked ? 'block' : 'none'
+}
+
+async function _nacGuardarDireccion(tipo) {
+  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+  const datos = tipo === 'origen' ? _nacGetOrigen() : _nacGetDestino()
+  const alias = document.getElementById(`nac-${prefijo}-alias`).value.trim()
+
+  if (!alias) {
+    mostrarToast('⚠️ Ingresa un alias para la dirección', 'var(--orange)')
+    return
+  }
+  if (!datos.nombre || !datos.telefono || !datos.calle) {
+    mostrarToast('⚠️ Completa nombre, teléfono y calle antes de guardar', 'var(--orange)')
+    return
+  }
+
+  try {
+    const { data: { session } } = await db.auth.getSession()
+    if (!session) { mostrarToast('⚠️ Debes iniciar sesión para guardar direcciones', 'var(--orange)'); return }
+
+    const cp = document.getElementById(`nac-${prefijo}-cp`).value.trim()
+    const { error } = await db.from('direcciones_guardadas').insert({
+      user_id:    session.user.id,
+      tipo,
+      alias,
+      nombre:     datos.nombre,
+      telefono:   datos.telefono,
+      email:      datos.email,
+      calle:      datos.calle,
+      numero:     datos.numero,
+      colonia:    datos.colonia,
+      ciudad:     datos.ciudad,
+      estado:     datos.estado,
+      cp,
+      referencia: datos.referencia,
+    })
+    if (error) { mostrarToast('❌ No se pudo guardar la dirección: ' + error.message, 'error'); return }
+
+    mostrarToast('Dirección guardada ✅', 'success')
+    document.getElementById(`nac-${prefijo}-guardar-panel`).style.display = 'none'
+    document.getElementById(`nac-${prefijo}-guardar`).checked = false
+    document.getElementById(`nac-${prefijo}-alias`).value = ''
+    _nacCargarDireccionesGuardadas()
+  } catch (err) {
+    console.error('direcciones_guardadas insert falló:', err)
+    mostrarToast('❌ No se pudo guardar la dirección', 'error')
+  }
+}
+
+function _nacAutocompletarDireccion(tipo, id) {
+  if (!id) return
+  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+  const dir = _nacDireccionesGuardadas[tipo].find(d => String(d.id) === String(id))
+  if (!dir) return
+
+  const _f = (campo, val) => { const el = document.getElementById(`nac-${prefijo}-${campo}`); if (el) el.value = val || '' }
+  _f('nombre', dir.nombre)
+  _f('tel',    dir.telefono)
+  _f('email',  dir.email)
+  _f('calle',  dir.calle)
+  _f('num',    dir.numero)
+  _f('ref',    dir.referencia)
+
+  const contadorCalle = document.getElementById(`nac-${prefijo}-calle-count`)
+  if (contadorCalle) contadorCalle.textContent = (dir.calle || '').length + '/60'
+  const contadorRef = document.getElementById(`nac-${prefijo}-ref-count`)
+  if (contadorRef) contadorRef.textContent = (dir.referencia || '').length + '/40'
+
+  const cpActual = document.getElementById(`nac-${prefijo}-cp`)?.value?.trim()
+  if (cpActual && dir.cp && dir.cp !== cpActual) {
+    mostrarToast('⚠️ Esta dirección es de otro CP, verifica los datos', 'var(--orange)')
+  }
 }
 
 // ── Paso 2: Direcciones ───────────────────────────────────────────────────────

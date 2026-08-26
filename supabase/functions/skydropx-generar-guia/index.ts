@@ -294,24 +294,70 @@ serve(async (req) => {
     }
     const data = shipment.data ?? shipment;
 
+    // Skydropx casi nunca devuelve tracking_number/label_url a nivel raíz de
+    // `data`: vienen dentro de `included`, en el objeto type:"package".
+    const paquete = (shipment.included ?? []).find(
+      (item: any) => item.type === "package"
+    );
+    const numeroGuia = paquete?.attributes?.tracking_number
+      ?? data.tracking_number
+      ?? data.attributes?.tracking_number
+      ?? null;
+    const labelUrl = paquete?.attributes?.label_url
+      ?? data.label_url
+      ?? data.attributes?.label_url
+      ?? null;
+    const trackingUrl = paquete?.attributes?.tracking_url_provider
+      ?? data.tracking_url
+      ?? data.attributes?.tracking_url
+      ?? null;
+
+    if (!numeroGuia) {
+      const detalleError =
+        `Guía creada en Skydropx pero no se pudo extraer tracking_number/label_url de la respuesta. ` +
+        `skydropx_shipment_id=${data.id ?? "no devuelto"}`;
+
+      console.error("[skydropx-generar-guia]", detalleError);
+
+      const { error: errorMarcarRevision } = await supabaseAdmin
+        .from("envios_nacionales")
+        .update({
+          estado: "guia_generada_pendiente_guardado",
+          skydropx_shipment_id: data.id,
+          error_generacion_guia: detalleError,
+        })
+        .eq("id", envio_id)
+        .eq("estado", "generando_guia");
+
+      if (errorMarcarRevision) {
+        console.error(
+          "[skydropx-generar-guia] Tampoco fue posible marcar el envío para revisión manual:",
+          errorMarcarRevision.message,
+        );
+      }
+
+      return json({
+        error: "La guía fue creada en Skydropx, pero no se pudo extraer el número de guía. Se requiere revisión manual.",
+      }, 500);
+    }
+
     // 3. Guarda todo en Supabase
     const { error: updateErr } = await supabaseAdmin
       .from("envios_nacionales")
       .update({
         estado: "guia_generada",
         skydropx_shipment_id: data.id,
-        numero_guia: data.tracking_number ?? data.attributes?.tracking_number,
-        label_url: data.label_url ?? data.attributes?.label_url,
-        tracking_url: data.tracking_url ?? data.attributes?.tracking_url,
+        numero_guia: numeroGuia,
+        label_url: labelUrl,
+        tracking_url: trackingUrl,
       })
       .eq("id", envio_id);
 
     if (updateErr) {
-      const numeroGuiaGenerada = data.tracking_number ?? data.attributes?.tracking_number;
       const idEnvioSkydropx = data.id;
       const detalleError =
         `Guía creada en Skydropx pero no guardada localmente. ` +
-        `numero_guia=${numeroGuiaGenerada ?? "no devuelto"}, ` +
+        `numero_guia=${numeroGuia ?? "no devuelto"}, ` +
         `skydropx_shipment_id=${idEnvioSkydropx ?? "no devuelto"}, ` +
         `motivo=${updateErr.message}`;
 
@@ -446,9 +492,9 @@ serve(async (req) => {
 
     return json({
       ok: true,
-      numero_guia: data.tracking_number,
-      label_url: data.label_url,
-      tracking_url: data.tracking_url,
+      numero_guia: numeroGuia,
+      label_url: labelUrl,
+      tracking_url: trackingUrl,
       recoleccion_pendiente_manual: recoleccionPendienteManual,
       aviso: recoleccionPendienteManual
         ? "La guía se generó, pero la recolección debe agendarse manualmente."

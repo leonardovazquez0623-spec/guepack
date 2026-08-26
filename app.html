@@ -1471,6 +1471,14 @@
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="ubicacion"></span> Origen</div>
 
+          <!-- Direcciones guardadas -->
+          <div id="nac-ori-guardadas-wrap" style="display:none;margin-bottom:10px">
+            <label class="form-label">Usar dirección guardada</label>
+            <select id="nac-ori-guardadas" class="form-input" onchange="_nacAutocompletarDireccion('origen', this.value)">
+              <option value="">— Selecciona —</option>
+            </select>
+          </div>
+
           <!-- CP bloqueado -->
           <div class="form-group">
             <label class="form-label">Código Postal</label>
@@ -1537,11 +1545,29 @@
             <input id="nac-ori-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Fachada roja, junto a la farmacia" oninput="document.getElementById('nac-ori-ref-count').textContent=this.value.length+'/40'">
             <div id="nac-ori-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
           </div>
+
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+            <input type="checkbox" id="nac-ori-guardar" onchange="_nacToggleGuardarPanel('origen', this.checked)">
+            Guardar esta dirección para futuros envíos
+          </label>
+          <div id="nac-ori-guardar-panel" style="display:none;margin-top:8px">
+            <input id="nac-ori-alias" type="text" class="form-input" placeholder="Ej. Bodega principal, Casa de mamá" maxlength="40">
+            <button onclick="_nacGuardarDireccion('origen')" type="button"
+              style="margin-top:6px;width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Guardar</button>
+          </div>
         </div>
 
         <!-- Tarjeta Destino -->
         <div class="card">
           <div class="card-title"><span class="guep-icon-inline" data-icon="inicio"></span> Destino</div>
+
+          <!-- Direcciones guardadas -->
+          <div id="nac-dst-guardadas-wrap" style="display:none;margin-bottom:10px">
+            <label class="form-label">Usar dirección guardada</label>
+            <select id="nac-dst-guardadas" class="form-input" onchange="_nacAutocompletarDireccion('destino', this.value)">
+              <option value="">— Selecciona —</option>
+            </select>
+          </div>
 
           <!-- CP bloqueado -->
           <div class="form-group">
@@ -1608,6 +1634,16 @@
             <label class="form-label">Referencia</label>
             <input id="nac-dst-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Edificio azul, depto 3B" oninput="document.getElementById('nac-dst-ref-count').textContent=this.value.length+'/40'">
             <div id="nac-dst-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
+          </div>
+
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+            <input type="checkbox" id="nac-dst-guardar" onchange="_nacToggleGuardarPanel('destino', this.checked)">
+            Guardar esta dirección para futuros envíos
+          </label>
+          <div id="nac-dst-guardar-panel" style="display:none;margin-top:8px">
+            <input id="nac-dst-alias" type="text" class="form-input" placeholder="Ej. Bodega principal, Casa de mamá" maxlength="40">
+            <button onclick="_nacGuardarDireccion('destino')" type="button"
+              style="margin-top:6px;width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Guardar</button>
           </div>
         </div>
 
