@@ -1799,6 +1799,11 @@
           </div>
         </div>
 
+        <!-- Mapa en vivo del repartidor cerca (mismo umbral de 1.5km que el banner) -->
+        <div id="rastreo-mapa-card" style="display:none;background:white;border-radius:16px;box-shadow:0 2px 14px rgba(14,32,85,0.08);padding:10px;margin-bottom:12px">
+          <div id="rastreo-mapa" style="width:100%;height:220px;border-radius:12px;overflow:hidden"></div>
+        </div>
+
         <!-- Card repartidor -->
         <div id="rastreo-repa-card" style="display:none;background:white;border-radius:16px;box-shadow:0 2px 14px rgba(14,32,85,0.08);padding:16px;margin-bottom:12px"></div>
       </div>
@@ -4797,6 +4802,7 @@ async function rastrearPedido() {
   if (repaCard) { repaCard.style.display = 'none'; repaCard.innerHTML = ''; repaCard.dataset.repa = '' }
   const cercaBanner = document.getElementById('rastreo-cerca-banner')
   if (cercaBanner) cercaBanner.style.display = 'none'
+  _limpiarMapaRastreo()
 
   _actualizarUIRastreo(data)
 
@@ -5009,12 +5015,64 @@ async function _cargarRepaCardRastreo(nombreRepa) {
 
 // ── Ubicación repartidor a 1.5km ────────────────────────────────────────────
 var _repaLocationChannel = null
+var _rastreoMap = null, _rastreoPinDestino = null, _rastreoPinRepa = null
 function _haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371, toRad = x => x * Math.PI / 180
   const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1)
   const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
+
+function _iniciarMapaRastreo(latEntrega, lngEntrega) {
+  const el = document.getElementById('rastreo-mapa')
+  if (!el || !window.google?.maps) return
+  if (!_rastreoMap) {
+    _rastreoMap = new google.maps.Map(el, {
+      zoom: 15,
+      disableDefaultUI: true,
+      zoomControl: true,
+      gestureHandling: 'cooperative'
+    })
+  }
+  if (!_rastreoPinDestino) {
+    _rastreoPinDestino = new google.maps.Marker({
+      map: _rastreoMap,
+      position: { lat: latEntrega, lng: lngEntrega },
+      title: 'Tu domicilio',
+      icon: _wizardPinIconGota()
+    })
+  } else {
+    _rastreoPinDestino.setPosition({ lat: latEntrega, lng: lngEntrega })
+  }
+  _rastreoMap.setCenter({ lat: latEntrega, lng: lngEntrega })
+  google.maps.event.trigger(_rastreoMap, 'resize')
+}
+
+function _actualizarPinRepaRastreo(lat, lng, latEntrega, lngEntrega) {
+  if (!_rastreoMap) return
+  if (!_rastreoPinRepa) {
+    _rastreoPinRepa = new google.maps.Marker({
+      map: _rastreoMap,
+      position: { lat, lng },
+      title: 'Tu repartidor',
+      icon: { url: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png' }
+    })
+  } else {
+    _rastreoPinRepa.setPosition({ lat, lng })
+  }
+  const bounds = new google.maps.LatLngBounds()
+  bounds.extend({ lat, lng })
+  bounds.extend({ lat: latEntrega, lng: lngEntrega })
+  _rastreoMap.fitBounds(bounds, 60)
+}
+
+function _limpiarMapaRastreo() {
+  if (_rastreoPinDestino) { _rastreoPinDestino.setMap(null); _rastreoPinDestino = null }
+  if (_rastreoPinRepa) { _rastreoPinRepa.setMap(null); _rastreoPinRepa = null }
+  const card = document.getElementById('rastreo-mapa-card')
+  if (card) card.style.display = 'none'
+}
+
 function _suscribirUbicacionRepa(nombreRepa, latEntrega, lngEntrega) {
   if (_repaLocationChannel) db.removeChannel(_repaLocationChannel)
   _repaLocationChannel = db.channel('repa-ubicacion-' + nombreRepa)
@@ -5022,8 +5080,17 @@ function _suscribirUbicacionRepa(nombreRepa, latEntrega, lngEntrega) {
       const { lat, lng } = payload.new
       if (!lat || !lng) return
       const distKm = _haversineKm(lat, lng, latEntrega, lngEntrega)
+      const cerca = distKm <= 1.5
       const banner = document.getElementById('rastreo-cerca-banner')
-      if (banner) banner.style.display = distKm <= 1.5 ? 'flex' : 'none'
+      if (banner) banner.style.display = cerca ? 'flex' : 'none'
+      if (cerca) {
+        const mapaCard = document.getElementById('rastreo-mapa-card')
+        if (mapaCard) mapaCard.style.display = 'block'
+        _iniciarMapaRastreo(latEntrega, lngEntrega)
+        _actualizarPinRepaRastreo(lat, lng, latEntrega, lngEntrega)
+      } else {
+        _limpiarMapaRastreo()
+      }
     })
     .subscribe()
 }
