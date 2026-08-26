@@ -1405,14 +1405,14 @@
           <div class="card-title">🔍 ¿A dónde va tu paquete?</div>
 
           <!-- Direcciones guardadas -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div id="nac-ori-guardadas-wrap" style="display:none">
+          <div id="nac-guardadas-p1-wrap" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div id="nac-ori-guardadas-wrap" class="form-group" style="margin-bottom:0;display:none">
               <label class="form-label">Usar dirección guardada (origen)</label>
               <select id="nac-ori-guardadas" class="form-input" onchange="_nacElegirDireccionGuardadaPaso1('origen', this.value)">
                 <option value="">— Selecciona —</option>
               </select>
             </div>
-            <div id="nac-dst-guardadas-wrap" style="display:none">
+            <div id="nac-dst-guardadas-wrap" class="form-group" style="margin-bottom:0;display:none">
               <label class="form-label">Usar dirección guardada (destino)</label>
               <select id="nac-dst-guardadas" class="form-input" onchange="_nacElegirDireccionGuardadaPaso1('destino', this.value)">
                 <option value="">— Selecciona —</option>
@@ -1563,6 +1563,7 @@
             <button onclick="_nacGuardarDireccion('origen')" type="button"
               style="margin-top:6px;width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Guardar</button>
           </div>
+          <div id="nac-ori-guardada-confirmacion" style="display:none;color:#16a34a;font-size:13px;margin-top:10px;align-items:center;gap:6px"></div>
         </div>
 
         <!-- Tarjeta Destino -->
@@ -1645,6 +1646,7 @@
             <button onclick="_nacGuardarDireccion('destino')" type="button"
               style="margin-top:6px;width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">Guardar</button>
           </div>
+          <div id="nac-dst-guardada-confirmacion" style="display:none;color:#16a34a;font-size:13px;margin-top:10px;align-items:center;gap:6px"></div>
         </div>
 
         <!-- Tipo de contenido -->

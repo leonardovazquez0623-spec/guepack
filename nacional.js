@@ -77,27 +77,27 @@ async function nacCotizarRapido() {
   const tamano = chip?.dataset?.tamano
 
   if (!/^\d{5}$/.test(cpOri)) {
-    mostrarToast('⚠️ El CP de origen debe ser exactamente 5 dígitos numéricos', 'var(--orange)')
+    _nacMostrarModalError('El CP de origen debe ser exactamente 5 dígitos numéricos')
     return
   }
   if (!/^\d{5}$/.test(cpDst)) {
-    mostrarToast('⚠️ El CP de destino debe ser exactamente 5 dígitos numéricos', 'var(--orange)')
+    _nacMostrarModalError('El CP de destino debe ser exactamente 5 dígitos numéricos')
     return
   }
   if (!_nacColoniaOrigen) {
-    mostrarToast('⚠️ Selecciona la colonia de origen para cotizar', 'var(--orange)')
+    _nacMostrarModalError('Selecciona la colonia de origen para cotizar')
     return
   }
   if (!_nacColoniaDestino) {
-    mostrarToast('⚠️ Selecciona la colonia de destino para cotizar', 'var(--orange)')
+    _nacMostrarModalError('Selecciona la colonia de destino para cotizar')
     return
   }
   if (!peso || peso <= 0) {
-    mostrarToast('⚠️ El peso debe ser mayor a 0 kg', 'var(--orange)')
+    _nacMostrarModalError('El peso debe ser mayor a 0 kg')
     return
   }
   if (!tamano) {
-    mostrarToast('⚠️ Selecciona el tamaño del paquete', 'var(--orange)')
+    _nacMostrarModalError('Selecciona el tamaño del paquete')
     return
   }
 
@@ -106,9 +106,9 @@ async function nacCotizarRapido() {
     largo = parseFloat(document.getElementById('nac-paso1-largo').value) || 0
     ancho = parseFloat(document.getElementById('nac-paso1-ancho').value) || 0
     alto  = parseFloat(document.getElementById('nac-paso1-alto').value)  || 0
-    if (largo <= 0) { mostrarToast('⚠️ Ingresa el largo del paquete', 'var(--orange)'); return }
-    if (ancho <= 0) { mostrarToast('⚠️ Ingresa el ancho del paquete', 'var(--orange)'); return }
-    if (alto  <= 0) { mostrarToast('⚠️ Ingresa el alto del paquete',  'var(--orange)'); return }
+    if (largo <= 0) { _nacMostrarModalError('Ingresa el largo del paquete'); return }
+    if (ancho <= 0) { _nacMostrarModalError('Ingresa el ancho del paquete'); return }
+    if (alto  <= 0) { _nacMostrarModalError('Ingresa el alto del paquete');  return }
   } else {
     const preset = NAC_TAMANOS[tamano]
     largo = preset.largo; ancho = preset.ancho; alto = preset.alto
@@ -277,8 +277,10 @@ function _nacAplicarSeleccion(idx) {
     if (dir) {
       const panel = document.getElementById(`nac-${prefijo}-guardar-panel`)
       const checkbox = document.getElementById(`nac-${prefijo}-guardar`)
+      const confirmacion = document.getElementById(`nac-${prefijo}-guardada-confirmacion`)
       if (panel) panel.style.display = 'none'
       if (checkbox) checkbox.checked = false
+      if (confirmacion) confirmacion.style.display = 'none'
     }
   })
 
@@ -297,6 +299,44 @@ function _nacEscaparHtml(valor) {
   })[caracter])
 }
 
+// Modal genérico de validación del wizard nacional — cualquier chequeo de
+// "falta llenar X" debe usar esto en vez de mostrarToast().
+function _nacMostrarModalError(mensaje) {
+  document.getElementById('nac-modal-error')?.remove()
+
+  const overlay = document.createElement('div')
+  overlay.id = 'nac-modal-error'
+  overlay.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:9999',
+    'background:rgba(0,0,0,0.55)',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'padding:20px',
+  ].join(';')
+
+  overlay.innerHTML = `
+    <div style="
+      background:#fff; border-radius:20px; padding:28px 24px;
+      width:100%; max-width:380px; text-align:center;
+      box-shadow:0 20px 60px rgba(0,0,0,0.25);
+    ">
+      <div style="font-size:38px;margin-bottom:12px;line-height:1">⚠️</div>
+      <div style="
+        font-family:Montserrat,sans-serif; font-size:14px; color:#333;
+        line-height:1.6; margin-bottom:22px;
+      ">${_nacEscaparHtml(mensaje)}</div>
+      <button id="nac-modal-error-aceptar" style="
+        width:100%; padding:13px; border:none; border-radius:12px;
+        background:#1E56C7; color:#fff;
+        font-family:Montserrat,sans-serif; font-weight:900; font-size:13px;
+        cursor:pointer;
+      ">Aceptar</button>
+    </div>
+  `
+
+  document.body.appendChild(overlay)
+  document.getElementById('nac-modal-error-aceptar').addEventListener('click', () => overlay.remove())
+}
+
 async function _nacCargarDireccionesGuardadas() {
   try {
     const { data: { session } } = await db.auth.getSession()
@@ -310,6 +350,11 @@ async function _nacCargarDireccionesGuardadas() {
     _nacDireccionesGuardadas.destino = (data || []).filter(d => d.tipo === 'destino')
     _nacRenderSelectGuardadas('origen')
     _nacRenderSelectGuardadas('destino')
+    const wrapExterior = document.getElementById('nac-guardadas-p1-wrap')
+    if (wrapExterior) {
+      const hayAlguna = _nacDireccionesGuardadas.origen.length > 0 || _nacDireccionesGuardadas.destino.length > 0
+      wrapExterior.style.display = hayAlguna ? 'grid' : 'none'
+    }
   } catch (err) {
     console.error('direcciones_guardadas select falló:', err)
   }
@@ -339,11 +384,11 @@ async function _nacGuardarDireccion(tipo) {
   const alias = document.getElementById(`nac-${prefijo}-alias`).value.trim()
 
   if (!alias) {
-    mostrarToast('⚠️ Ingresa un alias para la dirección', 'var(--orange)')
+    _nacMostrarModalError('Ingresa un alias para la dirección')
     return
   }
   if (!datos.nombre || !datos.telefono || !datos.calle || !datos.email || !datos.referencia) {
-    mostrarToast('⚠️ Completa nombre, teléfono, calle, email y referencia antes de guardar', 'var(--orange)')
+    _nacMostrarModalError('Completa nombre, teléfono, calle, email y referencia antes de guardar')
     return
   }
 
@@ -373,6 +418,15 @@ async function _nacGuardarDireccion(tipo) {
     document.getElementById(`nac-${prefijo}-guardar-panel`).style.display = 'none'
     document.getElementById(`nac-${prefijo}-guardar`).checked = false
     document.getElementById(`nac-${prefijo}-alias`).value = ''
+
+    const labelGuardar = document.getElementById(`nac-${prefijo}-guardar-label`)
+    if (labelGuardar) labelGuardar.style.display = 'none'
+    const confirmacion = document.getElementById(`nac-${prefijo}-guardada-confirmacion`)
+    if (confirmacion) {
+      confirmacion.textContent = `✅ Ubicación guardada en "${alias}"`
+      confirmacion.style.display = 'flex'
+    }
+
     _nacCargarDireccionesGuardadas()
   } catch (err) {
     console.error('direcciones_guardadas insert falló:', err)
@@ -433,13 +487,13 @@ function _nacValidarPaso2() {
   for (const [id, label] of required) {
     const el = document.getElementById(id)
     if (!el?.value?.trim()) {
-      mostrarToast('⚠️ Ingresa ' + label, 'var(--orange)')
+      _nacMostrarModalError('Ingresa ' + label)
       el?.focus()
       return false
     }
   }
   if (!document.getElementById('nac-tipo-contenido').value) {
-    mostrarToast('⚠️ Selecciona el tipo de contenido', 'var(--orange)')
+    _nacMostrarModalError('Selecciona el tipo de contenido')
     return false
   }
   return true
@@ -796,6 +850,10 @@ function nacReset() {
   const _lblDst = document.getElementById('nac-dst-guardar-label')
   if (_lblOri) _lblOri.style.display = ''
   if (_lblDst) _lblDst.style.display = ''
+  const _confOri = document.getElementById('nac-ori-guardada-confirmacion')
+  const _confDst = document.getElementById('nac-dst-guardada-confirmacion')
+  if (_confOri) { _confOri.style.display = 'none'; _confOri.textContent = '' }
+  if (_confDst) { _confDst.style.display = 'none'; _confDst.textContent = '' }
 
   document.querySelectorAll('.nac-tamano-chip').forEach(b => b.classList.remove('active'))
   const customDiv = document.getElementById('nac-dims-custom')
