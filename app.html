@@ -1404,6 +1404,22 @@
         <div class="card">
           <div class="card-title">🔍 ¿A dónde va tu paquete?</div>
 
+          <!-- Direcciones guardadas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div id="nac-ori-guardadas-wrap" style="display:none">
+              <label class="form-label">Usar dirección guardada (origen)</label>
+              <select id="nac-ori-guardadas" class="form-input" onchange="_nacElegirDireccionGuardadaPaso1('origen', this.value)">
+                <option value="">— Selecciona —</option>
+              </select>
+            </div>
+            <div id="nac-dst-guardadas-wrap" style="display:none">
+              <label class="form-label">Usar dirección guardada (destino)</label>
+              <select id="nac-dst-guardadas" class="form-input" onchange="_nacElegirDireccionGuardadaPaso1('destino', this.value)">
+                <option value="">— Selecciona —</option>
+              </select>
+            </div>
+          </div>
+
           <!-- CPs en 2 columnas -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
             <div class="form-group" style="margin-bottom:0">
@@ -1471,14 +1487,6 @@
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:4px"><span class="guep-icon-inline" data-icon="ubicacion"></span> Origen</div>
 
-          <!-- Direcciones guardadas -->
-          <div id="nac-ori-guardadas-wrap" style="display:none;margin-bottom:10px">
-            <label class="form-label">Usar dirección guardada</label>
-            <select id="nac-ori-guardadas" class="form-input" onchange="_nacAutocompletarDireccion('origen', this.value)">
-              <option value="">— Selecciona —</option>
-            </select>
-          </div>
-
           <!-- CP bloqueado -->
           <div class="form-group">
             <label class="form-label">Código Postal</label>
@@ -1491,25 +1499,25 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Nombre de contacto *</label>
+            <label class="form-label">Nombre de contacto * <span id="nac-ori-nombre-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-ori-nombre" type="text" class="form-input" placeholder="Nombre de quien entrega">
           </div>
           <div class="form-group">
-            <label class="form-label">Teléfono *</label>
+            <label class="form-label">Teléfono * <span id="nac-ori-tel-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-ori-tel" type="tel" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
           </div>
           <div class="form-group">
-            <label class="form-label">Email</label>
+            <label class="form-label">Email * <span id="nac-ori-email-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-ori-email" type="email" class="form-input" placeholder="correo@ejemplo.com">
           </div>
           <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Calle *</label>
+              <label class="form-label">Calle * <span id="nac-ori-calle-lock" style="display:none;font-size:13px">🔒</span></label>
               <input id="nac-ori-calle" type="text" class="form-input" maxlength="60" placeholder="Nombre de la calle" oninput="document.getElementById('nac-ori-calle-count').textContent=this.value.length+'/60'">
               <div id="nac-ori-calle-count" class="nac-cp-lock" style="text-align:right">0/60</div>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Número</label>
+              <label class="form-label">Número <span id="nac-ori-num-lock" style="display:none;font-size:13px">🔒</span></label>
               <input id="nac-ori-num" type="text" class="form-input" placeholder="Ext">
             </div>
           </div>
@@ -1541,12 +1549,12 @@
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
-            <label class="form-label">Referencia</label>
+            <label class="form-label">Referencia * <span id="nac-ori-ref-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-ori-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Fachada roja, junto a la farmacia" oninput="document.getElementById('nac-ori-ref-count').textContent=this.value.length+'/40'">
             <div id="nac-ori-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
           </div>
 
-          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+          <label id="nac-ori-guardar-label" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
             <input type="checkbox" id="nac-ori-guardar" onchange="_nacToggleGuardarPanel('origen', this.checked)">
             Guardar esta dirección para futuros envíos
           </label>
@@ -1561,14 +1569,6 @@
         <div class="card">
           <div class="card-title"><span class="guep-icon-inline" data-icon="inicio"></span> Destino</div>
 
-          <!-- Direcciones guardadas -->
-          <div id="nac-dst-guardadas-wrap" style="display:none;margin-bottom:10px">
-            <label class="form-label">Usar dirección guardada</label>
-            <select id="nac-dst-guardadas" class="form-input" onchange="_nacAutocompletarDireccion('destino', this.value)">
-              <option value="">— Selecciona —</option>
-            </select>
-          </div>
-
           <!-- CP bloqueado -->
           <div class="form-group">
             <label class="form-label">Código Postal</label>
@@ -1581,25 +1581,25 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Nombre de quien recibe *</label>
+            <label class="form-label">Nombre de quien recibe * <span id="nac-dst-nombre-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-dst-nombre" type="text" class="form-input" placeholder="Nombre del destinatario">
           </div>
           <div class="form-group">
-            <label class="form-label">Teléfono *</label>
+            <label class="form-label">Teléfono * <span id="nac-dst-tel-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-dst-tel" type="tel" class="form-input" placeholder="10 dígitos" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
           </div>
           <div class="form-group">
-            <label class="form-label">Email</label>
+            <label class="form-label">Email * <span id="nac-dst-email-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-dst-email" type="email" class="form-input" placeholder="correo@ejemplo.com">
           </div>
           <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Calle *</label>
+              <label class="form-label">Calle * <span id="nac-dst-calle-lock" style="display:none;font-size:13px">🔒</span></label>
               <input id="nac-dst-calle" type="text" class="form-input" maxlength="60" placeholder="Nombre de la calle" oninput="document.getElementById('nac-dst-calle-count').textContent=this.value.length+'/60'">
               <div id="nac-dst-calle-count" class="nac-cp-lock" style="text-align:right">0/60</div>
             </div>
             <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">Número</label>
+              <label class="form-label">Número <span id="nac-dst-num-lock" style="display:none;font-size:13px">🔒</span></label>
               <input id="nac-dst-num" type="text" class="form-input" placeholder="Ext">
             </div>
           </div>
@@ -1631,12 +1631,12 @@
             </div>
           </div>
           <div class="form-group" style="margin-top:10px">
-            <label class="form-label">Referencia</label>
+            <label class="form-label">Referencia * <span id="nac-dst-ref-lock" style="display:none;font-size:13px">🔒</span></label>
             <input id="nac-dst-ref" type="text" class="form-input" maxlength="40" placeholder="Ej. Edificio azul, depto 3B" oninput="document.getElementById('nac-dst-ref-count').textContent=this.value.length+'/40'">
             <div id="nac-dst-ref-count" class="nac-cp-lock" style="text-align:right">0/40</div>
           </div>
 
-          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
+          <label id="nac-dst-guardar-label" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px">
             <input type="checkbox" id="nac-dst-guardar" onchange="_nacToggleGuardarPanel('destino', this.checked)">
             Guardar esta dirección para futuros envíos
           </label>
@@ -7175,7 +7175,7 @@ function showClientSection(section) {
   clientBtns[idx].classList.add('active');
   if (section === 'history') cargarHistorial();
   if (section === 'tracking') _cargarNacionalesRastreo()
-  if (section === 'nacional') nacIniciarCpListeners()
+  if (section === 'nacional') { nacIniciarCpListeners(); _nacCargarDireccionesGuardadas() }
 }
 
 // ── Cargar pedidos en Admin ──

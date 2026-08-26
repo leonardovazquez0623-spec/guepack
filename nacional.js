@@ -249,14 +249,47 @@ function _nacAplicarSeleccion(idx) {
   _f('nac-ori-colonia', _nacColoniaOrigen);  _f('nac-ori-ciudad', _nacMunicipioOrigen);  _f('nac-ori-estado', _nacEstadoOrigen)
   _f('nac-dst-colonia', _nacColoniaDestino); _f('nac-dst-ciudad', _nacMunicipioDestino); _f('nac-dst-estado', _nacEstadoDestino)
 
-  _nacCargarDireccionesGuardadas()
+  // Si el cliente eligió una dirección guardada en el Paso 1, autocompleta y
+  // bloquea el resto de los campos de ese lado; si no, quedan editables.
+  ;['origen', 'destino'].forEach(tipo => {
+    const prefijo   = tipo === 'origen' ? 'ori' : 'dst'
+    const idElegida = tipo === 'origen' ? _nacDireccionOrigenElegida : _nacDireccionDestinoElegida
+    const dir       = idElegida ? _nacDireccionesGuardadas[tipo].find(d => String(d.id) === String(idElegida)) : null
+
+    if (dir) {
+      const _fc = (campo, val) => { const el = document.getElementById(`nac-${prefijo}-${campo}`); if (el) el.value = val || '' }
+      _fc('nombre', dir.nombre)
+      _fc('tel',    dir.telefono)
+      _fc('email',  dir.email)
+      _fc('calle',  dir.calle)
+      _fc('num',    dir.numero)
+      _fc('ref',    dir.referencia)
+      const contadorCalle = document.getElementById(`nac-${prefijo}-calle-count`)
+      if (contadorCalle) contadorCalle.textContent = (dir.calle || '').length + '/60'
+      const contadorRef = document.getElementById(`nac-${prefijo}-ref-count`)
+      if (contadorRef) contadorRef.textContent = (dir.referencia || '').length + '/40'
+    }
+
+    _nacAplicarBloqueoCampos(tipo, !!dir)
+
+    const labelGuardar = document.getElementById(`nac-${prefijo}-guardar-label`)
+    if (labelGuardar) labelGuardar.style.display = dir ? 'none' : ''
+    if (dir) {
+      const panel = document.getElementById(`nac-${prefijo}-guardar-panel`)
+      const checkbox = document.getElementById(`nac-${prefijo}-guardar`)
+      if (panel) panel.style.display = 'none'
+      if (checkbox) checkbox.checked = false
+    }
+  })
 
   nacShowStep(2)
 }
 
 // ── Direcciones guardadas ───────────────────────────────────────────────────
 
-let _nacDireccionesGuardadas = { origen: [], destino: [] }
+let _nacDireccionesGuardadas       = { origen: [], destino: [] }
+let _nacDireccionOrigenElegida     = null
+let _nacDireccionDestinoElegida    = null
 
 function _nacEscaparHtml(valor) {
   return String(valor ?? '').replace(/[&<>"']/g, caracter => ({
@@ -309,8 +342,8 @@ async function _nacGuardarDireccion(tipo) {
     mostrarToast('⚠️ Ingresa un alias para la dirección', 'var(--orange)')
     return
   }
-  if (!datos.nombre || !datos.telefono || !datos.calle) {
-    mostrarToast('⚠️ Completa nombre, teléfono y calle antes de guardar', 'var(--orange)')
+  if (!datos.nombre || !datos.telefono || !datos.calle || !datos.email || !datos.referencia) {
+    mostrarToast('⚠️ Completa nombre, teléfono, calle, email y referencia antes de guardar', 'var(--orange)')
     return
   }
 
@@ -347,29 +380,39 @@ async function _nacGuardarDireccion(tipo) {
   }
 }
 
-function _nacAutocompletarDireccion(tipo, id) {
-  if (!id) return
-  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+function _nacElegirDireccionGuardadaPaso1(tipo, id) {
+  const cpInputId = tipo === 'origen' ? 'nac-cp-origen' : 'nac-cp-destino'
+
+  if (!id) {
+    if (tipo === 'origen') _nacDireccionOrigenElegida = null
+    else _nacDireccionDestinoElegida = null
+    return
+  }
+
   const dir = _nacDireccionesGuardadas[tipo].find(d => String(d.id) === String(id))
   if (!dir) return
 
-  const _f = (campo, val) => { const el = document.getElementById(`nac-${prefijo}-${campo}`); if (el) el.value = val || '' }
-  _f('nombre', dir.nombre)
-  _f('tel',    dir.telefono)
-  _f('email',  dir.email)
-  _f('calle',  dir.calle)
-  _f('num',    dir.numero)
-  _f('ref',    dir.referencia)
+  if (tipo === 'origen') _nacDireccionOrigenElegida = dir.id
+  else _nacDireccionDestinoElegida = dir.id
 
-  const contadorCalle = document.getElementById(`nac-${prefijo}-calle-count`)
-  if (contadorCalle) contadorCalle.textContent = (dir.calle || '').length + '/60'
-  const contadorRef = document.getElementById(`nac-${prefijo}-ref-count`)
-  if (contadorRef) contadorRef.textContent = (dir.referencia || '').length + '/40'
+  const cpEl = document.getElementById(cpInputId)
+  if (cpEl) cpEl.value = dir.cp || ''
+}
 
-  const cpActual = document.getElementById(`nac-${prefijo}-cp`)?.value?.trim()
-  if (cpActual && dir.cp && dir.cp !== cpActual) {
-    mostrarToast('⚠️ Esta dirección es de otro CP, verifica los datos', 'var(--orange)')
-  }
+function _nacAplicarBloqueoCampos(tipo, bloqueado) {
+  const prefijo = tipo === 'origen' ? 'ori' : 'dst'
+  const campos  = ['nombre', 'tel', 'email', 'calle', 'num', 'ref']
+  campos.forEach(campo => {
+    const el   = document.getElementById(`nac-${prefijo}-${campo}`)
+    const lock = document.getElementById(`nac-${prefijo}-${campo}-lock`)
+    if (el) {
+      el.readOnly         = bloqueado
+      el.style.background = bloqueado ? 'rgba(26,79,160,0.06)' : ''
+      el.style.color      = bloqueado ? 'var(--blue)' : ''
+      el.style.fontWeight = bloqueado ? '700' : ''
+    }
+    if (lock) lock.style.display = bloqueado ? '' : 'none'
+  })
 }
 
 // ── Paso 2: Direcciones ───────────────────────────────────────────────────────
@@ -379,9 +422,13 @@ function _nacValidarPaso2() {
     ['nac-ori-nombre', 'el nombre de origen'],
     ['nac-ori-tel',    'el teléfono de origen'],
     ['nac-ori-calle',  'la calle de origen'],
+    ['nac-ori-email',  'el email de origen'],
+    ['nac-ori-ref',    'la referencia de origen'],
     ['nac-dst-nombre', 'el nombre del destinatario'],
     ['nac-dst-tel',    'el teléfono de destino'],
     ['nac-dst-calle',  'la calle de destino'],
+    ['nac-dst-email',  'el email de destino'],
+    ['nac-dst-ref',    'la referencia de destino'],
   ]
   for (const [id, label] of required) {
     const el = document.getElementById(id)
@@ -738,9 +785,17 @@ function nacReset() {
     'nac-ori-colonia','nac-ori-ciudad','nac-ori-estado','nac-ori-cp','nac-ori-ref',
     'nac-dst-nombre','nac-dst-tel','nac-dst-email','nac-dst-calle','nac-dst-num',
     'nac-dst-colonia','nac-dst-ciudad','nac-dst-estado','nac-dst-cp','nac-dst-ref',
-    'nac-tipo-contenido',
+    'nac-tipo-contenido','nac-ori-guardadas','nac-dst-guardadas',
   ]
   ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+
+  _nacDireccionOrigenElegida = _nacDireccionDestinoElegida = null
+  _nacAplicarBloqueoCampos('origen', false)
+  _nacAplicarBloqueoCampos('destino', false)
+  const _lblOri = document.getElementById('nac-ori-guardar-label')
+  const _lblDst = document.getElementById('nac-dst-guardar-label')
+  if (_lblOri) _lblOri.style.display = ''
+  if (_lblDst) _lblDst.style.display = ''
 
   document.querySelectorAll('.nac-tamano-chip').forEach(b => b.classList.remove('active'))
   const customDiv = document.getElementById('nac-dims-custom')
