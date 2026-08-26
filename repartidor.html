@@ -31,6 +31,22 @@
     --shadow: 0 4px 24px rgba(26,79,160,0.13);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Evita selección de texto / menú "Buscar en Google" al mantener presionado
+     cualquier botón o tarjeta de pedido (normal o multiparada). Los campos de
+     texto reales (chat) se re-habilitan abajo. */
+  body {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
   body { font-family: 'Montserrat', sans-serif; background: var(--gray-light); color: var(--text); min-height: 100vh; }
   .delivery-header {
     background: linear-gradient(135deg, #0e3070, var(--color-primary-dark));
@@ -2071,13 +2087,15 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
   }
   const wa = (pedido?.whatsapp || '').replace(/'/g, "\\'")
   const nom = (pedido?.nombre || '').replace(/'/g, "\\'")
+  const fotoRecolOk = !!pedido?.foto_recoleccion
+  const bloqueadaSinFoto = !enRuta && !fotoRecolOk
   stepsEl.style.flexDirection = 'column'
   stepsEl.style.gap = '8px'
   stepsEl.innerHTML = `
     <button
       onclick="iniciarRutaMulti(${pedidoId}, '${wa}', '${nom}')"
-      ${enRuta ? 'disabled' : ''}
-      style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:${enRuta ? 'default' : 'pointer'};background:${enRuta ? '#22c55e' : 'var(--orange)'};color:white;opacity:${enRuta ? '0.75' : '1'}">
+      ${(enRuta || bloqueadaSinFoto) ? 'disabled' : ''}
+      style="width:100%;padding:16px;border:none;border-radius:12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;letter-spacing:1px;cursor:${enRuta ? 'default' : bloqueadaSinFoto ? 'not-allowed' : 'pointer'};background:${enRuta ? '#22c55e' : 'var(--orange)'};color:white;opacity:${enRuta ? '0.75' : bloqueadaSinFoto ? '0.4' : '1'}">
       ${enRuta ? '✅ EN CAMINO' : `<span class="icon-on-color" style="display:inline-flex;width:24px;height:24px;vertical-align:middle">${GUEPACK_ICONS.repartidor}</span> EN CAMINO`}
     </button>
     <button
@@ -2202,7 +2220,7 @@ async function paradaEnDomicilioMulti(pedidoId, paradaId, orden) {
 
   localStorage.setItem('guepack_timer_p_' + paradaId, Date.now().toString())
 
-  await _enviarPushTipadoRepartidor({
+  _enviarPushTipadoRepartidor({
     tipo_notificacion: 'llegada_parada',
     pedido_id: pedidoId,
     parada_id: paradaId
@@ -2292,7 +2310,7 @@ async function cambiarEstado(id, status, telefono, nombre) {
     'Repartidor en domicilio',
     'Entregado'
   ].includes(status)) {
-    await _enviarPushTipadoRepartidor({
+    _enviarPushTipadoRepartidor({
       tipo_notificacion: 'estado_pedido',
       pedido_id: id
     })
@@ -2503,21 +2521,21 @@ async function confirmarParada(pedidoId, paradaId, orden, total) {
   let fotoUrl = null, firmaUrl = null
 
   const fotoInput = document.getElementById('parada-foto')
-  if (fotoInput.files[0]) {
-    const ruta = `GK-${pedidoId}/parada-${orden}.jpg`
-    const { error } = await db.storage.from('evidencias').upload(ruta, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
-    if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/parada-${orden}.jpg`
-  }
-
   const canvas = document.getElementById('parada-canvas')
-  await new Promise(resolve => canvas.toBlob(async blob => {
-    if (blob) {
-      const ruta = `GK-${pedidoId}/firma-parada-${orden}.png`
-      const { error } = await db.storage.from('evidencias').upload(ruta, blob, { contentType: 'image/png', upsert: true })
-      if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-parada-${orden}.png`
-    }
-    resolve()
+
+  const subirFoto = fotoInput.files[0]
+    ? db.storage.from('evidencias').upload(`GK-${pedidoId}/parada-${orden}.jpg`, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+        .then(({ error }) => { if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/parada-${orden}.jpg` })
+    : Promise.resolve()
+
+  const subirFirma = new Promise(resolve => canvas.toBlob(blob => {
+    if (!blob) return resolve()
+    db.storage.from('evidencias').upload(`GK-${pedidoId}/firma-parada-${orden}.png`, blob, { contentType: 'image/png', upsert: true })
+      .then(({ error }) => { if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-parada-${orden}.png` })
+      .finally(resolve)
   }, 'image/png'))
+
+  await Promise.all([subirFoto, subirFirma])
 
   console.log('[confirmarParada] Actualizando parada', paradaId, '→ completada | foto:', fotoUrl, 'firma:', firmaUrl)
   const { error: paradaError } = await db.from('paradas').update({
@@ -2917,9 +2935,23 @@ async function confirmarRecoleccion(pedidoId) {
     btnRecol.style.opacity = '0.8'
     btnRecol.onclick = null
   }
+  const pedidoPrevio = _pedidosRep[pedidoId] || {}
   if (_pedidosRep[pedidoId]) {
     _pedidosRep[pedidoId].foto_recoleccion = fotoUrl
     _pedidosRep[pedidoId].firma_recoleccion = firmaUrl
+  }
+
+  // Avanzar automáticamente a "Recolectado" — antes había que refrescar la
+  // página y pulsar el botón del paso "Recolectado" a mano.
+  // Solo aplica a pedido normal (1 destino): en multiparada el botón
+  // "EN CAMINO" ya se desbloquea directo con foto_recoleccion (ver punto 5).
+  const esMultiparada = (_todasParadas[pedidoId] || []).length >= 2
+  if (fotoUrl && !esMultiparada) {
+    if (pedidoPrevio.tipo_servicio === 'con_recoleccion') {
+      await _marcarRecolectadoReceta(pedidoId, pedidoPrevio.whatsapp, pedidoPrevio.nombre)
+    } else {
+      await cambiarEstado(pedidoId, 'Recolectado', pedidoPrevio.whatsapp, pedidoPrevio.nombre)
+    }
   }
 }
 
