@@ -7124,17 +7124,43 @@ function setFiltroGuias(filtro) {
   cargarVentasGuias()
 }
 
+// Ancla el cálculo de "inicio del día/semana/mes" a America/Mexico_City en
+// vez de la hora local del navegador del admin (mismo patrón que
+// obtenerEstadoRecoleccionAproximada en skydropx-confirmar-envio/index.ts).
+// El resultado sigue siendo un instante UTC real (Date), listo para .toISOString().
+function _partesMX(fecha) {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(fecha)
+  const obj = Object.fromEntries(partes.filter(p => p.type !== 'literal').map(p => [p.type, p.value]))
+  return { year: +obj.year, month: +obj.month, day: +obj.day, hour: +obj.hour, minute: +obj.minute, second: +obj.second }
+}
+
+function _iniMX(ancla, { year, month, day } = {}) {
+  const mx = _partesMX(ancla)
+  // Desfase real MX vs UTC en este instante (negativo, ej. -6h), derivado
+  // interpretando los componentes de la hora MX como si fueran UTC.
+  const comoUTC = Date.UTC(mx.year, mx.month - 1, mx.day, mx.hour, mx.minute, mx.second)
+  const offsetMs = comoUTC - ancla.getTime()
+  return new Date(Date.UTC(year ?? mx.year, (month ?? mx.month) - 1, day ?? mx.day, 0, 0, 0) - offsetMs)
+}
+
 function _rangoGuias() {
   const ahora = new Date(), fin = ahora.toISOString()
+  const mx = _partesMX(ahora)
   let ini
   if (_guiasFiltro === 'hoy') {
-    const d = new Date(ahora); d.setHours(0,0,0,0); ini = d.toISOString()
+    ini = _iniMX(ahora).toISOString()
   } else if (_guiasFiltro === 'semana') {
-    const d = new Date(ahora); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); ini = d.toISOString()
+    const diaSemana = new Date(Date.UTC(mx.year, mx.month - 1, mx.day)).getUTCDay()
+    ini = _iniMX(ahora, { day: mx.day - diaSemana }).toISOString()
   } else if (_guiasFiltro === 'mes') {
-    ini = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString()
+    ini = _iniMX(ahora, { day: 1 }).toISOString()
   } else {
-    ini = new Date(ahora.getFullYear(), 0, 1).toISOString()
+    ini = _iniMX(ahora, { month: 1, day: 1 }).toISOString()
   }
   return { ini, fin }
 }
@@ -7219,13 +7245,15 @@ function setFiltroCotizaciones(filtro) {
 
 function _rangoCotizaciones() {
   const ahora = new Date(), fin = ahora.toISOString()
+  const mx = _partesMX(ahora)
   let ini
   if (_cotFiltro === 'hoy') {
-    const d = new Date(ahora); d.setHours(0,0,0,0); ini = d.toISOString()
+    ini = _iniMX(ahora).toISOString()
   } else if (_cotFiltro === 'semana') {
-    const d = new Date(ahora); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); ini = d.toISOString()
+    const diaSemana = new Date(Date.UTC(mx.year, mx.month - 1, mx.day)).getUTCDay()
+    ini = _iniMX(ahora, { day: mx.day - diaSemana }).toISOString()
   } else {
-    ini = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString()
+    ini = _iniMX(ahora, { day: 1 }).toISOString()
   }
   return { ini, fin }
 }

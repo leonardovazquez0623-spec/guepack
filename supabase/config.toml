@@ -476,3 +476,8 @@ entrypoint = "./functions/baja-campana/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/reconciliar-pagos-conekta/index.ts"
+
+[functions.skydropx-consultar-shipment]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/skydropx-consultar-shipment/index.ts"
