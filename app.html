@@ -3035,7 +3035,6 @@ if ('serviceWorker' in navigator) {
 
 function _solicitarPermisoNotificaciones() {
   if (!('Notification' in window)) return
-  if (sessionStorage.getItem('notif_modal_mostrado')) return
 
   const perm = Notification.permission
   if (perm === 'granted') {
@@ -3046,8 +3045,8 @@ function _solicitarPermisoNotificaciones() {
     mostrarToast('🔔 Para activar notificaciones ve a Configuración → Chrome → Notificaciones → guepack.com')
     return
   }
-  // default → mostrar modal amigable una sola vez por sesión
-  sessionStorage.setItem('notif_modal_mostrado', '1')
+  // default → mostrar modal amigable en cada carga de la app hasta que el
+  // usuario decida (no se persiste "ya lo vio" entre cargas)
   _mostrarModalNotificaciones()
 }
 

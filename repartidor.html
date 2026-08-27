@@ -1091,7 +1091,7 @@ async function _continuarCargaApp(session) {
 
   _repaUserId = session.user.id
   _repaEmail  = session.user.email
-  _registrarTokenFCM(session.user.id)  // fire-and-forget
+  _solicitarPermisoNotificaciones()  // fire-and-forget: pide permiso o registra el token si ya estaba concedido
 
   // Realtime calificaciones: actualiza "Tu desempeño" si el drawer está abierto
   if (_calChannel) db.removeChannel(_calChannel)
@@ -1354,7 +1354,10 @@ function _htmlTarjetaPedido(pedido) {
             </div>
             <hr style="border:none;border-top:1px solid rgba(26,79,160,0.1);margin:8px 0 0">
           </div>
-          <div class="route-client">Para: ${pedido.nombre} · ${pedido.whatsapp}</div>
+          <div class="route-client" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <span>Para: ${pedido.nombre} · ${pedido.whatsapp}</span>
+            <span id="wa-contact-${pedido.id}"></span>
+          </div>
           ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
           ${(pedido.metodo_pago === 'efectivo' || pedido.ganancia_repartidor) ? `<div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
             ${pedido.metodo_pago === 'efectivo' ? `<span>💵 Cobrar al cliente: $${pedido.precio}</span>` : ''}
@@ -1795,9 +1798,26 @@ function _iniciarSeguimientoGps() {
   _gpsWatchId = setInterval(_solicitarUbicacionActual, 10000)
 }
 
+// Botón "Contactar" (wa.me): mensaje según el step actual del pedido, mismo
+// mapa _si que usa _renderBotonesNormales — se recalcula en cada re-render.
+function _renderContactoWA(pedido) {
+  const cont = document.getElementById('wa-contact-' + pedido.id)
+  if (!cont || !pedido.whatsapp) return
+  const _siWA = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1, 'Recolectado': 2, 'En camino a entrega': 3, 'Repartidor en domicilio': 4, 'Entregado': 5 }
+  const _idxWA = _siWA[pedido.estado] ?? -1
+  const nombreRepa = _repaData?.nombre || 'tu mensajero'
+  const mensaje = (_idxWA === 0 || _idxWA === 1)
+    ? `Hola! Soy ${nombreRepa}, llegué a tu domicilio a recolección`
+    : _idxWA === 4
+      ? `Hola! Soy ${nombreRepa}, llegué a tu domicilio a entrega`
+      : `Hola! Soy ${nombreRepa}, tu mensajero de GUEPACK`
+  cont.innerHTML = `<a href="https://wa.me/52${pedido.whatsapp}?text=${encodeURIComponent(mensaje)}" target="_blank" rel="noopener" style="text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 9px;border-radius:20px;background:#22c55e;color:white;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0">📱 Contactar</a>`
+}
+
 function _renderBotonesNormales(pedido) {
   const stepsEl = document.getElementById('status-steps-' + pedido.id)
   if (!stepsEl) return
+  _renderContactoWA(pedido)
   const _e = pedido.estado
   const _si = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1, 'Recolectado': 2, 'En camino a entrega': 3, 'Repartidor en domicilio': 4, 'Entregado': 5 }
   const _idx = _si[_e] ?? -1
@@ -2684,8 +2704,6 @@ db.channel('repa-mensajes-global')
   })
   .subscribe()
 
-if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
-
 async function _registrarTokenFCM(userId) {
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return
@@ -2717,6 +2735,54 @@ async function _registrarTokenFCM(userId) {
     }
   } catch (err) {
     console.warn('[FCM] Error registrando token repartidor:', err.message)
+  }
+}
+
+// ── Permiso de notificaciones (modal amigable) ────────────────────────────────
+// Mismo patrón que app.html: se evalúa en cada carga de la app (sin guard de
+// sessionStorage), el disparador es exclusivamente la carga de la app.
+
+function _solicitarPermisoNotificaciones() {
+  if (!('Notification' in window)) return
+
+  const perm = Notification.permission
+  if (perm === 'granted') {
+    _registrarTokenFCM(_repaUserId)
+    return
+  }
+  if (perm === 'denied') {
+    _toastRepa('🔔 Para activar notificaciones ve a Configuración → Chrome → Notificaciones → guepack.com')
+    return
+  }
+  // default → mostrar modal amigable en cada carga de la app
+  _mostrarModalNotificaciones()
+}
+
+function _mostrarModalNotificaciones() {
+  if (document.getElementById('modal-notif-permiso')) return
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-notif-permiso'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:32px 24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center">
+      <div style="width:64px;height:64px;display:inline-flex;margin:0 auto 12px">${GUEPACK_ICONS.notificaciones}</div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:18px;color:var(--color-primary-dark);margin-bottom:10px">¡Activa las notificaciones!</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:13px;color:#6b7280;line-height:1.7;margin-bottom:24px">Actívalas para saber cuándo te asignan un nuevo pedido y recibir avisos importantes.</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button id="btn-notif-activar-repa" style="padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary));color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:14px;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 14px rgba(26,79,160,0.35);display:inline-flex;align-items:center;gap:6px"><span class="guep-icon-inline icon-on-color" data-icon="notificaciones"></span> Activar notificaciones</button>
+        <button id="btn-notif-omitir-repa" style="padding:12px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;cursor:pointer;color:#8fa3c0">Ahora no</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  window._initGuepIcons && _initGuepIcons(overlay)
+  overlay.querySelector('#btn-notif-activar-repa').onclick = async () => {
+    overlay.remove()
+    const permission = await Notification.requestPermission()
+    if (permission === 'granted') _registrarTokenFCM(_repaUserId)
+  }
+  overlay.querySelector('#btn-notif-omitir-repa').onclick = () => {
+    overlay.remove()
   }
 }
 
