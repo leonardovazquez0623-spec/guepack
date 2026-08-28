@@ -5377,7 +5377,7 @@ async function cargarFinanzas() {
   try {
     ;({ data, error } = await db
       .from('pedidos')
-      .select('id, nombre, precio, metodo_pago, created_at')
+      .select('id, nombre, precio, metodo_pago, created_at, entregado_at')
       .eq('estado', 'Entregado')
       .order('created_at', { ascending: false }))
     console.log('[finanzas] resultado:', data, error)
@@ -5401,6 +5401,13 @@ async function cargarFinanzas() {
     return
   }
 
+  // Fecha efectiva para contabilidad: cuándo se entregó, no cuándo se creó
+  // el pedido. entregado_at es null en pedidos entregados antes de este
+  // cambio — para esos se usa created_at como respaldo (es lo único que hay).
+  data = data
+    .map(p => ({ ...p, _fechaEfectiva: p.entregado_at || p.created_at }))
+    .sort((a, b) => new Date(b._fechaEfectiva) - new Date(a._fechaEfectiva))
+
   const ahora = new Date()
   const hoyStr = ahora.toLocaleDateString('en-CA')               // YYYY-MM-DD local
 
@@ -5419,7 +5426,7 @@ async function cargarFinanzas() {
 
   data.forEach(p => {
     const precio = parseFloat(p.precio) || 0
-    const fecha = new Date(p.created_at)
+    const fecha = new Date(p._fechaEfectiva)
     const fechaStr = fecha.toLocaleDateString('en-CA')
 
     if (fechaStr === hoyStr)        { sumHoy += precio; nHoy++ }
@@ -5464,7 +5471,7 @@ async function cargarFinanzas() {
       <td style="padding:10px 12px;font-weight:600;color:var(--text);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre || '—'}</td>
       <td style="padding:10px 12px;text-align:right;font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--orange);white-space:nowrap">${p.precio ? '$' + parseFloat(p.precio).toLocaleString('es-MX') : '—'}</td>
       <td style="padding:10px 12px;white-space:nowrap"><span style="background:${mpColor(p.metodo_pago)}22;color:${mpColor(p.metodo_pago)};font-size:9px;font-weight:900;padding:3px 7px;border-radius:6px;letter-spacing:.5px">${p.metodo_pago || '—'}</span></td>
-      <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p.created_at).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
+      <td style="padding:10px 12px;color:var(--gray-mid);font-size:11px;white-space:nowrap">${new Date(p._fechaEfectiva).toLocaleDateString('es-MX', { day:'2-digit', month:'short' })}</td>
     </tr>`).join('')
 
 }
