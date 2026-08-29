@@ -141,6 +141,56 @@
   .step-btn.active { border-color: var(--orange); color: white; background: var(--orange); }
   .step-btn.done { border-color: var(--success); color: white; background: var(--success); }
   .step-btn.blocked { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── TARJETA PEDIDO (una sola parada) — rediseño ── */
+  .pc-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .pc-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #fff; letter-spacing: 1px; line-height: 1.1; }
+  .pc-subtitle { font-size: 10.5px; color: rgba(255,255,255,0.75); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; margin-top: 4px; }
+  .pc-ganancia { display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); border-radius: 12px; padding: 6px 12px; flex-shrink: 0; }
+  .pc-ganancia-label { font-size: 8.5px; font-weight: 800; color: rgba(255,255,255,0.75); letter-spacing: .4px; text-transform: uppercase; }
+  .pc-ganancia-amt { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #fff; line-height: 1; }
+  .pc-banner { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+  .pc-banner.fase-recoleccion { background: var(--orange); }
+  .pc-banner.fase-entrega { background: var(--blue); }
+  .pc-banner-label { font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.8); letter-spacing: .6px; }
+  .pc-banner-text { font-family: 'Bebas Neue', sans-serif; font-size: 17px; color: #fff; letter-spacing: .5px; line-height: 1.15; }
+  .pc-stop { display: block; background: var(--gray-light); border: 1.5px solid var(--gray); border-radius: 14px; padding: 14px; margin-bottom: 12px; cursor: pointer; }
+  .pc-stop-label { font-size: 10px; font-weight: 900; letter-spacing: .5px; margin-bottom: 8px; }
+  .pc-stop-label.rec { color: var(--orange); }
+  .pc-stop-label.ent { color: var(--blue); }
+  .pc-stop-contact { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .pc-stop-contact-icon { width: 30px; height: 30px; border-radius: 50%; background: var(--color-primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .pc-stop-contact-name { font-family: Montserrat, sans-serif; font-weight: 900; font-size: 14px; color: var(--color-primary-dark); }
+  .pc-stop-address { font-size: 12px; font-weight: 600; color: #5a6b85; line-height: 1.4; margin-bottom: 10px; }
+  .pc-stop-meta { display: flex; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+  .pc-stop-meta-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: var(--gray-mid); }
+  .pc-stop-evidencia { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 8px; padding: 6px 10px; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 10.5px; margin-bottom: 10px; cursor: pointer; background: var(--color-primary-dark); color: #fff; }
+  .pc-stop-evidencia.ok { background: rgba(34,197,94,0.12); color: #16a34a; cursor: default; }
+  .pc-nav-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: var(--blue); color: #fff; border: none; border-radius: 11px; font-family: Montserrat, sans-serif; font-weight: 900; font-size: 13px; cursor: pointer; }
+  .pc-ruta-link { display: block; text-align: center; margin-top: 8px; font-size: 10.5px; font-weight: 700; color: var(--gray-mid); text-decoration: none; }
+  .pc-contact-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .pc-contact-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 6px; border-radius: 20px; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 10.5px; text-decoration: none; cursor: pointer; border: 1.5px solid var(--gray); background: #fff; color: var(--color-primary-dark); position: relative; box-sizing: border-box; }
+  [id^="wa-contact-"] { flex: 1; display: flex; }
+  [id^="wa-contact-"] a { width: 100%; box-sizing: border-box; justify-content: center; }
+  .pc-info { background: var(--gray-light); border-radius: 10px; padding: 4px 12px; margin-bottom: 10px; }
+  .pc-info-row { display: flex; gap: 7px; font-size: 11px; font-weight: 600; color: #64748b; padding: 7px 0; }
+  .pc-info-row + .pc-info-row { border-top: 1px solid rgba(0,0,0,0.05); }
+  .pc-info-label { color: var(--gray-mid); font-weight: 800; flex-shrink: 0; }
+  .pc-stepper { display: flex; margin-bottom: 14px; }
+  .pc-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
+  .pc-step::before { content: ''; position: absolute; top: 9px; left: -50%; width: 100%; height: 2px; background: var(--gray); z-index: 0; }
+  .pc-step:first-child::before { display: none; }
+  .pc-step.done::before { background: var(--success); }
+  .pc-dot { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2.5px solid var(--gray); display: flex; align-items: center; justify-content: center; z-index: 1; }
+  .pc-step.done .pc-dot { background: var(--success); border-color: var(--success); }
+  .pc-step.active .pc-dot { background: var(--orange); border-color: var(--orange); box-shadow: 0 0 0 4px rgba(240,90,26,0.18); }
+  .pc-step-name { font-size: 9px; font-weight: 800; color: var(--text); margin-top: 6px; text-align: center; }
+  .pc-step-status { font-size: 8.5px; font-weight: 700; color: var(--gray-mid); text-align: center; }
+  .pc-step.active .pc-step-name, .pc-step.active .pc-step-status { color: var(--orange); }
+  .pc-step.done .pc-step-status { color: var(--success); }
+  .pc-action-btn { width: 100%; padding: 15px; border: none; border-radius: 13px; font-family: Montserrat, sans-serif; font-weight: 900; font-size: 14px; letter-spacing: .4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--orange); color: #fff; margin-bottom: 8px; }
+  .pc-action-btn.entrega { background: var(--blue); }
+  .pc-action-btn.blocked { opacity: .5; cursor: not-allowed; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-mid); }
   .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; }
   .empty-text { font-size: 13px; font-weight: 700; }
@@ -1335,44 +1385,39 @@ function _renderSubContenidoPedido(pedido, paradas) {
 function _htmlTarjetaPedido(pedido) {
   return `
       <div class="route-card" id="pedido-card-${pedido.id}">
-        <div class="route-top">
+        <div class="pc-header">
           <div>
-            <div class="route-number">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
-            <div class="route-type">${pedido.tamanio} · ${pedido.zona}</div>
+            <div class="pc-title">GK-${pedido.id}${pedido.nombre_remitente ? ' · ' + pedido.nombre_remitente.trim().split(' ')[0] : ''}</div>
+            <div class="pc-subtitle">${pedido.tamanio} · ${pedido.zona}<span id="pc-dist-${pedido.id}"></span></div>
           </div>
+          ${pedido.ganancia_repartidor ? `<div class="pc-ganancia">
+            <span class="guep-icon-inline icon-on-color" data-icon="cobros" style="width:18px;height:18px"></span>
+            <div><div class="pc-ganancia-label">Ganancia</div><div class="pc-ganancia-amt">$${pedido.ganancia_repartidor}</div></div>
+          </div>` : ''}
         </div>
+        <div id="pc-banner-${pedido.id}"></div>
         <div class="route-body">
-          <div class="route-addr" style="margin-bottom:0">
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="flex-shrink:0;font-weight:900;font-size:12px">De:</span>
-              <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_recoleccion}</span>
-              <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_recoleccion)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:15px;line-height:1">${_iconoRepaHtml('54-mapa', 16)}</a>
-              ${pedido.foto_recoleccion
-                ? '<span style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;color:#22c55e;flex-shrink:0">✅ Recolectado</span>'
-                : `<button onclick="abrirModalRecoleccion(${pedido.id})" id="btn-recoleccion-${pedido.id}" style="font-family:Montserrat,sans-serif;font-weight:900;font-size:9px;padding:3px 7px;border:none;border-radius:6px;background:var(--color-primary-dark);color:white;cursor:pointer;flex-shrink:0;white-space:nowrap">Recolectado</button>`
-              }
-            </div>
-            <hr style="border:none;border-top:1px solid rgba(26,79,160,0.1);margin:8px 0 0">
-          </div>
-          <div class="route-client" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <span>Para: ${pedido.nombre} · ${pedido.whatsapp}</span>
+          <div id="pc-stop-${pedido.id}"></div>
+          <div class="pc-contact-row">
+            <button class="pc-contact-btn" onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')">
+              <span class="guep-icon-inline" data-icon="chat" style="width:15px;height:15px"></span> Chat
+              <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
+            </button>
+            <a class="pc-contact-btn" href="tel:${pedido.whatsapp}">${_iconoRepaHtml('13-llamar', 14)} Llamar</a>
             <span id="wa-contact-${pedido.id}"></span>
           </div>
-          ${pedido.nombre_remitente ? `<div style="font-size:10px;color:var(--gray-mid);font-weight:600;margin-bottom:8px">De: ${pedido.nombre_remitente}</div>` : ''}
-          ${(pedido.metodo_pago === 'efectivo' || pedido.ganancia_repartidor) ? `<div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:8px;display:flex;gap:12px;flex-wrap:wrap">
-            ${pedido.metodo_pago === 'efectivo' ? `<span>💵 Cobrar al cliente: $${pedido.precio}</span>` : ''}
-            ${pedido.ganancia_repartidor ? `<span>💰 Tu ganancia: $${pedido.ganancia_repartidor}</span>` : ''}
-          </div>` : ''}
-          ${pedido.instrucciones ? `<div style="color:#999;font-size:11px;font-weight:600;margin-bottom:10px">📝 ${pedido.instrucciones}</div>` : ''}
-          <div id="paradas-rep-${pedido.id}" style="margin-bottom:4px"></div>
-          <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-            <button onclick="abrirChat(${pedido.id},'repartidor','Chat GK-${pedido.id}')" style="position:relative;background:var(--color-primary-dark);color:white;border:none;border-radius:20px;padding:7px 16px;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-              <span class="guep-icon-inline icon-on-color" data-icon="chat"></span> Chat
-              <span id="chat-badge-${pedido.id}" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:900;align-items:center;justify-content:center;font-family:Montserrat,sans-serif">0</span>
-            </button>
+          <div class="pc-info">
+            <div class="pc-info-row"><span class="pc-info-label">Tipo:</span> ${pedido.tamanio}${pedido.zona ? ' · ' + pedido.zona : ''}</div>
+            <div class="pc-info-row"><span class="pc-info-label">Para:</span> ${pedido.nombre} · ${pedido.whatsapp}</div>
+            ${pedido.nombre_remitente ? `<div class="pc-info-row"><span class="pc-info-label">De:</span> ${pedido.nombre_remitente}</div>` : ''}
+            ${pedido.metodo_pago === 'efectivo' ? `<div class="pc-info-row"><span class="pc-info-label">Cobrar:</span> $${pedido.precio} en efectivo</div>` : ''}
+            ${pedido.instrucciones ? `<div class="pc-info-row"><span class="pc-info-label">Notas:</span> ${pedido.instrucciones}</div>` : ''}
           </div>
-          ${!['Recolectado','En camino a entrega','Repartidor en domicilio','Entregado'].includes(pedido.estado) ? `<div style="margin-bottom:8px"><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">${_iconoRepaHtml('55-cerrar-x', 14)} Cancelar pedido</button></div>` : ''}
+          <div id="paradas-rep-${pedido.id}"></div>
+          <div id="pc-stepper-${pedido.id}"></div>
+          <div id="pc-action-${pedido.id}"></div>
           <div id="status-steps-${pedido.id}" class="status-steps"></div>
+          ${!['Recolectado','En camino a entrega','Repartidor en domicilio','Entregado'].includes(pedido.estado) ? `<div><button onclick="_mostrarModalCancelarAsignacion(${pedido.id})" style="width:100%;padding:8px;background:transparent;border:1.5px solid #ef4444;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">${_iconoRepaHtml('55-cerrar-x', 14)} Cancelar pedido</button></div>` : ''}
         </div>
       </div>
     `
@@ -1814,19 +1859,51 @@ function _renderContactoWA(pedido) {
   cont.innerHTML = `<a href="https://wa.me/52${pedido.whatsapp}?text=${encodeURIComponent(mensaje)}" target="_blank" rel="noopener" style="text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 9px;border-radius:20px;background:#22c55e;color:white;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0">Contactar</a>`
 }
 
+// Distancia/tiempo aprox. desde el GPS actual del repartidor hasta una
+// coordenada dada — mismo _haversine que usa _proximaParada(), solo que aquí
+// se aplica al punto activo de ESTA tarjeta (recolección o entrega según el paso).
+function _calcDistanciaTiempoActual(lat, lng) {
+  if (!_currentGPS || lat == null || lng == null) return null
+  const latN = Number(lat), lngN = Number(lng)
+  if (!Number.isFinite(latN) || !Number.isFinite(lngN)) return null
+  const distKm = _haversine(_currentGPS.lat, _currentGPS.lng, latN, lngN)
+  const minutos = Math.max(1, Math.round(distKm / 27 * 60)) // ~27 km/h promedio urbano
+  return { distKm, minutos }
+}
+
+// Modal de confirmación genérico y reutilizable para el botón de acción único
+// de la tarjeta (mismo estilo visual que _mostrarModalNotificaciones).
+function _confirmarAccionRepa(mensaje, onConfirmar) {
+  document.getElementById('modal-confirmar-accion-repa')?.remove()
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-confirmar-accion-repa'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.35);text-align:center">
+      <div style="width:52px;height:52px;display:inline-flex;margin:0 auto 14px" data-icon="ubicacion"></div>
+      <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:14px;color:var(--color-primary-dark);line-height:1.5;margin-bottom:22px">${mensaje}</div>
+      <div style="display:flex;gap:10px">
+        <button id="btn-confirmar-accion-cancelar" style="flex:1;padding:13px;border:2px solid #e0e6f0;border-radius:12px;background:white;font-family:Montserrat,sans-serif;font-weight:800;font-size:13px;cursor:pointer;color:#8fa3c0">Cancelar</button>
+        <button id="btn-confirmar-accion-ok" style="flex:1;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--color-primary-dark),var(--color-primary));color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer">Confirmar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  window._initGuepIcons && _initGuepIcons(overlay)
+  overlay.querySelector('#btn-confirmar-accion-cancelar').onclick = () => overlay.remove()
+  overlay.querySelector('#btn-confirmar-accion-ok').onclick = () => { overlay.remove(); onConfirmar() }
+}
+
 function _renderBotonesNormales(pedido) {
   const stepsEl = document.getElementById('status-steps-' + pedido.id)
   if (!stepsEl) return
+  stepsEl.innerHTML = ''
   _renderContactoWA(pedido)
   const _e = pedido.estado
   const _si = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1, 'Recolectado': 2, 'En camino a entrega': 3, 'Repartidor en domicilio': 4, 'Entregado': 5 }
   const _idx = _si[_e] ?? -1
-  const _sb = n => _idx > n ? 'done' : _idx === n ? 'active' : 'inactive'
-  const _sb1 = _idx <= 0 ? 'active' : 'done'
   // Botón Recolectado: bloqueado hasta que exista foto de recolección
   const _fotoOk = !!pedido.foto_recoleccion
-  const _clasRecol = _sb(1) + (!_fotoOk && _idx === 1 ? ' blocked' : '')
-
   // Servicio "con recolección de receta": paso extra "Llegué a la farmacia" entre
   // Recolectado y En camino, y En camino queda bloqueado hasta que admin marque surtido.
   const _esReceta = pedido.tipo_servicio === 'con_recoleccion'
@@ -1837,59 +1914,145 @@ function _renderBotonesNormales(pedido) {
       ? `_marcarRecolectadoReceta(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}')`
       : `cambiarEstado(${pedido.id}, 'Recolectado', '${pedido.whatsapp}', '${pedido.nombre}')`
 
-  let _pasoFarmaciaHtml = ''
-  let _pasoSurtidoHtml = ''
-  let _clasEnCamino = _sb(2)
-  let _clickEnCamino = `cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')`
+  let _farmaciaOk = false, _surtidoOk = false, _llegadaFarmaciaAttr = ''
   if (_esReceta) {
-    const _farmaciaOk = _recetaSubestado === 'en_farmacia' || _recetaSubestado === 'surtido'
-    const _surtidoOk = _recetaSubestado === 'surtido'
-    const _clasFarmacia = (_idx > 2 || _farmaciaOk) ? 'done' : _idx === 2 ? 'active' : 'inactive'
-    const _clickFarmacia = _farmaciaOk
-      ? `_toastRepa('📍 Ya marcaste la llegada a la farmacia', '#8fa3c0')`
-      : `_marcarLlegadaFarmacia(${pedido.id})`
-    _pasoFarmaciaHtml = `<div class="step-btn ${_clasFarmacia}" onclick="${_clickFarmacia}">Farmacia</div>`
-
-    // "Recibí el medicamento": requiere foto de evidencia (mismo patrón que
-    // abrirModalParada/confirmarParada en _renderParadasMulti), y desbloquea
-    // "En camino" en este mismo cliente sin esperar el Realtime de admin.html.
-    const _clasSurtido = _surtidoOk ? 'done' : _farmaciaOk ? 'active' : 'inactive'
-    const _llegadaFarmaciaAttr = (pedido.receta_llegada_farmacia_at || '').replace(/'/g, "\\'")
-    const _clickSurtido = _surtidoOk
-      ? `_toastRepa('📦 Ya confirmaste la entrega del medicamento', '#8fa3c0')`
-      : _farmaciaOk
-        ? `abrirModalRecetaSurtida(${pedido.id}, '${_llegadaFarmaciaAttr}')`
-        : `_toastRepa('📍 Primero marca que llegaste a la farmacia', '#f59e0b')`
-    _pasoSurtidoHtml = `<div class="step-btn ${_clasSurtido}" onclick="${_clickSurtido}">📦 Recibí</div>`
-
-    _clasEnCamino = _sb(2) + (!_surtidoOk && _idx === 2 ? ' blocked' : '')
-    _clickEnCamino = (!_surtidoOk && _idx === 2)
-      ? `_toastRepa('⏳ Confirma que recibiste el medicamento antes de continuar', '#f59e0b')`
-      : `cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}')`
+    _farmaciaOk = _recetaSubestado === 'en_farmacia' || _recetaSubestado === 'surtido'
+    _surtidoOk = _recetaSubestado === 'surtido'
+    _llegadaFarmaciaAttr = (pedido.receta_llegada_farmacia_at || '').replace(/'/g, "\\'")
   }
 
-  stepsEl.innerHTML = `
-    <div class="step-btn ${_sb1}" onclick="cambiarEstado(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}')">Llegue</div>
-    <div class="step-btn ${_clasRecol}" onclick="${_clickRecol}">Recolectado</div>
-    ${_pasoFarmaciaHtml}
-    ${_pasoSurtidoHtml}
-    <div class="step-btn ${_clasEnCamino}" onclick="${_clickEnCamino}">En camino</div>
-    <div class="step-btn ${_sb(3)}" onclick="_yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0})">Llegue</div>
-    <div class="step-btn ${_sb(4)}" onclick="abrirModalEntrega(${pedido.id})">Entregado</div>
-  `
-  window._initGuepIcons && _initGuepIcons(stepsEl)
-  // Inyectar entrega única en paradas-rep
+  // ── Fase actual: recolección (idx ≤1) o entrega (idx ≥2) ──
+  const _esRec = _idx <= 1
+  const _direccionActual = _esRec ? pedido.direccion_recoleccion : pedido.direccion_entrega
+  const _latActual = _esRec ? pedido.lat_recoleccion : pedido.lat_entrega
+  const _lngActual = _esRec ? pedido.lng_recoleccion : pedido.lng_entrega
+  const _contactoNombre = _esRec ? (pedido.nombre_remitente || pedido.nombre) : pedido.nombre
+  const _dt = _calcDistanciaTiempoActual(_latActual, _lngActual)
+  let _distStr = '', _etaStr = ''
+  if (_dt) {
+    _distStr = _dt.distKm < 1 ? Math.round(_dt.distKm * 1000) + ' m' : _dt.distKm.toFixed(1) + ' km'
+    _etaStr = '~' + _dt.minutos + ' min'
+  }
+
+  // ── Subtítulo del header: agrega la distancia calculada ──
+  const _subDistEl = document.getElementById('pc-dist-' + pedido.id)
+  if (_subDistEl) _subDistEl.textContent = _distStr ? ' · ' + _distStr : ''
+
+  // ── Banner "próxima acción" ──
+  const _bannerInfo = [
+    { texto: 'LLEGAR A RECOLECCIÓN', fase: 'recoleccion', icono: 'ubicacion' },
+    { texto: 'RECOLECTAR PEDIDO', fase: 'recoleccion', icono: 'recoleccion' },
+    { texto: 'EN CAMINO AL DESTINO', fase: 'entrega', icono: 'repartidor' },
+    { texto: 'LLEGAR AL DESTINO', fase: 'entrega', icono: 'ubicacion' },
+    { texto: 'CONFIRMAR ENTREGA', fase: 'entrega', icono: 'entregado' }
+  ]
+  const _bi = _bannerInfo[Math.min(Math.max(_idx, 0), 4)]
+  const _bannerEl = document.getElementById('pc-banner-' + pedido.id)
+  if (_bannerEl) {
+    _bannerEl.innerHTML = `
+      <div class="pc-banner fase-${_bi.fase}">
+        <span class="guep-icon-inline icon-on-color" data-icon="${_bi.icono}" style="width:26px;height:26px;flex-shrink:0"></span>
+        <div>
+          <div class="pc-banner-label">PRÓXIMA ACCIÓN</div>
+          <div class="pc-banner-text">${_bi.texto}</div>
+        </div>
+      </div>
+    `
+  }
+
+  // ── Tarjeta de parada actual (recolección o entrega) ──
+  const _stopEl = document.getElementById('pc-stop-' + pedido.id)
+  if (_stopEl) {
+    const _mapsSearchUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(_direccionActual)
+    const _mapsRouteUrl = 'https://www.google.com/maps/dir/' + encodeURIComponent(pedido.direccion_recoleccion) + '/' + encodeURIComponent(pedido.direccion_entrega)
+    const _evidenciaHtml = _esRec
+      ? (_fotoOk
+          ? `<div class="pc-stop-evidencia ok"><span class="guep-icon-inline" data-icon="entregado" style="width:14px;height:14px"></span> Evidencia subida</div>`
+          : `<button class="pc-stop-evidencia" id="btn-recoleccion-${pedido.id}" onclick="event.stopPropagation();abrirModalRecoleccion(${pedido.id})"><span class="guep-icon-inline icon-on-color" data-icon="evidencia" style="width:14px;height:14px"></span> Subir evidencia de recolección</button>`
+        )
+      : ''
+    _stopEl.innerHTML = `
+      <div class="pc-stop" onclick="window.open('${_mapsSearchUrl}','_blank')">
+        <div class="pc-stop-label ${_esRec ? 'rec' : 'ent'}">${_esRec ? 'RECOGER EN' : 'ENTREGAR A'}</div>
+        <div class="pc-stop-contact">
+          <span class="pc-stop-contact-icon"><span class="guep-icon-inline" data-icon="usuarios" style="width:16px;height:16px"></span></span>
+          <span class="pc-stop-contact-name">${_contactoNombre || '—'}</span>
+        </div>
+        <div class="pc-stop-address">${_direccionActual}</div>
+        ${(_distStr || _etaStr) ? `<div class="pc-stop-meta">
+          ${_distStr ? `<span class="pc-stop-meta-item"><span class="guep-icon-inline" data-icon="ubicacion" style="width:13px;height:13px"></span> ${_distStr}</span>` : ''}
+          ${_etaStr ? `<span class="pc-stop-meta-item"><span class="guep-icon-inline" data-icon="historial" style="width:13px;height:13px"></span> ${_etaStr}</span>` : ''}
+        </div>` : ''}
+        ${_evidenciaHtml}
+        <button class="pc-nav-btn" onclick="event.stopPropagation();window.open('${_mapsSearchUrl}','_blank')"><span class="guep-icon-inline icon-on-color" data-icon="rastreo" style="width:16px;height:16px"></span> Navegar ahora</button>
+        <a class="pc-ruta-link" href="${_mapsRouteUrl}" target="_blank" onclick="event.stopPropagation()">Ver ruta completa</a>
+      </div>
+    `
+  }
+
+  // ── Stepper de 5 puntos (solo lectura) ──
+  const _stepperEl = document.getElementById('pc-stepper-' + pedido.id)
+  if (_stepperEl) {
+    const _pasos = [
+      { nombre: 'Recolección', activo: 'Por llegar' },
+      { nombre: 'Recolectado', activo: 'Recolectando' },
+      { nombre: 'En camino', activo: 'En ruta' },
+      { nombre: 'Destino', activo: 'Por llegar' },
+      { nombre: 'Entregado', activo: 'Confirmando' }
+    ]
+    const _check = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+    _stepperEl.innerHTML = _pasos.map((p, i) => {
+      const estado = i === 0 ? (_idx <= 0 ? 'active' : 'done') : (_idx > i ? 'done' : _idx === i ? 'active' : 'inactive')
+      const status = estado === 'done' ? 'Listo' : estado === 'active' ? p.activo : 'Pendiente'
+      return `<div class="pc-step ${estado}">
+        <div class="pc-dot">${estado === 'done' ? _check : ''}</div>
+        <div class="pc-step-name">${p.nombre}</div>
+        <div class="pc-step-status">${status}</div>
+      </div>`
+    }).join('')
+  }
+
+  // ── Botón de acción único ──
+  const _actionEl = document.getElementById('pc-action-' + pedido.id)
+  if (_actionEl) {
+    let texto = '', fase = 'recoleccion', icono = 'ubicacion', onclickAttr = '', blocked = false
+    if (_idx <= 0) {
+      texto = 'YA LLEGUÉ A RECOLECCIÓN'; fase = 'recoleccion'; icono = 'ubicacion'
+      onclickAttr = `_confirmarAccionRepa('¿Confirmas que llegaste al punto de recolección?', function(){ cambiarEstado(${pedido.id}, 'Repartidor en domicilio recoleccion', '${pedido.whatsapp}', '${pedido.nombre}') })`
+    } else if (_idx === 1) {
+      texto = 'PEDIDO RECOLECTADO'; fase = 'recoleccion'; icono = 'recoleccion'
+      blocked = !_fotoOk
+      onclickAttr = _clickRecol
+    } else if (_idx === 2 && _esReceta && !_farmaciaOk) {
+      texto = 'LLEGUÉ A LA FARMACIA'; fase = 'recoleccion'; icono = 'ubicacion'
+      onclickAttr = `_confirmarAccionRepa('¿Confirmas que llegaste a la farmacia?', function(){ _marcarLlegadaFarmacia(${pedido.id}) })`
+    } else if (_idx === 2 && _esReceta && !_surtidoOk) {
+      texto = 'RECIBÍ EL MEDICAMENTO'; fase = 'entrega'; icono = 'recoleccion'
+      onclickAttr = `abrirModalRecetaSurtida(${pedido.id}, '${_llegadaFarmaciaAttr}')`
+    } else if (_idx === 2) {
+      texto = 'EN CAMINO A ENTREGA'; fase = 'entrega'; icono = 'repartidor'
+      onclickAttr = `_confirmarAccionRepa('¿Confirmas que vas en camino con el pedido?', function(){ cambiarEstado(${pedido.id}, 'En camino a entrega', '${pedido.whatsapp}', '${pedido.nombre}') })`
+    } else if (_idx === 3) {
+      texto = 'YA LLEGUÉ AL DESTINO'; fase = 'entrega'; icono = 'ubicacion'
+      onclickAttr = `_confirmarAccionRepa('¿Confirmas que llegaste al domicilio de entrega?', function(){ _yaLlegueEnDomicilio(${pedido.id}, '${pedido.whatsapp}', '${pedido.nombre}', '${pedido.metodo_pago}', ${Number(pedido.precio) || 0}) })`
+    } else if (_idx === 4) {
+      texto = 'CONFIRMAR ENTREGA'; fase = 'entrega'; icono = 'entregado'
+      onclickAttr = `abrirModalEntrega(${pedido.id})`
+    }
+    _actionEl.innerHTML = texto ? `
+      <button class="pc-action-btn ${fase === 'entrega' ? 'entrega' : ''} ${blocked ? 'blocked' : ''}" onclick="${onclickAttr}">
+        <span class="guep-icon-inline icon-on-color" data-icon="${icono}" style="width:18px;height:18px"></span> ${texto}
+      </button>
+    ` : ''
+  }
+
+  window._initGuepIcons && _initGuepIcons(document.getElementById('pedido-card-' + pedido.id))
+
+  // Farmacia (receta): dirección de la farmacia, si aplica — se conserva en
+  // paradas-rep-${id} para no depender de un contenedor nuevo.
   const _pEl = document.getElementById('paradas-rep-' + pedido.id)
   if (_pEl) {
-    const _mapsUrl = 'https://www.google.com/maps/dir/' + encodeURIComponent(pedido.direccion_recoleccion) + '/' + encodeURIComponent(pedido.direccion_entrega)
-    _pEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(26,79,160,0.06)">
-        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#8fa3c0;flex-shrink:0">#1</span>
-        <span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#4a6080;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pedido.direccion_entrega}</span>
-        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pedido.direccion_entrega)}" target="_blank" aria-label="Abrir ubicación en el mapa" style="flex-shrink:0;text-decoration:none;font-size:13px;line-height:1">${_iconoRepaHtml('54-mapa', 15)}</a>
-      </div>
-      <a href="${_mapsUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:5px 10px;border-radius:7px;text-decoration:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:#8fa3c0;border:1px solid #d1dce8">${_iconoRepaHtml('54-mapa', 14)} Ver ruta completa</a>
-    `
+    _pEl.innerHTML = ''
     if (_esReceta) _mostrarDireccionFarmacia(pedido, _pEl)
   }
 }
