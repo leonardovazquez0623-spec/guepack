@@ -1869,10 +1869,167 @@ async function cargarEmpresas() {
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
         <button onclick="editarEmpresa(${e.id})" style="padding:6px 12px;background:var(--blue);color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">✏️ Editar</button>
+        <button onclick="abrirResumenViajesEmpresa('${escaparAtributoAdmin(e.codigo)}','${escaparAtributoAdmin(e.nombre)}')" style="padding:6px 12px;background:#0369a1;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap">📊 Ver resumen de viajes</button>
         <button onclick="eliminarEmpresa(${e.id},'${(e.nombre||'').replace(/'/g,"\\'")} ')" style="padding:6px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer">🗑️</button>
       </div>
     </div>
   `).join('')
+}
+
+// ── Resumen de viajes por empresa (bloques laborales lunes-viernes) ─────────
+// Mismo patrón de zona horaria que _rangoGuias()/_rangoCotizaciones()
+// (_partesMX/_iniMX, definidas más abajo en este archivo) — no reinventa el
+// cálculo, solo ancla el bloque a un lunes en vez de "desde hoy hacia atrás".
+let _resVEmpresaCodigo = null
+let _resVEmpresaNombre = null
+let _resVOffsetSemana  = 0
+let _resVFilas         = []
+let _resVRango         = null
+
+function _rangoSemanaLaboral(offsetSemanas = 0) {
+  const ahora = new Date()
+  const mx = _partesMX(ahora)
+  const diaSemana = new Date(Date.UTC(mx.year, mx.month - 1, mx.day)).getUTCDay() // 0=Dom..6=Sáb
+  const diasDesdeLunes = (diaSemana + 6) % 7 // Lun→0 ... Dom→6
+  const diaLunes = mx.day - diasDesdeLunes + offsetSemanas * 7
+  const iniDate = _iniMX(ahora, { day: diaLunes })              // lunes 00:00:00 MX
+  const finExclusivo = _iniMX(ahora, { day: diaLunes + 5 })     // lunes siguiente 00:00:00 MX
+  const finDate = new Date(finExclusivo.getTime() - 1)          // viernes 23:59:59.999 MX
+  return { iniDate, finDate, ini: iniDate.toISOString(), fin: finDate.toISOString() }
+}
+
+function _etiquetaSemanaLaboral(iniDate, finDate) {
+  const optsDia = { day: 'numeric', timeZone: 'America/Mexico_City' }
+  const optsMes = { month: 'long', timeZone: 'America/Mexico_City' }
+  const diaIni = iniDate.toLocaleDateString('es-MX', optsDia)
+  const diaFin = finDate.toLocaleDateString('es-MX', optsDia)
+  const mesIni = iniDate.toLocaleDateString('es-MX', optsMes)
+  const mesFin = finDate.toLocaleDateString('es-MX', optsMes)
+  return mesIni === mesFin
+    ? `Semana del ${diaIni} al ${diaFin} de ${mesFin}`
+    : `Semana del ${diaIni} de ${mesIni} al ${diaFin} de ${mesFin}`
+}
+
+function abrirResumenViajesEmpresa(codigo, nombre) {
+  _resVEmpresaCodigo = codigo
+  _resVEmpresaNombre = nombre
+  _resVOffsetSemana  = 0
+
+  document.getElementById('modal-resumen-viajes')?.remove()
+  const overlay = document.createElement('div')
+  overlay.id = 'modal-resumen-viajes'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:18px;padding:24px;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px">
+        <div>
+          <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:900;color:var(--color-primary-dark)">📊 Resumen de viajes</div>
+          <div style="font-family:monospace;font-size:12px;font-weight:700;color:var(--blue);margin-top:2px">${escaparHtmlAdmin(nombre)} · ${escaparHtmlAdmin(codigo)}</div>
+        </div>
+        <button onclick="document.getElementById('modal-resumen-viajes').remove()" style="border:none;background:#f4f6fb;color:#8fa3c0;width:28px;height:28px;border-radius:8px;font-weight:900;cursor:pointer;flex-shrink:0">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f4f6fb;border-radius:12px;padding:8px 10px;margin-bottom:14px">
+        <button onclick="_navegarSemanaResumen(-1)" style="border:none;background:white;border-radius:8px;padding:7px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--color-primary-dark);white-space:nowrap">◀ Semana anterior</button>
+        <div id="resv-etiqueta-semana" style="font-family:Montserrat,sans-serif;font-weight:800;font-size:12px;color:var(--color-primary-dark);text-align:center;flex:1"></div>
+        <button onclick="_navegarSemanaResumen(1)" style="border:none;background:white;border-radius:8px;padding:7px 12px;font-family:Montserrat,sans-serif;font-weight:900;font-size:11px;cursor:pointer;color:var(--color-primary-dark);white-space:nowrap">Semana siguiente ▶</button>
+      </div>
+      <div id="resv-tabla-wrap"></div>
+      <button id="resv-btn-csv" onclick="_exportarCSVResumenViajes()" style="margin-top:14px;width:100%;padding:11px;border:none;border-radius:10px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:12px;cursor:pointer">⬇️ Exportar CSV</button>
+    </div>`
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+  document.body.appendChild(overlay)
+  _cargarResumenViajesEmpresa()
+}
+
+function _navegarSemanaResumen(delta) {
+  _resVOffsetSemana += delta
+  _cargarResumenViajesEmpresa()
+}
+
+async function _cargarResumenViajesEmpresa() {
+  const rango = _rangoSemanaLaboral(_resVOffsetSemana)
+  _resVRango = rango
+  const etiquetaEl = document.getElementById('resv-etiqueta-semana')
+  if (etiquetaEl) etiquetaEl.textContent = _etiquetaSemanaLaboral(rango.iniDate, rango.finDate)
+  const wrap = document.getElementById('resv-tabla-wrap')
+  if (wrap) wrap.innerHTML = '<div style="text-align:center;padding:24px;color:#8fa3c0;font-size:12px">Cargando…</div>'
+
+  const { data, error } = await db.from('pedidos')
+    .select('id, nombre, km_recorridos, precio, created_at')
+    .eq('empresa_codigo', _resVEmpresaCodigo)
+    .neq('estado', 'Cancelado')
+    .gte('created_at', rango.ini)
+    .lte('created_at', rango.fin)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('[resumen viajes] error:', error)
+    if (wrap) wrap.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:12px">Error al cargar los viajes</div>'
+    return
+  }
+
+  _resVFilas = data || []
+
+  if (!_resVFilas.length) {
+    if (wrap) wrap.innerHTML = '<div style="text-align:center;padding:32px 16px;color:#8fa3c0;font-size:12px;font-weight:600">Sin viajes registrados en esta semana</div>'
+    return
+  }
+
+  const totalKm     = _resVFilas.reduce((s, p) => s + (Number(p.km_recorridos) || 0), 0)
+  const totalPrecio = _resVFilas.reduce((s, p) => s + (Number(p.precio) || 0), 0)
+
+  if (wrap) wrap.innerHTML = `
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-family:Montserrat,sans-serif;font-size:12px">
+      <thead>
+        <tr style="background:#f4f6fb;text-align:left">
+          <th style="padding:8px 10px"># Pedido</th>
+          <th style="padding:8px 10px">Destinatario</th>
+          <th style="padding:8px 10px;text-align:right">Distancia (km)</th>
+          <th style="padding:8px 10px;text-align:right">Precio (IVA incl.)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${_resVFilas.map(p => `
+          <tr style="border-top:1px solid #f0f4fa">
+            <td style="padding:8px 10px;color:#8fa3c0">GK-${p.id}</td>
+            <td style="padding:8px 10px;font-weight:700">${escaparHtmlAdmin(p.nombre)}</td>
+            <td style="padding:8px 10px;text-align:right">${(Number(p.km_recorridos) || 0).toFixed(1)}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700">$${(Number(p.precio) || 0).toFixed(2)}</td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid #e0e6f0;font-weight:900">
+          <td style="padding:9px 10px" colspan="2">Total</td>
+          <td style="padding:9px 10px;text-align:right">${totalKm.toFixed(1)}</td>
+          <td style="padding:9px 10px;text-align:right">$${totalPrecio.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>`
+}
+
+function _exportarCSVResumenViajes() {
+  if (!_resVFilas.length || !_resVRango) { showToast('⚠️ No hay viajes para exportar en esta semana'); return }
+  let csv = '#Pedido,Destinatario,Distancia (km),Precio (IVA incl.)\n'
+  _resVFilas.forEach(p => {
+    csv += `GK-${p.id},"${(p.nombre || '').replace(/"/g, '""')}",${(Number(p.km_recorridos) || 0).toFixed(1)},${(Number(p.precio) || 0).toFixed(2)}\n`
+  })
+  const totalKm     = _resVFilas.reduce((s, p) => s + (Number(p.km_recorridos) || 0), 0)
+  const totalPrecio = _resVFilas.reduce((s, p) => s + (Number(p.precio) || 0), 0)
+  csv += `Total,,${totalKm.toFixed(1)},${totalPrecio.toFixed(2)}\n`
+
+  const fmtISO = d => d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' }) // YYYY-MM-DD
+  const lunesStr   = fmtISO(_resVRango.iniDate)
+  const viernesStr = fmtISO(_resVRango.finDate)
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `viajes-${_resVEmpresaCodigo}-semana-${lunesStr}-a-${viernesStr}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 async function guardarEmpresa() {

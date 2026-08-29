@@ -8266,6 +8266,25 @@ async function _abrirDrawer() {
           </div>
         </div>` : ''}
 
+        ${_empresaData ? `
+        <div style="height:1px;background:#f0f3fa;margin:0 14px"></div>
+        <div onclick="_drawerToggle('drawer-viajes');_cargarResumenViajesDrawer()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          <div style="width:36px;height:36px;border-radius:10px;background:#eef3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">📊</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;color:var(--color-primary-dark)">Resumen de viajes</div>
+            <div style="font-size:10px;color:#a0aec0;font-weight:600">Viajes de tu empresa</div>
+          </div>
+          <div id="drawer-viajes-arrow" style="transition:transform .2s;flex-shrink:0">${svgArrow}</div>
+        </div>
+        <div id="drawer-viajes" style="display:none;padding:2px 14px 14px;border-top:1px solid #f0f3fa">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;margin-bottom:8px">
+            <button onclick="_navegarSemanaResumenApp(-1)" style="border:none;background:#f4f6fb;border-radius:7px;padding:5px 9px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">◀</button>
+            <div id="drawer-viajes-etiqueta" style="font-family:Montserrat,sans-serif;font-weight:800;font-size:10.5px;color:var(--color-primary-dark);text-align:center;flex:1"></div>
+            <button onclick="_navegarSemanaResumenApp(1)" style="border:none;background:#f4f6fb;border-radius:7px;padding:5px 9px;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;cursor:pointer;color:var(--color-primary-dark)">▶</button>
+          </div>
+          <div id="drawer-viajes-content"><div class="loader--4" style="margin:8px 0;width:24px"></div></div>
+        </div>` : ''}
+
       </div>
     </div>
 
@@ -8421,6 +8440,124 @@ async function _cargarCreditoDrawer() {
       </div>
     </div>
   `
+}
+
+// ── Resumen de viajes de la empresa (bloques laborales lunes-viernes) ───────
+// Mismo patrón de zona horaria que _rangoGuias()/_rangoCotizaciones() en
+// admin.html (_partesMX/_iniMX) — portado tal cual porque app.html no
+// comparte script inline con admin.html. No se reinventa el cálculo.
+function _partesMX(fecha) {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(fecha)
+  const obj = Object.fromEntries(partes.filter(p => p.type !== 'literal').map(p => [p.type, p.value]))
+  return { year: +obj.year, month: +obj.month, day: +obj.day, hour: +obj.hour, minute: +obj.minute, second: +obj.second }
+}
+
+function _iniMX(ancla, { year, month, day } = {}) {
+  const mx = _partesMX(ancla)
+  const comoUTC = Date.UTC(mx.year, mx.month - 1, mx.day, mx.hour, mx.minute, mx.second)
+  const offsetMs = comoUTC - ancla.getTime()
+  return new Date(Date.UTC(year ?? mx.year, (month ?? mx.month) - 1, day ?? mx.day, 0, 0, 0) - offsetMs)
+}
+
+function _rangoSemanaLaboralApp(offsetSemanas = 0) {
+  const ahora = new Date()
+  const mx = _partesMX(ahora)
+  const diaSemana = new Date(Date.UTC(mx.year, mx.month - 1, mx.day)).getUTCDay() // 0=Dom..6=Sáb
+  const diasDesdeLunes = (diaSemana + 6) % 7 // Lun→0 ... Dom→6
+  const diaLunes = mx.day - diasDesdeLunes + offsetSemanas * 7
+  const iniDate = _iniMX(ahora, { day: diaLunes })          // lunes 00:00:00 MX
+  const finExclusivo = _iniMX(ahora, { day: diaLunes + 5 }) // lunes siguiente 00:00:00 MX
+  const finDate = new Date(finExclusivo.getTime() - 1)      // viernes 23:59:59.999 MX
+  return { iniDate, finDate, ini: iniDate.toISOString(), fin: finDate.toISOString() }
+}
+
+function _etiquetaSemanaLaboralApp(iniDate, finDate) {
+  const optsDia = { day: 'numeric', timeZone: 'America/Mexico_City' }
+  const optsMes = { month: 'long', timeZone: 'America/Mexico_City' }
+  const diaIni = iniDate.toLocaleDateString('es-MX', optsDia)
+  const diaFin = finDate.toLocaleDateString('es-MX', optsDia)
+  const mesIni = iniDate.toLocaleDateString('es-MX', optsMes)
+  const mesFin = finDate.toLocaleDateString('es-MX', optsMes)
+  return mesIni === mesFin
+    ? `Semana del ${diaIni} al ${diaFin} de ${mesFin}`
+    : `Semana del ${diaIni} de ${mesIni} al ${diaFin} de ${mesFin}`
+}
+
+let _appResVOffsetSemana = 0
+let _appResVFilas = []
+
+function _navegarSemanaResumenApp(delta) {
+  _appResVOffsetSemana += delta
+  _cargarResumenViajesDrawer()
+}
+
+async function _cargarResumenViajesDrawer() {
+  const wrap = document.getElementById('drawer-viajes-content')
+  if (!wrap || !_empresaData?.codigo) return
+
+  const rango = _rangoSemanaLaboralApp(_appResVOffsetSemana)
+  const etiquetaEl = document.getElementById('drawer-viajes-etiqueta')
+  if (etiquetaEl) etiquetaEl.textContent = _etiquetaSemanaLaboralApp(rango.iniDate, rango.finDate)
+  wrap.innerHTML = '<div class="loader--4" style="margin:8px 0;width:24px"></div>'
+
+  const { data, error } = await db.from('pedidos')
+    .select('id, nombre, km_recorridos, precio, created_at')
+    .eq('empresa_codigo', _empresaData.codigo)
+    .neq('estado', 'Cancelado')
+    .gte('created_at', rango.ini)
+    .lte('created_at', rango.fin)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('[resumen viajes] error:', error)
+    wrap.innerHTML = '<div style="text-align:center;padding:16px 8px;color:#ef4444;font-size:11px;font-weight:600">No se pudo cargar tu resumen de viajes</div>'
+    return
+  }
+
+  _appResVFilas = data || []
+
+  if (!_appResVFilas.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:20px 8px;color:#a0aec0;font-size:11px;font-weight:600">Sin viajes registrados en esta semana</div>'
+    return
+  }
+
+  const totalKm     = _appResVFilas.reduce((s, p) => s + (Number(p.km_recorridos) || 0), 0)
+  const totalPrecio = _appResVFilas.reduce((s, p) => s + (Number(p.precio) || 0), 0)
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-family:Montserrat,sans-serif;font-size:11px">
+      <thead>
+        <tr style="text-align:left;color:#a0aec0">
+          <th style="padding:5px 6px;font-weight:700"># Pedido</th>
+          <th style="padding:5px 6px;font-weight:700">Destinatario</th>
+          <th style="padding:5px 6px;text-align:right;font-weight:700">Km</th>
+          <th style="padding:5px 6px;text-align:right;font-weight:700">Precio</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${_appResVFilas.map(p => `
+          <tr style="border-top:1px solid #f0f3fa">
+            <td style="padding:5px 6px;color:#a0aec0">GK-${p.id}</td>
+            <td style="padding:5px 6px;font-weight:700;color:var(--color-primary-dark)">${_escaparHtmlApp(p.nombre)}</td>
+            <td style="padding:5px 6px;text-align:right">${(Number(p.km_recorridos) || 0).toFixed(1)}</td>
+            <td style="padding:5px 6px;text-align:right;font-weight:700">$${(Number(p.precio) || 0).toFixed(2)}</td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid #e0e6f0;font-weight:900;color:var(--color-primary-dark)">
+          <td style="padding:6px" colspan="2">Total</td>
+          <td style="padding:6px;text-align:right">${totalKm.toFixed(1)}</td>
+          <td style="padding:6px;text-align:right">$${totalPrecio.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>`
 }
 
 async function _cambiarContrasena(btn) {
