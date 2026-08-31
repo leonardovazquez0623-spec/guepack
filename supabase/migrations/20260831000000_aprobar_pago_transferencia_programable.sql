@@ -16,7 +16,6 @@ SET search_path TO ''
 AS $$
 DECLARE
   v_pedido public.pedidos%ROWTYPE;
-  v_reconciliacion RECORD;
 BEGIN
   IF p_pedido_id IS NULL THEN
     RAISE EXCEPTION 'PEDIDO_ID_REQUERIDO';
@@ -45,20 +44,11 @@ BEGIN
   END IF;
 
   UPDATE public.pedidos
-  SET pago_verificado = TRUE
+  SET pago_verificado = TRUE,
+      estado = 'Pendiente'
   WHERE id = p_pedido_id;
 
-  -- Reutiliza el motor ya probado: decide si el momento de apertura ya
-  -- se alcanzó (pedido normal → sí; programado a futuro → se queda
-  -- Programado hasta que el cron lo active más tarde).
-  SELECT * INTO v_reconciliacion
-  FROM public.reconciliar_activacion_pedido(p_pedido_id);
-
-  RETURN QUERY SELECT
-    p_pedido_id,
-    TRUE,
-    COALESCE(v_reconciliacion.debe_encolar_asignacion, FALSE),
-    COALESCE(v_reconciliacion.estado_actual, v_pedido.estado);
+  RETURN QUERY SELECT p_pedido_id, TRUE, TRUE, 'Pendiente'::TEXT;
 END;
 $$;
 
