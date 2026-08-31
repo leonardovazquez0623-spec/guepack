@@ -1413,6 +1413,7 @@ function _htmlTarjetaPedido(pedido) {
             ${pedido.nombre_remitente ? `<div class="pc-info-row"><span class="pc-info-label">De:</span> ${pedido.nombre_remitente}</div>` : ''}
             ${pedido.metodo_pago === 'efectivo' ? `<div class="pc-info-row"><span class="pc-info-label">Cobrar:</span> $${pedido.precio} en efectivo</div>` : ''}
             ${pedido.instrucciones ? `<div class="pc-info-row"><span class="pc-info-label">Notas:</span> ${pedido.instrucciones}</div>` : ''}
+            ${pedido.referencia_recoleccion ? `<div class="pc-info-row"><span class="pc-info-label">🧾 Factura/pedido:</span> ${pedido.referencia_recoleccion}</div>` : ''}
           </div>
           <div id="paradas-rep-${pedido.id}"></div>
           <div id="pc-stepper-${pedido.id}" class="pc-stepper"></div>
