@@ -1034,6 +1034,7 @@ Deno.serve(async (req) => {
         lng: number;
         acepta_devoluciones: boolean;
         requiere_factura: boolean;
+        cargo_servicio_mostrador: number | null;
       }
       | null = null;
     let tipoRecoleccion: "recoger" | "devolucion" | null = null;
@@ -1084,7 +1085,7 @@ Deno.serve(async (req) => {
       const { data: comercioData, error: falloComercio } = await admin
         .from("comercios_afiliados")
         .select(
-          "id, tenant_id, direccion, lat, lng, activo, acepta_devoluciones, requiere_factura",
+          "id, tenant_id, direccion, lat, lng, activo, acepta_devoluciones, requiere_factura, cargo_servicio_mostrador",
         )
         .eq("id", comercioAfiliadoId)
         .maybeSingle();
@@ -1131,6 +1132,7 @@ Deno.serve(async (req) => {
         lng: comercioData.lng,
         acepta_devoluciones: comercioData.acepta_devoluciones,
         requiere_factura: comercioData.requiere_factura,
+        cargo_servicio_mostrador: comercioData.cargo_servicio_mostrador,
       };
 
       // El lado del comercio nunca sale del navegador: se sobreescribe aquí
@@ -2173,7 +2175,18 @@ Deno.serve(async (req) => {
           "El cargo de servicio de mostrador no está configurado correctamente",
         );
       }
-      cargoServicioMostrador = cargoConfigurado;
+      // Si el comercio tiene su propio cargo configurado (incluido 0 para no
+      // cobrar nada), se usa ese en vez del general del tenant.
+      cargoServicioMostrador = comercio.cargo_servicio_mostrador != null
+        ? Number(comercio.cargo_servicio_mostrador)
+        : cargoConfigurado;
+      if (
+        !Number.isFinite(cargoServicioMostrador) || cargoServicioMostrador < 0
+      ) {
+        throw new Error(
+          "El cargo de servicio de este comercio no está configurado correctamente",
+        );
+      }
     }
 
     let subtotal = precioBase +
