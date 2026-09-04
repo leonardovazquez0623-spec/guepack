@@ -2275,6 +2275,27 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
   const fotoRecolOk = !!pedido?.foto_recoleccion
   const bloqueadaSinFoto = !enRuta && !fotoRecolOk
 
+  // Tarjeta "RECOGER EN" con la dirección de recolección — en flujo normal
+  // vive en _renderBotonesNormales() (contenedor pc-stop-${id}), pero esa
+  // función no corre para multiparada. Sin esto la dirección de recolección
+  // no aparecía en ningún lado de la tarjeta, solo en el mapa.
+  const _stopEl = document.getElementById('pc-stop-' + pedidoId)
+  if (_stopEl) {
+    const _mapsSearchUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(pedido.direccion_recoleccion)
+    _stopEl.innerHTML = `
+      <div class="pc-stop" onclick="window.open('${_mapsSearchUrl}','_blank')">
+        <div class="pc-stop-label rec">RECOGER EN</div>
+        <div class="pc-stop-contact">
+          <span class="pc-stop-contact-icon"><span class="guep-icon-inline" data-icon="usuarios" style="width:16px;height:16px"></span></span>
+          <span class="pc-stop-contact-name">${pedido.nombre_remitente || pedido.nombre || '—'}</span>
+        </div>
+        <div class="pc-stop-address">${pedido.direccion_recoleccion}</div>
+        <button class="pc-nav-btn" onclick="event.stopPropagation();window.open('${_mapsSearchUrl}','_blank')"><span class="guep-icon-inline icon-on-color" data-icon="rastreo" style="width:16px;height:16px"></span> Navegar ahora</button>
+      </div>
+    `
+    window._initGuepIcons && _initGuepIcons(_stopEl)
+  }
+
   // Botón/badge de recolección inicial: en flujo normal vive dentro de la
   // tarjeta "RECOGER EN" (_renderBotonesNormales), pero esa tarjeta no se
   // renderiza para multiparada — sin esto, foto_recoleccion nunca se podía
@@ -3187,11 +3208,14 @@ async function confirmarRecoleccion(pedidoId) {
 
   // Avanzar automáticamente a "Recolectado" — antes había que refrescar la
   // página y pulsar el botón del paso "Recolectado" a mano.
-  // Solo aplica a pedido normal (1 destino): en multiparada el botón
-  // "EN CAMINO" ya se desbloquea directo con foto_recoleccion (ver punto 5).
   const esMultiparada = (_todasParadas[pedidoId] || []).length >= 2
-  if (fotoUrl && !esMultiparada) {
-    if (pedidoPrevio.tipo_servicio === 'con_recoleccion') {
+  if (fotoUrl) {
+    if (esMultiparada) {
+      // Multiparada: salta directo a "En camino a entrega" (lo mismo que
+      // hace el botón manual "EN CAMINO" vía iniciarRutaMulti) — antes solo
+      // se desbloqueaba el botón y había que pulsarlo a mano.
+      await iniciarRutaMulti(pedidoId, pedidoPrevio.whatsapp, pedidoPrevio.nombre)
+    } else if (pedidoPrevio.tipo_servicio === 'con_recoleccion') {
       await _marcarRecolectadoReceta(pedidoId, pedidoPrevio.whatsapp, pedidoPrevio.nombre)
     } else {
       await cambiarEstado(pedidoId, 'Recolectado', pedidoPrevio.whatsapp, pedidoPrevio.nombre)
