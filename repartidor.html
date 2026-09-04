@@ -1973,11 +1973,12 @@ function _renderContactoWA(pedido) {
   const _siWA = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1, 'Recolectado': 2, 'En camino a entrega': 3, 'Repartidor en domicilio': 4, 'Entregado': 5 }
   const _idxWA = _siWA[pedido.estado] ?? -1
   const nombreRepa = _repaData?.nombre || 'tu mensajero'
-  const mensaje = (_idxWA === 0 || _idxWA === 1)
-    ? `Hola! Soy ${nombreRepa}, llegué a tu domicilio a recolección`
-    : _idxWA === 4
-      ? `Hola! Soy ${nombreRepa}, llegué a tu domicilio a entrega`
-      : `Hola! Soy ${nombreRepa}, tu mensajero de GUEPACK`
+  const mensaje =
+    _idxWA === 0 ? `Hola! Soy ${nombreRepa}, voy en camino a recoger tu pedido` :
+    _idxWA === 1 ? 'Ya llegué al punto de recolección' :
+    (_idxWA === 2 || _idxWA === 3) ? 'Ya recolecté tu pedido, voy en camino a tu entrega' :
+    _idxWA === 4 ? 'Ya llegué a tu domicilio con tu pedido' :
+    'Hola, soy tu mensajero de GUEPACK'
   cont.innerHTML = `<a href="https://wa.me/52${pedido.whatsapp}?text=${encodeURIComponent(mensaje)}" target="_blank" rel="noopener" style="text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 9px;border-radius:20px;background:#22c55e;color:white;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0">Contactar</a>`
 }
 
@@ -2378,7 +2379,48 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
   paradas.filter(p => p.estado === 'en_domicilio').forEach(p => _iniciarTimerParada(p.id))
 }
 
+// Botón "Contactar" (wa.me) para pedidos multiparada — mismo patrón que
+// _renderContactoWA() pero considerando la parada activa. Usa pedido.whatsapp:
+// el cliente que solicitó la multiparada, no el destinatario de cada parada.
+function _renderContactoWAMulti(pedido, paradas) {
+  const cont = document.getElementById('wa-contact-' + pedido.id)
+  if (!cont || !pedido.whatsapp) return
+
+  const _siWA = { 'En camino a recoleccion': 0, 'Repartidor en domicilio recoleccion': 1 }
+  const _idxWA = _siWA[pedido.estado] ?? -1
+  const nombreRepa = _repaData?.nombre || 'tu mensajero'
+
+  let mensaje
+  if (_idxWA === 0) {
+    mensaje = `Hola! Soy ${nombreRepa}, voy en camino a recoger tu pedido`
+  } else if (_idxWA === 1) {
+    mensaje = 'Ya llegué al punto de recolección'
+  } else if (pedido.estado === 'Entregado') {
+    mensaje = 'Ruta terminada, Gracias por confiar en Guepack'
+  } else {
+    const porOrden = (a, b) => a.orden - b.orden
+    // Si por alguna razón hay más de una parada "en camino" o "ya llegué" al
+    // mismo tiempo (la UI no lo bloquea explícitamente aunque no debería
+    // pasar en el flujo normal), se toma la de número de parada más chico.
+    const enDomicilio = (paradas || []).filter(p => p.estado === 'en_domicilio').sort(porOrden)[0]
+    const enCamino = (paradas || []).filter(p => p.estado === 'en_camino').sort(porOrden)[0]
+    if (enDomicilio) {
+      mensaje = `Ya llegué a la parada #${enDomicilio.orden}`
+    } else if (enCamino) {
+      mensaje = `Voy en camino a la parada #${enCamino.orden}`
+    } else if (['Recolectado', 'En camino a entrega', 'Repartidor en domicilio recoleccion', 'Repartidor en domicilio'].includes(pedido?.estado)) {
+      mensaje = 'Ya recolecté tu pedido, voy en camino a las entregas'
+    } else {
+      mensaje = 'Hola, soy tu mensajero de GUEPACK'
+    }
+  }
+
+  cont.innerHTML = `<a href="https://wa.me/52${pedido.whatsapp}?text=${encodeURIComponent(mensaje)}" target="_blank" rel="noopener" style="text-decoration:none;font-family:Montserrat,sans-serif;font-weight:900;font-size:10px;padding:4px 9px;border-radius:20px;background:#22c55e;color:white;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0">Contactar</a>`
+}
+
 function _renderParadasMulti(pedidoId, paradas, pedido, el) {
+  _renderContactoWAMulti(pedido, paradas)
+
   const total = paradas.length
   const completadas = paradas.filter(p => p.estado === 'completada').length
   const todasCompletadas = completadas === total
