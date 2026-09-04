@@ -7876,6 +7876,13 @@ async function actualizarVipTrasEntrega() {
   console.log('[VIP] update resultado:', updateErr ? 'ERROR: ' + updateErr.message : 'OK')
   _clienteTotalPedidos = nuevoTotal
   _clienteNivelVip = nuevoNivel
+
+  // Cada +2 pedidos entregados, avisar al cliente cuánto le falta para el
+  // siguiente nivel VIP. No bloquea el resto del flujo si el push falla.
+  if (nuevoTotal % 2 === 0) {
+    _enviarPushTipadoCliente({ tipo_notificacion: 'vip_progreso' }).catch(() => {})
+  }
+
   if (nuevoNivel !== nivelAnterior) {
     const t = _VIP_TEMAS[nuevoNivel] || _VIP_TEMAS.normal
     localStorage.setItem('guepack_nivel_vip', nuevoNivel)

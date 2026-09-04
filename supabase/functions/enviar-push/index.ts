@@ -27,7 +27,8 @@ const tiposUsuario = new Set([
   'parada_agregada',
   'mensaje_chat_recibido',
   'asignacion_liberada',
-  'comprobante_deposito'
+  'comprobante_deposito',
+  'vip_progreso'
 ])
 
 const tiposAdmin = new Set([
@@ -560,6 +561,31 @@ Deno.serve(async (req) => {
       titulo = '💬 Nuevo mensaje'
       cuerpo = mensaje.texto || 'Tienes un nuevo mensaje'
       tipoFirebase = 'chat'
+    }
+
+    if (tipoNotificacion === 'vip_progreso') {
+      const { data: usuario, error: falloUsuario } = await supabaseAdmin
+        .from('usuarios')
+        .select('total_pedidos')
+        .eq('user_id', usuarioAutenticado.id)
+        .maybeSingle()
+      if (falloUsuario || !usuario) {
+        return respuestaJson(req, { error: 'No se pudo consultar tu progreso' }, 500)
+      }
+      const total = Number(usuario.total_pedidos) || 0
+      // Mismos umbrales que _VIP_NIVELES en app.html (bronce 10, plata 20,
+      // oro 50) — se duplican aquí porque no viven en una tabla.
+      const NIVELES_VIP = [
+        { min: 10, label: 'Bronce' },
+        { min: 20, label: 'Plata' },
+        { min: 50, label: 'Oro VIP' }
+      ]
+      const siguiente = NIVELES_VIP.find((nivel) => nivel.min > total)
+      destinatarios = [usuarioAutenticado.id]
+      titulo = `🎉 ¡Vas por ${total} pedido${total === 1 ? '' : 's'}!`
+      cuerpo = siguiente
+        ? `Te faltan ${siguiente.min - total} pedidos para ${siguiente.label}`
+        : '¡Ya eres Oro VIP! Gracias por tu preferencia'
     }
 
     if (
