@@ -104,13 +104,52 @@
     background: linear-gradient(90deg, var(--orange), transparent);
     border-radius: 2px;
   }
+  #lista-repartidor {
+    display: flex;
+    align-items: flex-start;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+    scrollbar-width: none;
+  }
+  #lista-repartidor::-webkit-scrollbar { display: none; }
+  #lista-repartidor > .empty-state { flex: 0 0 100%; }
   .route-card {
     background: white;
     border-radius: 14px;
-    margin-bottom: 12px;
     overflow: hidden;
     box-shadow: var(--shadow);
+    flex: 0 0 100%;
+    scroll-snap-align: center;
   }
+
+  /* ── Puntos de paginación del carrusel de pedidos ── */
+  .pedidos-dots {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 56px;   /* justo arriba de #bottom-nav, que mide 56px de alto */
+    display: none;  /* el JS lo pone en flex cuando hay 2+ pedidos */
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 0;
+    z-index: 515;
+    pointer-events: none;
+  }
+  .pedidos-dot {
+    width: 7px; height: 7px;
+    padding: 7px;
+    box-sizing: content-box;
+    background: rgba(14,48,112,0.25);
+    background-clip: content-box;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background .2s, width .2s;
+  }
+  .pedidos-dot.active { background: var(--orange); width: 20px; border-radius: 4px; }
   .route-top {
     background: linear-gradient(90deg, var(--blue), var(--blue-light));
     padding: 12px 16px;
@@ -682,6 +721,7 @@
     </div>
   </div>
 </div>
+<div id="pedidos-dots" class="pedidos-dots"></div>
 </div><!-- /#vista-lista -->
 
 <!-- ── VISTA CHAT ── -->
@@ -1339,6 +1379,48 @@ async function cargarPedidos(email) {
   _cargarBadgesNoLeidos(ids)
   // Mostrar tarjeta de próxima parada si tenemos GPS
   _renderProximaParada()
+  _renderDotsPedidos()
+}
+
+// ── Carrusel horizontal de pedidos + puntos de paginación ──────────────────
+let _dotsListenerAttached = false
+let _dotsScrollTimer = null
+
+function _renderDotsPedidos() {
+  const cont = document.getElementById('lista-repartidor')
+  const dots = document.getElementById('pedidos-dots')
+  if (!cont || !dots) return
+
+  if (!_dotsListenerAttached) {
+    _dotsListenerAttached = true
+    cont.addEventListener('scroll', () => {
+      clearTimeout(_dotsScrollTimer)
+      _dotsScrollTimer = setTimeout(_actualizarDotActivo, 80)
+    }, { passive: true })
+  }
+
+  const cards = cont.querySelectorAll('.route-card')
+  if (cards.length < 2) { dots.style.display = 'none'; dots.innerHTML = ''; return }
+
+  dots.style.display = 'flex'
+  dots.innerHTML = Array.from(cards).map((_, i) =>
+    `<button type="button" class="pedidos-dot" onclick="_irAPedidoDot(${i})" aria-label="Pedido ${i + 1} de ${cards.length}"></button>`
+  ).join('')
+  _actualizarDotActivo()
+}
+
+function _actualizarDotActivo() {
+  const cont = document.getElementById('lista-repartidor')
+  const dots = document.getElementById('pedidos-dots')
+  if (!cont || !dots || !cont.clientWidth) return
+  const index = Math.round(cont.scrollLeft / cont.clientWidth)
+  dots.querySelectorAll('.pedidos-dot').forEach((d, i) => d.classList.toggle('active', i === index))
+}
+
+function _irAPedidoDot(index) {
+  const cont = document.getElementById('lista-repartidor')
+  if (!cont) return
+  cont.scrollTo({ left: index * cont.clientWidth, behavior: 'smooth' })
 }
 
 // ── Keyed reconciliation: helpers ───────────────────────────────────────────
