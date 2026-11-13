@@ -25,13 +25,14 @@ function extract(file, start, end) {
   await vm.runInNewContext(
     extract(
       "repartidor.html",
-      "async function confirmarEntrega(",
+      "const entregasEnProceso",
       "async function abrirFotoEntregaParada(",
     ) + ";confirmarEntrega(1)",
     {
       document,
       console: { log() {}, warn() {}, error() {} },
       _pedidosRep: { 1: {} },
+      _toastRepa() {},
       db: {
         storage: {
           from: () => ({
@@ -42,12 +43,12 @@ function extract(file, start, end) {
       cambiarEstado: async (id, state) => transitions.push({ id, state }),
     },
   );
-  assert.equal(transitions[0].state, "Entregado");
+  assert.equal(transitions.length, 0);
   console.log(
-    "CONFIRMADO A1: ambas subidas fallan y confirmarEntrega todavía solicita Entregado",
+    "CORREGIDO A1: una subida fallida impide solicitar Entregado",
   );
 
-  const updates = [];
+  const updates = [], rpcs = [];
   await vm.runInNewContext(
     extract(
       "admin.html",
@@ -56,6 +57,10 @@ function extract(file, start, end) {
     ) + ";updateStatus(1,'Entregado')",
     {
       db: {
+        rpc: async (name, args) => {
+          rpcs.push({ name, args });
+          return { data: { ok: true } };
+        },
         from: () => ({
           update: (value) => {
             updates.push(value);
@@ -68,10 +73,12 @@ function extract(file, start, end) {
   );
   assert.equal(
     JSON.stringify(updates),
-    JSON.stringify([{ estado: "Entregado" }]),
+    JSON.stringify([]),
   );
+  assert.equal(rpcs[0].name, 'marcar_entregado');
+  assert.equal(rpcs[0].args.p_pedido_id, 1);
   console.log(
-    "CONFIRMADO A2: admin sólo actualiza estado; no fecha de entrega ni RPC de contabilización",
+    "CORREGIDO A2: admin cierra mediante marcar_entregado",
   );
 
   let fetchHandler, response;

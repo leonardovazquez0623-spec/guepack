@@ -2677,10 +2677,14 @@ function _mostrarAvisoBloqueadoEfectivo(saldo, tope) {
 }
 
 async function cambiarEstado(id, status, telefono, nombre) {
-  const { error } = status === 'Entregado'
+  const { data, error } = status === 'Entregado'
     ? await db.rpc('marcar_entregado', { p_pedido_id: id })
     : await db.from('pedidos').update({ estado: status }).eq('id', id)
-  if (error) { alert('Error al actualizar'); return; }
+  if (error || (status === 'Entregado' && !data?.ok)) {
+    if (status === 'Entregado') _toastRepa('No se pudo actualizar. Vuelve a intentar.', '#ef4444')
+    else alert('Error al actualizar')
+    return false
+  }
 
   if (status === 'Entregado') detenerTracking()
 
@@ -2697,8 +2701,16 @@ async function cambiarEstado(id, status, telefono, nombre) {
     })
   }
 
-  const { data: { session } } = await db.auth.getSession()
-  cargarPedidos(session.user.email)
+  if (status === 'Entregado') {
+    try {
+      const { data: { session } } = await db.auth.getSession()
+      await cargarPedidos(session.user.email)
+    } catch (error) { console.error('[entrega] Error al refrescar:', error) }
+  } else {
+    const { data: { session } } = await db.auth.getSession()
+    cargarPedidos(session.user.email)
+  }
+  return true
 }
 
 function abrirModalEntrega(id) {
@@ -2766,76 +2778,53 @@ function limpiarFirma() {
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
 }
 
+const entregasEnProceso = new Set()
 async function confirmarEntrega(id) {
-  const fotoInput = document.getElementById('entrega-foto')
-  if (!fotoInput.files[0]) {
+  if (entregasEnProceso.has(id)) return
+  const foto = document.getElementById('entrega-foto')?.files[0]
+  if (!foto) {
     _toastRepa('📸 Toma una foto de evidencia antes de confirmar', '#f59e0b')
     return
   }
-  const { whatsapp: telefono, nombre } = _pedidosRep[id] || {}
   const btn = document.getElementById('btn-confirmar-entrega')
-  btn.textContent = 'Subiendo...'
-  btn.disabled = true
-
-  const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
-  let fotoUrl = null
-  let firmaUrl = null
-
-  // ── 1. Subir foto ──
-  if (fotoInput.files[0]) {
-    const foto = fotoInput.files[0]
-    const rutaFoto = `GK-${id}/foto.jpg`
-    console.log('[foto] Iniciando subida:', rutaFoto, 'tamaño:', foto.size, 'tipo:', foto.type)
-    const { data: fotoData, error: fotoError } = await db.storage
-      .from('evidencias')
-      .upload(rutaFoto, foto, { contentType: 'image/jpeg', upsert: true })
-    if (fotoError) {
-      console.error('[foto] Error al subir:', fotoError)
-    } else {
-      fotoUrl = `${BASE_URL}/GK-${id}/foto.jpg`
-      console.log('[foto] Subida OK:', fotoData, '→', fotoUrl)
-    }
-  } else {
-    console.warn('[foto] No se seleccionó ninguna foto')
-  }
-
-  // ── 2. Convertir canvas a blob y subir firma ──
+  const modal = document.getElementById('modal-entrega')
   const canvas = document.getElementById('entrega-canvas')
-  console.log('[firma] Convirtiendo canvas a blob...')
-  await new Promise(resolve => canvas.toBlob(async blob => {
-    if (!blob) {
-      console.warn('[firma] toBlob devolvió null, canvas vacío')
-      return resolve()
+  const texto = btn.textContent
+  entregasEnProceso.add(id)
+  btn.disabled = true
+  btn.textContent = 'Subiendo...'
+  try {
+    // Conserva la captura del canvas, sin exigir trazos en la firma.
+    const firma = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+    if (!firma) throw new Error('No se pudo preparar la firma')
+    // Referencias históricas compatibles con el bucket privado y las URL firmadas.
+    const base = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
+    const referencias = {}
+    for (const [campo, ruta, archivo, tipo] of [
+      ['foto_evidencia', `GK-${id}/foto.jpg`, foto, 'image/jpeg'],
+      ['firma_evidencia', `GK-${id}/firma.png`, firma, 'image/png']
+    ]) {
+      const { data, error } = await db.storage.from('evidencias')
+        .upload(ruta, archivo, { contentType: tipo, upsert: true })
+      if (error || !data?.path) throw error || new Error('Subida sin confirmar')
+      referencias[campo] = `${base}/${ruta}`
     }
-    console.log('[firma] Blob generado, tamaño:', blob.size)
-    const rutaFirma = `GK-${id}/firma.png`
-    const { data: firmaData, error: firmaError } = await db.storage
-      .from('evidencias')
-      .upload(rutaFirma, blob, { contentType: 'image/png', upsert: true })
-    if (firmaError) {
-      console.error('[firma] Error al subir:', firmaError)
-    } else {
-      firmaUrl = `${BASE_URL}/GK-${id}/firma.png`
-      console.log('[firma] Subida OK:', firmaData, '→', firmaUrl)
+    // RETURNING detecta también cero filas actualizadas por RLS.
+    const { data, error } = await db.from('pedidos').update(referencias).eq('id', id)
+      .select('id,foto_evidencia,firma_evidencia').single()
+    if (error || !data || Object.entries(referencias).some(([campo, valor]) => data[campo] !== valor)) {
+      throw error || new Error('Referencias sin guardar')
     }
-    resolve()
-  }, 'image/png'))
-
-  // ── 3. Actualizar pedido con URLs públicas ──
-  const update = {}
-  if (fotoUrl) update.foto_evidencia = fotoUrl
-  if (firmaUrl) update.firma_evidencia = firmaUrl
-  console.log('[pedido] Actualizando campos de evidencia:', update)
-  if (Object.keys(update).length) {
-    const { data: updateData, error: updateError } = await db.from('pedidos').update(update).eq('id', id)
-    if (updateError) console.error('[pedido] Error al guardar URLs:', updateError)
-    else console.log('[pedido] URLs guardadas OK:', updateData)
-  } else {
-    console.warn('[pedido] No hay URLs que guardar, se omite el update')
+    const { whatsapp: telefono, nombre } = _pedidosRep[id] || {}
+    if (await cambiarEstado(id, 'Entregado', telefono, nombre)) modal?.remove()
+  } catch (error) {
+    console.error('[entrega] No se pudo completar:', error)
+    _toastRepa('No se pudo completar la entrega. Conserva el comprobante y vuelve a intentar.', '#ef4444')
+  } finally {
+    entregasEnProceso.delete(id)
+    btn.textContent = texto
+    btn.disabled = false
   }
-
-  document.getElementById('modal-entrega').remove()
-  await cambiarEstado(id, 'Entregado', telefono, nombre)
 }
 
 async function abrirFotoEntregaParada(paradaId) {

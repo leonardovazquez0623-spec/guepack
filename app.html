@@ -7319,6 +7319,17 @@ async function assignDelivery(btn, id) {
   cargarPedidos()
 }
 async function updateStatus(id, status) {
+  if (status === 'Entregado') {
+    try {
+      const { data, error } = await db.rpc('marcar_entregado', { p_pedido_id: id })
+      if (error || !data?.ok) throw error || new Error('Cierre sin confirmar')
+    } catch (error) {
+      alert('No se pudo cerrar la entrega. Vuelve a intentar.')
+      return
+    }
+    cargarPedidos()
+    return
+  }
   const { error } = await db.from('pedidos').update({ estado: status }).eq('id', id)
   if (error) { alert('Error al actualizar'); return; }
 
