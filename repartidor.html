@@ -2348,7 +2348,7 @@ function _renderParadasRepartidor(pedidoId, paradas, pedido) {
       let btnHtml = ''
       if (p.estado === 'completada') {
         btnHtml = p.foto_url
-          ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸</a>`
+          ? `<button onclick="abrirFotoEntregaParada(${p.id})" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);background:none;border:0;cursor:pointer" aria-label="Ver evidencia de parada">📸</button>`
           : '<span style="font-size:10px;color:#16a34a">✅</span>'
       } else if (!anteriorCompletada) {
         btnHtml = '<span style="font-size:10px;color:#c0c0c0">🔒</span>'
@@ -2499,7 +2499,7 @@ function _renderParadasMulti(pedidoId, paradas, pedido, el) {
       let btnHtml = ''
       if (p.estado === 'completada') {
         btnHtml = p.foto_url
-          ? `<a href="${p.foto_url}" target="_blank" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);text-decoration:none">📸</a>`
+          ? `<button onclick="abrirFotoEntregaParada(${p.id})" style="font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;color:var(--blue);background:none;border:0;cursor:pointer" aria-label="Ver evidencia de parada">📸</button>`
           : '<span style="font-size:10px;color:#16a34a">✅</span>'
       } else if (!enRuta) {
         btnHtml = '<span style="font-size:10px;color:#c0c0c0">🔒</span>'
@@ -2836,6 +2836,25 @@ async function confirmarEntrega(id) {
 
   document.getElementById('modal-entrega').remove()
   await cambiarEstado(id, 'Entregado', telefono, nombre)
+}
+
+async function abrirFotoEntregaParada(paradaId) {
+  const ventana = window.open('', '_blank')
+  if (ventana) ventana.opener = null
+  try {
+    const { data: parada, error } = await db.from('paradas').select('foto_url').eq('id', paradaId).single()
+    if (error || !parada?.foto_url) throw new Error('Evidencia no disponible')
+    const valor = parada.foto_url
+    const marcador = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/evidencias\//
+    const ruta = decodeURIComponent((valor.split(marcador).pop() || '').split('?')[0].replace(/^evidencias\//, ''))
+    const { data, error: firmaError } = await db.storage.from('evidencias').createSignedUrl(ruta, 60)
+    if (firmaError || !data?.signedUrl) throw new Error('Evidencia no disponible')
+    if (ventana) ventana.location.replace(data.signedUrl)
+    else _toastRepa('Permite abrir ventanas para ver la evidencia', '#f59e0b')
+  } catch (_) {
+    ventana?.close()
+    _toastRepa('La evidencia no está disponible o ya fue retirada', '#f59e0b')
+  }
 }
 
 function abrirModalParada(pedidoId, paradaId, orden, total) {

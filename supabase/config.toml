@@ -481,3 +481,9 @@ entrypoint = "./functions/reconciliar-pagos-conekta/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/skydropx-consultar-shipment/index.ts"
+
+[functions.evidencias-entrega]
+enabled = true
+# La función valida el JWT con Auth.getUser; maintenance exige service_role.
+verify_jwt = false
+entrypoint = "./functions/evidencias-entrega/index.ts"

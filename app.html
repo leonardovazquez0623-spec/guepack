@@ -974,6 +974,7 @@
 <link rel="apple-touch-icon" href="/Icono_gp.png">
 <meta name="theme-color" content="#0d3a8a">
 <link rel="icon" type="image/png" href="/Icono_gp.png">
+<link rel="stylesheet" href="evidencias-entrega.css">
 </head>
 <body>
 <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:var(--color-primary-dark);color:#fff;font-family:Montserrat,sans-serif;font-weight:700;font-size:13px;padding:10px 16px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
@@ -1832,6 +1833,7 @@
         <button class="hist-pill" id="hpill-entregados" onclick="_setHistFiltro('entregados')">Entregados</button>
         <button class="hist-pill" id="hpill-cancelados" onclick="_setHistFiltro('cancelados')">Cancelados</button>
       </div>
+      <div id="evidencias-descargas" class="evidencias-descargas" hidden></div>
       <div id="lista-historial">
         <div class="guep-loader-wrap">
           <div class="guep-spinner">
@@ -1850,6 +1852,7 @@
 
 <script src="/supabase-local.js"></script>
 <script src="tenant-config.js"></script>
+<script src="evidencias-entrega.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.14.0/firebase-auth-compat.js"></script>
 
@@ -2295,6 +2298,8 @@ async function verificarSesion() {
     window.location.replace('admin.html')
     return
   }
+
+  GuepEvidencias.iniciar({ db, onChange: cargarHistorial, onError: mensaje => mostrarToast(mensaje, '#ef4444') })
 
   const nombreMeta = session.user.user_metadata?.nombre || ''
   if (!usuario?.whatsapp || !nombreMeta) {
@@ -7131,6 +7136,7 @@ function _renderHistorial() {
               ${badgeHTML}
             </div>
             ${mostrarEvidencias ? `<button class="btn-evidencias" onclick="verTodasEvidencias(${pedido.id})">📸 Ver evidencias</button>` : ''}
+            ${pedido.evidencias_retiradas_at || (_historialParadasMap[pedido.id] || []).some(p => p.evidencias_retiradas_at) ? '<div class="evidencias-retiradas">Evidencias de entrega retiradas. Consulta tus ZIP disponibles arriba.</div>' : ''}
           </div>
         </div>
         ${mostrarCompletarPago ? `
@@ -7185,6 +7191,7 @@ async function verTodasEvidencias(pedidoId) {
   if (!pedido) return
 
   const secciones = []
+  const retiradas = pedido.evidencias_retiradas_at || paradas.some(p => p.evidencias_retiradas_at)
 
   if (pedido.foto_recoleccion || pedido.firma_recoleccion) {
     secciones.push({ label: 'Recolección', foto: pedido.foto_recoleccion, firma: pedido.firma_recoleccion })
@@ -7225,6 +7232,7 @@ async function verTodasEvidencias(pedidoId) {
   modal.innerHTML = `
     <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto">
       <div style="font-family:Montserrat,sans-serif;font-weight:900;font-size:15px;margin-bottom:16px;color:var(--color-primary-dark)">📸 Evidencias GK-${pedidoId}</div>
+      ${retiradas ? '<p class="evidencias-retiradas">Algunas evidencias de entrega se retiraron al preparar tu ZIP. Puedes volver a descargarlo desde el historial durante 24 horas.</p>' : ''}
       ${seccionesHtml}
       <button onclick="document.getElementById('modal-evidencia').remove()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--color-primary-dark);color:white;font-family:Montserrat,sans-serif;font-weight:900;font-size:13px;cursor:pointer;margin-top:4px">Cerrar</button>
     </div>

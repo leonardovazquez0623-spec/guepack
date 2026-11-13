@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@electric-sql/pglite": "npm:@electric-sql/pglite@0.3.14",
+    "fflate": "npm:fflate@0.8.2",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.7",
+    "happy-dom": "npm:happy-dom@20.8.4"
+  }
+}
