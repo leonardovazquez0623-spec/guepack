@@ -1,5 +1,6 @@
 {
   "nodeModulesDir": "auto",
+  "test": { "exclude": ["./browser_test.cjs"] },
   "imports": {
     "@electric-sql/pglite": "npm:@electric-sql/pglite@0.3.14",
     "fflate": "npm:fflate@0.8.2",

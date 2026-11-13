@@ -7136,7 +7136,7 @@ function _renderHistorial() {
               ${badgeHTML}
             </div>
             ${mostrarEvidencias ? `<button class="btn-evidencias" onclick="verTodasEvidencias(${pedido.id})">📸 Ver evidencias</button>` : ''}
-            ${pedido.evidencias_retiradas_at || (_historialParadasMap[pedido.id] || []).some(p => p.evidencias_retiradas_at) ? '<div class="evidencias-retiradas">Evidencias de entrega retiradas. Consulta tus ZIP disponibles arriba.</div>' : ''}
+            ${pedido.evidencias_retiradas_at || (_historialParadasMap[pedido.id] || []).some(p => p.evidencias_retiradas_at) ? '<div class="evidencias-retiradas">Evidencias de entrega retiradas tras preparar tu ZIP.</div>' : ''}
           </div>
         </div>
         ${mostrarCompletarPago ? `

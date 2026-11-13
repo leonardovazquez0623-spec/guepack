@@ -132,10 +132,11 @@ BEGIN
   RETURN v_result;
 END $$;
 
--- El consentimiento ocurre exclusivamente aquí, invocado con el JWT del cliente.
-CREATE FUNCTION public.evidencia_iniciar(p_tenant bigint, p_clave uuid) RETURNS uuid
+-- Sólo Edge tras Auth.getUser puede registrar consentimiento. No se expone
+-- una RPC de escritura que permita saltarse la validación de sesión en Auth.
+CREATE FUNCTION public.evidencia_iniciar(p_tenant bigint, p_clave uuid, p_user text) RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE v_user text := auth.uid()::text; v_lote uuid; r record; obj record; v_id bigint;
+DECLARE v_user text := p_user; v_lote uuid; r record; obj record; v_id bigint;
   v_total bigint := 0; v_cantidad integer := 0;
 BEGIN
   IF v_user IS NULL OR p_clave IS NULL OR NOT public.evidencia_es_cliente(v_user,p_tenant) THEN
@@ -149,6 +150,14 @@ BEGIN
   INSERT INTO public.evidencia_lotes(user_id,tenant_id,clave) VALUES(v_user,p_tenant,p_clave) RETURNING id INTO v_lote;
   -- Lotes acotados evitan exceder disco/tiempo de Edge. La UI ofrece el siguiente.
   FOR r IN SELECT DISTINCT e.ruta FROM public.evidencia_elegibles(v_user,p_tenant) e ORDER BY e.ruta LOOP
+    -- La reserva debe observar el mismo dueño, tenant y fecha que el snapshot,
+    -- también cuando la evidencia sólo está en una parada del pedido.
+    PERFORM 1 FROM public.pedidos p WHERE p.id IN
+      (SELECT e.pedido_id FROM public.evidencia_elegibles(v_user,p_tenant) e WHERE e.ruta=r.ruta)
+      ORDER BY p.id FOR UPDATE;
+    PERFORM 1 FROM public.paradas s WHERE s.id IN
+      (SELECT e.registro_id FROM public.evidencia_elegibles(v_user,p_tenant) e WHERE e.ruta=r.ruta AND e.tabla='paradas')
+      ORDER BY s.id FOR UPDATE;
     PERFORM pg_advisory_xact_lock(hashtextextended('evidencia:'||r.ruta,0));
     IF NOT EXISTS (SELECT 1 FROM public.evidencia_elegibles(v_user,p_tenant) e WHERE e.ruta=r.ruta) THEN CONTINUE; END IF;
     SELECT COALESCE((o.metadata->>'size')::bigint,0) bytes, o.id, o.version INTO obj
@@ -214,7 +223,8 @@ BEGIN
   IF NOT FOUND OR l.estado IN ('expirado','expirando') OR (l.lease_hasta>now() AND l.lease<>p_lease) THEN RETURN NULL; END IF;
   IF NOT public.evidencia_es_cliente(l.user_id,l.tenant_id) THEN RETURN NULL; END IF;
   IF COALESCE(l.vence_at,l.creado_at+interval '24 hours')<=now() THEN RETURN NULL; END IF;
-  UPDATE public.evidencia_lotes SET lease=p_lease,lease_hasta=now()+interval '5 minutes',ultimo_error=NULL,intentado_at=now() WHERE id=l.id;
+  -- Más largo que la vida máxima de un worker Edge y sus peticiones pendientes.
+  UPDATE public.evidencia_lotes SET lease=p_lease,lease_hasta=now()+interval '10 minutes',ultimo_error=NULL,intentado_at=now() WHERE id=l.id;
   RETURN to_jsonb(l) || jsonb_build_object('archivos',(SELECT jsonb_agg(to_jsonb(a) || jsonb_build_object('refs',
     (SELECT jsonb_agg(to_jsonb(r)) FROM public.evidencia_lote_refs r WHERE r.archivo_id=a.id)) ORDER BY a.id)
     FROM public.evidencia_archivos a WHERE a.lote_id=l.id));
@@ -237,11 +247,13 @@ BEGIN
   SELECT * INTO a FROM public.evidencia_archivos WHERE id=p_archivo FOR UPDATE;
   SELECT * INTO l FROM public.evidencia_lotes WHERE id=a.lote_id FOR UPDATE;
   IF l.lease IS DISTINCT FROM p_lease OR l.lease_hasta<=now() OR l.estado<>'verificado'
-    OR l.vence_at<=now()+interval '5 minutes' THEN RAISE EXCEPTION 'LOTE_NO_VERIFICADO'; END IF;
+    OR l.vence_at<=now()+interval '10 minutes' THEN RAISE EXCEPTION 'LOTE_NO_VERIFICADO'; END IF;
   IF a.estado NOT IN ('reservado','borrando') THEN RETURN a.estado; END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended('evidencia:'||a.ruta,0));
-  IF a.estado='borrando' THEN RETURN 'borrando'; END IF;
-  IF EXISTS (SELECT 1 FROM public.evidencia_referencias r WHERE r.ruta=a.ruta AND NOT EXISTS (
+  IF a.estado='borrando' AND NOT EXISTS(SELECT 1 FROM storage.objects o WHERE o.bucket_id='evidencias' AND o.name=a.ruta) THEN
+    RETURN 'borrando'; -- reconciliar una respuesta perdida, sin otro DELETE
+  END IF;
+  IF public.evidencia_otra_tabla_usa(a.ruta) OR EXISTS (SELECT 1 FROM public.evidencia_referencias r WHERE r.ruta=a.ruta AND NOT EXISTS (
     SELECT 1 FROM public.evidencia_lote_refs x WHERE x.archivo_id=a.id AND x.tabla=r.tabla AND x.registro_id=r.registro_id AND x.campo=r.campo)) THEN
     RETURN 'compartido';
   END IF;
@@ -251,6 +263,23 @@ BEGIN
   END IF;
   UPDATE public.evidencia_archivos SET estado='borrando' WHERE id=a.id;
   RETURN 'borrando';
+END $$;
+
+-- Defensa conservadora para referencias históricas fuera de los dos modelos
+-- actuales. Sólo lectura; no modifica tablas ajenas ni exporta sus datos.
+CREATE FUNCTION public.evidencia_otra_tabla_usa(p_ruta text) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE t record; v_usa boolean;
+BEGIN
+  FOR t IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind IN ('r','p') AND NOT c.relispartition
+      AND c.relname NOT IN ('pedidos','paradas','evidencia_lotes','evidencia_archivos','evidencia_lote_refs') LOOP
+    EXECUTE format($query$ SELECT EXISTS(SELECT 1 FROM public.%I fila
+      CROSS JOIN LATERAL jsonb_path_query(to_jsonb(fila),'$.** ? (@.type() == "string")') valor
+      WHERE public.evidencia_ruta(valor #>> '{}')=$1) $query$,t.relname) INTO v_usa USING p_ruta;
+    IF v_usa THEN RETURN true; END IF;
+  END LOOP;
+  RETURN false;
 END $$;
 
 CREATE FUNCTION public.evidencia_confirmar_borrado(p_archivo bigint,p_lease uuid,p_compartido boolean) RETURNS void
@@ -286,10 +315,10 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE l public.evidencia_lotes; a record; r record;
 BEGIN
   SELECT * INTO l FROM public.evidencia_lotes WHERE id=p_lote FOR UPDATE;
-  IF NOT FOUND OR l.estado='expirado' OR l.lease_hasta>now()
+  IF NOT FOUND OR l.lease_hasta>now()
     OR COALESCE(l.vence_at,l.creado_at+interval '24 hours')>now() THEN RETURN false; END IF;
   IF NOT p_confirmar THEN
-    UPDATE public.evidencia_lotes SET estado='expirando' WHERE id=l.id; RETURN true;
+    UPDATE public.evidencia_lotes SET estado='expirando',intentado_at=now() WHERE id=l.id; RETURN true;
   END IF;
   IF l.estado<>'expirando' OR EXISTS (SELECT 1 FROM storage.objects WHERE bucket_id='evidencias-zips' AND name LIKE l.id::text||'/%') THEN RETURN false; END IF;
   -- Reconciliar respuestas perdidas sin borrar ningún original adicional.
@@ -311,8 +340,9 @@ END $$;
 
 CREATE FUNCTION public.evidencia_trabajos() RETURNS SETOF public.evidencia_lotes
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
-  SELECT * FROM public.evidencia_lotes WHERE estado<>'expirado' AND (lease_hasta IS NULL OR lease_hasta<=now())
-    AND (estado IN ('preparando','verificado','expirando') OR vence_at<=now())
+  SELECT l.* FROM public.evidencia_lotes l WHERE (lease_hasta IS NULL OR lease_hasta<=now())
+    AND ((estado<>'expirado' AND (estado IN ('preparando','verificado','expirando') OR vence_at<=now()))
+      OR (estado='expirado' AND EXISTS(SELECT 1 FROM storage.objects o WHERE o.bucket_id='evidencias-zips' AND o.name LIKE l.id::text||'/%')))
     ORDER BY COALESCE(intentado_at,creado_at) LIMIT 100;
 $$;
 
@@ -351,14 +381,14 @@ CREATE POLICY evidencia_entrega_update_limite ON storage.objects AS RESTRICTIVE 
 CREATE POLICY evidencia_entrega_delete_limite ON storage.objects AS RESTRICTIVE FOR DELETE TO anon,authenticated
   USING(bucket_id<>'evidencias' OR name !~ '^GK-[0-9]+/(foto\.jpg|firma\.png|parada-[0-9]+\.jpg|firma-parada-[0-9]+\.png)$');
 
--- Sólo el backend puede avanzar estados. Sólo estas dos RPC admiten JWT cliente.
+-- Sólo el backend puede iniciar y avanzar estados. El resumen es de sólo lectura.
 DO $$ DECLARE r record; BEGIN
   FOR r IN SELECT oid::regprocedure firma FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname LIKE 'evidencia\_%' ESCAPE '\' LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC,anon,authenticated',r.firma);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role',r.firma);
   END LOOP;
 END $$;
-GRANT EXECUTE ON FUNCTION public.evidencia_resumen(bigint),public.evidencia_iniciar(bigint,uuid),
+GRANT EXECUTE ON FUNCTION public.evidencia_resumen(bigint),
   public.evidencia_puede_leer(text),public.evidencia_puede_escribir(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.evidencia_puede_leer(text),public.evidencia_puede_escribir(text) TO anon;
 COMMIT;

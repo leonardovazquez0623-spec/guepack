@@ -1,12 +1,14 @@
 .evidencias-aviso {
   border: 0; border-radius: 20px; padding: 24px; box-sizing: border-box;
-  width: calc(100% - 32px); max-width: 440px; max-height: 85dvh;
+  width: calc(100% - 32px); max-width: 440px; max-height: 85dvh; margin: auto;
   overflow-y: auto; color: var(--dark, #17243a); background: white;
   font-family: Montserrat, sans-serif; box-shadow: 0 16px 50px #10204040;
 }
 .evidencias-aviso::backdrop { background: rgba(10, 20, 50, .7); }
 .evidencias-aviso h2 { font-size: 17px; color: var(--color-primary-dark); margin: 0 0 16px; }
-.evidencias-aviso p, .evidencias-descargas p { font-size: 13px; line-height: 1.6; }
+.evidencias-aviso p, .evidencias-descargas p { font-size: 13px; line-height: 1.6; margin: 10px 0; }
+.evidencias-aviso p:empty { display: none; }
+.evidencias-aviso button:focus-visible { outline: 2px solid var(--color-primary-dark); outline-offset: 3px; }
 .evidencias-aviso .btn, .evidencias-aviso .btn-evidencias { width: 100%; justify-content: center; min-height: 44px; }
 .evidencias-aviso button:disabled, .evidencias-descargas button:disabled { opacity: .6; cursor: wait; }
 .evidencias-descargas { margin: 0 0 16px; padding: 16px; border: 1px solid #e0e4ef; border-radius: 16px; background: white; }

@@ -140,8 +140,8 @@ window.GuepEvidencias = (() => {
       const batch = summary.lotes.find(l => l.id === (id || data.id))
       if (batch?.vence_at) {
         requestKey = null
-        await save(batch.id)
-        await options.onChange?.()
+        try { await save(batch.id) }
+        finally { await options.onChange?.() }
       } else if (batch && !batch.error) {
         clearTimeout(timer)
         timer = setTimeout(() => { if (version === epoch) run(batch.id) }, 4000)
