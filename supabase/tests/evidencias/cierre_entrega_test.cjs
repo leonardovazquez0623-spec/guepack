@@ -15,6 +15,7 @@ function fixture(failure) {
   }
   const context = vm.createContext({
     console: { error() {} },
+    prepararArchivoGuep: async file => ({ blob: file, contentType: 'image/jpeg' }),
     document: { getElementById: id => ({
       'entrega-foto': { files: failure === 'no-photo' ? [] : [{}] },
       'entrega-canvas': { toBlob(cb) { if (fail('canvas')) throw new Error('canvas'); cb(state.failure === 'null-blob' ? null : {}); } },

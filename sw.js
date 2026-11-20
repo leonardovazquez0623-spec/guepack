@@ -52,7 +52,8 @@ self.addEventListener('notificationclick', function(event) {
     })
   )
 })
-const CACHE_NAME = 'guepack-v13'
+const CACHE_NAME = 'guepack-v14-compresion'
+const COMPRESSION_VERSION = '1'
 
 self.addEventListener('install', event => {
   self.skipWaiting()
@@ -71,6 +72,12 @@ self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return
 
   const url = event.request.url
+  const parsed = new URL(url)
+  // El módulo versionado se solicita a la red; el puente inline maneja su ausencia.
+  if (parsed.origin === self.location.origin && parsed.pathname === '/compresion-imagenes.js') {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }))
+    return
+  }
   // Dejar pasar sin interceptar: APIs externas y assets de Firebase/Supabase
   if (
     url.includes('supabase.co') ||

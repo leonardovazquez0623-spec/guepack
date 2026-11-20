@@ -759,6 +759,48 @@ function _iconoRepaHtml(archivo, tamano = 16) {
   document.addEventListener('DOMContentLoaded', function(){ _initGuepIcons(); });
 })();
 </script>
+<script src="/compresion-imagenes.js?v=1"></script>
+<script>
+let cargaCompresorGuep = null
+async function prepararArchivoGuep(file, options = {}) {
+  if (!globalThis.GuepImagenes) {
+    if (!cargaCompresorGuep) {
+      cargaCompresorGuep = new Promise(resolve => {
+        const script = document.createElement('script')
+        let terminado = false
+        const terminar = () => {
+          if (terminado) return
+          terminado = true
+          clearTimeout(timer)
+          script.onload = script.onerror = null
+          script.remove()
+          resolve()
+        }
+        const timer = setTimeout(terminar, 5000)
+        script.onload = terminar
+        script.onerror = terminar
+        script.src = '/compresion-imagenes.js?v=1'
+        document.head.appendChild(script)
+      }).finally(() => { cargaCompresorGuep = null })
+    }
+    await cargaCompresorGuep
+  }
+  if (globalThis.GuepImagenes) {
+    try { return await globalThis.GuepImagenes.prepare(file, options) }
+    catch (error) {
+      if (error.code === 'COMPRESSION_FAILED') error.message = 'No se pudo preparar la foto. Inténtalo de nuevo; si sigue fallando, baja la resolución de la cámara.'
+      throw error
+    }
+  }
+  const imagen = /^image\//i.test(file.type) || /\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i.test(file.name || '')
+  if (imagen && file.size >= 3 * 1024 * 1024) {
+    const error = new Error('No se pudo preparar la foto. Inténtalo de nuevo; si sigue fallando, baja la resolución de la cámara.')
+    error.code = 'COMPRESSION_FAILED'
+    throw error
+  }
+  return { blob: file, extension: (file.name || '').split('.').pop() || '', contentType: file.type || 'application/octet-stream', changed: false }
+}
+</script>
 <script src="/supabase-local.js"></script>
 <script src="config.js"></script>
 <script src="tenant-config.js"></script>
@@ -1696,13 +1738,24 @@ function _renderProgresoDrawer() {
   `
 }
 
+let depositoEnProceso = false
 async function _subirComprobanteDeposito(input) {
+  if (depositoEnProceso) return
   if (!input.files[0] || !_repaData) return
   const btn = document.getElementById('btn-comprobante-deposito')
   if (btn) { btn.textContent = 'Subiendo...'; btn.style.opacity = '.6'; btn.style.pointerEvents = 'none' }
+  depositoEnProceso = true
+  try {
+  let preparado
+  try { preparado = await prepararArchivoGuep(input.files[0]) }
+  catch (error) {
+    _toastRepa(error.message, '#ef4444')
+    if (btn) { btn.textContent = '📎 Subir comprobante de depósito'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
+    return
+  }
   const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const ruta = `depositos/${_repaData.id}_${fecha}.jpg`
-  const { error } = await db.storage.from('evidencias').upload(ruta, input.files[0], { contentType: 'image/jpeg', upsert: true })
+  const { error } = await db.storage.from('evidencias').upload(ruta, preparado.blob, { contentType: preparado.contentType, upsert: true })
   if (error) {
     _toastRepa('Error al subir comprobante', '#ef4444')
     if (btn) { btn.textContent = '📎 Subir comprobante de depósito'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
@@ -1710,7 +1763,13 @@ async function _subirComprobanteDeposito(input) {
   }
   const previewEl = document.getElementById('comprobante-deposito-preview')
   if (previewEl) {
-    previewEl.innerHTML = `<img src="${URL.createObjectURL(input.files[0])}" style="width:100%;border-radius:10px;max-height:160px;object-fit:cover">`
+    const url = URL.createObjectURL(preparado.blob)
+    previewEl.innerHTML = `<img src="${url}" style="width:100%;border-radius:10px;max-height:160px;object-fit:cover">`
+  }
+  if (previewEl) {
+    const img = previewEl.querySelector('img'), url = img.src
+    const liberar = () => URL.revokeObjectURL(url)
+    img.onload = liberar; img.onerror = liberar; if (img.complete) liberar()
   }
   if (btn) { btn.textContent = '✅ Comprobante enviado'; btn.style.background = '#22c55e'; btn.style.opacity = '1'; btn.style.pointerEvents = '' }
   await _enviarPushTipadoRepartidor({
@@ -1718,6 +1777,7 @@ async function _subirComprobanteDeposito(input) {
     comprobante_ruta: ruta
   })
   _toastRepa('✅ Comprobante enviado — esperando confirmación del admin', '#22c55e')
+  } finally { depositoEnProceso = false }
 }
 
 async function _cargarGanancias(nombreRepa) {
@@ -2253,12 +2313,22 @@ function abrirModalRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
   canvas.addEventListener('touchend', () => { drawing = false })
   ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
 
-  document.getElementById('receta-foto').addEventListener('change', function() {
+  document.getElementById('receta-foto').addEventListener('change', async function() {
+    const seleccionado = this.files[0]
+    if (!seleccionado) return
+    try {
     if (!this.files[0]) return
-    const url = URL.createObjectURL(this.files[0])
+    const preparado = await prepararArchivoGuep(seleccionado)
+    if (this.files[0] !== seleccionado || !this.isConnected) return
+    const url = URL.createObjectURL(preparado.blob)
     document.getElementById('receta-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:180px;object-fit:cover">`
+    const preview = document.getElementById('receta-foto-preview').querySelector('img')
+    const liberar = () => URL.revokeObjectURL(url)
+    preview.onload = liberar; preview.onerror = liberar
+    if (preview.complete) liberar()
     document.getElementById('btn-receta-foto').textContent = '✅ Foto lista'
     document.getElementById('btn-receta-foto').style.background = '#22c55e'
+    } catch (error) { _toastRepa(error.message, '#ef4444') }
   })
 }
 
@@ -2274,7 +2344,20 @@ async function confirmarRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
     return
   }
   const btn = document.getElementById('btn-confirmar-receta-surtida')
+  if (btn.disabled) return
+  const textoPrevio = btn.textContent
   btn.textContent = 'Subiendo...'; btn.disabled = true
+  let fotoPreparada, firmaPreparada
+  try {
+    const archivo = document.getElementById('receta-foto').files[0]
+    if (archivo) fotoPreparada = await prepararArchivoGuep(archivo)
+    const originalFirma = await new Promise(resolve => document.getElementById('receta-canvas').toBlob(resolve, 'image/png'))
+    if (originalFirma) firmaPreparada = await prepararArchivoGuep(originalFirma, { kind: 'signature' })
+  } catch (error) {
+    _toastRepa(error.message, '#ef4444')
+    btn.textContent = textoPrevio; btn.disabled = false
+    return
+  }
 
   const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
   let fotoUrl = null, firmaUrl = null
@@ -2282,19 +2365,18 @@ async function confirmarRecetaSurtida(pedidoId, llegadaFarmaciaAt) {
   const fotoInput = document.getElementById('receta-foto')
   if (fotoInput.files[0]) {
     const ruta = `GK-${pedidoId}/receta-surtido.jpg`
-    const { error } = await db.storage.from('evidencias').upload(ruta, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    const { error } = await db.storage.from('evidencias').upload(ruta, fotoPreparada.blob, { contentType: fotoPreparada.contentType, upsert: true })
     if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/receta-surtido.jpg`
   }
 
-  const canvas = document.getElementById('receta-canvas')
-  await new Promise(resolve => canvas.toBlob(async blob => {
+  {
+    const blob = firmaPreparada?.blob
     if (blob) {
       const ruta = `GK-${pedidoId}/firma-receta-surtido.png`
       const { error } = await db.storage.from('evidencias').upload(ruta, blob, { contentType: 'image/png', upsert: true })
       if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-receta-surtido.png`
     }
-    resolve()
-  }, 'image/png'))
+  }
 
   const ahora = new Date()
   const excedida = !!llegadaFarmaciaAt && (ahora - new Date(llegadaFarmaciaAt)) > 15 * 60 * 1000
@@ -2762,14 +2844,24 @@ function abrirModalEntrega(id) {
   canvas.addEventListener('touchend', () => dibujando = false)
 
   // Preview foto
-  document.getElementById('entrega-foto').addEventListener('change', function() {
+  document.getElementById('entrega-foto').addEventListener('change', async function() {
+    const seleccionado = this.files[0]
+    if (!seleccionado) return
+    try {
     const file = this.files[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
+    const preparado = await prepararArchivoGuep(seleccionado)
+    if (this.files[0] !== seleccionado || !this.isConnected) return
+    const url = URL.createObjectURL(preparado.blob)
     document.getElementById('entrega-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.15)">`
+    const preview = document.getElementById('entrega-foto-preview').querySelector('img')
+    const liberar = () => URL.revokeObjectURL(url)
+    preview.onload = liberar; preview.onerror = liberar
+    if (preview.complete) liberar()
     const btn = document.getElementById('btn-tomar-foto')
     btn.textContent = '✅ Foto tomada — cambiar'
     btn.style.background = '#22c55e'
+    } catch (error) { _toastRepa(error.message, '#ef4444') }
   })
 }
 
@@ -2795,14 +2887,16 @@ async function confirmarEntrega(id) {
   btn.textContent = 'Subiendo...'
   try {
     // Conserva la captura del canvas, sin exigir trazos en la firma.
+    const fotoPreparada = await prepararArchivoGuep(foto)
     const firma = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
     if (!firma) throw new Error('No se pudo preparar la firma')
+    const firmaPreparada = await prepararArchivoGuep(firma, { kind: 'signature' })
     // Referencias históricas compatibles con el bucket privado y las URL firmadas.
     const base = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
     const referencias = {}
     for (const [campo, ruta, archivo, tipo] of [
-      ['foto_evidencia', `GK-${id}/foto.jpg`, foto, 'image/jpeg'],
-      ['firma_evidencia', `GK-${id}/firma.png`, firma, 'image/png']
+      ['foto_evidencia', `GK-${id}/foto.jpg`, fotoPreparada.blob, fotoPreparada.contentType],
+      ['firma_evidencia', `GK-${id}/firma.png`, firmaPreparada.blob, 'image/png']
     ]) {
       const { data, error } = await db.storage.from('evidencias')
         .upload(ruta, archivo, { contentType: tipo, upsert: true })
@@ -2819,7 +2913,7 @@ async function confirmarEntrega(id) {
     if (await cambiarEstado(id, 'Entregado', telefono, nombre)) modal?.remove()
   } catch (error) {
     console.error('[entrega] No se pudo completar:', error)
-    _toastRepa('No se pudo completar la entrega. Conserva el comprobante y vuelve a intentar.', '#ef4444')
+    _toastRepa(error.code === 'COMPRESSION_FAILED' ? error.message : 'No se pudo completar la entrega. Conserva el comprobante y vuelve a intentar.', '#ef4444')
   } finally {
     entregasEnProceso.delete(id)
     btn.textContent = texto
@@ -2883,12 +2977,22 @@ function abrirModalParada(pedidoId, paradaId, orden, total) {
   canvas.addEventListener('touchend', () => { drawing = false })
   ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
 
-  document.getElementById('parada-foto').addEventListener('change', function() {
+  document.getElementById('parada-foto').addEventListener('change', async function() {
+    const seleccionado = this.files[0]
+    if (!seleccionado) return
+    try {
     if (!this.files[0]) return
-    const url = URL.createObjectURL(this.files[0])
+    const preparado = await prepararArchivoGuep(seleccionado)
+    if (this.files[0] !== seleccionado || !this.isConnected) return
+    const url = URL.createObjectURL(preparado.blob)
     document.getElementById('parada-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:180px;object-fit:cover">`
+    const preview = document.getElementById('parada-foto-preview').querySelector('img')
+    const liberar = () => URL.revokeObjectURL(url)
+    preview.onload = liberar; preview.onerror = liberar
+    if (preview.complete) liberar()
     document.getElementById('btn-parada-foto').textContent = '✅ Foto lista'
     document.getElementById('btn-parada-foto').style.background = '#22c55e'
+    } catch (error) { _toastRepa(error.message, '#ef4444') }
   })
 }
 
@@ -2904,25 +3008,35 @@ async function confirmarParada(pedidoId, paradaId, orden, total) {
     return
   }
   const btn = document.getElementById('btn-confirmar-parada')
+  if (btn.disabled) return
+  const textoPrevio = btn.textContent
   btn.textContent = 'Subiendo...'; btn.disabled = true
+  let fotoPreparada, firmaPreparada
+  try {
+    const archivo = document.getElementById('parada-foto').files[0]
+    if (archivo) fotoPreparada = await prepararArchivoGuep(archivo)
+    const originalFirma = await new Promise(resolve => document.getElementById('parada-canvas').toBlob(resolve, 'image/png'))
+    if (originalFirma) firmaPreparada = await prepararArchivoGuep(originalFirma, { kind: 'signature' })
+  } catch (error) {
+    _toastRepa(error.message, '#ef4444')
+    btn.textContent = textoPrevio; btn.disabled = false
+    return
+  }
 
   const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
   let fotoUrl = null, firmaUrl = null
 
   const fotoInput = document.getElementById('parada-foto')
-  const canvas = document.getElementById('parada-canvas')
 
   const subirFoto = fotoInput.files[0]
-    ? db.storage.from('evidencias').upload(`GK-${pedidoId}/parada-${orden}.jpg`, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    ? db.storage.from('evidencias').upload(`GK-${pedidoId}/parada-${orden}.jpg`, fotoPreparada.blob, { contentType: fotoPreparada.contentType, upsert: true })
         .then(({ error }) => { if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/parada-${orden}.jpg` })
     : Promise.resolve()
 
-  const subirFirma = new Promise(resolve => canvas.toBlob(blob => {
-    if (!blob) return resolve()
-    db.storage.from('evidencias').upload(`GK-${pedidoId}/firma-parada-${orden}.png`, blob, { contentType: 'image/png', upsert: true })
-      .then(({ error }) => { if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-parada-${orden}.png` })
-      .finally(resolve)
-  }, 'image/png'))
+  const subirFirma = firmaPreparada
+    ? db.storage.from('evidencias').upload(`GK-${pedidoId}/firma-parada-${orden}.png`, firmaPreparada.blob, { contentType: 'image/png', upsert: true })
+        .then(({ error }) => { if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-parada-${orden}.png` })
+    : Promise.resolve()
 
   await Promise.all([subirFoto, subirFirma])
 
@@ -3314,14 +3428,24 @@ function abrirModalRecoleccion(pedidoId) {
   canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.strokeStyle = 'var(--color-primary-dark)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke() }, { passive: false })
   canvas.addEventListener('touchend', () => dibujando = false)
 
-  document.getElementById('recol-foto').addEventListener('change', function() {
+  document.getElementById('recol-foto').addEventListener('change', async function() {
+    const seleccionado = this.files[0]
+    if (!seleccionado) return
+    try {
     const file = this.files[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
+    const preparado = await prepararArchivoGuep(seleccionado)
+    if (this.files[0] !== seleccionado || !this.isConnected) return
+    const url = URL.createObjectURL(preparado.blob)
     document.getElementById('recol-foto-preview').innerHTML = `<img src="${url}" style="width:100%;border-radius:12px;max-height:200px;object-fit:cover;box-shadow:0 2px 10px rgba(0,0,0,0.15)">`
+    const preview = document.getElementById('recol-foto-preview').querySelector('img')
+    const liberar = () => URL.revokeObjectURL(url)
+    preview.onload = liberar; preview.onerror = liberar
+    if (preview.complete) liberar()
     const btn = document.getElementById('btn-recol-foto')
     btn.textContent = '✅ Foto tomada — cambiar'
     btn.style.background = '#22c55e'
+    } catch (error) { _toastRepa(error.message, '#ef4444') }
   })
 }
 
@@ -3332,25 +3456,37 @@ function limpiarFirmaRecoleccion() {
 
 async function confirmarRecoleccion(pedidoId) {
   const btn = document.getElementById('btn-confirmar-recoleccion')
+  if (btn.disabled) return
+  const textoPrevio = btn.textContent
   btn.textContent = 'Subiendo...'; btn.disabled = true
+  let fotoPreparada, firmaPreparada
+  try {
+    const archivo = document.getElementById('recol-foto').files[0]
+    if (archivo) fotoPreparada = await prepararArchivoGuep(archivo)
+    const originalFirma = await new Promise(resolve => document.getElementById('recol-canvas').toBlob(resolve, 'image/png'))
+    if (originalFirma) firmaPreparada = await prepararArchivoGuep(originalFirma, { kind: 'signature' })
+  } catch (error) {
+    _toastRepa(error.message, '#ef4444')
+    btn.textContent = textoPrevio; btn.disabled = false
+    return
+  }
 
   const BASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co/storage/v1/object/public/evidencias'
   let fotoUrl = null, firmaUrl = null
 
   const fotoInput = document.getElementById('recol-foto')
   if (fotoInput.files[0]) {
-    const { error } = await db.storage.from('evidencias').upload(`GK-${pedidoId}/recoleccion.jpg`, fotoInput.files[0], { contentType: 'image/jpeg', upsert: true })
+    const { error } = await db.storage.from('evidencias').upload(`GK-${pedidoId}/recoleccion.jpg`, fotoPreparada.blob, { contentType: fotoPreparada.contentType, upsert: true })
     if (!error) fotoUrl = `${BASE_URL}/GK-${pedidoId}/recoleccion.jpg`
   }
 
-  const canvas = document.getElementById('recol-canvas')
-  await new Promise(resolve => canvas.toBlob(async blob => {
+  {
+    const blob = firmaPreparada?.blob
     if (blob) {
       const { error } = await db.storage.from('evidencias').upload(`GK-${pedidoId}/firma-recoleccion.png`, blob, { contentType: 'image/png', upsert: true })
       if (!error) firmaUrl = `${BASE_URL}/GK-${pedidoId}/firma-recoleccion.png`
     }
-    resolve()
-  }, 'image/png'))
+  }
 
   const update = {}
   if (fotoUrl) update.foto_recoleccion = fotoUrl
@@ -3393,14 +3529,21 @@ async function confirmarRecoleccion(pedidoId) {
   }
 }
 
+let fotoRepartidorEnProceso = false
 async function _subirFotoRepartidor(e) {
+  if (fotoRepartidorEnProceso) return
   const file = e.target.files[0]
   if (!file || !_repaUserId) return
   const status = document.getElementById('mfr-status')
   if (status) status.innerHTML = _iconoRepaHtml('53-reloj-arena', 15) + ' Subiendo...'
-  const ext = file.name.split('.').pop() || 'jpg'
+  fotoRepartidorEnProceso = true
+  try {
+  let preparado
+  try { preparado = await prepararArchivoGuep(file) }
+  catch (error) { if (status) status.textContent = error.message; return }
+  const ext = preparado.extension || 'jpg'
   const path = 'repartidores/' + _repaUserId + '.' + ext
-  const { error: upError } = await db.storage.from('perfiles').upload(path, file, { upsert: true })
+  const { error: upError } = await db.storage.from('perfiles').upload(path, preparado.blob, { contentType: preparado.contentType, upsert: true })
   if (upError) {
     if (status) {
       status.textContent = upError.message
@@ -3417,14 +3560,24 @@ async function _subirFotoRepartidor(e) {
   const { data: urlData } = db.storage.from('perfiles').getPublicUrl(path)
   const publicUrl = urlData.publicUrl + '?t=' + Date.now()
   const { data: { session } } = await db.auth.getSession()
-  if (session) {
-    await db.from('repartidores').update({ foto_perfil: urlData.publicUrl }).eq('email', session.user.email)
+  if (!session) { if (status) status.textContent = 'Inicia sesión para guardar la foto.'; return }
+  const { data: perfil, error: perfilError } = await db.from('repartidores')
+    .update({ foto_perfil: urlData.publicUrl }).eq('email', session.user.email)
+    .select('foto_perfil').single()
+  if (perfilError || perfil?.foto_perfil !== urlData.publicUrl) {
+    if (status) status.textContent = 'No se pudo guardar la foto de perfil. Inténtalo de nuevo.'
+    return
+  }
+  if (preparado.changed && preparado.contentType === 'image/jpeg') {
+    const anteriores = ['png', 'jpeg', 'webp'].map(ext => 'repartidores/' + _repaUserId + '.' + ext)
+    try { await db.storage.from('perfiles').remove(anteriores) } catch (_) { /* Limpieza opcional. */ }
   }
   _repaFotoUrl = publicUrl
   _renderAvatarRepartidor()
   const img = document.getElementById('mfr-img')
   if (img) img.src = publicUrl
   if (status) status.textContent = '✅ Foto actualizada'
+  } finally { fotoRepartidorEnProceso = false }
 }
 </script>
 

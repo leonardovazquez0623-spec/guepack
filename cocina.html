@@ -273,6 +273,47 @@
 
 <div id="toast"></div>
 
+<script src="/compresion-imagenes.js?v=1"></script>
+<script>
+let cargaCompresorGuep = null
+async function prepararArchivoGuep(file, options = {}) {
+  if (!globalThis.GuepImagenes) {
+    if (!cargaCompresorGuep) {
+      cargaCompresorGuep = new Promise(resolve => {
+        const script = document.createElement('script')
+        let terminado = false
+        const terminar = () => {
+          if (terminado) return
+          terminado = true
+          clearTimeout(timer)
+          script.onload = script.onerror = null
+          script.remove()
+          resolve()
+        }
+        const timer = setTimeout(terminar, 5000)
+        script.onload = terminar
+        script.onerror = terminar
+        script.src = '/compresion-imagenes.js?v=1'
+        document.head.appendChild(script)
+      }).finally(() => { cargaCompresorGuep = null })
+    }
+    await cargaCompresorGuep
+  }
+  if (globalThis.GuepImagenes) {
+    try { return await globalThis.GuepImagenes.prepare(file, options) }
+    catch (error) {
+      throw error
+    }
+  }
+  const imagen = /^image\//i.test(file.type) || /\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i.test(file.name || '')
+  if (imagen && file.size >= 3 * 1024 * 1024) {
+    const error = new Error('No se pudo cargar el compresor. Elige una foto de menos de 3 MB o vuelve a intentar sin cerrar este formulario.')
+    error.code = 'COMPRESSION_FAILED'
+    throw error
+  }
+  return { blob: file, extension: (file.name || '').split('.').pop() || '', contentType: file.type || 'application/octet-stream', changed: false }
+}
+</script>
 <script src="/supabase-local.js"></script>
 <script>
 const SUPABASE_URL = 'https://zkrnjdsnuyjaxxnluzmn.supabase.co'
@@ -833,14 +874,22 @@ function abrirModalProducto(productoId = null) {
   fondo.addEventListener('click', evento => { if (evento.target === fondo) cerrarModalProducto() })
   document.body.appendChild(fondo)
 
-  document.getElementById('prod-foto').addEventListener('change', evento => {
+  document.getElementById('prod-foto').addEventListener('change', async evento => {
     archivoProductoSeleccionado = evento.target.files?.[0] || null
     document.getElementById('prod-foto-nombre').textContent = archivoProductoSeleccionado?.name || 'Ningún archivo seleccionado'
     if (urlTemporalProducto) URL.revokeObjectURL(urlTemporalProducto)
     if (archivoProductoSeleccionado) {
-      urlTemporalProducto = URL.createObjectURL(archivoProductoSeleccionado)
+      const seleccionado = archivoProductoSeleccionado
+      try {
+      const preparado = await prepararArchivoGuep(seleccionado, { maxSide: 1200 })
+      if (archivoProductoSeleccionado !== seleccionado || !document.getElementById('prod-foto-preview')) return
+      urlTemporalProducto = URL.createObjectURL(preparado.blob)
       document.getElementById('prod-foto-preview').src = urlTemporalProducto
       document.getElementById('prod-foto-preview-contenedor').style.display = 'flex'
+      const img = document.getElementById('prod-foto-preview'), url = urlTemporalProducto
+      const liberar = () => URL.revokeObjectURL(url)
+      img.onload = liberar; img.onerror = liberar; if (img.complete) liberar()
+      } catch (error) { mostrarToast(error.message, true) }
     }
   })
   document.getElementById('form-producto').addEventListener('submit', guardarProducto)
@@ -858,6 +907,7 @@ function cerrarModalProducto() {
 async function guardarProducto(evento) {
   evento.preventDefault()
   const boton = document.getElementById('btn-guardar-producto')
+  if (boton.disabled) return
   const idEditando = productoEditandoId
   const productoActual = idEditando == null ? null : productos.find(item => String(item.id) === String(idEditando))
   boton.disabled = true
@@ -866,9 +916,10 @@ async function guardarProducto(evento) {
   try {
     let imagenUrl = productoActual?.imagen_url || null
     if (archivoProductoSeleccionado) {
-      const extension = (archivoProductoSeleccionado.name.split('.').pop() || 'jpg').toLowerCase()
+      const preparado = await prepararArchivoGuep(archivoProductoSeleccionado, { maxSide: 1200 })
+      const extension = preparado.extension || 'jpg'
       const ruta = `menu-productos/${TENANT_ID}/${crypto.randomUUID()}.${extension}`
-      const { error: errorSubida } = await db.storage.from('anuncios').upload(ruta, archivoProductoSeleccionado, { upsert: true })
+      const { error: errorSubida } = await db.storage.from('anuncios').upload(ruta, preparado.blob, { contentType: preparado.contentType, upsert: true })
       if (errorSubida) throw errorSubida
       const { data: urlData } = db.storage.from('anuncios').getPublicUrl(ruta)
       imagenUrl = urlData?.publicUrl || null
@@ -901,7 +952,7 @@ async function guardarProducto(evento) {
     await cargarMenuCocina()
   } catch (error) {
     console.error('[cocina] Error al guardar producto:', error)
-    mostrarToast('No se pudo guardar el producto', true)
+    mostrarToast(error.code === 'COMPRESSION_FAILED' ? error.message : 'No se pudo guardar el producto', true)
     boton.disabled = false
     boton.textContent = idEditando == null ? 'Guardar' : 'Guardar cambios'
   }

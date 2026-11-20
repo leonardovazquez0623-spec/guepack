@@ -1850,6 +1850,47 @@
   </div>
 </div><!-- /screen-client -->
 
+<script src="/compresion-imagenes.js?v=1"></script>
+<script>
+let cargaCompresorGuep = null
+async function prepararArchivoGuep(file, options = {}) {
+  if (!globalThis.GuepImagenes) {
+    if (!cargaCompresorGuep) {
+      cargaCompresorGuep = new Promise(resolve => {
+        const script = document.createElement('script')
+        let terminado = false
+        const terminar = () => {
+          if (terminado) return
+          terminado = true
+          clearTimeout(timer)
+          script.onload = script.onerror = null
+          script.remove()
+          resolve()
+        }
+        const timer = setTimeout(terminar, 5000)
+        script.onload = terminar
+        script.onerror = terminar
+        script.src = '/compresion-imagenes.js?v=1'
+        document.head.appendChild(script)
+      }).finally(() => { cargaCompresorGuep = null })
+    }
+    await cargaCompresorGuep
+  }
+  if (globalThis.GuepImagenes) {
+    try { return await globalThis.GuepImagenes.prepare(file, options) }
+    catch (error) {
+      throw error
+    }
+  }
+  const imagen = /^image\//i.test(file.type) || /\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i.test(file.name || '')
+  if (imagen && file.size >= 3 * 1024 * 1024) {
+    const error = new Error('No se pudo cargar el compresor. Elige una foto de menos de 3 MB o vuelve a intentar sin cerrar este formulario.')
+    error.code = 'COMPRESSION_FAILED'
+    throw error
+  }
+  return { blob: file, extension: (file.name || '').split('.').pop() || '', contentType: file.type || 'application/octet-stream', changed: false }
+}
+</script>
 <script src="/supabase-local.js"></script>
 <script src="tenant-config.js"></script>
 <script src="evidencias-entrega.js"></script>
@@ -3784,15 +3825,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  document.getElementById('comprobante-input').addEventListener('change', function() {
+  document.getElementById('comprobante-input').addEventListener('change', async function() {
+    const seleccionado = this.files[0]
+    if (!seleccionado) return
+    try {
     const file = this.files[0]
     if (!file) return
-    const url = URL.createObjectURL(file)
+    const preparado = await prepararArchivoGuep(seleccionado)
+    if (this.files[0] !== seleccionado || !this.isConnected) return
+    const url = URL.createObjectURL(preparado.blob)
     document.getElementById('comprobante-preview').innerHTML =
       `<img src="${url}" style="width:100%;border-radius:10px;border:2px solid var(--color-primary-dark);margin-top:4px;object-fit:cover;max-height:200px">`
+    const preview = document.getElementById('comprobante-preview').querySelector('img')
+    const liberar = () => URL.revokeObjectURL(url)
+    preview.onload = liberar; preview.onerror = liberar
+    if (preview.complete) liberar()
     const btn = document.getElementById('btn-comprobante')
     btn.textContent = '✅ Comprobante cargado'
     btn.style.background = '#22c55e'
+    } catch (error) { mostrarToast(error.message, '#ef4444') }
   })
 })
 
@@ -3983,10 +4034,13 @@ if (comprobanteFile) {
     _mostrarToastSeguridad('Demasiadas subidas. Espera un momento.')
     return
   }
-  const ext = comprobanteFile.name.split('.').pop()
+  let preparado
+  try { preparado = await prepararArchivoGuep(comprobanteFile) }
+  catch (error) { mostrarToast(error.message, '#ef4444'); return }
+  const ext = preparado.extension || comprobanteFile.name.split('.').pop()
   const tmpId = Date.now()
   const rutaComprobante = `comprobantes/${tmpId}.${ext}`
-  const { error: upError } = await db.storage.from('evidencias').upload(rutaComprobante, comprobanteFile, { upsert: true })
+  const { error: upError } = await db.storage.from('evidencias').upload(rutaComprobante, preparado.blob, { contentType: preparado.contentType, upsert: true })
   if (upError) {
     console.error('Error al subir el comprobante de pago:', upError)
     mostrarToast(
@@ -8059,7 +8113,9 @@ function _abrirModalFotoCliente() {
   document.getElementById('mfp-input').addEventListener('change', _subirFotoCliente)
 }
 
+let fotoClienteEnProceso = false
 async function _subirFotoCliente(e) {
+  if (fotoClienteEnProceso) return
   const file = e.target.files[0]
   if (!file || !_clienteUserId) return
   if (!_checkRateLimit('subidas', 3, 60000)) {
@@ -8069,13 +8125,28 @@ async function _subirFotoCliente(e) {
   }
   const status = document.getElementById('mfp-status')
   if (status) status.innerHTML = _iconoPanelHtml('53-reloj-arena', 15) + ' Subiendo...'
-  const ext = file.name.split('.').pop() || 'jpg'
+  fotoClienteEnProceso = true
+  try {
+  let preparado
+  try { preparado = await prepararArchivoGuep(file) }
+  catch (error) { if (status) status.textContent = error.message; return }
+  const ext = preparado.extension || 'jpg'
   const path = 'clientes/' + _clienteUserId + '.' + ext
-  const { error: upError } = await db.storage.from('perfiles').upload(path, file, { upsert: true })
+  const { error: upError } = await db.storage.from('perfiles').upload(path, preparado.blob, { contentType: preparado.contentType, upsert: true })
   if (upError) { _ponerMensajeConIcono(status, upError.message, '55-cerrar-x', 15); return }
   const { data: urlData } = db.storage.from('perfiles').getPublicUrl(path)
   const publicUrl = urlData.publicUrl + '?t=' + Date.now()
-  await db.from('usuarios').update({ foto_perfil: urlData.publicUrl }).eq('user_id', _clienteUserId)
+  const { data: perfil, error: perfilError } = await db.from('usuarios')
+    .update({ foto_perfil: urlData.publicUrl }).eq('user_id', _clienteUserId)
+    .select('foto_perfil').single()
+  if (perfilError || perfil?.foto_perfil !== urlData.publicUrl) {
+    if (status) status.textContent = 'No se pudo guardar la foto de perfil. Inténtalo de nuevo.'
+    return
+  }
+  if (preparado.changed && preparado.contentType === 'image/jpeg') {
+    const anteriores = ['png', 'jpeg', 'webp'].map(ext => 'clientes/' + _clienteUserId + '.' + ext)
+    try { await db.storage.from('perfiles').remove(anteriores) } catch (_) { /* Limpieza opcional. */ }
+  }
   _clienteFotoUrl = publicUrl
   _renderAvatarCliente()
   const img = document.getElementById('mfp-img')
@@ -8084,6 +8155,7 @@ async function _subirFotoCliente(e) {
     if (fotoEl) fotoEl.outerHTML = '<img id="mfp-img" src="' + publicUrl + '" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--color-primary-dark);display:block;margin:0 auto 16px">'
   }
   if (status) status.textContent = '✅ Foto actualizada'
+  } finally { fotoClienteEnProceso = false }
 }
 
 // ── Drawer lateral ────────────────────────────────────────────────────────────

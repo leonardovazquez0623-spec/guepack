@@ -1,0 +1,75 @@
+﻿<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#173b45">
+<link rel="manifest" href="prueba-compresion.webmanifest"><title>Prueba local de compresión · Guepack</title>
+<style>
+*{box-sizing:border-box}body{font:16px/1.5 system-ui,sans-serif;margin:0;background:#f2f5f5;color:#18323a}main{max-width:1050px;margin:auto;padding:24px}h1{font-size:1.7rem}label,button,a.download{display:block;margin:12px 0}button,a.download{padding:12px 18px;border:0;border-radius:8px;background:#173b45;color:white;text-decoration:none;width:fit-content}button:disabled{opacity:.5}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}figure{margin:0;background:white;padding:12px;border-radius:12px}canvas{max-width:100%;height:auto;background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 50%/16px 16px}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{text-align:left;border-bottom:1px solid #ccd7d7;padding:8px}output{display:block;white-space:pre-wrap}.note{font-size:.9rem;color:#45616b}#status{min-height:2em}input,select{font:inherit;max-width:100%}[hidden]{display:none!important}@media(max-width:500px){main{padding:14px}.pair{gap:8px}figure{padding:6px}th,td{padding:5px;font-size:.85rem}}
+</style></head><body><main>
+<h1>Prueba de compresión de fotos</h1>
+<p role="note"><strong>Solo pruebas: no inicies sesión en la app desde un preview</strong></p>
+<p>El archivo permanece en tu dispositivo. Esta página no carga configuración de Guepack ni se conecta a Supabase.</p>
+<label>Foto o archivo de prueba <input id="file" type="file" accept="image/*,application/pdf"></label>
+<label>Uso <select id="kind"><option value="photo">Evidencia o perfil · JPEG / 1600 px</option><option value="menu">Menú · JPEG / 1200 px</option><option value="signature">Firma · PNG, solo si supera 100 KiB</option><option value="artwork">Imagen con transparencia · PNG (uso futuro)</option></select></label>
+<button id="run" type="button">Comprimir</button><output id="status" role="status" aria-live="polite"></output>
+<div id="results" hidden><table><thead><tr><th>Medida</th><th>Antes</th><th>Después</th></tr></thead><tbody id="metrics"></tbody></table>
+<div class="pair"><figure><figcaption>Original (miniatura orientada)</figcaption><canvas id="before"></canvas></figure><figure><figcaption>Resultado (miniatura)</figcaption><canvas id="after"></canvas></figure></div>
+<a id="download" class="download" hidden>Descargar resultado</a><button id="report" type="button">Descargar medición JSON</button></div>
+<p class="note">400 KiB es el objetivo; al llegar a calidad 0.6 se detiene. El original solo se permite si pesa menos de 3 MiB cuando no se puede comprimir o no se reduce. Las miniaturas se limitan a 640 px y se crean una a la vez después de medir.</p>
+<p class="note">En iPhone: abre esta URL en Safari y usa Compartir → Añadir a pantalla de inicio para repetir en modo instalado. No se requiere funcionamiento sin conexión. La orientación EXIF se informa cuando puede leerse; verifica también visualmente que texto y personas estén derechos.</p>
+<output id="environment" class="note"></output>
+<script src="../compresion-imagenes.js?v=1"></script><script>
+'use strict';
+const $=id=>document.getElementById(id);let downloadUrl=null,measurement=null;
+const orientations={1:'Normal',2:'Espejo horizontal',3:'180°',4:'Espejo vertical',5:'Transpuesta',6:'90° horario',7:'Transversa',8:'90° antihorario'};
+const bytes=n=>`${n.toLocaleString()} bytes (${(n/1024).toFixed(1)} KiB)`;
+function clear(){if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=null;for(const id of ['before','after']){$(id).width=0;$(id).height=0;}$('results').hidden=true;$('download').hidden=true;}
+async function thumbnail(blob,canvas,info){
+  let bitmap,img,url;
+  try{
+    if(globalThis.createImageBitmap){
+      const options={imageOrientation:'from-image'};
+      if(info?.width&&info?.height){const s=GuepImagenes.dimensions(info.width,info.height,640);options.resizeWidth=s.width;options.resizeHeight=s.height;}
+      bitmap=await createImageBitmap(blob,options);img=bitmap;
+    }else{
+      img=new Image();img.decoding='async';url=URL.createObjectURL(blob);
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+    }
+    const size=GuepImagenes.dimensions(img.naturalWidth||img.width,img.naturalHeight||img.height,640);
+    canvas.width=size.width;canvas.height=size.height;canvas.getContext('2d').drawImage(img,0,0,size.width,size.height);
+    return {width:img.naturalWidth||img.width,height:img.naturalHeight||img.height};
+  }finally{if(bitmap)bitmap.close();if(url){img.removeAttribute('src');URL.revokeObjectURL(url);}}
+}
+$('run').onclick=async()=>{
+  const file=$('file').files[0];if(!file){$('status').textContent='Elige un archivo primero.';return;}
+  clear();$('run').disabled=true;$('file').disabled=true;$('kind').disabled=true;$('status').textContent='Procesando…';
+  let timer,maxGap=0,last=performance.now();
+  try{
+    const kind=$('kind').value,started=performance.now();
+    timer=setInterval(()=>{const now=performance.now();maxGap=Math.max(maxGap,now-last);last=now;},16);
+    // File nuevo evita reutilizar la caché de una medición anterior.
+    const input=new File([file],file.name,{type:file.type});
+    let result;
+    if(globalThis.GuepImagenes)result=await GuepImagenes.prepare(input,{kind:kind==='menu'?'photo':kind,maxSide:kind==='menu'?1200:1600});
+    else{
+      if((/^image\//i.test(file.type)||/\.(jpe?g|png|webp|heic|heif|gif|bmp|avif)$/i.test(file.name))&&file.size>=3*1024*1024)throw Error('No cargó el compresor. Elige una imagen de menos de 3 MB o vuelve a intentar.');
+      result={blob:file,contentType:file.type,extension:file.name.split('.').pop(),changed:false,reason:'module-unavailable'};
+    }
+    const elapsed=performance.now()-started;await new Promise(resolve=>setTimeout(resolve,20));clearInterval(timer);timer=null;
+    let before=result.input||{},after=result.output||{};
+    if(globalThis.GuepImagenes&&/^image\//i.test(file.type)){
+      before=await GuepImagenes.inspect(file);after=await GuepImagenes.inspect(result.blob);
+      const first=await thumbnail(file,$('before'),before);const second=await thumbnail(result.blob,$('after'),after);
+      if(!before.width)before={...before,...first};if(!after.width)after={...after,...second};
+    }
+    measurement={version:globalThis.GuepImagenes?.version||null,file:file.name,kind,before:{bytes:file.size,type:file.type,...before},after:{bytes:result.blob.size,type:result.contentType,...after},proporcionAntes:before.width&&before.height?before.width/before.height:null,proporcionDespues:after.width&&after.height?after.width/after.height:null,elapsedMs:elapsed,maxTimerGapMs:maxGap,quality:result.quality??null,attempts:result.attempts||[],reason:result.reason,userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true};
+    const rows=[['Tamaño',bytes(file.size),bytes(result.blob.size)],['Dimensiones orientadas',before.width?`${before.width} × ${before.height}`:'No disponible',after.width?`${after.width} × ${after.height}`:'No disponible'],['MIME',file.type||'No informado',result.contentType],['EXIF',before.format==='image/jpeg'?`${before.orientation}: ${orientations[before.orientation]}`:'No disponible / no aplica',result.changed?'Píxeles orientados; sin EXIF original':'Original conservado'],['Tiempo de compresión','—',`${elapsed.toFixed(1)} ms`],['Mayor intervalo del temporizador','—',`${maxGap.toFixed(1)} ms (aproximación)`],['Ahorro','—',`${(100*(1-result.blob.size/file.size)).toFixed(1)} %`],['Calidad','—',result.quality??'No aplica']];
+    $('metrics').replaceChildren(...rows.map(row=>{const tr=document.createElement('tr');for(const text of row){const td=document.createElement('td');td.textContent=text;tr.append(td);}return tr;}));
+    downloadUrl=URL.createObjectURL(result.blob);$('download').href=downloadUrl;$('download').download=file.name.replace(/\.[^.]+$/,'')+'-comprimida.'+(result.extension||'bin');$('download').hidden=false;$('results').hidden=false;
+    $('status').textContent=result.changed?'Compresión terminada. Comprueba orientación y legibilidad.':'Se conserva el archivo original: '+result.reason;
+  }catch(error){$('status').textContent=error.message;}
+  finally{if(timer)clearInterval(timer);$('run').disabled=false;$('file').disabled=false;$('kind').disabled=false;}
+};
+$('report').onclick=()=>{if(!measurement)return;const url=URL.createObjectURL(new Blob([JSON.stringify(measurement,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='medicion-compresion.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);};
+$('file').onchange=clear;addEventListener('pagehide',clear);
+$('environment').textContent=`Módulo: ${globalThis.GuepImagenes?.version||'no cargado'} · Instalado: ${matchMedia('(display-mode: standalone)').matches||navigator.standalone===true} · ${navigator.userAgent}`;
+</script></main></body></html>
